@@ -188,6 +188,9 @@ details.agotadas>summary:focus-visible{outline:2px solid var(--acc);outline-offs
 .cal-d b{font-size:15px}.cal-d span{font-size:10px;color:var(--mut)}
 .cal-d.r3{background:var(--ok-bg)}.cal-d.r2{background:var(--warn-bg)}.cal-d.r1{background:var(--warn-bg)}.cal-d.r0{background:var(--surf2);color:var(--mut)}
 .cal-d.cambio{border:2px solid var(--acc)}.cal-d.hoy b{text-decoration:underline}
+.col-stk tr.grp td{background:var(--surf2);padding-top:10px}
+.col-stk tr.sub-tot td{font-weight:700;border-bottom:2px solid var(--line)}
+.col-stk tr.ext td{background:var(--ok-bg)}
 .btn.peq{font-size:13px;padding:6px 12px;border-radius:7px}
 .btn.peligro{background:var(--bad);border-color:var(--bad);color:#fff}
 .del{font-size:12px;padding:3px 8px;margin-top:4px;color:var(--bad,#b3261e)}
@@ -867,7 +870,7 @@ async function ajustarGranalla(){
   catch(e){toast("No se pudo apuntar el ajuste");}
 }
 /* filtro de la pestaña Stock: nave y aleación (se recuerda en este aparato) */
-let fStk={nave:"",mat:""};try{const x=JSON.parse(localStorage.getItem("colada.fstk")||"{}");fStk={nave:x.nave||"",mat:x.mat||""};}catch(e){}
+let fStk={nave:"",mat:"",ubi:""};try{const x=JSON.parse(localStorage.getItem("colada.fstk")||"{}");fStk={nave:x.nave||"",mat:x.mat||"",ubi:x.ubi||""};}catch(e){}
 const pasaF=(n,m)=>(!fStk.nave||fStk.nave===n)&&(!fStk.mat||fStk.mat===m);
 function filtroStock(B){
   const pon=(k,v)=>{fStk[k]=v;try{localStorage.setItem("colada.fstk",JSON.stringify(fStk));}catch(e){}render();};
@@ -875,11 +878,37 @@ function filtroStock(B){
   const ls=LINEAS.filter(([n,m])=>pasaF(n,m)).map(([n,m])=>B[key(n,m)]);
   const t=ls.reduce((a,b)=>{a.faN+=b.faN;a.kgN+=b.kgN;a.faE+=b.faE;a.kgE+=b.kgE;return a;},{faN:0,kgN:0,faE:0,kgE:0});
   const mezcla=!fStk.mat&&new Set(ls.filter(b=>b.fa>0).map(b=>b.mat)).size>1;
+  const resumen=mezcla?"":fStk.ubi==="nave"?": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg)":fStk.ubi==="externo"?": en externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg)":
+    ": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg) · externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg) · total "+fmt(t.faN+t.faE)+" f ("+fmt(t.kgN+t.kgE)+" kg)";
   return el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
     el("div",{class:"row"},[
       el("label",{text:"Nave"},[grupo("nave",[["","Todas"]].concat(NAVES.map(n=>[n,n])))]),
-      el("label",{text:"Aleación"},[grupo("mat",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom])))])]),
-    (fStk.nave||fStk.mat)?el("p",{class:"hint",style:"margin:0",text:(fStk.nave||"Las dos naves")+" · "+(fStk.mat?MAT[fStk.mat].nom:"todas las aleaciones")+(mezcla?"":": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg) · externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg) · total "+fmt(t.faN+t.faE)+" f ("+fmt(t.kgN+t.kgE)+" kg)")}):null])]);
+      el("label",{text:"Aleación"},[grupo("mat",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom])))]),
+      el("label",{text:"Dónde"},[grupo("ubi",[["","Todo"],["nave","En nave"],["externo","Externo"]])])]),
+    (fStk.nave||fStk.mat||fStk.ubi)?el("p",{class:"hint",style:"margin:0",text:(fStk.nave||"Las dos naves")+" · "+(fStk.mat?MAT[fStk.mat].nom:"todas las aleaciones")+(fStk.ubi?" · "+(fStk.ubi==="nave"?"en nave":"en externo"):"")+resumen}):null])]);
+}
+/* coladas con existencias, filtradas por nave, aleación y dónde están; la más antigua primero (FIFO) */
+function coladasStock(){
+  const {S}=bloques(),out=[];
+  const filas=lotes.map(l=>({l,b:S[l.id]})).filter(x=>x.b&&x.b.fa>0&&pasaF(x.l.nave,x.l.material)&&(!fStk.ubi||x.l.donde===fStk.ubi));
+  const grupos=[];LINEAS.forEach(([n,m])=>{const its=filas.filter(x=>x.l.nave===n&&x.l.material===m)
+    .sort((a,c)=>(a.l.donde===c.l.donde?0:(a.l.donde==="nave"?-1:1))||(a.l.entrada||"").localeCompare(c.l.entrada||""));if(its.length)grupos.push({n,m,its});});
+  if(!grupos.length)return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Coladas"})]),el("div",{class:"empty",text:"No hay coladas con existencias con este filtro."})]);
+  const tb=[];grupos.forEach(g=>{
+    tb.push(el("tr",{class:"grp"},[el("td",{colspan:"5"},[el("span",{class:"tagm",style:"background:"+MAT[g.m].col}),el("b",{text:g.n+" · "+MAT[g.m].nom})])]));
+    let f=0,k=0;g.its.forEach(({l,b})=>{const kg=kgVis(b);f+=b.fa;k+=kg;const ext=l.donde==="externo";
+      tb.push(el("tr",{class:ext?"ext":""},[
+        el("td",{},[el("button",{type:"button",class:"linkcol",text:l.nombre,onclick:()=>abrirFicha(l.id)}),el("div",{class:"sub",text:[l.proveedor,l.albaran].filter(Boolean).join(" · ")})]),
+        el("td",{text:ext?"Externo":"Nave"}),
+        el("td",{class:"num",text:l.entrada?dmyA(l.entrada):"—"}),
+        el("td",{class:"r num",style:"font-weight:600",text:fmt(b.fa)}),
+        el("td",{class:"r num",text:fmt(kg)})]));});
+    tb.push(el("tr",{class:"sub-tot"},[el("td",{colspan:"3",text:"Total "+g.n+" · "+MAT[g.m].nom}),el("td",{class:"r num",text:fmt(f)}),el("td",{class:"r num",text:fmt(k)})]));});
+  const tot={};filas.forEach(({l,b})=>{const t=tot[l.material]=tot[l.material]||{f:0,k:0};t.f+=b.fa;t.k+=kgVis(b);});
+  return el("div",{class:"card"},[
+    el("div",{class:"hd"},[el("h2",{text:"Coladas"}),el("span",{class:"sub",style:"margin-left:auto",text:filas.length+" con existencias · la más antigua primero"})]),
+    el("div",{class:"tw"},[el("table",{class:"col-stk"},[el("thead",{},[el("tr",{},[el("th",{text:"Colada"}),el("th",{text:"Dónde"}),el("th",{text:"Entrada"}),el("th",{class:"r",text:"Fardos"}),el("th",{class:"r",text:"Kg"})])]),el("tbody",{},tb)])]),
+    Object.keys(tot).length>1||grupos.length>1?el("div",{class:"bd"},[el("p",{class:"hint",style:"margin:0",text:"Total por aleación: "+Object.keys(MAT).filter(m=>tot[m]).map(m=>MAT[m].nom+" "+fmt(tot[m].f)+" f · "+fmt(tot[m].k)+" kg").join("  ·  ")})]):null]);
 }
 function vStock(){
   const {B,dias}=bloques();
@@ -915,7 +944,7 @@ function vStock(){
     el("div",{class:"split"},[el("div",{},[el("dt",{text:"Mínimo"}),el("dd",{class:"num",text:fmt(gm)+" kg"})]),el("div",{},[el("dt",{text:"Margen"}),el("dd",{class:"num",text:fmt(gk-gm)+" kg"})])]),
     el("div",{class:"foot"},[el("button",{type:"button",class:"btn sec",style:"font-size:13px;padding:5px 10px",text:"Ajustar por recuento",onclick:ajustarGranalla})])
   ]));
-  const out=[filtroStock(B),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
+  const out=[filtroStock(B),coladasStock(),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
   const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5&&pasaF(b.nave,b.mat);}).map(k=>B[k]);
   if(alerta.length)out.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
   out.push(vMin());
