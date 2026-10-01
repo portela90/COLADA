@@ -599,6 +599,8 @@ function vParte(B,ud,ahora){
   const filas=LINEAS.map(([n,mm])=>{const k=key(n,mm),b=B[k];
       return{k,nave:n,mat:mm,cKg:b.cUd,cFa:b.cUdFa,kg:b.kg,fa:b.fa,kgN:b.kgN,faN:b.faN,kgE:b.kgE,faE:b.faE,dias:b.dias};})
     .filter(x=>x.fa>0||x.kg>0||x.cFa>0);
+  /* en pantalla se aplica el filtro de Stock; «Copiar parte» siempre lleva todo */
+  const filasV=filas.filter(x=>tab!=="stock"||pasaF(x.nave,x.mat));
   const texto=()=>{
     const L=["PARTE "+(ud?dmy(ud):"—")];
     filas.forEach(x=>{
@@ -630,11 +632,11 @@ function vParte(B,ud,ahora){
     /* el parte es al cierre de ese día: si después se ha apuntado algo, se
        enseña también lo que hay en nave ahora para que no parezca descuadre */
     (ahora&&ud&&ud<hoy()&&todosMovs().some(r=>!r.h&&r.f>ud&&(r.t==="C"||r.t==="A"||r.t==="E"||r.t==="T")))?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner",
-      text:"Este parte es al cierre del "+dmy(ud)+". Con lo apuntado después, en nave hay ahora: "+LINEAS.filter(([n,m])=>ahora[key(n,m)]&&(ahora[key(n,m)].faN||B[key(n,m)].faN)).map(([n,m])=>n+" "+MAT[m].nom+" "+fmt(ahora[key(n,m)].faN)+" f").join(" · ")+"."})]):null,
+      text:"Este parte es al cierre del "+dmy(ud)+". Con lo apuntado después, en nave hay ahora: "+LINEAS.filter(([n,m])=>(tab!=="stock"||pasaF(n,m))&&ahora[key(n,m)]&&(ahora[key(n,m)].faN||B[key(n,m)].faN)).map(([n,m])=>n+" "+MAT[m].nom+" "+fmt(ahora[key(n,m)].faN)+" f").join(" · ")+"."})]):null,
     (ud===hoy())?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner w",text:"Hoy aún no ha terminado: el consumo y el stock son los apuntados hasta ahora."})]):null,
-    filas.length?el("div",{class:"tw"},[el("table",{},[
+    filasV.length?el("div",{class:"tw"},[el("table",{},[
       el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{class:"r",text:"Consumido"}),el("th",{class:"r",text:"En nave"}),el("th",{class:"r",text:"En externo"}),el("th",{class:"r",text:"Total"}),el("th",{class:"r",text:"Días"})])]),
-      el("tbody",{},filas.map(x=>el("tr",{},[
+      el("tbody",{},filasV.map(x=>el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),
           el("div",{class:"sub",text:MAT[x.mat].nom})]),
         dual(x.cFa,x.cKg,true),
@@ -642,7 +644,7 @@ function vParte(B,ud,ahora){
         dual(x.faE,x.kgE),
         dual(x.fa,x.kg),
         el("td",{class:"r num",text:x.dias!=null?String(x.dias):"—"})
-      ])).concat([el("tr",{},[
+      ])).concat(fStk.mat&&tab==="stock"?[]:[el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),
           gcNaves.length?el("div",{class:"sub",text:gcNaves.join(" · ")}):null]),
         el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:fmt(gc.tot)+" kg"})]),
@@ -785,7 +787,7 @@ function vPrevision(){
   const sig=(()=>{const d=new Date(+mes.slice(0,4),+mes.slice(5,7),1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
   const diasSig=laborables(sig+"-01",finDeMes(sig));
   const PL=((cfg.plan||{})[mes]||{}),ents=(PL.entradas||[]).filter(x=>x.k&&x.f>h&&!x.rec);
-  const filas=LINEAS.map(([n,mt])=>{const k=key(n,mt),x=P.lineas[k],b=B[k];
+  const filas=LINEAS.filter(([n,mt])=>pasaF(n,mt)).map(([n,mt])=>{const k=key(n,mt),x=P.lineas[k],b=B[k];
       const mc=mediaCamion(mt),kgf=b&&b.fa>0?b.kg/b.fa:(mc.kg&&mc.fa?mc.kg/mc.fa:KG_CAM/FA_CAM),prev=ents.filter(e=>e.k===k).reduce((a,e)=>a+e.fa,0);
       return Object.assign({k,b,kgf,prev,resto:x.dia*restan,sig:x.dia*diasSig},x);})
     .filter(x=>x.maq>0||(x.b&&x.b.fa>0));
@@ -795,7 +797,7 @@ function vPrevision(){
   filas.forEach(x=>{const disp=(x.b?x.b.fa:0)+x.prev,falta=x.resto-disp;
     if(falta>0.5)avisos.push(etiqLinea(x.k)+": para acabar el mes faltan unos "+fmt(Math.ceil(falta))+" fardos"+cam(falta,x.mat)+" (tienes "+fmt(x.b?x.b.fa:0)+" en nave y externo"+(x.prev?" + "+fmt(x.prev)+" previstos":"")+").");});
   const gk=granallaKg();
-  const gTot=NAVES.reduce((a,n)=>a+P.gran[n].dia,0),gMaq=NAVES.reduce((a,n)=>a+P.gran[n].maq,0);
+  const gTot=fStk.mat?0:NAVES.filter(n=>!fStk.nave||fStk.nave===n).reduce((a,n)=>a+P.gran[n].dia,0),gMaq=fStk.mat?0:NAVES.filter(n=>!fStk.nave||fStk.nave===n).reduce((a,n)=>a+P.gran[n].maq,0);
   if(gTot>0&&gk<gTot*restan)avisos.push("Granalla de cobre: para acabar el mes faltan unos "+fmt(gTot*restan-gk)+" kg.");
   const nuevo=filas.some(x=>x.fuente==="media")||NAVES.some(n=>P.gran[n].maq>0&&P.gran[n].fuente==="media");
   return el("div",{class:"card"},[
@@ -849,7 +851,7 @@ function vMaquinas(){
         el("label",{text:"Relevo"},[el("div",{class:"seg"},TURNOS.map(t=>el("button",{type:"button","aria-pressed":String(mqTurno===t),text:t,onclick:()=>{mqTurno=t;render();}})))])]),
       sinDatos?el("div",{class:"banner w",text:"Marca qué máquinas están paradas y cuáles llevan granalla de cobre o trabajan con AlSi12. Mientras no marques nada, todas cuentan en marcha con AlSi9 y sin granalla de cobre."}):null,
       el("p",{class:"hint",text:"Toca el nombre para ponerla en marcha o pararla, y «Granalla» o «AlSi12» para lo que lleva (las demás trabajan con AlSi9). Cada cambio se guarda con la fecha de arriba"+(mqFecha!==hoy()?" ("+dmy(mqFecha)+")":" (hoy)")+" y el relevo elegido, y sigue igual en los relevos siguientes hasta que la vuelvas a cambiar. Si una máquina para por la tarde y arranca por la noche, marca cada cambio en su relevo."}),
-      seccion("Nave 1"),seccion("Nave 2")])]);
+      ...NAVES.filter(n=>!fStk.nave||fStk.nave===n).map(seccion)])]);
 }
 /* Ajuste de granalla por recuento: se apunta la diferencia como ajuste
    (cambia el stock pero no cuenta como consumo ni en la previsión) */
@@ -864,13 +866,28 @@ async function ajustarGranalla(){
   try{await addMov({i:uid("m"),t:"G",aj:true,f:hoy(),kg:dif,n:"Ajuste por recuento: "+n.toLocaleString("es-ES")+" kg (la app tenía "+(Math.round(gk*100)/100).toLocaleString("es-ES")+")"});toast("Ajuste apuntado");}
   catch(e){toast("No se pudo apuntar el ajuste");}
 }
+/* filtro de la pestaña Stock: nave y aleación (se recuerda en este aparato) */
+let fStk={nave:"",mat:""};try{const x=JSON.parse(localStorage.getItem("colada.fstk")||"{}");fStk={nave:x.nave||"",mat:x.mat||""};}catch(e){}
+const pasaF=(n,m)=>(!fStk.nave||fStk.nave===n)&&(!fStk.mat||fStk.mat===m);
+function filtroStock(B){
+  const pon=(k,v)=>{fStk[k]=v;try{localStorage.setItem("colada.fstk",JSON.stringify(fStk));}catch(e){}render();};
+  const grupo=(k,ops)=>el("div",{class:"seg",role:"group"},ops.map(([v,t])=>el("button",{type:"button","aria-pressed":String(fStk[k]===v),text:t,onclick:()=>pon(k,v)})));
+  const ls=LINEAS.filter(([n,m])=>pasaF(n,m)).map(([n,m])=>B[key(n,m)]);
+  const t=ls.reduce((a,b)=>{a.faN+=b.faN;a.kgN+=b.kgN;a.faE+=b.faE;a.kgE+=b.kgE;return a;},{faN:0,kgN:0,faE:0,kgE:0});
+  const mezcla=!fStk.mat&&new Set(ls.filter(b=>b.fa>0).map(b=>b.mat)).size>1;
+  return el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
+    el("div",{class:"row"},[
+      el("label",{text:"Nave"},[grupo("nave",[["","Todas"]].concat(NAVES.map(n=>[n,n])))]),
+      el("label",{text:"Aleación"},[grupo("mat",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom])))])]),
+    (fStk.nave||fStk.mat)?el("p",{class:"hint",style:"margin:0",text:(fStk.nave||"Las dos naves")+" · "+(fStk.mat?MAT[fStk.mat].nom:"todas las aleaciones")+(mezcla?"":": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg) · externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg) · total "+fmt(t.faN+t.faE)+" f ("+fmt(t.kgN+t.kgE)+" kg)")}):null])]);
+}
 function vStock(){
   const {B,dias}=bloques();
   if(parteDia&&parteDia>hoy())parteDia="";
   const ud=parteDia||diaParte(),P=ud?conCorte(ud,()=>bloques(ud).B):B;
   const parte=conCorte(ud,()=>vParte(P,ud,B));
   const g=el("div",{class:"stock"});
-  [["Nave 1","L-2630"],["Nave 1","L-2521-B"],["Nave 2","L-2630"],["Nave 2","L-2521-B"]].forEach(([n,m])=>{
+  [["Nave 1","L-2630"],["Nave 1","L-2521-B"],["Nave 2","L-2630"],["Nave 2","L-2521-B"]].filter(([n,m])=>pasaF(n,m)).forEach(([n,m])=>{
     const b=B[key(n,m)],mn=cfg.minimos[key(n,m)]||{},[st,tx]=estado(b,mn);
     g.appendChild(el("div",{class:"sc s-"+st},[
       el("div",{class:"stripe"}),
@@ -891,15 +908,15 @@ function vStock(){
     ]));
   });
   const gk=granallaKg(),gm=(cfg.granalla&&cfg.granalla.min)||0,gst=gk<gm?"bad":(gk<gm*1.35?"warn":"ok");
-  g.appendChild(el("div",{class:"sc s-"+(gm>0?gst:"na")},[
+  if(!fStk.mat)g.appendChild(el("div",{class:"sc s-"+(gm>0?gst:"na")},[
     el("div",{class:"stripe"}),
     el("div",{class:"top"},[el("span",{class:"dot",style:"background:var(--cobre)"}),el("span",{class:"nm",text:"Granalla de cobre"}),gm>0?el("span",{class:"pill "+gst,text:gk<gm?"Bajo mínimo":"OK",style:"margin-left:auto"}):el("span",{class:"pill na",text:"Sin mínimo",style:"margin-left:auto"})]),
     el("div",{class:"dias"},[el("b",{class:"num",text:fmt(gk)}),el("i",{text:"kg en total"})]),
     el("div",{class:"split"},[el("div",{},[el("dt",{text:"Mínimo"}),el("dd",{class:"num",text:fmt(gm)+" kg"})]),el("div",{},[el("dt",{text:"Margen"}),el("dd",{class:"num",text:fmt(gk-gm)+" kg"})])]),
     el("div",{class:"foot"},[el("button",{type:"button",class:"btn sec",style:"font-size:13px;padding:5px 10px",text:"Ajustar por recuento",onclick:ajustarGranalla})])
   ]));
-  const out=[parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
-  const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5;}).map(k=>B[k]);
+  const out=[filtroStock(B),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
+  const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5&&pasaF(b.nave,b.mat);}).map(k=>B[k]);
   if(alerta.length)out.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
   out.push(vMin());
   out.push(el("p",{class:"hint",text:"El gasto medio sale de "+dias+" días distintos con consumo registrado. Los días de material cuentan sólo los fardos que están en la nave: lo del almacén externo no se puede fundir hasta traerlo."}));
@@ -1754,7 +1771,7 @@ function vConsultas(){
 }
 function vMin(){
   const rows=[];
-  NAVES.forEach(n=>Object.keys(MAT).forEach(m=>{const k=key(n,m),mn=cfg.minimos[k]||{};
+  NAVES.forEach(n=>Object.keys(MAT).forEach(m=>{const k=key(n,m),mn=cfg.minimos[k]||{};if(!pasaF(n,m))return;
     rows.push(el("tr",{},[
       el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[m].col}),document.createTextNode(n+" · "+MAT[m].nom)]),
       el("td",{},[el("input",{class:"num",type:"text",min:"0",step:"1",inputmode:"numeric",style:"font-size:15px;padding:7px 9px",value:mn.fardosNave!=null?mn.fardosNave:"",onchange:async e=>{
