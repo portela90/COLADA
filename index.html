@@ -74,6 +74,11 @@ input,select{font-family:inherit;font-size:17px;padding:11px 12px;border:1px sol
 input.num,select.num{font-family:"IBM Plex Mono",monospace}
 input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px;background:var(--surf)}
 .seg{display:flex;gap:8px;flex-wrap:wrap}
+/* que nada se salga de su hueco en pantallas estrechas (iPad en pantalla partida, móvil) */
+.row>*,label{min-width:0}
+input[type=date]{display:block;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;min-height:46px;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
+.seg button{min-width:64px;white-space:nowrap}
 .seg button{flex:1;min-width:86px;appearance:none;font-family:inherit;font-size:15px;font-weight:600;padding:11px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surf2);color:var(--ink2);cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
 .seg button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
