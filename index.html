@@ -329,7 +329,11 @@ function canal(col,fn){(subs[col]=subs[col]||[]).push(fn);
   if(subs[col].length===1)sb.channel("docs-"+col).on("postgres_changes",{event:"*",schema:"public",table:"docs",filter:"col=eq."+col},p=>{subs[col].forEach(f=>f(p));}).subscribe(st=>{if(st==="SUBSCRIBED")subs[col].forEach(f=>f(null));});}
 async function leeCol(col){const r=await sb.from("docs").select("id,data").eq("col",col);if(r.error)throw r.error;return r.data||[];}
 async function leeDoc(col,id){const r=await sb.from("docs").select("data").eq("col",col).eq("id",id).maybeSingle();if(r.error)throw r.error;return r.data;}
+const rpc=async(f,a)=>{const r=await sb.rpc(f,a);if(r.error)throw r.error;};
 const db={
+  itemsAdd:(col,id,items)=>rpc("docs_items_add",{p_col:col,p_id:id,p_items:items}),
+  itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:col,p_id:id,p_item:item}),
+  itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:col,p_id:id,p_i:i}),
   collection:col=>({onSnapshot:(cb,er)=>{const go=()=>leeCol(col).then(rows=>cb(snap(rows))).catch(e=>er&&er(e));go();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
     get:async()=>{const d=await leeDoc(col,id);return{exists:!!d,data:()=>d?d.data:undefined};},
@@ -484,22 +488,26 @@ function fifoLista(nave,mat,S){
 }
 
 /* ---------- escritura ---------- */
-async function addMov(rec){const m=mesDe(rec.f),ref=db.doc("mov/"+m),sn=await ref.get();
-  const it=sn.exists?((sn.data().items)||[]).slice():[];it.push(rec);await ref.set({items:it});}
+/* Apuntes dentro del documento de cada mes. En la web se hace en la base de
+   datos en una sola operación (dos personas a la vez no se pisan). */
+async function itemsAdd(col,id,items){if(db.itemsAdd)return db.itemsAdd(col,id,items);
+  const ref=db.doc(col+"/"+id),sn=await ref.get();const it=sn.exists?((sn.data().items)||[]).slice():[];await ref.set({items:it.concat(items)});}
+async function itemsPut(col,id,item){if(db.itemsPut)return db.itemsPut(col,id,item);
+  const ref=db.doc(col+"/"+id),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).map(r=>r.i===item.i?item:r)});}
+async function itemsDel(col,id,i){if(db.itemsDel)return db.itemsDel(col,id,i);
+  const ref=db.doc(col+"/"+id),sn=await ref.get();if(!sn.exists)return;await ref.set({items:((sn.data().items)||[]).filter(r=>r.i!==i)});}
+async function addMov(rec){await itemsAdd("mov",mesDe(rec.f),[rec]);}
 /* varios apuntes de golpe: una sola escritura por mes */
 async function addMovs(recs){const g={};recs.forEach(r=>{const m=mesDe(r.f);(g[m]=g[m]||[]).push(r);});
-  for(const m in g){const ref=db.doc("mov/"+m),sn=await ref.get();
-    const it=sn.exists?((sn.data().items)||[]).slice():[];await ref.set({items:it.concat(g[m])});}}
+  for(const m in g)await itemsAdd("mov",m,g[m]);}
 /* guardar un apunte editado (mismo id). Si cambia de mes, primero se escribe
    en el mes nuevo y luego se quita del viejo, para no perderlo nunca. */
 async function guardarMov(orig,nuevo){
   const mO=mesDe(orig.f),mN=mesDe(nuevo.f);
-  if(mO===mN){const ref=db.doc("mov/"+mO),sn=await ref.get();
-    const it=((sn.exists&&sn.data().items)||[]).map(r=>r.i===orig.i?nuevo:r);await ref.set({items:it});}
+  if(mO===mN)await itemsPut("mov",mO,nuevo);
   else{await addMov(nuevo);await delMov(orig.i,orig.f);}
 }
-async function delMov(id,f){const ref=db.doc("mov/"+mesDe(f)),sn=await ref.get();if(!sn.exists)return;
-  await ref.set({items:((sn.data().items)||[]).filter(r=>r.i!==id)});}
+async function delMov(id,f){await itemsDel("mov",mesDe(f),id);}
 /* Borrar un apunte de consumo o entrada con aviso claro. Si es la entrada que
    creó la colada y no tiene nada más, también se quita la colada vacía. */
 /* Ventanas propias: la página publicada bloquea confirm() y prompt() del
@@ -728,7 +736,7 @@ function estadoMaq(f,u){const st={};NAVES.forEach(n=>MAQ[n].forEach(m=>{st[m]={n
   maqEventos().forEach(e=>{if(!st[e.m])return;if(e.f<f||(e.f===f&&(u==null||TI(e.u)<=TI(u))))st[e.m]={nave:st[e.m].nave,on:!!e.on,cu:!!e.cu,az:!!e.az};});return st;}
 function cuentaMaq(st,n){const c={on:0,b:0,a:0,c:0};MAQ[n].forEach(m=>{const x=st[m];if(!x||!x.on)return;c.on++;if(x.az)c.a++;else c.b++;if(x.cu)c.c++;});return c;}
 async function addMaqEv(evs){const g={};evs.forEach(r=>{const m=mesDe(r.f);(g[m]=g[m]||[]).push(r);});
-  for(const m in g){const ref=db.doc("maq/"+m),sn=await ref.get();const it=sn.exists?((sn.data().items)||[]).slice():[];await ref.set({items:it.concat(g[m])});}}
+  for(const m in g)await itemsAdd("maq",m,g[m]);}
 /* ---------- Calendario de la fábrica ----------
    Relevos que se trabajan cada día: de lunes a jueves 3, los viernes 2 (el de
    noche no trabaja), sábados y domingos 0. Las fiestas y los cambios se guardan
@@ -2529,6 +2537,7 @@ function pinta(){
   const v=$("view");v.textContent="";
   if(!ready){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"Cargando…"})]));return;}
   if(!db){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."})]));return;}
+  if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
   $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
@@ -2542,6 +2551,9 @@ $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carg
 (async function(){
   try{db=await claude.use("db");}catch(e){db=null;}
   if(!db){ready=true;render();return;}
+  /* fuera de la web (la Colada de Claude) queda en solo lectura */
+  if(!window.WEB){const d0=db,no=async()=>{toast("Solo consulta: apunta en la aplicación web");throw new Error("solo lectura");};
+    db={collection:c=>d0.collection(c),doc:p=>{const r=d0.doc(p);return{get:()=>r.get(),onSnapshot:(a,b)=>r.onSnapshot(a,b),set:no,update:no};},itemsAdd:no,itemsPut:no,itemsDel:no};}
   db.collection("lotes").onSnapshot(sn=>{lotes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));ready=true;render();},()=>{ready=true;render();});
   db.collection("maq").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});maqEv=m;render();},()=>{});
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;ready=true;render();},()=>{});
