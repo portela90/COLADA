@@ -493,7 +493,7 @@ function fechaTxt(t,base){const d=new Date(base+"T12:00:00");const iso=x=>x.toIS
   const m=t.match(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(?:\s*[\/-]\s*(\d{2,4}))?\b/);if(m){const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):base.slice(0,4);const f=y+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");if(!isNaN(Date.parse(f)))return f;}
   return null;}
 function trozos(txt){return txt.split(/\.+(?=\s|$)|[;\n]+|\s+y\s+(?=(?:\d(?!\s*[.,]\s*\d)|un\b|una\b|dos\b|tres\b|cuatro\b|cinco\b|seis\b|siete\b|ocho\b|nueve\b|diez\b|otr|cambi|consum|gast|entr|lleg|baj|pas|cont|hay\b))|,\s*(?=otr[oa]\b|tambien\b)|\b(?:otro|otra)\s+(?=cambio)/).map(x=>(x||"").trim()).filter(x=>x.length>1);}
-function aliasAlm(){return cat.almacenes.map(l=>{const n=norm(l.nom);const al=[];const ult=n.split(/\s+/).pop();if(ult&&ult.length<=4)al.push(ult);
+function aliasAlm(){return cat.almacenes.map(l=>{const n=norm(l.nom);const al=[];const ult=n.split(/\s+/).pop();if(ult&&ult.length<=4)al.push(ult);const nv=ult&&ult.match(/^n(\d)([a-z]?)$/);if(nv&&l.tipo==="produccion"){al.push("nave "+nv[1]+nv[2],"nave "+nv[1]+(nv[2]?" "+nv[2]:""));if(!nv[2])al.push("n "+nv[1]);}
   if(l.tipo==="central"&&/general|central/.test(n))al.push("general","central");if(/consumible/.test(n))al.push("consumibles","consumible");al.push(n.replace(/^almacen (de )?(produccion )?/,""));return{l,al:Array.from(new Set(al.filter(Boolean)))};});}
 function buscaAlms(t){const out=[];aliasAlm().forEach(({l,al})=>{al.forEach(a=>{const re=new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","g");let m;while((m=re.exec(t)))out.push({id:l.id,i:m.index,len:a.length});});});
   out.sort((a,b)=>a.i-b.i||b.len-a.len);const res=[];out.forEach(o=>{if(!res.some(r=>o.i<r.i+r.len&&r.i<o.i+o.len))res.push(o);});return res;}
@@ -504,7 +504,7 @@ function buscaArt(t,soloPist){const toks=t.split(/[^a-z0-9ñ,]+/).filter(Boolean
     if(!sc||!dt.some(w=>/[a-zñ]{3,}/.test(w)&&toks.some(x=>x===w||(w.length>=4&&x.length>=4&&(x.startsWith(w)||w.startsWith(x))))))return;
     const fr=sc/dt.length;if(sc>bs||(sc===bs&&fr>bf)){best=a;bs=sc;bf=fr;emp=false;}else if(sc===bs&&fr===bf)emp=true;});
   return emp?null:best;}
-function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={};const acc=[],dudas=[];
+function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;const acc=[],dudas=[];
   const OPS=(cat.operarios||[]);
   trozos(txt).forEach(orig=>{let t=" "+norm(orig).replace(/ø/g," diam ").replace(/\s+/g," ")+" ";const x={texto:orig.trim()};
     const f=fechaTxt(t,base);if(f)fUlt=f;x.fecha=fUlt;t=t.replace(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(\s*[\/-]\s*\d{2,4})?\b/g," ");
@@ -519,43 +519,60 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={};const acc=[],d
       lastEje={tipo:tp,alb,desp};
       codes.forEach(c=>{if(!ejeDe(c))dudas.push("No existe el eje "+c);acc.push({tipo:tp,eje:c,fecha:x.fecha,desperfecto:desp?desp.toUpperCase():null,albaran:alb,texto:orig.trim()});});
       return;}
-    if(/\beje/.test(t)){dudas.push("No encuentro el código del eje en «"+orig.trim()+"» (escríbelo así: 2.3.C-3)");return;}
-    const tipo=/\b(entrada|llegad[oa]s?|ha llegado|han llegado|recibid[oa]s?|recibo|recibimos|traen|traido|trajeron)\b/.test(t)?"entrada"
-      :/\b(contad[oa]s?|conte|contamos|recuento|inventario)\b/.test(t)?"conteo"
-      :/\b(traslad\w*|baj(o|ar|ado|amos|e|ado)|subid[oa]|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos))\b/.test(t)?"traslado"
-      :(/pist/.test(t)||(/\bcambi/.test(t)&&/\b(f\s*-?\s*\d{1,2}|la\s+\d{1,2})\b/.test(t)))?"piston":"consumo";
+    if(/\beje/.test(t)&&!/\bpiston/.test(t)&&!/\bf\s*-?\s*\d{1,2}\b|\b(?:la|maquina|inyectora)\s+\d{1,2}\b/.test(t)){dudas.push("No encuentro el código del eje en «"+orig.trim()+"» (escríbelo así: 2.3.C-3)");return;}
+    const hayMaq=/\bf\s*-?\s*\d{1,2}\b|\b(?:la|maquina|inyectora|iny)\s+\d{1,2}\b/.test(t)&&cat.maquinas.length;
+    const esPist=/\bpiston(es)?\b/.test(t);
+    const T_ENT=/\b(entrada|llegad[oa]s?|ha llegado|han llegado|recibid[oa]s?|recibo|recibimos|traen|traido|trajeron)\b/,T_CON=/\b(contad[oa]s?|conte|contamos|recuento|inventario)\b/,
+      T_TRA=/\b(traslad\w*|baj(o|ar|ado|amos|e)|sub(o|ir|ido|imos|e)|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos)|repu(s|es)\w*|repon\w*|dej(o|ar|ado|amos|e)|meter|metid[oa]s?|met(o|emos))\b/,
+      T_CONS=/\b(gast\w*|consum\w*|sacad[oa]s?|sac(o|ar|amos)|usad[oa]s? en|pues(to|tos|ta|tas)|cog\w*|necesit\w*)\b/;
+    let tipo=(hayMaq&&(esPist||/\bcambi/.test(t)))?"piston":T_ENT.test(t)?"entrada":T_CON.test(t)?"conteo":(T_TRA.test(t)&&!/\ben el eje\b/.test(t))?"traslado":esPist&&hayMaq?"piston":T_CONS.test(t)?"consumo":null;
+    const expl=!!tipo;if(!tipo)tipo=prev&&prev.tipo!=="piston"?prev.tipo:(esPist&&!hayMaq?"traslado":"consumo");
     /* inyectora */
     let maq=null;const mq=t.match(/\bf\s*-?\s*(\d{1,2})\b/)||t.match(/\b(?:la|maquina|inyectora|iny|en)\s+(\d{1,2})\b/);
     if(mq){const m=cat.maquinas.find(z=>norm(z.cod)==="f"+mq[1]);if(m){maq=m.id;t=t.replace(mq[0]," ");}}
-    /* diámetro */
-    let diam=null;const dm=t.match(/\b(?:diam\w*\s*|del\s+|de\s+)?(50|60|70|80|90|100)\b\s*(esp\w*|e\b)?/);
-    if(dm&&(tipo==="piston"||/pist/.test(t))){const d="Ø "+dm[1]+(dm[2]?" esp":"");if(DIAM.includes(d)){diam=d;t=t.replace(dm[0]," ");}}
+    /* «uno de 70», «2 del 80 esp»: cantidad y diámetro juntos */
+    let diam=null,cant=null;
+    const nd=t.match(/\b(\d+|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:pist\w*\s+)?(?:de\s+|del\s+|de\s+diam\w*\s+)?(50|60|70|80|90|100)\b(\s*esp\w*|\s*e\b)?/);
+    if(nd&&(esPist||(prev&&prev.diametro)||/\bdel?\s+(50|60|70|80|90|100)\b/.test(nd[0]))){const d="Ø "+nd[2]+(nd[3]?" esp":"");if(DIAM.includes(d)){diam=d;cant=/^\d+$/.test(nd[1])?+nd[1]:NUMW[nd[1]];t=t.replace(nd[0]," ");}}
+    if(!diam){const dm=t.match(/\b(?:diam\w*\s*|del\s+|de\s+)?(50|60|70|80|90|100)\b\s*(esp\w*|e\b)?/);
+      if(dm&&(tipo==="piston"||esPist)){const d="Ø "+dm[1]+(dm[2]?" esp":"");if(DIAM.includes(d)){diam=d;t=t.replace(dm[0]," ");}}}
     /* motivo y destino del usado */
-    const MOT=[[/desgast|gastad/,"DESGASTE"],[/\broto\b|rotura|rompi/,"ROTURA"],[/fuga|agua/,"FUGA DE AGUA"],[/agarrot|clavad/,"PISTÓN AGARROTADO"],[/cambio de ref|cambio ref|\bref\b|referencia/,"CAMBIO REF"],[/preventiv/,"CAMBIO PREVENTIVO"],[/prueba/,"PRUEBAS"],[/pistonwax|sin wax/,"TRABAJANDO SIN PISTONWAX"]];
+    const MOT=[[/desgast|gastad/,"DESGASTE"],[/\broto\b|rotura|rompi/,"ROTURA"],[/fuga|agua/,"FUGA DE AGUA"],[/agarrot|clavad/,"PISTÓN AGARROTADO"],[/cambio de ref|cambio ref|\bref\b|referencia/,"CAMBIO REF"],[/preventiv/,"CAMBIO PREVENTIVO"],[/prueba/,"PRUEBAS"],[/sin pistonwax|sin wax/,"TRABAJANDO SIN PISTONWAX"]];
     const DST=[[/en el eje|queda puesto|se queda/,"QUEDA PUESTO EN EL EJE (AGARROTADO)"],[/usados|a la zona|zona de pist/,"ZONA DE PISTONES USADOS"],[/desech|basura|tirad/,"DESECHADO"],[/no esta|ni en eje|perdid/,"NO ESTÁ EN LA ZONA PISTONES USADO NI EN EJE"]];
     if(tipo==="piston"){const dp=DST.find(([re])=>re.test(t));if(dp)x.destino_piston=dp[1];
-      const mo=MOT.find(([re])=>re.test(dp&&dp[1].startsWith("QUEDA")?t.replace(/agarrot\w*/,""):t));if(mo)x.motivo=mo[1];}
-    /* responsable */
-    let rm=t.match(/\b(?:el|resp\w*|operario|oper|numero|num|nº|n)\s*(\d{2,3})\b/);
-    if(!rm){const nums=(t.match(/\b\d{2,3}\b/g)||[]);const o=nums.find(n=>OPS.some(z=>String(z.num)===n));if(o)rm=[o,o];}
-    if(rm&&tipo==="piston"){x.responsable=rm[1];t=t.replace(rm[0]," ");}
-    else if(tipo==="piston"){const o=responsables().filter(z=>/[a-zñ]{3,}/i.test(norm(z))).sort((p,q)=>q.length-p.length).find(z=>new RegExp("\\b"+norm(z).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b").test(t));if(o){x.responsable=o;t=t.replace(norm(o)," ");}}
+      const mo=MOT.find(([re])=>re.test(dp&&dp[1].startsWith("QUEDA")?t.replace(/agarrot\w*/,""):t));if(mo)x.motivo=mo[1];
+      /* responsable */
+      let rm=t.match(/\b(?:el|resp\w*|operario|oper|numero|num|nº|n)\s*(\d{2,3})\b/);
+      if(!rm){const nums=(t.match(/\b\d{2,3}\b/g)||[]);const o=nums.find(n=>OPS.some(z=>String(z.num)===n));if(o)rm=[o,o];}
+      if(rm){x.responsable=rm[1];t=t.replace(rm[0]," ");}
+      else{const o=responsables().filter(z=>/[a-zñ]{3,}/i.test(norm(z))).sort((p,q)=>q.length-p.length).find(z=>new RegExp("\\b"+norm(z).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b").test(t));if(o){x.responsable=o;t=t.replace(norm(o)," ");}}}
     /* almacenes */
     const als=buscaAlms(t),t0=t;als.forEach(a=>{t=t.slice(0,a.i)+" ".repeat(a.len)+t.slice(a.i+a.len);});
-    if(tipo==="traslado"){if(als.length>=2){x.almacen=als[0].id;x.destino=als[1].id;}else if(als.length===1){const pre=t0.slice(0,als[0].i);if(/\b(a|al|hacia|para)\s*$/.test(pre))x.destino=als[0].id;else x.almacen=als[0].id;}}
+    if(tipo==="traslado"){if(als.length>=2){x.almacen=als[0].id;x.destino=als[1].id;}else if(als.length===1){const pre=t0.slice(0,als[0].i).replace(/\s*\b(del\s+|de\s+la\s+|de\s+|la\s+|el\s+)?(almacen|nave)(\s+de)?(\s+la|\s+el)?\s*$/,"").trim();if(/\b(de|desde|del)$/.test(pre))x.almacen=als[0].id;else x.destino=als[0].id;}}
     else if(als.length)x.almacen=als[0].id;
     /* proveedor y albarán */
     if(tipo==="entrada"){const p=cat.proveedores.find(z=>new RegExp("\\b"+norm(z.nom)+"\\b").test(t));if(p){x.proveedor=p.id;t=t.replace(norm(p.nom)," ");}
       const ab=t.match(/\balbaran\s*(?:n\w*\s*)?([a-z0-9\-\/]{3,})/);if(ab){x.albaran=ab[1].toUpperCase();t=t.replace(ab[0]," ");}}
+    /* artículo (antes que la cantidad, para que «Duo 15» o «2kg» cuenten como parte del nombre) */
+    let a=null;
+    if(tipo!=="piston"){a=diam?pistArt(diam):buscaArt(t,false);
+      if(a&&!diam){norm(a.desc).split(/[^a-z0-9ñ,]+/).filter(w=>w&&!STOPW.has(w)).forEach(w=>{const b=sing(w);t=t.replace(new RegExp("\\b"+b.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(es|s)?\\b")," ");});if(a.cod)t=t.replace(new RegExp("\\b"+norm(a.cod)+"\\b")," ");}}
     /* cantidad */
-    const cm=t.match(/(\d+(?:[.,]\d+)?)(?!\d|[.,]\d|\s*kg\b)/)||null;let cant=null;
-    if(cm){cant=parseN(cm[1]);t=t.replace(cm[0]," ");}else{const w=Object.keys(NUMW).find(k=>new RegExp("\\b"+k+"\\b").test(t));if(w){cant=NUMW[w];t=t.replace(new RegExp("\\b"+w+"\\b")," ");}}
+    if(cant==null){const cm=t.match(/(\d+(?:[.,]\d+)?)(?!\d|[.,]\d)/);
+      if(cm){cant=parseN(cm[1]);t=t.replace(cm[0]," ");}else{const w=Object.keys(NUMW).find(k=>new RegExp("\\b"+k+"\\b").test(t));if(w){cant=NUMW[w];t=t.replace(new RegExp("\\b"+w+"\\b")," ");}}}
     x.cantidad=cant;
-    /* artículo */
-    if(tipo==="piston"){x.tipo="piston";x.maquina=maq;x.diametro=diam;if(!maq)dudas.push("No sé en qué inyectora: «"+orig.trim()+"»");}
-    else{x.tipo=tipo;if(maq)x.maquina=maq;const a=diam?pistArt(diam):buscaArt(t,false);x.articulo=a?a.id:null;
-      if(!a)dudas.push("No sé qué artículo es: «"+orig.trim()+"»");}
-    acc.push(x);});
+    /* lo que no se dice se toma de la nota anterior («… y 220 en nave 2», «y 2 de 80») */
+    const hereda=prev&&prev.tipo===tipo&&tipo!=="piston"&&(!expl||!a);
+    if(tipo==="piston"){x.tipo="piston";x.maquina=maq;x.diametro=diam;if(!maq)x._duda="No sé en qué inyectora: «"+orig.trim()+"»";}
+    else{x.tipo=tipo;if(maq)x.maquina=maq;
+      if(!a&&hereda&&prev.articulo&&!diam)a=art(prev.articulo);
+      x.articulo=a?a.id:null;if(diam)x.diametro=diam;
+      if(hereda){if(tipo==="traslado"){if(!x.almacen&&prev.almacen&&x.destino!==prev.almacen)x.almacen=prev.almacen;if(!x.destino&&prev.destino&&x.almacen!==prev.destino)x.destino=prev.destino;}else if(!x.almacen&&prev.almacen)x.almacen=prev.almacen;
+        if(prev.cantidad==null&&prev.articulo===x.articulo&&!prev._usada){const k=acc.indexOf(prev);if(k>=0)acc.splice(k,1);}
+        prev._usada=true;}
+      if(!a)x._duda="No sé qué artículo es: «"+orig.trim()+"»"+(/pistonwax|wax/.test(t0)?" (añádelo en Catálogo)":"");}
+    acc.push(x);prev=x;});
+  acc.forEach(x=>{if(x._duda)dudas.push(x._duda);delete x._duda;delete x._usada;});
   return{acciones:acc,dudas};}
 async function addNota(t){const it={id:uid(),t,f:hoy(),ts:Date.now()};if(db.itemsAdd)await db.itemsAdd("notas","pend",[it]);else{const ref=db.doc("notas/pend"),sn=await ref.get();await ref.set({items:(sn.exists?(sn.data().items||[]):[]).concat([it])});}}
 async function delNotas(ids){const S=new Set(ids);const ref=db.doc("notas/pend"),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).filter(n=>!S.has(n.id))});}
