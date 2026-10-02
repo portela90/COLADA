@@ -320,7 +320,10 @@ async function deshacerGrupo(g){
       const w=await sb.from("docs").upsert({col,id,data:Object.assign({},ahora||c.antes||{},{items})});if(w.error)throw w.error;}
     else if(c.antes==null){const w=await sb.from("docs").delete().eq("col",col).eq("id",id);if(w.error)throw w.error;}
     else{const w=await sb.from("docs").upsert({col,id,data:c.antes});if(w.error)throw w.error;}}
-  return true;}
+  recargar(g.cambios.map(c=>c.x.col));return true;}
+/* vuelve a leer de la base de datos lo que muestra la pantalla (por si el aviso en directo no llega) */
+function recargar(cols){[...new Set(cols||Object.keys(subs))].forEach(c=>(subs[c]||[]).forEach(f=>{try{f(null);}catch(e){}}));}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)recargar();});
 async function panelHist(){
   const box=h("div",{class:"dlg",role:"dialog","aria-label":"Historial de cambios"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const lst=h("div",{class:"usr-list"},[h("p",{class:"hint",text:"Cargando…"})]);
@@ -334,7 +337,7 @@ async function panelHist(){
     lst.textContent="";if(!gs.length){lst.appendChild(h("p",{class:"hint",text:"Todavía no hay cambios guardados."}));return;}
     gs.slice(0,60).forEach(g=>{const L=[].concat(...g.cambios.map(c=>c.lineas));const det=h("div",{style:"font-size:14px;line-height:1.4;overflow-wrap:anywhere"},L.slice(0,6).map(t=>h("div",{text:t})).concat(L.length>6?[h("div",{class:"hint",text:"… y "+(L.length-6)+" más"})]:[]));
       const b=h("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px;align-self:flex-start",text:"Deshacer",onclick:async()=>{b.disabled=true;b.textContent="Deshaciendo…";
-        try{const ok=await deshacerGrupo(g);if(ok)await pinta();else{b.disabled=false;b.textContent="Deshacer";}}catch(e){alert("No se pudo deshacer: "+(e.message||e));b.disabled=false;b.textContent="Deshacer";}}});
+        try{const ok=await deshacerGrupo(g);if(ok){ov.remove();const t=document.createElement("div");t.id="toast";t.setAttribute("role","status");t.textContent="Deshecho";const o=document.getElementById("toast");if(o)o.remove();document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}else{b.disabled=false;b.textContent="Deshacer";}}catch(e){alert("No se pudo deshacer: "+(e.message||e));b.disabled=false;b.textContent="Deshacer";}}});
       lst.appendChild(h("div",{class:"usr-row",style:"flex-direction:column;align-items:stretch;gap:6px"},[h("div",{class:"hint",style:"margin:0",text:fechaH(g.at)+(nombres[g.by]?" · "+nombres[g.by]:"")}),det,b]));});};
   pinta();}
 /* ---------- fotos de albaranes en Storage ---------- */
