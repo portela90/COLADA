@@ -1463,7 +1463,7 @@ function vCat(v){
    v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Ficha de inyectoras"})),el("div",{class:"bd frm",style:"gap:10px"},[
      el("p",{class:"hint",text:"Tú decides qué campos tiene la ficha (canaleta, cazo, horno…) y qué opciones hay en cada uno. Luego en cada inyectora solo tocas lo que monta."}),
      el("button",{type:"button",class:"btn",text:"Configurar campos y opciones",onclick:formPlantilla}),
-     el("p",{class:"hint",text:"Para rellenar todas de golpe: descarga el Excel, rellénalo en el ordenador y súbelo."}),
+     el("p",{class:"hint",text:"Para rellenar todas de golpe: descarga el Excel, rellénalo en el ordenador y súbelo. Si añades una columna nueva (un consumible nuevo), se crea sola como campo de la ficha."}),
      downloads?el("button",{type:"button",class:"btn sec",text:"Descargar fichas en Excel",onclick:e=>excelMaquinas(e.currentTarget)}):null,fld("Subir Excel relleno",fi)])]));}
   v.appendChild(sec("Operarios",(cat.operarios||[]).map(o=>el("button",{type:"button",class:"it",onclick:()=>formSimple("operarios",o)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:o.nom||"(sin nombre)"}),el("div",{class:"t2",text:o.num?"Nº "+o.num:"Sin nº"})])])),()=>formSimple("operarios")));
   v.appendChild(sec("Almacenes",cat.almacenes.map(l=>el("button",{type:"button",class:"it",onclick:()=>formSimple("almacenes",l)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:l.nom}),el("div",{class:"t2",text:[l.tipo==="produccion"?"Producción (se repone)":l.tipo==="central"?"Central":null,l.nave,l.notas].filter(Boolean).join(" · ")})])])),()=>formSimple("almacenes")));
@@ -1548,14 +1548,14 @@ function cuadra(o,h){const t=norm(o.t);const mm=h.marcas.filter(x=>wrd(t,x)),md=
 const especifica=(o,h)=>{const t=norm(o.t);return h.marcas.some(x=>wrd(t,x))||h.medidas.some(x=>wrd(t,x));};
 function PLANT_INI(){
   const can=artsActivos().filter(a=>/canalet/i.test(a.desc)),cc=artsActivos().filter(a=>/cazo de carga/i.test(a.desc));
-  const v=(id,nom,multi)=>({id,nom,multi:!!multi,ops:[]});
-  const ops=ts=>ts.map((t,i)=>({id:"o-"+norm(t).replace(/[^a-z0-9]+/g,"")+"-"+i,t,art:null}));
-  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:ops(["IDRA","BÜHLER","STP"])},{id:"c-horno",nom:"Horno",multi:false,ops:ops(["Krown","Westofen"])},
-    {id:"c-can",nom:"Canaleta de llenado",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
+  const ops=ts=>ts.map((t,i)=>({id:"o-"+norm(t).replace(/[^a-z0-9]+/g,"")+"-"+i,t,art:null}));const v=(id,nom,multi)=>({id,nom,multi:!!multi,ops:[]});
+  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:ops(["IDRA","BÜHLER","STP"])},{id:"c-horno",nom:"Modelo Horno",multi:false,ops:ops(["Krown","Westofen"])},v("c-hcap","Capacidad horno"),
+    v("c-canll","Canaleta llenado"),{id:"c-can",nom:"Canaleta",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
     {id:"c-cazoc",nom:"Cazo de carga",multi:false,ops:cc.map(a=>({id:"o-cc-"+a.id,t:a.desc.replace(/^cazo de carga\s*/i,"").replace(/(\d)\s*kg/i,"$1 kg")||a.desc,art:a.id})).concat([{id:"o-cc-no",t:"Sin cazo de carga",art:null}])},
-    v("c-tubo","Tubo dosificador"),v("c-cont","Contenedor"),{id:"x-eje",nom:"Eje de inyección",auto:"eje"},v("c-cono","Cono de llenado"),v("c-jcono","Junta cono"),v("c-junta","Junta"),
-    {id:"c-dosif",nom:"Dosificador",multi:false,segunHorno:true,ops:ops(["Krown 18","Krown 21","Krown 24","Westofen 18","Westofen 21","Westofen 24"])},v("c-resis","Resistencias",true),v("c-centr","Centradores",true),
-    {id:"x-piston",nom:"Pistón",auto:"piston"},{id:"x-barra",nom:"Barras expulsoras",auto:"barra"},{id:"x-tornillo",nom:"Tornillos tope",auto:"tornillo"}];}
+    v("c-tubo","Tubo dosificador"),v("c-cont","Contenedor"),{id:"x-eje",nom:"Eje de inyección",auto:"eje"},v("c-cono","Cono de llenado"),v("c-jcono","Junta cono"),v("c-jdos","Junta dosificador"),
+    {id:"c-dosif",nom:"Dosificador",multi:false,segunHorno:true,ops:ops(["Krown 18","Krown 21","Krown 24","Westofen 18","Westofen 21","Westofen 24"])},
+    v("c-resis","Resistencias",true),v("c-centr","Centradores",true),{id:"x-piston",nom:"Pistón",auto:"piston"},{id:"x-barra",nom:"Barras expulsoras",auto:"barra"},{id:"x-tornillo",nom:"Tornillos tope",auto:"tornillo"},
+    v("c-conex","Conexión"),v("c-conexe","Conexión estrella"),v("c-jpuerta","Junta puerta limpieza horno"),v("c-jtapa","Junta tapa"),v("c-jsonda","Junta sonda temperatura")];}
 function valoresDe(m){if(m.ficha)return m.ficha;const v={};const P=plantilla();
   const pon=(cid,f)=>{const c=P.find(x=>x.id===cid);const o=c&&c.ops.find(f);if(o)v[cid]=[o.id];};
   if(m.canaleta)pon("c-can",o=>o.art===m.canaleta);if(m.cazo)pon("c-cazo",o=>o.art===m.cazo);if(m.alea)pon("c-alea",o=>o.t===m.alea);return v;}
@@ -1682,23 +1682,28 @@ async function excelMaquinas(btn){if(!downloads){toast("Esta vista no permite de
     const rows=cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>{const v=valoresDe(m);const r={"Inyectora":m.cod,"Nave":m.nave||""};
       P.forEach(c=>{r[c.nom]=c.auto?autoTxt(c,m):(v[c.id]||[]).map(id=>(c.ops.find(o=>o.id===id)||{}).t).filter(Boolean).join(", ");});r["Notas"]=m.notas||"";return r;});
     const ws=X.utils.json_to_sheet(rows,{header:H});ws["!cols"]=H.map(()=>({wch:18}));X.utils.book_append_sheet(wb,ws,"Inyectoras");
-    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([["Cómo rellenarla"],["Una fila por inyectora. En cada columna escribe la opción tal cual (si son varias, separadas por comas)."],["Si escribes una opción que no existe, se crea."],["Lo que dejes en blanco se quita de la ficha."],[""],["Opciones que hay:"]].concat(P.map(c=>[c.nom+": "+(c.auto?(c.auto==="eje"?"códigos de modelo de eje (p. ej. 2.3.C)":c.auto==="piston"?"80, 90 esp…":"nombre del artículo tal cual (si no existe, se crea)"):c.ops.map(o=>o.t).join(" | "))]))),"Opciones");
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([["Cómo rellenarla"],["Una fila por inyectora. En cada columna escribe la opción tal cual (si son varias, separadas por comas)."],["Si escribes una opción que no existe, se crea."],["Si añades una columna nueva, se crea como campo nuevo de la ficha."],["Lo que dejes en blanco se quita de la ficha, salvo eje, pistón, barras y tornillos, que en blanco se dejan como están."],[""],["Opciones que hay:"]].concat(P.map(c=>[c.nom+": "+(c.auto?(c.auto==="eje"?"códigos de modelo de eje (p. ej. 2.3.C)":c.auto==="piston"?"80, 90 esp…":"nombre del artículo tal cual (si no existe, se crea)"):c.ops.map(o=>o.t).join(" | "))]))),"Opciones");
     await downloads.save({filename:"Fichas_inyectoras.xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}
 async function importarMaquinas(file){try{await cargarXLSX();}catch(e){toast("No se pudo cargar el lector de Excel");return;}
   let rows;try{const X=window.XLSX;const wb=X.read(await file.arrayBuffer());rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});}catch(e){toast("No se pudo leer el archivo");return;}
-  const P=JSON.parse(JSON.stringify(plantilla()));const nuevasOps=[],cambios=[],autoX=[];
+  const P=JSON.parse(JSON.stringify(plantilla()));const nuevasOps=[],cambios=[],autoX=[],camposNuevos=[];
+  /* una columna que no es ningún campo se convierte en campo nuevo de la ficha */
+  const cabs=[];rows.forEach(r=>Object.keys(r).forEach(k=>{if(!cabs.includes(k))cabs.push(k);}));
+  cabs.forEach(k=>{const n=norm(k);if(!n||/^__empty/.test(n)||["inyectora","nave","notas"].includes(n)||P.some(c=>norm(c.nom)===n))return;
+    const c={id:"c"+uid(),nom:k.trim(),multi:false,ops:[]};P.push(c);camposNuevos.push(c.nom);});
   const val=(r,nom)=>{for(const k of Object.keys(r))if(norm(k)===norm(nom))return String(r[k]).trim();return null;};
   rows.forEach(r=>{let c=String(val(r,"Inyectora")||"").toUpperCase().replace(/\s/g,"");if(!c)return;if(/^\d+$/.test(c))c="F"+c;
     const m=cat.maquinas.find(z=>z.cod.toUpperCase()===c);const ficha={};const antes=m?valoresDe(m):{};
-    P.forEach(cp=>{const t=val(r,cp.nom);if(cp.auto){const sk=x=>String(x||"").split(/\s*[,;]\s*/).filter(Boolean).map(norm).sort().join("|");if(t!=null&&(!m||sk(t)!==sk(autoTxt(cp,m))))autoX.push({c,cp,t});return;}if(t==null){if(antes[cp.id])ficha[cp.id]=antes[cp.id];return;}
+    P.forEach(cp=>{const t=val(r,cp.nom);if(cp.auto){const sk=x=>String(x||"").split(/\s*[,;]\s*/).filter(Boolean).map(norm).sort().join("|");if(t&&(!m||sk(t)!==sk(autoTxt(cp,m))))autoX.push({c,cp,t});return;}if(t==null){if(antes[cp.id])ficha[cp.id]=antes[cp.id];return;}
       const ids=t.split(/\s*[,;]\s*/).filter(Boolean).map(x=>{let o=cp.ops.find(z=>norm(z.t)===norm(x));if(!o){o={id:"o"+uid(),t:x,art:null};cp.ops.push(o);nuevasOps.push(cp.nom+": "+x);}return o.id;});
       if(ids.length)ficha[cp.id]=cp.multi?ids:[ids[0]];});
     const nv=val(r,"Nave"),nt=val(r,"Notas");
     const nue={nave:nv!=null?(/2/.test(nv)?"Nave 2":nv?"Nave 1":null):(m&&m.nave)||null,notas:nt!=null?nt||null:(m&&m.notas)||null,ficha};
     if(!m||JSON.stringify(valoresDe(m))!==JSON.stringify(ficha)||m.nave!==nue.nave||(m.notas||null)!==nue.notas)cambios.push({c,m,nue});});
-  if(!cambios.length&&!nuevasOps.length&&!autoX.length){toast("No hay cambios");return;}
-  dlg("Importar fichas de inyectoras",[el("p",{text:new Set(cambios.filter(x=>x.m).map(x=>x.c).concat(autoX.map(x=>x.c))).size+" inyectoras cambian"+(cambios.some(x=>!x.m)?" · nuevas: "+cambios.filter(x=>!x.m).map(x=>x.c).join(", "):"")}),
+  if(!cambios.length&&!nuevasOps.length&&!autoX.length&&!camposNuevos.length){toast("No hay cambios");return;}
+  dlg("Importar fichas de inyectoras",[el("p",{text:(n=>n===1?"1 inyectora cambia":n+" inyectoras cambian")(new Set(cambios.filter(x=>x.m).map(x=>x.c).concat(autoX.map(x=>x.c))).size)+(cambios.some(x=>!x.m)?" · nuevas: "+cambios.filter(x=>!x.m).map(x=>x.c).join(", "):"")}),
+    camposNuevos.length?el("div",{class:"banner"},[el("b",{text:"Campos nuevos en la ficha: "}),camposNuevos.join(" · ")]):null,
     nuevasOps.length?el("div",{class:"banner"},[el("b",{text:"Opciones nuevas: "}),nuevasOps.slice(0,15).join(" · ")+(nuevasOps.length>15?"…":"")]):null],
     [{t:"Cancelar",cls:"sec"},{t:"Importar",fn:async()=>{cambios.forEach(({c,m,nue})=>{if(m){Object.assign(m,nue);["modelo","cierre","horno","hornoKg","canaleta","cazo","alea","molde"].forEach(k=>delete m[k]);}else cat.maquinas.push(Object.assign({id:c,cod:c},nue));});
       autoX.forEach(({c,cp,t})=>{const m=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(!m)return;const xs=t.split(/\s*[,;]\s*/).filter(Boolean);
