@@ -992,7 +992,7 @@ function vStock(){
     el("div",{class:"split"},[el("div",{},[el("dt",{text:"Mínimo"}),el("dd",{class:"num",text:fmt(gm)+" kg"})]),el("div",{},[el("dt",{text:"Margen"}),el("dd",{class:"num",text:fmt(gk-gm)+" kg"})])]),
     el("div",{class:"foot"},[el("button",{type:"button",class:"btn sec",style:"font-size:13px;padding:5px 10px",text:"Ajustar por recuento",onclick:ajustarGranalla})])
   ]));
-  const out=[filtroStock(B),coladasStock(),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
+  const out=[avisoCierre(),filtroStock(B),coladasStock(),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
   const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5&&pasaF(b.nave,b.mat);}).map(k=>B[k]);
   if(alerta.length)out.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
   out.push(vMin());
@@ -1708,6 +1708,28 @@ async function excelCierre(I){
   [11,9,9,20,13,13,12,12,50].forEach((w,i)=>wg.getColumn(i+1).width=w);wg.views=[{state:"frozen",ySplit:3}];
   return wb.xlsx.writeBuffer();
 }
+/* Enviar el cierre por correo (Excel + resumen) con la función enviar-cierre de Supabase */
+async function enviarCierre(m,btn){if(!window.sbColada){toast("Solo desde la aplicación web");return;}
+  const t0=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Preparando el Excel…";}
+  try{const I=informeMes(m),buf=await excelCierre(I);
+    let bin="";const u8=new Uint8Array(buf);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+    if(btn)btn.textContent="Enviando…";
+    const r=await window.sbColada.functions.invoke("enviar-cierre",{body:{asunto:"Cierre de colada · "+Mayus(nomMes(m)),texto:textoCierre(I),filename:"cierre-colada-"+m+".xlsx",excel:btoa(bin)}});
+    let err=r.error?(r.error.message||"error"):null;if(r.error&&r.error.context&&r.error.context.json){try{const j=await r.error.context.json();err=j.error||err;}catch(e){}}
+    if(err)throw new Error(err);
+    cfg.cierres=Object.assign({},cfg.cierres,{[m]:{enviado:new Date().toISOString(),a:r.data&&r.data.to}});await saveCfg();
+    toast("Cierre enviado a "+((r.data&&r.data.to)||"tu correo"));render();
+  }catch(e){toast("No se pudo enviar: "+(e.message||e));}finally{if(btn){btn.disabled=false;btn.textContent=t0;}}}
+/* aviso a partir del día 1: el cierre del mes anterior está listo y no se ha enviado */
+function avisoCierre(){if(!window.sbColada)return null;const ant=diaAntes(mesDe(hoy())+"-01").slice(0,7);
+  if(!Object.keys(meses).some(m=>m===ant&&(meses[m]||[]).some(r=>!r.h)))return null;
+  const env=(cfg.cierres||{})[ant];if(env)return null;
+  const I=informeMes(ant);
+  return el("div",{class:"banner "+(I.todoOk?"":"w"),style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[
+    el("span",{style:"flex:1;min-width:200px",text:"El cierre de "+nomMes(ant)+" está listo"+(I.todoOk?" y todo cuadra.":", pero hay descuadres: revísalo antes de enviarlo.")}),
+    el("button",{type:"button",class:"btn sec peq",text:"Revisar",onclick:()=>{cierreMes=ant;tab="hist";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();}}),
+    el("button",{type:"button",class:"btn peq",text:"Enviar a mi correo",onclick:e=>enviarCierre(ant,e.currentTarget)}),
+    el("button",{type:"button",class:"btn sec peq",text:"No hace falta",onclick:async()=>{cfg.cierres=Object.assign({},cfg.cierres,{[ant]:{omitido:new Date().toISOString()}});try{await saveCfg();render();}catch(e){toast("No se pudo guardar");}}})]);}
 function vCierre(){
   /* solo meses con apuntes de la app: los que solo tienen histórico no tienen cierre */
   const ms=Object.keys(meses).filter(m=>(meses[m]||[]).some(r=>!r.h)).sort().reverse();
@@ -1773,11 +1795,13 @@ function vCierre(){
     el("div",{class:"hd"},[el("h2",{text:"Cierre de mes"}),el("span",{class:"der pill "+(I.todoOk?"ok":"bad"),text:I.todoOk?"✓ Todo cuadra":"Hay descuadres"})]),
     el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
       el("label",{text:"Mes"},[sel]),
+      (cfg.cierres||{})[cierreMes]&&cfg.cierres[cierreMes].enviado?el("p",{class:"hint",text:"Enviado por correo el "+dmyA((cfg.cierres[cierreMes].enviado||"").slice(0,10))+(cfg.cierres[cierreMes].a?" a "+cfg.cierres[cierreMes].a:"")+"."}):null,
       el("p",{class:"hint",text:(I.completo?periodo(I)+" ":I.arranque?"La app arrancó el "+dmyA(I.arranque)+" con inventario físico: ese es el inicial. ":"")+"Entradas "+fmt(tE)+" kg · Consumo "+fmt(tC)+" kg · Stock final "+fmt(tF)+" kg."+(cierreMes===act?" El mes aún no ha terminado: el final es el de hoy.":"")}),
       tabla,tablaPrev,valor,cobre,
       el("div",{class:"seg"},[
         el("button",{type:"button",class:"btn",text:"Informe de cierre (Excel)",onclick:e=>bajar(e,()=>excelCierre(I),"cierre-colada-"+cierreMes+".xlsx","Informe descargado")}),
         el("button",{type:"button",class:"btn sec",text:"Copiar resumen",onclick:copiar}),
+        window.sbColada?el("button",{type:"button",class:"btn sec",text:((cfg.cierres||{})[cierreMes]||{}).enviado?"Enviar otra vez por correo":"Enviar por correo",onclick:e=>enviarCierre(cierreMes,e.currentTarget)}):null,
         el("button",{type:"button",class:"btn sec",text:"Movimientos (CSV)",onclick:e=>bajar(e,()=>{const g=filtro;filtro={desde:I.d1,hasta:I.dn,tipo:"",nave:"",mat:"",turno:"",texto:""};try{return csvDe(filtrados());}finally{filtro=g;}},"colada-"+cierreMes+".csv","Movimientos descargados")})])
     ])
   ]);
@@ -2631,7 +2655,7 @@ $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carg
   db.collection("lotes").onSnapshot(sn=>{lotes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));ready=true;render();},()=>{ready=true;render();});
   db.collection("maq").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});maqEv=m;render();},()=>{});
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;ready=true;render();},()=>{});
-  db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg={minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{},cargador:c.cargador||{}};}render();},()=>{});
+  db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg={minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{},cargador:c.cargador||{},cierres:c.cierres||{}};}render();},()=>{});
 })();
 })();
 </script>
