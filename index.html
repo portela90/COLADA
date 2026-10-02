@@ -1150,6 +1150,30 @@ function llegaCamion(x){
     plan:{mes:x.mes,f:x.f,k:x.k||"",fa:x.fa,o:x.o}};
   tab="entrada";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;
 }
+/* Leer el albarán de la foto con IA (función leer-albaran de Supabase) y rellenar el formulario */
+async function leerAlbaran(d){const b=$("e-leer");if(b){b.disabled=true;b.textContent="Leyendo el albarán…";}
+  try{const bl=await comprimir(d.foto,1800);
+    const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]);fr.onerror=rej;fr.readAsDataURL(bl);});
+    const r=await window.sbColada.functions.invoke("leer-albaran",{body:{image:b64,mime:bl.type||"image/jpeg",proveedores:cfg.proveedores||[],hoy:hoy()}});
+    let err=r.error?(r.error.message||"error"):null;if(r.error&&r.error.context&&r.error.context.json){try{const j=await r.error.context.json();err=j.error||err;}catch(e){}}
+    if(err)throw new Error(err);
+    const x=(r.data&&r.data.datos)||{};
+    const prov=(cfg.proveedores||[]).find(p=>nrm(p)===nrm(x.proveedor||""));if(prov)d.prov=prov;
+    if(x.albaran)d.alb=String(x.albaran);
+    if(x.fecha&&/^\d{4}-\d{2}-\d{2}$/.test(x.fecha))d.fecha=x.fecha;
+    if(x.nave&&NAVES.indexOf(x.nave)>=0)d.nave=x.nave;
+    if(x.aleacion)d.mat=/12/.test(x.aleacion)?"L-2521-B":"L-2630";
+    d.donde=x.externo?"externo":"nave";
+    if(x.kg>0)d.kg=String(x.kg).replace(".",",");
+    if(x.fardos>0)d.fardos=String(x.fardos);
+    const cols=[...new Set((x.coladas||[]).map(c=>String(c.colada||"").trim()).filter(Boolean))];
+    if(cols.length)d.colada=cols.join("-");
+    const obs=[];if(cols.length>1)obs.push((x.coladas||[]).map(c=>c.colada+(c.kg?" "+fmt(c.kg)+" kg":"")+(c.fardos?" / "+c.fardos+" f":"")).join(" · "));
+    if(x.sap)obs.push("SAP "+x.sap);if(x.fecha_albaran&&x.fecha_albaran!==x.fecha)obs.push("Albarán del "+dmyA(x.fecha_albaran));
+    if(obs.length)d.obs=obs.join(" · ");
+    d.leido={confianza:x.confianza||"",notas:[!prov&&x.proveedor?"proveedor «"+x.proveedor+"» no está en la lista":"",!(x.fardos>0)?"no se ven los fardos, ponlos a mano":"",x.notas||""].filter(Boolean).join(" · ")};
+    toast("Albarán leído: revisa los datos");render();
+  }catch(e){toast("No se pudo leer: "+(e.message||e));if(b){b.disabled=false;b.textContent="Leer datos del albarán";}}}
 function vEntrada(){
   const d=draft.ent;if(!d.fecha)d.fecha=hoy();if(!d.donde)d.donde="nave";
   const provs=(cfg.proveedores||[]).slice().sort((a,b)=>a.localeCompare(b,"es"));
@@ -1184,7 +1208,7 @@ function vEntrada(){
       if(ft)rec.ft=ft;
       await addMov(rec);toast("Entrada registrada"+(ft?" con foto":"")+": "+fmt(nk)+" kg");
       if(d.plan){try{await marcarPlan(d.plan,{l:id,f:d.fecha,k:key(d.nave,d.mat)});toast("Entrada registrada y camión del plan marcado como recibido");}catch(e){toast("Entrada registrada, pero no se pudo marcar el camión del plan");}}
-      draft.ent={nave:d.nave,mat:d.mat,donde:d.donde,fecha:d.fecha,prov:d.prov};render();
+      draft.ent={nave:d.nave,mat:d.mat,donde:d.donde,fecha:d.fecha,prov:d.prov};render();/* el formulario queda limpio (también los datos leídos) */
     }catch(err){toast("No se pudo guardar");b.disabled=false;b.textContent="Registrar entrada";}}},[
     el("div",{class:"row"},[el("label",{text:"Proveedor"},[selP]),el("label",{text:"Nº albarán"},[el("input",{id:"e-alb",value:d.alb||"",oninput:e=>{d.alb=e.target.value;}})])]),
     el("label",{text:"Nº de colada"},[el("input",{id:"e-col",value:d.colada||"",placeholder:"C25058-C25066",autocomplete:"off",autocorrect:"off",autocapitalize:"characters",spellcheck:"false",oninput:e=>{d.colada=e.target.value;vivo();}})]),
@@ -1198,9 +1222,11 @@ function vEntrada(){
     ]),
     el("label",{text:"Observaciones"},[el("input",{id:"e-obs",value:d.obs||"",placeholder:"desglose de coladas, matrícula, pedido…",oninput:e=>{d.obs=e.target.value;}})]),
     el("label",{text:"Foto del albarán"},[
-      el("input",{id:"e-foto",type:"file",accept:"image/*",onchange:e=>{d.foto=e.target.files&&e.target.files[0]?e.target.files[0]:null;render();}}),
+      el("input",{id:"e-foto",type:"file",accept:"image/*",onchange:e=>{d.foto=e.target.files&&e.target.files[0]?e.target.files[0]:null;d.leido=null;render();}}),
       d.foto?el("p",{class:"hint",text:"Elegida: "+d.foto.name+" ("+Math.round(d.foto.size/1024)+" KB). Se sube al guardar."}):
-             el("p",{class:"hint",text:"Opcional. En el iPad puedes hacerla con la cámara en el momento."})
+             el("p",{class:"hint",text:"Opcional. En el iPad puedes hacerla con la cámara en el momento."+(window.sbColada?" Con la foto, la app puede rellenar sola los datos del albarán.":"")}),
+      (d.foto&&window.sbColada)?el("button",{type:"button",class:"btn",id:"e-leer",text:"Leer datos del albarán",onclick:()=>leerAlbaran(d)}):null,
+      d.leido?el("div",{class:"banner "+(d.leido.confianza==="alta"?"":"w"),text:"Datos leídos de la foto"+(d.leido.confianza&&d.leido.confianza!=="alta"?" (confianza "+d.leido.confianza+")":"")+". Revísalos antes de registrar"+(d.leido.notas?": "+d.leido.notas:".")}):null
     ]),
     el("div",{id:"e-calc",class:"calc num",hidden:(!isNaN(nk)&&!isNaN(nf)&&nf>0)?null:""},[el("b",{text:(!isNaN(nk)&&!isNaN(nf)&&nf>0)?(Math.round(nk/nf*100)/100).toLocaleString("es-ES"):""}),el("span",{text:"kg por fardo"})]),
     el("p",{id:"e-prec",class:"hint",text:txtPrecio()}),
