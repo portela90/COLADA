@@ -249,6 +249,7 @@ input[type=file]{font-size:15px;padding:9px 10px}
 (function(){
 const SB_URL="https://whemhkcrgwyjucpaswrm.supabase.co",SB_KEY="sb_publishable_hcFf66q2-0X6pR1gq5YKpw_u4G6HriG";
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const P=window.DB_PREFIX||"";/* "" = Colada, "alm_" = Almacén */
 window.sbColada=sb;window.WEB=true;
 const h=(tag,props,kids)=>{const e=document.createElement(tag);for(const k in props||{}){const v=props[k];if(v==null)continue;if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v);}(kids||[]).forEach(c=>c&&e.appendChild(typeof c==="string"?document.createTextNode(c):c));return e;};
 let yo=null;/* fila de usuarios del que ha entrado */
@@ -284,8 +285,8 @@ function acceso(){if(listo)return listo;listo=(async()=>{
   if(!yo.activo){pantallaEspera();return new Promise(()=>{});}
   ponUsuario();
   /* base vacía: ofrecer importar la copia de la Colada */
-  const c=await sb.from("docs").select("col",{count:"exact",head:true});
-  if((c.count||0)===0||/[?&]importar/.test(location.search))await pantallaImportar((c.count||0)===0);
+  if(!P){const c=await sb.from("docs").select("col",{count:"exact",head:true});
+  if((c.count||0)===0||/[?&]importar/.test(location.search))await pantallaImportar((c.count||0)===0);}
   return true;})();return listo;}
 
 /* ---------- importar la copia descargada del artefacto ---------- */
@@ -309,6 +310,7 @@ function pantallaImportar(vacia){return new Promise(res=>{
 
 /* ---------- usuario en la cabecera y gestión de usuarios ---------- */
 function ponUsuario(){const hd=document.querySelector("header");if(!hd||document.getElementById("usr-btn"))return;
+  hd.appendChild(h("a",{id:"app-sw",class:"usr-btn",href:P?"./":"almacen.html",style:"text-decoration:none",text:P?"⇄ Colada":"⇄ Almacén"}));
   hd.appendChild(h("button",{id:"usr-btn",class:"usr-btn",type:"button",text:(yo.nombre||yo.email||"").split(" ")[0],onclick:panelUsuario}));}
 async function panelUsuario(){
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
@@ -328,20 +330,20 @@ async function panelUsuario(){
 /* ---------- almacén de documentos (misma forma que el de Claude) ---------- */
 const snap=rows=>({docs:rows.map(r=>({id:r.id,data:()=>r.data}))});
 const subs={};
-function canal(col,fn){(subs[col]=subs[col]||[]).push(fn);
+function canal(col,fn){col=P+col;(subs[col]=subs[col]||[]).push(fn);
   if(subs[col].length===1)sb.channel("docs-"+col).on("postgres_changes",{event:"*",schema:"public",table:"docs",filter:"col=eq."+col},p=>{subs[col].forEach(f=>f(p));}).subscribe(st=>{if(st==="SUBSCRIBED")subs[col].forEach(f=>f(null));});}
-async function leeCol(col){const r=await sb.from("docs").select("id,data").eq("col",col);if(r.error)throw r.error;return r.data||[];}
-async function leeDoc(col,id){const r=await sb.from("docs").select("data").eq("col",col).eq("id",id).maybeSingle();if(r.error)throw r.error;return r.data;}
+async function leeCol(col){const r=await sb.from("docs").select("id,data").eq("col",P+col);if(r.error)throw r.error;return r.data||[];}
+async function leeDoc(col,id){const r=await sb.from("docs").select("data").eq("col",P+col).eq("id",id).maybeSingle();if(r.error)throw r.error;return r.data;}
 const rpc=async(f,a)=>{const r=await sb.rpc(f,a);if(r.error)throw r.error;};
 const db={
-  itemsAdd:(col,id,items)=>rpc("docs_items_add",{p_col:col,p_id:id,p_items:items}),
-  itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:col,p_id:id,p_item:item}),
-  itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:col,p_id:id,p_i:i}),
+  itemsAdd:(col,id,items)=>rpc("docs_items_add",{p_col:P+col,p_id:id,p_items:items}),
+  itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:P+col,p_id:id,p_item:item}),
+  itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:P+col,p_id:id,p_i:i}),
   collection:col=>({onSnapshot:(cb,er)=>{const go=()=>leeCol(col).then(rows=>cb(snap(rows))).catch(e=>er&&er(e));go();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
     get:async()=>{const d=await leeDoc(col,id);return{exists:!!d,data:()=>d?d.data:undefined};},
-    set:async data=>{const r=await sb.from("docs").upsert({col,id,data});if(r.error)throw r.error;},
-    update:async patch=>{const d=await leeDoc(col,id);const r=await sb.from("docs").upsert({col,id,data:Object.assign({},d?d.data:{},patch)});if(r.error)throw r.error;},
+    set:async data=>{const r=await sb.from("docs").upsert({col:P+col,id,data});if(r.error)throw r.error;},
+    update:async patch=>{const d=await leeDoc(col,id);const r=await sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)});if(r.error)throw r.error;},
     onSnapshot:(cb,er)=>{const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();canal(col,p=>{if(!p||(p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
 /* ---------- fotos de albaranes en Storage ---------- */
@@ -350,7 +352,8 @@ window.fotoUrlWeb=id=>{if(urls[id])return urls[id];if(!pidiendo.has(id)){pidiend
   sb.storage.from("albaranes").createSignedUrl(id,3600*12).then(r=>{if(r.data&&r.data.signedUrl){urls[id]=r.data.signedUrl;window.dispatchEvent(new Event("colada-refresh"));}});}
   return "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";};
 const assets={upload:async blob=>{const id=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
-  const r=await sb.storage.from("albaranes").upload(id,blob,{contentType:blob.type||"image/jpeg"});if(r.error)throw r.error;return{id};}};
+  const r=await sb.storage.from("albaranes").upload(id,blob,{contentType:blob.type||"image/jpeg"});if(r.error)throw r.error;return{id,contentType:blob.type||"image/jpeg"};},
+  delete:async id=>{await sb.storage.from("albaranes").remove([id]);}};
 /* ---------- descargas ---------- */
 const downloads={save:async({filename,data})=>{const bl=data instanceof Blob?data:new Blob([data],{type:/\.json$/.test(filename)?"application/json":/\.csv$/.test(filename)?"text/csv":/\.xlsx$/.test(filename)?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":"application/octet-stream"});
   const u=URL.createObjectURL(bl),a=h("a",{href:u,download:filename});document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},4000);}};
