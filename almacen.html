@@ -411,7 +411,7 @@ function tabsUI(){const n=$("tabs");n.textContent="";TABS.forEach(([id,t])=>n.ap
 /* ===== APUNTAR RÁPIDO: escribir o dictar, la IA lo rellena, se revisa y se guarda de una vez ===== */
 const TIPO_R={piston:"Cambio de pistón",consumo:"Consumo",entrada:"Entrada",traslado:"Traslado",conteo:"Conteo"};
 const DIAS_S=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-const rq={txt:"",acc:null,dudas:[],cargando:false};
+const rq={txt:"",acc:null,dudas:[],cargando:false,ult:"",lote:null,ia:false};
 function lsGet(k){try{return localStorage.getItem(k)||"";}catch(e){return"";}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
@@ -473,11 +473,76 @@ function pintaPie(){const p=$("rPie");if(!p||!rq.acc)return;p.textContent="";let
   p.appendChild(el("button",{type:"button",class:"btn sec",text:"Descartar",onclick:()=>{rq.acc=null;rq.dudas=[];render(true);}}));}
 async function llamarFn(fn,body){if(!window.sbColada)throw new Error("Solo funciona en la app web");const r=await window.sbColada.functions.invoke(fn,{body});
   if(r.error){let m=r.error.message;try{const j=await r.error.context.json();if(j&&j.error)m=j.error;}catch(e){}throw new Error(m);}return r.data;}
-async function entender(){const t=rq.txt.trim();if(!t){toast("Escribe o dicta lo que ha pasado");return;}
-  rq.cargando=true;render(true);
-  try{const d=await llamarFn("interpretar-almacen",{texto:t,hoy:hoy(),dia:DIAS_S[new Date().getDay()],contexto:ctxIA()});
-    const acc=(d.acciones||[]).map(normAcc);rq.dudas=d.dudas||[];rq.acc=(rq.acc||[]).concat(acc);
-    if(acc.length)rq.txt="";else toast("No he encontrado nada que apuntar");}
+/* ---- lector GRATIS (sin IA): entiende las frases típicas con el catálogo ---- */
+const NUMW={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,quince:15,veinte:20,treinta:30,cuarenta:40,cincuenta:50,cien:100};
+const STOPW=new Set(["de","del","la","el","los","las","en","para","con","por","y","a","al","un","una","uno","mm","ud","uds","m","kg","l"]);
+const sing=w=>w.length>4&&/es$/.test(w)&&!/[aeiou]es$/.test(w.slice(0,-1))?w.slice(0,-2):w.length>3&&/s$/.test(w)?w.slice(0,-1):w;
+function fechaTxt(t,base){const d=new Date(base+"T12:00:00");const iso=x=>x.toISOString().slice(0,10);
+  if(/\banteayer\b/.test(t)){d.setDate(d.getDate()-2);return iso(d);}if(/\bayer\b/.test(t)){d.setDate(d.getDate()-1);return iso(d);}if(/\bhoy\b/.test(t))return base;
+  const DS=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];for(let i=0;i<7;i++)if(new RegExp("\\b"+DS[i]+"\\b").test(t)){while(d.getDay()!==i)d.setDate(d.getDate()-1);return iso(d);}
+  const m=t.match(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(?:\s*[\/-]\s*(\d{2,4}))?\b/);if(m){const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):base.slice(0,4);const f=y+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");if(!isNaN(Date.parse(f)))return f;}
+  return null;}
+function trozos(txt){return txt.split(/[.;\n]+|\s+y\s+(?=(?:\d|un\b|una\b|dos\b|tres\b|cuatro\b|cinco\b|seis\b|siete\b|ocho\b|nueve\b|diez\b|otr|cambi|consum|gast|entr|lleg|baj|pas|cont|hay\b))|,\s*(?=otr[oa]\b|tambien\b)|\b(?:otro|otra)\s+(?=cambio)/).map(x=>(x||"").trim()).filter(x=>x.length>1);}
+function aliasAlm(){return cat.almacenes.map(l=>{const n=norm(l.nom);const al=[];const ult=n.split(/\s+/).pop();if(ult&&ult.length<=4)al.push(ult);
+  if(l.tipo==="central"&&/general|central/.test(n))al.push("general","central");if(/consumible/.test(n))al.push("consumibles","consumible");al.push(n.replace(/^almacen (de )?(produccion )?/,""));return{l,al:Array.from(new Set(al.filter(Boolean)))};});}
+function buscaAlms(t){const out=[];aliasAlm().forEach(({l,al})=>{al.forEach(a=>{const re=new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","g");let m;while((m=re.exec(t)))out.push({id:l.id,i:m.index,len:a.length});});});
+  out.sort((a,b)=>a.i-b.i||b.len-a.len);const res=[];out.forEach(o=>{if(!res.some(r=>o.i<r.i+r.len&&r.i<o.i+o.len))res.push(o);});return res;}
+function buscaArt(t,soloPist){const toks=t.split(/[^a-z0-9ñ,]+/).filter(Boolean).map(sing);let best=null,bs=0,bf=0,emp=false;
+  artsActivos().filter(a=>soloPist?a.fam==="piston":a.fam!=="piston").forEach(a=>{if(a.cod&&new RegExp("\\b"+norm(a.cod)+"\\b").test(t)){best=a;bs=99;bf=1;emp=false;return;}
+    const dt=norm(a.desc).split(/[^a-z0-9ñ,]+/).filter(w=>w&&!STOPW.has(w)).map(sing);if(!dt.length)return;
+    let sc=0;dt.forEach(w=>{if(toks.some(x=>x===w||(w.length>=4&&x.length>=4&&(x.startsWith(w)||w.startsWith(x)))))sc++;});
+    if(!sc||!dt.some(w=>/[a-zñ]{3,}/.test(w)&&toks.some(x=>x===w||(w.length>=4&&x.length>=4&&(x.startsWith(w)||w.startsWith(x))))))return;
+    const fr=sc/dt.length;if(sc>bs||(sc===bs&&fr>bf)){best=a;bs=sc;bf=fr;emp=false;}else if(sc===bs&&fr===bf)emp=true;});
+  return emp?null:best;}
+function leerLocal(txt){const base=hoy();let fUlt=null;const acc=[],dudas=[];
+  const OPS=(cat.operarios||[]);
+  trozos(txt).forEach(orig=>{let t=" "+norm(orig).replace(/ø/g," diam ").replace(/\s+/g," ")+" ";const x={texto:orig.trim()};
+    const f=fechaTxt(t,base);if(f)fUlt=f;x.fecha=fUlt;t=t.replace(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(\s*[\/-]\s*\d{2,4})?\b/g," ");
+    const tipo=/\b(entrada|llegad[oa]s?|ha llegado|han llegado|recibid[oa]s?|recibo|recibimos|traen|traido|trajeron)\b/.test(t)?"entrada"
+      :/\b(contad[oa]s?|conte|contamos|recuento|inventario)\b/.test(t)?"conteo"
+      :/\b(traslad\w*|baj(o|ar|ado|amos|e|ado)|subid[oa]|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos))\b/.test(t)?"traslado"
+      :(/pist/.test(t)||(/\bcambi/.test(t)&&/\b(f\s*-?\s*\d{1,2}|la\s+\d{1,2})\b/.test(t)))?"piston":"consumo";
+    /* inyectora */
+    let maq=null;const mq=t.match(/\bf\s*-?\s*(\d{1,2})\b/)||t.match(/\b(?:la|maquina|inyectora|iny|en)\s+(\d{1,2})\b/);
+    if(mq){const m=cat.maquinas.find(z=>norm(z.cod)==="f"+mq[1]);if(m){maq=m.id;t=t.replace(mq[0]," ");}}
+    /* diámetro */
+    let diam=null;const dm=t.match(/\b(?:diam\w*\s*|del\s+|de\s+)?(50|60|70|80|90|100)\b\s*(esp\w*|e\b)?/);
+    if(dm&&(tipo==="piston"||/pist/.test(t))){const d="Ø "+dm[1]+(dm[2]?" esp":"");if(DIAM.includes(d)){diam=d;t=t.replace(dm[0]," ");}}
+    /* motivo y destino del usado */
+    const MOT=[[/desgast|gastad/,"DESGASTE"],[/\broto\b|rotura|rompi/,"ROTURA"],[/fuga|agua/,"FUGA DE AGUA"],[/agarrot|clavad/,"PISTÓN AGARROTADO"],[/cambio de ref|cambio ref|\bref\b|referencia/,"CAMBIO REF"],[/preventiv/,"CAMBIO PREVENTIVO"],[/prueba/,"PRUEBAS"],[/pistonwax|sin wax/,"TRABAJANDO SIN PISTONWAX"]];
+    const DST=[[/en el eje|queda puesto|se queda/,"QUEDA PUESTO EN EL EJE (AGARROTADO)"],[/usados|a la zona|zona de pist/,"ZONA DE PISTONES USADOS"],[/desech|basura|tirad/,"DESECHADO"],[/no esta|ni en eje|perdid/,"NO ESTÁ EN LA ZONA PISTONES USADO NI EN EJE"]];
+    if(tipo==="piston"){const dp=DST.find(([re])=>re.test(t));if(dp)x.destino_piston=dp[1];
+      const mo=MOT.find(([re])=>re.test(dp&&dp[1].startsWith("QUEDA")?t.replace(/agarrot\w*/,""):t));if(mo)x.motivo=mo[1];}
+    /* responsable */
+    let rm=t.match(/\b(?:el|resp\w*|operario|oper|numero|num|nº|n)\s*(\d{2,3})\b/);
+    if(!rm){const nums=(t.match(/\b\d{2,3}\b/g)||[]);const o=nums.find(n=>OPS.some(z=>String(z.num)===n));if(o)rm=[o,o];}
+    if(rm&&tipo==="piston"){x.responsable=rm[1];t=t.replace(rm[0]," ");}
+    else if(tipo==="piston"){const o=responsables().filter(z=>/[a-zñ]{3,}/i.test(norm(z))).sort((p,q)=>q.length-p.length).find(z=>new RegExp("\\b"+norm(z).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b").test(t));if(o){x.responsable=o;t=t.replace(norm(o)," ");}}
+    /* almacenes */
+    const als=buscaAlms(t),t0=t;als.forEach(a=>{t=t.slice(0,a.i)+" ".repeat(a.len)+t.slice(a.i+a.len);});
+    if(tipo==="traslado"){if(als.length>=2){x.almacen=als[0].id;x.destino=als[1].id;}else if(als.length===1){const pre=t0.slice(0,als[0].i);if(/\b(a|al|hacia|para)\s*$/.test(pre))x.destino=als[0].id;else x.almacen=als[0].id;}}
+    else if(als.length)x.almacen=als[0].id;
+    /* proveedor y albarán */
+    if(tipo==="entrada"){const p=cat.proveedores.find(z=>new RegExp("\\b"+norm(z.nom)+"\\b").test(t));if(p){x.proveedor=p.id;t=t.replace(norm(p.nom)," ");}
+      const ab=t.match(/\balbaran\s*(?:n\w*\s*)?([a-z0-9\-\/]{3,})/);if(ab){x.albaran=ab[1].toUpperCase();t=t.replace(ab[0]," ");}}
+    /* cantidad */
+    const cm=t.match(/(\d+(?:[.,]\d+)?)(?!\d|[.,]\d|\s*kg\b)/)||null;let cant=null;
+    if(cm){cant=parseN(cm[1]);t=t.replace(cm[0]," ");}else{const w=Object.keys(NUMW).find(k=>new RegExp("\\b"+k+"\\b").test(t));if(w){cant=NUMW[w];t=t.replace(new RegExp("\\b"+w+"\\b")," ");}}
+    x.cantidad=cant;
+    /* artículo */
+    if(tipo==="piston"){x.tipo="piston";x.maquina=maq;x.diametro=diam;if(!maq)dudas.push("No sé en qué inyectora: «"+orig.trim()+"»");}
+    else{x.tipo=tipo;if(maq)x.maquina=maq;const a=diam?pistArt(diam):buscaArt(t,false);x.articulo=a?a.id:null;
+      if(!a)dudas.push("No sé qué artículo es: «"+orig.trim()+"»");}
+    acc.push(x);});
+  return{acciones:acc,dudas};}
+async function entender(ia){const t=(ia&&!rq.txt.trim()?rq.ult:rq.txt).trim();if(!t){toast("Escribe o dicta lo que ha pasado");return;}
+  const quitarLote=ia&&!rq.txt.trim()&&rq.lote;
+  rq.cargando=ia?"ia":"local";render(true);
+  try{const d=ia?await llamarFn("interpretar-almacen",{texto:t,hoy:hoy(),dia:DIAS_S[new Date().getDay()],contexto:ctxIA()}):leerLocal(t);
+    const lote=uid();const acc=(d.acciones||[]).map(x=>{const r=normAcc(x);r.lote=lote;return r;});
+    if(quitarLote)rq.acc=(rq.acc||[]).filter(r=>r.lote!==quitarLote);
+    rq.dudas=d.dudas||[];rq.acc=(rq.acc||[]).concat(acc);rq.ia=!!ia;
+    if(acc.length){rq.ult=t;rq.lote=lote;rq.txt="";}else toast("No he encontrado nada que apuntar"+(ia?"":". Prueba «Con IA»"));}
   catch(e){toast("No se pudo: "+(e&&e.message||e));}
   rq.cargando=false;render(true);}
 async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>faltaR(r).length)){toast("Completa lo que falta");return;}
@@ -505,12 +570,14 @@ function dictar(btn,ta){if(!SR){ta.focus();toast("Pulsa el micrófono del teclad
 function vRap(v){
   const ta=el("textarea",{id:"rTxt",placeholder:"Ej.: cambio de pistón del 90 especial en la 66 por desgaste, a usados, el 211. Y 3 escobas en N1A",style:"font-size:17px;min-height:104px"});
   ta.value=rq.txt;ta.addEventListener("input",()=>{rq.txt=ta.value;});
-  const go=el("button",{type:"button",class:"btn",style:"flex:1",text:rq.cargando?"Entendiendo…":"Entender",disabled:rq.cargando,onclick:entender});
+  const go=el("button",{type:"button",class:"btn",style:"flex:1",text:rq.cargando==="local"?"Leyendo…":"Entender (gratis)",disabled:!!rq.cargando,onclick:()=>entender(false)});
+  const goIA=el("button",{type:"button",class:"btn sec",text:rq.cargando==="ia"?"Pensando…":"Con IA",disabled:!!rq.cargando,onclick:()=>entender(true)});
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Apuntar rápido"}),el("span",{class:"der sub",text:"Escríbelo o díctalo como lo dirías"})]),
-    el("div",{class:"bd frm",style:"gap:10px"},[ta,el("div",{class:"acciones"},[SR?el("button",{type:"button",class:"btn sec",text:"🎤 Dictar",onclick:e=>dictar(e.currentTarget,ta)}):null,go]),
-      el("p",{class:"hint",text:"Puedes poner varias cosas a la vez: cambios de pistón, consumos, entradas, traslados o recuentos. Antes de guardar lo ves todo y lo puedes corregir. Cada «Entender» cuesta menos de 1 céntimo."})])]));
+    el("div",{class:"bd frm",style:"gap:10px"},[ta,el("div",{class:"acciones"},[SR?el("button",{type:"button",class:"btn sec",text:"🎤 Dictar",onclick:e=>dictar(e.currentTarget,ta)}):null,go,goIA]),
+      el("p",{class:"hint",text:"«Entender» es gratis: entiende frases como «pistón 90 esp en la 66 desgaste el 211», «3 escobas N1A», «bajado 2 pistones del 80 de general a N2», «entrada 20 m manguera Eguiber». Si no lo entiende bien, «Con IA» lo lee mejor (medio céntimo cada vez; si pones varias cosas juntas, se paga una sola vez). Antes de guardar lo ves todo y lo puedes corregir."})])]));
   v.appendChild(el("datalist",{id:"lOperR"},responsables().map(x=>el("option",{value:x}))));
   if(rq.dudas&&rq.dudas.length)v.appendChild(el("div",{class:"banner"},[el("b",{text:"Revisa: "}),rq.dudas.join(" · ")]));
+  if(rq.acc&&rq.acc.length&&!rq.ia&&rq.lote&&rq.acc.some(r=>r.lote===rq.lote&&faltaR(r).length))v.appendChild(el("div",{class:"acciones"},[el("span",{class:"hint",style:"flex:1;align-self:center",text:"¿No lo ha entendido bien?"}),el("button",{type:"button",class:"btn sec peq",text:"Probar con IA (½ cént.)",disabled:!!rq.cargando,onclick:()=>{rq.txt="";entender(true);}})]));
   if(rq.acc&&rq.acc.length){rq.acc.forEach(r=>v.appendChild(filaR(r)));v.appendChild(el("div",{id:"rPie",class:"acciones",style:"position:sticky;bottom:0;background:var(--bg);padding:8px 0"}));pintaPie();}
   apuntesHoy(v);}
 function apuntesHoy(v){const hy=hoy();
