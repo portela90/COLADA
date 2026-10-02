@@ -45,12 +45,17 @@ function hacerCopia() {
   const ya = {};
   const it = dirFotos.getFiles();
   while (it.hasNext()) ya[it.next().getName()] = 1;
-  let nuevas = 0;
+  let nuevas = 0, fallos = 0;
   for (const id in fotos) {
-    if (ya[id]) continue;
+    const nom = id + ".jpg";
+    if (ya[nom]) continue;
     if (nuevas >= 300) break; // por si hay muchas: sigue la noche siguiente
-    const f = UrlFetchApp.fetch(fotos[id], { muteHttpExceptions: true });
-    if (f.getResponseCode() === 200) { dirFotos.createFile(f.getBlob().setName(id)); nuevas++; }
+    try {
+      const f = UrlFetchApp.fetch(fotos[id], { muteHttpExceptions: true });
+      if (f.getResponseCode() !== 200) { fallos++; continue; }
+      guardar_(dirFotos, Utilities.newBlob(f.getContent(), "image/jpeg", nom));
+      nuevas++;
+    } catch (e) { fallos++; Logger.log("Foto " + id + ": " + e.message); }
   }
 
   // 3) borrar copias viejas
@@ -60,7 +65,15 @@ function hacerCopia() {
     const f = todas.next();
     if (/^colada-copia-/.test(f.getName()) && f.getDateCreated().getTime() < limite) f.setTrashed(true);
   }
-  Logger.log("Copia guardada: " + nombre + (nuevas ? " · " + nuevas + " foto(s) nueva(s)" : ""));
+  Logger.log("Copia guardada: " + nombre + " · " + nuevas + " foto(s) nueva(s)" + (fallos ? " · " + fallos + " foto(s) se intentarán otra vez la próxima noche" : ""));
+}
+
+// Drive a veces falla un momento: se reintenta 3 veces
+function guardar_(dir, blob) {
+  for (let i = 1; ; i++) {
+    try { return dir.createFile(blob); }
+    catch (e) { if (i >= 3) throw e; Utilities.sleep(3000 * i); }
+  }
 }
 
 function carpeta_(padre, nombre) {
