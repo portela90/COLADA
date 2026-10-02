@@ -19,6 +19,7 @@ type Ctx = {
   almacenes: { id: string; nom: string; nave?: string; tipo?: string }[];
   maquinas: { id: string; cod: string; nave?: string }[];
   proveedores: { id: string; nom: string }[];
+  ejes?: string[];
   operarios: string[];
   diametros: string[];
   motivos: string[];
@@ -37,6 +38,10 @@ TIPOS DE ACCIÓN
 - "entrada": ha llegado material. Datos: articulo, cantidad, almacen, proveedor, albaran.
 - "traslado": se ha bajado / pasado material de un almacén a otro. Datos: articulo, cantidad, almacen (desde), destino (hasta).
 - "conteo": ha contado lo que hay. Datos: articulo, cantidad (lo contado), almacen.
+- "eje_prep": un eje de inyección tiene un desperfecto y se prepara para mandarlo a reparar. Datos: eje (código), desperfecto (en mayúsculas, p. ej. "POSTIZO ROTO", "PISTON 80 AGARROTADO").
+- "eje_env": un eje se ha enviado al taller a reparar. Datos: eje.
+- "eje_rec": un eje ha vuelto reparado del taller. Datos: eje, albaran.
+Con varios ejes, una acción por eje.
 
 INYECTORAS (id · código · nave). «la 66», «F-66», «máquina 66» = F66:
 ${L(c.maquinas.map((m) => `${m.id} · ${m.cod} · ${m.nave || ""}`))}
@@ -47,6 +52,9 @@ ${L(c.articulos.map((a) => [a.id, a.desc, a.cod || "", a.ud || "", a.fam || "", 
 ALMACENES (id · nombre · nave · tipo). «N1A», «producción 1A» = Almacén producción N1A; «general», «central» = Almacén general; «consumibles» = Almacén de consumibles N1:
 ${L(c.almacenes.map((l) => [l.id, l.nom, l.nave || "", l.tipo || ""].join(" · ")))}
 
+EJES (código y estado: planta, preparado, reparacion, devuelto). Los códigos se escriben como 2.3.C-3; si dicta «dos tres c tres» es 2.3.C-3:
+${(c.ejes || []).join(", ")}
+
 PROVEEDORES (id · nombre):
 ${L(c.proveedores.map((p) => p.id + " · " + p.nom))}
 
@@ -56,7 +64,7 @@ DESTINO DEL PISTÓN USADO (valor exacto): ${c.destinos.join(" | ")}. «a usados�
 RESPONSABLES conocidos (número de operario y/o nombre): ${c.operarios.join(", ")}. Si dice «el 211» o «responsable 211», pon "211".
 
 Responde SOLO con un JSON, sin texto alrededor:
-{"acciones":[{"tipo":"piston|consumo|entrada|traslado|conteo","fecha":"AAAA-MM-DD"|null,"articulo":id|null,"cantidad":number|null,"almacen":id|null,"destino":id|null,"maquina":id|null,"diametro":string|null,"motivo":string|null,"destino_piston":string|null,"responsable":string|null,"proveedor":id|null,"albaran":string|null,"nota":string|null,"texto":"trozo del mensaje al que corresponde"}],
+{"acciones":[{"tipo":"piston|consumo|entrada|traslado|conteo|eje_prep|eje_env|eje_rec","fecha":"AAAA-MM-DD"|null,"articulo":id|null,"cantidad":number|null,"almacen":id|null,"destino":id|null,"maquina":id|null,"diametro":string|null,"motivo":string|null,"destino_piston":string|null,"responsable":string|null,"proveedor":id|null,"albaran":string|null,"eje":string|null,"desperfecto":string|null,"nota":string|null,"texto":"trozo del mensaje al que corresponde"}],
  "dudas":["lo que no has entendido o has tenido que suponer, en frases cortas"]}
 Reglas: usa SOLO ids de las listas. Una acción por cada artículo / inyectora (si cambia pistones en dos inyectoras, dos acciones). Si algo no está claro, pon null y explícalo en dudas; no inventes. Los números en España usan coma decimal.`;
 }
@@ -77,9 +85,9 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": key.trim(), "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: Deno.env.get("MODELO_ALMACEN") || "claude-haiku-4-5-20251001",
-        max_tokens: 2000,
+        max_tokens: 6000,
         system: prompt(contexto as Ctx, hoy || new Date().toISOString().slice(0, 10), dia || ""),
-        messages: [{ role: "user", content: String(texto).slice(0, 4000) }],
+        messages: [{ role: "user", content: String(texto).slice(0, 12000) }],
       }),
     });
     const out = await r.json();

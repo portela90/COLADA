@@ -409,15 +409,18 @@ function irA(t){tab=t;try{localStorage.setItem("almacen.tab",t);}catch(e){}tabsU
 function tabsUI(){const n=$("tabs");n.textContent="";TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id),text:t,onclick:()=>irA(id)})));}
 
 /* ===== APUNTAR RÁPIDO: escribir o dictar, la IA lo rellena, se revisa y se guarda de una vez ===== */
-const TIPO_R={piston:"Cambio de pistón",consumo:"Consumo",entrada:"Entrada",traslado:"Traslado",conteo:"Conteo"};
+const TIPO_R={piston:"Cambio de pistón",consumo:"Consumo",entrada:"Entrada",traslado:"Traslado",conteo:"Conteo",eje_prep:"Eje: preparar para reparar",eje_env:"Eje: enviado a reparar",eje_rec:"Eje: recibido de reparar"};
+const ejeKey=c=>norm(c).replace(/"/g,"q").replace(/[^a-z0-9]/g,"");
+function ejeDe(c){if(!c)return null;const k=ejeKey(c);return ejes.find(e=>ejeKey(e.cod)===k)||null;}
+let notas=[];
 const DIAS_S=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-const rq={txt:"",acc:null,dudas:[],cargando:false,ult:"",lote:null,ia:false};
+const rq={txt:"",acc:null,dudas:[],cargando:false,ult:"",lote:null,ia:false,notasProc:null};
 function lsGet(k){try{return localStorage.getItem(k)||"";}catch(e){return"";}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 function ctxIA(){return{articulos:artsActivos().map(a=>({id:a.id,desc:a.desc,cod:a.cod||"",ud:a.ud,fam:a.fam,diam:a.diam||""})),
   almacenes:cat.almacenes.map(l=>({id:l.id,nom:l.nom,nave:l.nave||"",tipo:l.tipo||""})),maquinas:cat.maquinas.map(m=>({id:m.id,cod:m.cod,nave:m.nave||""})),
-  proveedores:cat.proveedores.map(p=>({id:p.id,nom:p.nom})),operarios:responsables(),diametros:DIAM,motivos:MOTIVOS,destinos:DESTINOS};}
+  proveedores:cat.proveedores.map(p=>({id:p.id,nom:p.nom})),ejes:ejes.map(e=>e.cod+" ("+e.estado+")"),operarios:responsables(),diametros:DIAM,motivos:MOTIVOS,destinos:DESTINOS};}
 function almSug(r){if(r.tipo==="piston"){const p=pistArt(r.diam);if(p&&r.maq&&!r.alm){r.alm=almPara(r.maq,p.id);r.auto.alm=1;}return;}
   const a=art(r.art);if(!a)return;
   if(r.tipo==="consumo"&&r.maq&&!r.alm){const l=almPara(r.maq,a.id);if(l&&stockDe(a.id,l)>0){r.alm=l;r.auto.alm=1;return;}}
@@ -428,16 +431,22 @@ function normAcc(x){const t=TIPO_R[x.tipo]?x.tipo:"consumo";const ok=(arr,id)=>i
   const r={k:uid(),tipo:t,f:/^\d{4}-\d\d-\d\d$/.test(x.fecha||"")?x.fecha:hoy(),art:ok(cat.articulos,x.articulo),cant:x.cantidad!=null&&isFinite(+x.cantidad)?String(x.cantidad):"",
     alm:ok(cat.almacenes,x.almacen),dest:ok(cat.almacenes,x.destino),maq:ok(cat.maquinas,x.maquina),diam:DIAM.includes(x.diametro)?x.diametro:"",
     motivo:MOTIVOS.includes(x.motivo)?x.motivo:"",dp:DESTINOS.includes(x.destino_piston)?x.destino_piston:"",resp:x.responsable?String(x.responsable):"",
-    prov:ok(cat.proveedores,x.proveedor),alb:x.albaran||"",nota:x.nota||"",txt:x.texto||"",auto:{}};
+    prov:ok(cat.proveedores,x.proveedor),alb:x.albaran||"",nota:x.nota||"",txt:x.texto||"",auto:{},eje:(ejeDe(x.eje)||{}).cod||(x.eje||""),desp:x.desperfecto||""};
+  if(t.startsWith("eje_"))return r;
   if(t==="piston"){if(!r.cant)r.cant="1";if(!r.diam&&r.maq){const u=ultimoPist(r.maq);if(u){r.diam=u.diam;r.auto.diam=1;}}
     if(!r.motivo){r.motivo="DESGASTE";r.auto.motivo=1;}if(!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}
     if(!r.resp&&lsGet("alm.resp")){r.resp=lsGet("alm.resp");r.auto.resp=1;}}
   almSug(r);return r;}
 function faltaR(r){const f=[],q=parseN(r.cant);if(!r.f)f.push("fecha");
+  if(r.tipo.startsWith("eje_")){const e=ejeDe(r.eje);if(!e){f.push(r.eje?"no existe el eje "+r.eje:"eje");return f;}const est=(EST_E[e.estado]||[e.estado])[0];
+    if(r.tipo==="eje_prep"){if(e.estado!=="planta")f.push("el eje está «"+est+"», no en planta");if(!(r.desp||"").trim())f.push("desperfecto");}
+    if(r.tipo==="eje_env"&&!(e.estado==="planta"||e.estado==="preparado"))f.push("el eje ya está «"+est+"»");
+    if(r.tipo==="eje_rec"&&!(e.estado==="reparacion"||e.estado==="devuelto"))f.push("el eje está «"+est+"», no en reparación");return f;}
   if(r.tipo==="piston"){if(!r.maq)f.push("inyectora");if(!r.diam)f.push("diámetro");if(!(q>0)||Math.round(q)!==q)f.push("cantidad");if(!r.motivo)f.push("motivo");if(!r.dp)f.push("qué se hace con el usado");return f;}
   if(!r.art)f.push("artículo");if(!r.alm)f.push(r.tipo==="traslado"?"desde":"almacén");
   if(r.tipo==="conteo"?!(q>=0):!(q>0))f.push("cantidad");if(r.tipo==="traslado"&&(!r.dest||r.dest===r.alm))f.push("hasta");return f;}
 function infoR(r){const q=parseN(r.cant);
+  if(r.tipo.startsWith("eje_")){const e=ejeDe(r.eje);if(!e)return"";const ab=abiertaDe(e.cod);return ejeRef(e)+" · ahora: "+(EST_E[e.estado]||[e.estado])[0]+(ab&&ab.desp&&r.tipo!=="eje_prep"?" · "+ab.desp:"");}
   if(r.tipo==="piston"){const p=pistArt(r.diam);if(!p)return r.diam?"No hay pistón "+r.diam+" en el catálogo: no se descuenta stock.":"";if(!r.alm)return"No se descuenta del stock.";
     const st=stockDe(p.id,r.alm);return"Hay "+fmtN(st)+" en "+almN(r.alm)+(isFinite(q)?" → quedan "+fmtN(st-q):"");}
   const a=art(r.art);if(!a||!r.alm)return"";const st=stockDe(a.id,r.alm),u=" "+a.ud;
@@ -460,6 +469,7 @@ function filaR(r){const a=art(r.art);let box;
   else if(r.tipo==="consumo")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Inyectora (opcional)","maq",maqOpts(),"—"),F()])];
   else if(r.tipo==="entrada")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Proveedor","prov",provOpts(),"—"),T("Nº albarán","alb",{autocomplete:"off"}),F()])];
   else if(r.tipo==="traslado")campos=[el("div",{class:"row"},[artS(),C()]),el("div",{class:"row"},[S("Desde","alm",almOptsArt(a),"Elige…"),S("Hasta","dest",almOptsArt(a,r.alm),"Elige…"),F()])];
+  else if(r.tipo.startsWith("eje_"))campos=[el("div",{class:"row"},[T("Eje (código)","eje",{list:"lEjesR",autocomplete:"off",placeholder:"p. ej. 2.3.C-3"}),r.tipo==="eje_prep"?T("Desperfecto","desp",{autocomplete:"off"}):null,r.tipo==="eje_rec"?T("Albarán","alb",{autocomplete:"off"}):null,F()])];
   else campos=[el("div",{class:"row"},[artS(),C("Cantidad contada"),S("Almacén","alm",almOptsArt(a),"Elige…"),F()])];
   const tipoS=sel("rt"+r.k,Object.entries(TIPO_R),r.tipo,v=>{r.tipo=v;if(v==="piston"&&!r.cant)r.cant="1";if(v==="piston"&&!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}if(v==="piston"&&!r.motivo){r.motivo="DESGASTE";r.auto.motivo=1;}r.alm="";r.dest="";almSug(r);re();});
   r._info=el("p",{class:"hint",text:infoR(r)});r._fl=el("p",{class:"hint",style:"color:var(--bad);font-weight:600"});
@@ -470,7 +480,7 @@ function filaR(r){const a=art(r.art);let box;
 function pintaPie(){const p=$("rPie");if(!p||!rq.acc)return;p.textContent="";let mal=0;
   rq.acc.forEach(r=>{const fl=faltaR(r);if(fl.length)mal++;if(r._fl)r._fl.textContent=fl.length?"Falta: "+fl.join(", "):"";if(r._info){r._info.textContent=infoR(r);r._info.style.color=/quedan −/.test(r._info.textContent)?"var(--bad)":"";}});
   p.appendChild(el("button",{type:"button",class:"btn",style:"flex:1",id:"rSave",text:mal?"Faltan datos en "+mal+" de "+rq.acc.length:"Guardar todo ("+rq.acc.length+")",disabled:!!mal,onclick:guardarR}));
-  p.appendChild(el("button",{type:"button",class:"btn sec",text:"Descartar",onclick:()=>{rq.acc=null;rq.dudas=[];render(true);}}));}
+  p.appendChild(el("button",{type:"button",class:"btn sec",text:"Descartar",onclick:()=>{rq.acc=null;rq.dudas=[];rq.notasProc=null;render(true);}}));}
 async function llamarFn(fn,body){if(!window.sbColada)throw new Error("Solo funciona en la app web");const r=await window.sbColada.functions.invoke(fn,{body});
   if(r.error){let m=r.error.message;try{const j=await r.error.context.json();if(j&&j.error)m=j.error;}catch(e){}throw new Error(m);}return r.data;}
 /* ---- lector GRATIS (sin IA): entiende las frases típicas con el catálogo ---- */
@@ -482,7 +492,7 @@ function fechaTxt(t,base){const d=new Date(base+"T12:00:00");const iso=x=>x.toIS
   const DS=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];for(let i=0;i<7;i++)if(new RegExp("\\b"+DS[i]+"\\b").test(t)){while(d.getDay()!==i)d.setDate(d.getDate()-1);return iso(d);}
   const m=t.match(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(?:\s*[\/-]\s*(\d{2,4}))?\b/);if(m){const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):base.slice(0,4);const f=y+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");if(!isNaN(Date.parse(f)))return f;}
   return null;}
-function trozos(txt){return txt.split(/[.;\n]+|\s+y\s+(?=(?:\d|un\b|una\b|dos\b|tres\b|cuatro\b|cinco\b|seis\b|siete\b|ocho\b|nueve\b|diez\b|otr|cambi|consum|gast|entr|lleg|baj|pas|cont|hay\b))|,\s*(?=otr[oa]\b|tambien\b)|\b(?:otro|otra)\s+(?=cambio)/).map(x=>(x||"").trim()).filter(x=>x.length>1);}
+function trozos(txt){return txt.split(/\.+(?=\s|$)|[;\n]+|\s+y\s+(?=(?:\d(?!\s*[.,]\s*\d)|un\b|una\b|dos\b|tres\b|cuatro\b|cinco\b|seis\b|siete\b|ocho\b|nueve\b|diez\b|otr|cambi|consum|gast|entr|lleg|baj|pas|cont|hay\b))|,\s*(?=otr[oa]\b|tambien\b)|\b(?:otro|otra)\s+(?=cambio)/).map(x=>(x||"").trim()).filter(x=>x.length>1);}
 function aliasAlm(){return cat.almacenes.map(l=>{const n=norm(l.nom);const al=[];const ult=n.split(/\s+/).pop();if(ult&&ult.length<=4)al.push(ult);
   if(l.tipo==="central"&&/general|central/.test(n))al.push("general","central");if(/consumible/.test(n))al.push("consumibles","consumible");al.push(n.replace(/^almacen (de )?(produccion )?/,""));return{l,al:Array.from(new Set(al.filter(Boolean)))};});}
 function buscaAlms(t){const out=[];aliasAlm().forEach(({l,al})=>{al.forEach(a=>{const re=new RegExp("\\b"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","g");let m;while((m=re.exec(t)))out.push({id:l.id,i:m.index,len:a.length});});});
@@ -494,10 +504,22 @@ function buscaArt(t,soloPist){const toks=t.split(/[^a-z0-9ñ,]+/).filter(Boolean
     if(!sc||!dt.some(w=>/[a-zñ]{3,}/.test(w)&&toks.some(x=>x===w||(w.length>=4&&x.length>=4&&(x.startsWith(w)||w.startsWith(x))))))return;
     const fr=sc/dt.length;if(sc>bs||(sc===bs&&fr>bf)){best=a;bs=sc;bf=fr;emp=false;}else if(sc===bs&&fr===bf)emp=true;});
   return emp?null:best;}
-function leerLocal(txt){const base=hoy();let fUlt=null;const acc=[],dudas=[];
+function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={};const acc=[],dudas=[];
   const OPS=(cat.operarios||[]);
   trozos(txt).forEach(orig=>{let t=" "+norm(orig).replace(/ø/g," diam ").replace(/\s+/g," ")+" ";const x={texto:orig.trim()};
     const f=fechaTxt(t,base);if(f)fUlt=f;x.fecha=fUlt;t=t.replace(/\b(\d{1,2})\s*[\/-]\s*(\d{1,2})(\s*[\/-]\s*\d{2,4})?\b/g," ");
+    /* ejes */
+    const ER=/\b(\d)\s*[.,]\s*(\d)\s*[.,]\s*([a-j])\s*(q|")?\s*[-–]?\s*(\d{1,2})\b/g,ER2=/\b(\d)\s*[.,\s]\s*(\d)\s*[.,\s]\s*([a-j])\s*(q|")?\s*[-–\s]?\s*(\d{1,2})\b/g;
+    let codes=[],m2;const er=/\beje/.test(t)?ER2:ER;let lastEnd=0;
+    while((m2=er.exec(t))){codes.push(m2[1]+"."+m2[2]+"."+m2[3].toUpperCase()+(m2[4]?'"':"")+"-"+m2[5]);lastEnd=m2.index+m2[0].length;}
+    if(codes.length){let tp=/recib|llegad|vuelt|venid|ha venido|han venido|traid/.test(t)?"eje_rec":/envi|mandad|mande|mandamos|se van|se lleva/.test(t)?"eje_env":/prepar|desperf|para (enviar|reparar|el taller)|rot[oa]|mal\b|fuga|agarrot|poros|machac|no entra|no circula/.test(t)?"eje_prep":(lastEje.tipo||"eje_prep");
+      let alb=null;const ab=t.match(/\balbaran\s*(?:n\w*\s*)?([a-z0-9\-\/]{3,})/)||t.match(/\b(\d{5,6}a\d{2})\b/);if(ab)alb=ab[1].toUpperCase();else if(tp==="eje_rec"&&lastEje.tipo==="eje_rec")alb=lastEje.alb;
+      let desp=tp==="eje_prep"?t.slice(lastEnd).replace(/\b(preparad[oa]s?|para (enviar|reparar|el taller)|por|porque|que|tiene|con|esta|eje|desperfecto|:)\b/g," ").replace(/[,.:;]+/g," ").replace(/\s+/g," ").trim():"";
+      if(tp==="eje_prep"&&!desp&&lastEje.tipo==="eje_prep")desp=lastEje.desp||"";
+      lastEje={tipo:tp,alb,desp};
+      codes.forEach(c=>{if(!ejeDe(c))dudas.push("No existe el eje "+c);acc.push({tipo:tp,eje:c,fecha:x.fecha,desperfecto:desp?desp.toUpperCase():null,albaran:alb,texto:orig.trim()});});
+      return;}
+    if(/\beje/.test(t)){dudas.push("No encuentro el código del eje en «"+orig.trim()+"» (escríbelo así: 2.3.C-3)");return;}
     const tipo=/\b(entrada|llegad[oa]s?|ha llegado|han llegado|recibid[oa]s?|recibo|recibimos|traen|traido|trajeron)\b/.test(t)?"entrada"
       :/\b(contad[oa]s?|conte|contamos|recuento|inventario)\b/.test(t)?"conteo"
       :/\b(traslad\w*|baj(o|ar|ado|amos|e|ado)|subid[oa]|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos))\b/.test(t)?"traslado"
@@ -535,6 +557,11 @@ function leerLocal(txt){const base=hoy();let fUlt=null;const acc=[],dudas=[];
       if(!a)dudas.push("No sé qué artículo es: «"+orig.trim()+"»");}
     acc.push(x);});
   return{acciones:acc,dudas};}
+async function addNota(t){const it={id:uid(),t,f:hoy(),ts:Date.now()};if(db.itemsAdd)await db.itemsAdd("notas","pend",[it]);else{const ref=db.doc("notas/pend"),sn=await ref.get();await ref.set({items:(sn.exists?(sn.data().items||[]):[]).concat([it])});}}
+async function delNotas(ids){const S=new Set(ids);const ref=db.doc("notas/pend"),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).filter(n=>!S.has(n.id))});}
+async function guardarNota(){const t=rq.txt.trim();if(!t){toast("Escribe o dicta la nota");return;}if(!db){toast("No se puede guardar");return;}
+  try{await addNota(t);rq.txt="";toast("Nota guardada");}catch(e){toast("No se pudo guardar la nota");}render(true);}
+function procesarNotas(ia){if(!notas.length)return;const hy=hoy();rq.txt=notas.map(n=>(n.f&&n.f!==hy?fmtF(n.f).slice(0,5)+" ":"")+n.t).join(". ");rq.notasProc=notas.map(n=>n.id);entender(ia);}
 async function entender(ia){const t=(ia&&!rq.txt.trim()?rq.ult:rq.txt).trim();if(!t){toast("Escribe o dicta lo que ha pasado");return;}
   const quitarLote=ia&&!rq.txt.trim()&&rq.lote;
   rq.cargando=ia?"ia":"local";render(true);
@@ -548,13 +575,17 @@ async function entender(ia){const t=(ia&&!rq.txt.trim()?rq.ult:rq.txt).trim();if
 async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>faltaR(r).length)){toast("Completa lo que falta");return;}
   if(!db){toast("No se puede guardar");return;}const b=$("rSave");if(b){b.disabled=true;b.textContent="Guardando…";}
   const movs=[],pists=[];
-  L.forEach(r=>{const q=parseN(r.cant),nota=(r.nota||"").trim()||null;
+  L.forEach(r=>{if(r.tipo.startsWith("eje_"))return;const q=parseN(r.cant),nota=(r.nota||"").trim()||null;
     if(r.tipo==="piston"){const n=Math.round(q);const rec={id:uid(),f:r.f,maq:r.maq,diam:r.diam,cant:n,motivo:r.motivo,dest:r.dp,resp:(r.resp||"").trim()||null,nota};
       const pa=pistArt(r.diam);if(pa&&r.alm){const m={id:uid(),f:r.f,tipo:"salida",art:pa.id,alm:r.alm,cant:n,maq:r.maq,nota:"Cambio de pistón · "+cap(r.motivo)};movs.push(m);rec.movId=m.id;}pists.push(rec);}
     else if(r.tipo==="conteo"){const st=stockDe(r.art,r.alm);movs.push({f:r.f,tipo:"ajuste",art:r.art,alm:r.alm,cant:Math.round((q-st)*1000)/1000,contado:q,teorico:st,nota:nota||"Recuento"});}
     else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo"&&r.maq)m.maq=r.maq;
       if(r.tipo==="entrada"){if(r.prov)m.prov=r.prov;if((r.alb||"").trim())m.alb=r.alb.trim();}movs.push(m);}});
   try{if(movs.length)await addMovs(movs);if(pists.length)await addPists(pists);
+    for(const r of L.filter(x=>x.tipo.startsWith("eje_"))){const e=ejeDe(r.eje);if(!e)continue;
+      if(r.tipo==="eje_prep"){await addRep({eje:e.cod,desp:r.desp.trim().toUpperCase(),alta:r.f,env:null});await updEje(e,{estado:"preparado"});}
+      else if(r.tipo==="eje_env")await enviar([e],r.f);else await recibir([e],r.f,(r.alb||"").trim(),"ok");}
+    if(rq.notasProc&&rq.notasProc.length){await delNotas(rq.notasProc);rq.notasProc=null;}
     let cc=false;L.filter(r=>r.tipo==="entrada").forEach(r=>{const x=art(r.art);if(x&&x.pedido){aplicarPedido(x,null);cc=true;}});if(cc)await saveCat();
     const pr=L.filter(r=>r.tipo==="piston");if(pr.length){const u=pr[pr.length-1];if((u.resp||"").trim())lsSet("alm.resp",u.resp.trim());lsSet("alm.dp",u.dp);}
     toast("Guardado: "+L.length+" apunte"+(L.length>1?"s":""));rq.acc=null;rq.dudas=[];
@@ -572,10 +603,17 @@ function vRap(v){
   ta.value=rq.txt;ta.addEventListener("input",()=>{rq.txt=ta.value;});
   const go=el("button",{type:"button",class:"btn",style:"flex:1",text:rq.cargando==="local"?"Leyendo…":"Entender (gratis)",disabled:!!rq.cargando,onclick:()=>entender(false)});
   const goIA=el("button",{type:"button",class:"btn sec",text:rq.cargando==="ia"?"Pensando…":"Con IA",disabled:!!rq.cargando,onclick:()=>entender(true)});
+  const goNota=el("button",{type:"button",class:"btn",style:"flex:1",text:"＋ Guardar como nota",onclick:guardarNota});
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Apuntar rápido"}),el("span",{class:"der sub",text:"Escríbelo o díctalo como lo dirías"})]),
-    el("div",{class:"bd frm",style:"gap:10px"},[ta,el("div",{class:"acciones"},[SR?el("button",{type:"button",class:"btn sec",text:"🎤 Dictar",onclick:e=>dictar(e.currentTarget,ta)}):null,go,goIA]),
-      el("p",{class:"hint",text:"«Entender» es gratis: entiende frases como «pistón 90 esp en la 66 desgaste el 211», «3 escobas N1A», «bajado 2 pistones del 80 de general a N2», «entrada 20 m manguera Eguiber». Si no lo entiende bien, «Con IA» lo lee mejor (medio céntimo cada vez; si pones varias cosas juntas, se paga una sola vez). Antes de guardar lo ves todo y lo puedes corregir."})])]));
+    el("div",{class:"bd frm",style:"gap:10px"},[ta,el("div",{class:"acciones"},[SR?el("button",{type:"button",class:"btn sec",text:"🎤 Dictar",onclick:e=>dictar(e.currentTarget,ta)}):null,goNota]),el("div",{class:"acciones"},[go,goIA]),
+      el("p",{class:"hint",text:"Durante el día ve guardando notas y al final procésalas todas juntas. O pulsa «Entender» para hacerlo al momento. «Entender» es gratis: entiende frases como «pistón 90 esp en la 66 desgaste el 211», «3 escobas N1A», «bajado 2 pistones del 80 de general a N2», «entrada 20 m manguera Eguiber», «eje 2.3.C-3 postizo roto», «recibidos 3.1.A-9 y 2.2.B-4 albarán 001400A26». Si no lo entiende bien, «Con IA» lo lee mejor (medio céntimo cada vez; si pones varias cosas juntas, se paga una sola vez). Antes de guardar lo ves todo y lo puedes corregir."})])]));
   v.appendChild(el("datalist",{id:"lOperR"},responsables().map(x=>el("option",{value:x}))));
+  v.appendChild(el("datalist",{id:"lEjesR"},ejes.map(e=>el("option",{value:e.cod}))));
+  if(notas.length){const hy=hoy();v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Notas pendientes ("+notas.length+")"}),el("span",{class:"der sub",text:"Se procesan todas de una vez"})]),
+    el("div",{class:"lst"},notas.slice().sort((a,b)=>a.ts-b.ts).map(n=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",style:"font-weight:500",text:n.t}),el("div",{class:"t2",text:(n.f!==hy?fmtF(n.f)+" · ":"")+new Date(n.ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})})]),
+      el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar nota",text:"✕",onclick:async()=>{try{await delNotas([n.id]);}catch(e){toast("No se pudo borrar");}}})]))),
+    el("div",{class:"bd acciones"},[el("button",{type:"button",class:"btn",style:"flex:1",text:rq.cargando==="local"?"Leyendo…":"Procesar todas (gratis)",disabled:!!rq.cargando||!!(rq.acc&&rq.acc.length),onclick:()=>procesarNotas(false)}),
+      el("button",{type:"button",class:"btn sec",text:rq.cargando==="ia"?"Pensando…":"Todas con IA (½ cént.)",disabled:!!rq.cargando||!!(rq.acc&&rq.acc.length),onclick:()=>procesarNotas(true)})])]));}
   if(rq.dudas&&rq.dudas.length)v.appendChild(el("div",{class:"banner"},[el("b",{text:"Revisa: "}),rq.dudas.join(" · ")]));
   if(rq.acc&&rq.acc.length&&!rq.ia&&rq.lote&&rq.acc.some(r=>r.lote===rq.lote&&faltaR(r).length))v.appendChild(el("div",{class:"acciones"},[el("span",{class:"hint",style:"flex:1;align-self:center",text:"¿No lo ha entendido bien?"}),el("button",{type:"button",class:"btn sec peq",text:"Probar con IA (½ cént.)",disabled:!!rq.cargando,onclick:()=>{rq.txt="";entender(true);}})]));
   if(rq.acc&&rq.acc.length){rq.acc.forEach(r=>v.appendChild(filaR(r)));v.appendChild(el("div",{id:"rPie",class:"acciones",style:"position:sticky;bottom:0;background:var(--bg);padding:8px 0"}));pintaPie();}
@@ -1387,6 +1425,7 @@ tabsUI();render(true);
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
   db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));listo("ejes");},()=>listo("ejes"));
+  db.doc("notas/pend").onSnapshot(sn=>{notas=sn.exists?((sn.data()||{}).items||[]):[];render();},()=>{});
   db.collection("rep").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});reps=m;listo("rep");},()=>listo("rep"));
 })();
 })();
