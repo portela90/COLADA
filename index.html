@@ -311,6 +311,7 @@ function pantallaImportar(vacia){return new Promise(res=>{
 /* ---------- usuario en la cabecera y gestión de usuarios ---------- */
 function ponUsuario(){const hd=document.querySelector("header");if(!hd||document.getElementById("usr-btn"))return;
   hd.appendChild(h("a",{id:"app-sw",class:"usr-btn",href:P?"./":"almacen.html",style:"text-decoration:none",text:P?"⇄ Colada":"⇄ Almacén"}));
+  hd.appendChild(h("button",{id:"hist-btn",class:"usr-btn",type:"button",title:"Historial y deshacer","aria-label":"Historial y deshacer",text:"↶ Historial",onclick:panelHist}));
   hd.appendChild(h("button",{id:"usr-btn",class:"usr-btn",type:"button",text:(yo.nombre||yo.email||"").split(" ")[0],onclick:panelUsuario}));}
 async function panelUsuario(){
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
@@ -346,6 +347,63 @@ const db={
     update:async patch=>{const d=await leeDoc(col,id);const r=await sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)});if(r.error)throw r.error;},
     onSnapshot:(cb,er)=>{const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();canal(col,p=>{if(!p||(p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
+/* ---------- historial de cambios y deshacer ---------- */
+const sinP=col=>P&&col.startsWith(P)?col.slice(P.length):col;
+const keyIt=it=>it&&typeof it==="object"?(it.id!=null?"id:"+it.id:it.i!=null?"i:"+it.i:JSON.stringify(it)):String(it);
+const hayItems=d=>d&&Array.isArray(d.items);
+function difItems(a,b){const A=new Map(((a&&a.items)||[]).map(x=>[keyIt(x),x])),B=new Map(((b&&b.items)||[]).map(x=>[keyIt(x),x]));const add=[],del=[],chg=[];
+  B.forEach((v,k)=>{if(!A.has(k))add.push(v);else if(JSON.stringify(A.get(k))!==JSON.stringify(v))chg.push([A.get(k),v]);});A.forEach((v,k)=>{if(!B.has(k))del.push(v);});return{add,del,chg};}
+function descIt(col,it){try{const f=window.descCambio&&window.descCambio(sinP(col),it);if(f)return f;}catch(e){}
+  const o=Object.assign({},it);delete o.id;delete o.i;delete o.ts;return JSON.stringify(o).replace(/[{}"]/g,"").slice(0,90);}
+function descDoc(col,id,antes,despues){try{const f=window.descDoc&&window.descDoc(sinP(col),id,antes,despues);if(f)return f;}catch(e){}return sinP(col)+" · "+id;}
+const fechaH=s=>{const d=new Date(s),hoyD=new Date();const hh=d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+  const dias=Math.round((new Date(hoyD.toDateString())-new Date(d.toDateString()))/864e5);return(dias===0?"hoy":dias===1?"ayer":d.toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit"}))+" "+hh;};
+async function cargaHist(){
+  let q=sb.from("docs_hist").select("h,col,id,data,op,at,by").order("h",{ascending:false}).limit(200);
+  q=P?q.like("col",P+"%"):q.not("col","like","alm_%");
+  const r=await q;if(r.error)throw r.error;const rows=(r.data||[]).filter(x=>x.col!=="zz"&&x.col!==P+"notas");
+  const cur={};for(const c of [...new Set(rows.map(x=>x.col))]){const ids=[...new Set(rows.filter(x=>x.col===c).map(x=>x.id))];
+    for(let i=0;i<ids.length;i+=100){const d=await sb.from("docs").select("id,data").eq("col",c).in("id",ids.slice(i,i+100));if(d.error)throw d.error;(d.data||[]).forEach(z=>{cur[c+"\u0001"+z.id]=z.data;});}}
+  const sig={},vistos=new Set(),ch=[];
+  rows.forEach(x=>{const k=x.col+"\u0001"+x.id;const despues=vistos.has(k)?sig[k]:(k in cur?cur[k]:null);const ultimo=!vistos.has(k);vistos.add(k);sig[k]=x.data;
+    const antes=x.data;if(JSON.stringify(antes)===JSON.stringify(despues))return;
+    let lineas;if(hayItems(antes)||hayItems(despues)){const d=difItems(antes,despues);
+      lineas=d.add.map(v=>"＋ "+descIt(x.col,v)).concat(d.del.map(v=>"✕ "+descIt(x.col,v)+" (borrado)")).concat(d.chg.map(([a,b])=>"✎ "+descIt(x.col,b)));
+      if(!lineas.length)return;}
+    else lineas=[(antes==null?"＋ ":despues==null?"✕ ":"✎ ")+descDoc(x.col,x.id,antes,despues)];
+    ch.push({x,k,antes,despues,ultimo,lineas});});
+  /* lo que se guardó a la vez (mismo usuario, segundos de diferencia) es una sola acción */
+  const grupos=[];ch.forEach(c=>{const g=grupos[grupos.length-1];const t=Date.parse(c.x.at);
+    if(g&&g.by===c.x.by&&Math.abs(g.t0-t)<2000&&!g.cambios.some(z=>z.k===c.k)){g.cambios.push(c);g.t0=t;}else grupos.push({by:c.x.by,at:c.x.at,t0:t,cambios:[c]});});
+  return grupos;}
+async function deshacerGrupo(g){
+  const avisos=g.cambios.filter(c=>!c.ultimo&&!(hayItems(c.antes)||hayItems(c.despues)));
+  if(avisos.length&&!confirm("Después de este cambio hubo otros en "+avisos.map(c=>descDoc(c.x.col,c.x.id,c.antes,c.despues)).join(", ")+". Si lo deshaces, esa parte vuelve entera a como estaba antes y se pierden esos cambios posteriores. ¿Seguir?"))return false;
+  for(const c of g.cambios){const col=c.x.col,id=c.x.id;
+    const r=await sb.from("docs").select("data").eq("col",col).eq("id",id).maybeSingle();if(r.error)throw r.error;const ahora=r.data?r.data.data:null;
+    if(hayItems(c.antes)||hayItems(c.despues)){const d=difItems(c.antes,c.despues);const quitar=new Set(d.add.map(keyIt));const viejo=new Map(d.chg.map(([a])=>[keyIt(a),a]));
+      let items=((ahora&&ahora.items)||[]).filter(it=>!quitar.has(keyIt(it))).map(it=>viejo.has(keyIt(it))?viejo.get(keyIt(it)):it);
+      const hay=new Set(items.map(keyIt));d.del.forEach(it=>{if(!hay.has(keyIt(it)))items.push(it);});
+      const w=await sb.from("docs").upsert({col,id,data:Object.assign({},ahora||c.antes||{},{items})});if(w.error)throw w.error;}
+    else if(c.antes==null){const w=await sb.from("docs").delete().eq("col",col).eq("id",id);if(w.error)throw w.error;}
+    else{const w=await sb.from("docs").upsert({col,id,data:c.antes});if(w.error)throw w.error;}}
+  return true;}
+async function panelHist(){
+  const box=h("div",{class:"dlg",role:"dialog","aria-label":"Historial de cambios"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
+  const lst=h("div",{class:"usr-list"},[h("p",{class:"hint",text:"Cargando…"})]);
+  box.appendChild(h("h3",{text:"Historial de cambios"}));
+  box.appendChild(h("p",{class:"hint",text:"Lo que se ha guardado, lo más nuevo arriba (últimos 60 días). «Deshacer» quita solo ese cambio: lo que hiciste después se mantiene."}));
+  box.appendChild(lst);box.appendChild(h("div",{class:"dlg-b"},[h("button",{class:"btn sec",type:"button",text:"Cerrar",onclick:()=>ov.remove()})]));
+  document.body.appendChild(ov);
+  let nombres={};try{const u=await sb.from("usuarios").select("user_id,nombre,email");(u.data||[]).forEach(z=>{nombres[z.user_id]=(z.nombre||z.email||"").split(" ")[0];});}catch(e){}
+  const pinta=async()=>{lst.textContent="";lst.appendChild(h("p",{class:"hint",text:"Cargando…"}));let gs;
+    try{gs=await cargaHist();}catch(e){lst.textContent="";lst.appendChild(h("p",{class:"err",text:"No se pudo cargar: "+(e.message||e)}));return;}
+    lst.textContent="";if(!gs.length){lst.appendChild(h("p",{class:"hint",text:"Todavía no hay cambios guardados."}));return;}
+    gs.slice(0,60).forEach(g=>{const L=[].concat(...g.cambios.map(c=>c.lineas));const det=h("div",{style:"font-size:14px;line-height:1.4;overflow-wrap:anywhere"},L.slice(0,6).map(t=>h("div",{text:t})).concat(L.length>6?[h("div",{class:"hint",text:"… y "+(L.length-6)+" más"})]:[]));
+      const b=h("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px;align-self:flex-start",text:"Deshacer",onclick:async()=>{b.disabled=true;b.textContent="Deshaciendo…";
+        try{const ok=await deshacerGrupo(g);if(ok)await pinta();else{b.disabled=false;b.textContent="Deshacer";}}catch(e){alert("No se pudo deshacer: "+(e.message||e));b.disabled=false;b.textContent="Deshacer";}}});
+      lst.appendChild(h("div",{class:"usr-row",style:"flex-direction:column;align-items:stretch;gap:6px"},[h("div",{class:"hint",style:"margin:0",text:fechaH(g.at)+(nombres[g.by]?" · "+nombres[g.by]:"")}),det,b]));});};
+  pinta();}
 /* ---------- fotos de albaranes en Storage ---------- */
 const urls={},pidiendo=new Set();
 window.fotoUrlWeb=id=>{if(urls[id])return urls[id];if(!pidiendo.has(id)){pidiendo.add(id);
@@ -2648,6 +2706,11 @@ function tabsUI(){const n=$("tabs");n.textContent="";
 try{const t=localStorage.getItem("colada.tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
 tabsUI();render();
 window.addEventListener("colada-refresh",()=>render());
+window.descCambio=(col,it)=>{if(col==="mov"){const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};const l=lotes.find(x=>x.id===it.o);
+  return[T[it.t]||it.t,it.fa!=null?it.fa+" f":null,it.kg!=null?(Math.round(it.kg*10)/10).toLocaleString("es-ES")+" kg":null,l?"colada "+l.nombre:it.n?"colada "+it.n:null,it.nv||null,it.u||null,it.f?it.f.split("-").reverse().join("/"):null].filter(Boolean).join(" · ");}
+  if(col==="maq")return["Inyectora "+it.m,it.u||null,it.f?it.f.split("-").reverse().join("/"):null].filter(Boolean).join(" · ");return null;};
+window.descDoc=(col,id,a,d)=>{if(col==="lotes"){const x=d||a;return"Colada "+(x.nombre||id)+(!a?" (nueva)":!d?" (borrada)":" (datos cambiados)");}if(col==="cfg")return"Configuración (precios, plan, calendario, cierres…)";return null;};
+
 $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carguen los datos");return;}abrirBuscador();});
 (async function(){
   try{db=await claude.use("db");}catch(e){db=null;}
