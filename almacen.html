@@ -497,6 +497,7 @@ function normAcc(x){const t=TIPO_R[x.tipo]?x.tipo:"consumo";const ok=(arr,id)=>i
   if(t==="piston"){if(!r.cant)r.cant="1";if(!r.diam&&r.maq){const u=ultimoPist(r.maq);if(u){r.diam=u.diam;r.auto.diam=1;}}
     if(!r.motivo){r.motivo="DESGASTE";r.auto.motivo=1;}if(!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}
     if(!r.resp&&lsGet("alm.resp")){r.resp=lsGet("alm.resp");r.auto.resp=1;}}
+  if(!r.art&&t!=="piston")r.sug=x.nombre_sugerido||sugNombre(x.texto||"");
   almSug(r);return r;}
 function faltaR(r){const f=[],q=parseN(r.cant);if(!r.f)f.push("fecha");
   if(r.tipo.startsWith("eje_")){const e=ejeDe(r.eje);if(!e){f.push(r.eje?"no existe el eje "+r.eje:"eje");return f;}const est=(EST_E[e.estado]||[e.estado])[0];
@@ -536,8 +537,39 @@ function filaR(r){const a=art(r.art);let box;
   r._info=el("p",{class:"hint",text:infoR(r)});r._fl=el("p",{class:"hint",style:"color:var(--bad);font-weight:600"});
   box=el("section",{class:"card"},[el("div",{class:"hd"},[tipoS,r.txt?el("span",{class:"sub",style:"flex:1;min-width:120px",text:"«"+r.txt+"»"}):null,
       el("button",{type:"button",class:"btn txt peq der",text:"Quitar",onclick:()=>{rq.acc=rq.acc.filter(x=>x!==r);render(true);}})]),
-    el("div",{class:"bd frm",style:"gap:10px"},campos.concat([r._info,r._fl]))]);
+    el("div",{class:"bd frm",style:"gap:10px"},campos.concat([
+      ["consumo","entrada","traslado","conteo"].includes(r.tipo)&&!r.art?el("div",{class:"acciones"},[el("button",{type:"button",class:"btn peq",text:"＋ Crear artículo"+(r.sug?" «"+r.sug+"»":""),onclick:()=>crearArtR(r)}),el("span",{class:"hint",style:"align-self:center",text:"si no está en el catálogo"})]):null,
+      r._info,r._fl]))]);
   return box;}
+/* ---- crear un artículo desde una nota ---- */
+const QUITA=new Set("de del la el los las un una unos unas en a al para y con por he ha han hemos se lo le que hoy ayer ya otro otra mas tambien almacen nave".split(" "));
+const VERBO=/^(baj|repon|repus|dej|gast|consum|entr|lleg|recib|cont|pas|sub|met|sac|llev|traslad|necesit|cog|pues|usad|traid|traen|quedan|hay)/;
+const UNID=/^(kg|kilos?|m|metros?|l|litros?|ud|uds|unidad(es)?|cajas?|rollos?|sacos?|bolsas?|piezas?|pzas?)$/;
+function sugNombre(txt){const ali=new Set();aliasAlm().forEach(({al})=>al.forEach(a=>a.split(" ").forEach(w=>ali.add(w))));
+  const out=[];let emp=false;
+  String(txt||"").replace(/[.,;:«»"]+/g," ").split(/\s+/).filter(Boolean).forEach(w=>{const n=norm(w);if(!n)return;
+    if(!emp&&(/^\d+([.,]\d+)?(kg|m|l)?$/.test(n)||QUITA.has(n)||VERBO.test(n)||UNID.test(n)||NUMW[n]))return;
+    if(ali.has(n))return;emp=true;out.push(w);});
+  while(out.length&&QUITA.has(norm(out[out.length-1])))out.pop();
+  const s=out.join(" ").trim();return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
+function udSug(t){t=norm(t||"");return /\d\s*kg\b|\bkilos?\b/.test(t)?"kg":/\bmetros?\b|\d\s*m\b/.test(t)?"m":/\blitros?\b|\d\s*l\b/.test(t)?"l":/\bcajas?\b/.test(t)?"caja":/\brollos?\b/.test(t)?"rollo":"ud";}
+function crearArtR(r){const grupo=rq.acc.filter(z=>z===r||(!z.art&&r.sug&&z.sug&&norm(z.sug)===norm(r.sug)));
+  const x={desc:r.sug||"",ud:udSug(grupo.map(z=>z.txt).join(" ")),fam:"consumible",ppal:(origenRepo()||{}).id||(cat.almacenes[0]||{}).id||"",min:""};
+  dlg("Nuevo artículo",[fld("Descripción",inp("naDesc",x.desc,v=>x.desc=v,{autocomplete:"off"})),
+    el("div",{class:"row"},[fld("Unidad",sel("naUd",UDS.map(u=>[u,u]),x.ud,v=>x.ud=v)),fld("Familia",sel("naFam",Object.entries(FAM).filter(([k])=>k!=="piston"),x.fam,v=>x.fam=v))]),
+    el("div",{class:"row"},[fld("Almacén principal",sel("naAlm",almOpts(),x.ppal,v=>x.ppal=v)),fld("Stock mínimo (opcional)",inp("naMin",x.min,v=>x.min=v,{inputmode:"decimal",class:"num",placeholder:"0"}))]),
+    el("p",{class:"hint",text:"Se da de alta en el catálogo y se pone en "+(grupo.length>1?"las "+grupo.length+" tarjetas que lo nombran":"esta tarjeta")+". El resto de datos (código, proveedor, ubicación…) los puedes completar luego en Catálogo."})],
+    [{t:"Cancelar",cls:"sec"},{t:"Crear y usar",fn:async()=>{const d=(x.desc||"").trim();if(!d){toast("Pon un nombre");return false;}
+      let a=cat.articulos.find(z=>norm(z.desc)===norm(d));const ya=!!a;
+      if(!a){const alms=new Set([x.ppal]);grupo.forEach(z=>[z.alm,z.dest].forEach(v=>{if(v)alms.add(v);}));const mn=parseN(x.min);
+        a={id:uid(),desc:d,almPpal:x.ppal||null,alms:[...alms].filter(Boolean),ubic:null,cod:null,fam:x.fam,ud:x.ud,diam:null,min:isFinite(mn)&&mn>=0?mn:0,pp:0,plazo:null,prov:null,activo:true};
+        cat.articulos.push(a);try{await saveCat();}catch(e){cat.articulos=cat.articulos.filter(z=>z!==a);return false;}}
+      const toks=new Set(norm(d).split(/\s+/));
+      grupo.forEach(z=>{z.art=a.id;const q=parseN(z.cant);if(isFinite(q)&&toks.has(String(q))){z.cant="";z._cantNombre=true;}if(z.tipo!=="traslado"&&z.auto.alm){z.alm="";delete z.auto.alm;}almSug(z);});
+      /* la tarjeta que solo nombraba el artículo («reponer el pistonwax duo 15») sobra si hay otras con cantidad */
+      rq.acc=rq.acc.filter(z=>!(z._cantNombre&&!z.cant&&rq.acc.some(o=>o!==z&&o.art===z.art&&o.cant)));
+      if(r.sug)rq.dudas=(rq.dudas||[]).filter(t=>!t.includes("«"+r.sug+"»"));
+      toast(ya?"Ya existía «"+a.desc+"»: puesto en las notas":"Artículo creado: "+a.desc);render(true);}}]);}
 function pintaPie(){const p=$("rPie");if(!p||!rq.acc)return;p.textContent="";let mal=0;
   rq.acc.forEach(r=>{const fl=faltaR(r);if(fl.length)mal++;if(r._fl)r._fl.textContent=fl.length?"Falta: "+fl.join(", "):"";if(r._info){r._info.textContent=infoR(r);r._info.style.color=/quedan −/.test(r._info.textContent)?"var(--bad)":"";}});
   p.appendChild(el("button",{type:"button",class:"btn",style:"flex:1",id:"rSave",text:mal?"Faltan datos en "+mal+" de "+rq.acc.length:"Guardar todo ("+rq.acc.length+")",disabled:!!mal,onclick:guardarR}));
@@ -587,7 +619,7 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
       T_TRA=/\b(traslad\w*|baj(o|ar|ado|amos|e)|sub(o|ir|ido|imos|e)|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos)|repu(s|es)\w*|repon\w*|dej(o|ar|ado|amos|e)|meter|metid[oa]s?|met(o|emos))\b/,
       T_CONS=/\b(gast\w*|consum\w*|sacad[oa]s?|sac(o|ar|amos)|usad[oa]s? en|pues(to|tos|ta|tas)|cog\w*|necesit\w*)\b/;
     let tipo=(hayMaq&&(esPist||/\bcambi/.test(t)))?"piston":T_ENT.test(t)?"entrada":T_CON.test(t)?"conteo":(T_TRA.test(t)&&!/\ben el eje\b/.test(t))?"traslado":esPist&&hayMaq?"piston":T_CONS.test(t)?"consumo":null;
-    const expl=!!tipo;if(!tipo)tipo=prev&&prev.tipo!=="piston"?prev.tipo:(esPist&&!hayMaq?"traslado":"consumo");
+    const expl=!!tipo,propio=sugNombre(orig);if(!tipo)tipo=prev&&prev.tipo!=="piston"&&!propio?prev.tipo:(esPist&&!hayMaq?"traslado":"consumo");
     /* inyectora */
     let maq=null;const mq=t.match(/\bf\s*-?\s*(\d{1,2})\b/)||t.match(/\b(?:la|maquina|inyectora|iny|en)\s+(\d{1,2})\b/);
     if(mq){const m=cat.maquinas.find(z=>norm(z.cod)==="f"+mq[1]);if(m){maq=m.id;t=t.replace(mq[0]," ");}}
@@ -623,7 +655,7 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
       if(cm){cant=parseN(cm[1]);t=t.replace(cm[0]," ");}else{const w=Object.keys(NUMW).find(k=>new RegExp("\\b"+k+"\\b").test(t));if(w){cant=NUMW[w];t=t.replace(new RegExp("\\b"+w+"\\b")," ");}}}
     x.cantidad=cant;
     /* lo que no se dice se toma de la nota anterior («… y 220 en nave 2», «y 2 de 80») */
-    const hereda=prev&&prev.tipo===tipo&&tipo!=="piston"&&(!expl||!a);
+    const hereda=prev&&prev.tipo===tipo&&tipo!=="piston"&&!propio&&(!expl||!a);
     if(tipo==="piston"){x.tipo="piston";x.maquina=maq;x.diametro=diam;if(!maq)x._duda="No sé en qué inyectora: «"+orig.trim()+"»";}
     else{x.tipo=tipo;if(maq)x.maquina=maq;
       if(!a&&hereda&&prev.articulo&&!diam)a=art(prev.articulo);
@@ -631,9 +663,9 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
       if(hereda){if(tipo==="traslado"){if(!x.almacen&&prev.almacen&&x.destino!==prev.almacen)x.almacen=prev.almacen;if(!x.destino&&prev.destino&&x.almacen!==prev.destino)x.destino=prev.destino;}else if(!x.almacen&&prev.almacen)x.almacen=prev.almacen;
         if(prev.cantidad==null&&prev.articulo===x.articulo&&!prev._usada){const k=acc.indexOf(prev);if(k>=0)acc.splice(k,1);}
         prev._usada=true;}
-      if(!a)x._duda="No sé qué artículo es: «"+orig.trim()+"»"+(/pistonwax|wax/.test(t0)?" (añádelo en Catálogo)":"");}
+      if(!a){x.nombre_sugerido=(hereda&&prev&&prev.nombre_sugerido)||sugNombre(orig);x._duda="No está en el catálogo: «"+(x.nombre_sugerido||orig.trim())+"». Pulsa «Crear artículo» en su tarjeta";}}
     acc.push(x);prev=x;});
-  acc.forEach(x=>{if(x._duda)dudas.push(x._duda);delete x._duda;delete x._usada;});
+  acc.forEach(x=>{if(x._duda&&!dudas.includes(x._duda))dudas.push(x._duda);delete x._duda;delete x._usada;});
   return{acciones:acc,dudas};}
 async function addNota(t){const it={id:uid(),t,f:hoy(),ts:Date.now()};if(db.itemsAdd)await db.itemsAdd("notas","pend",[it]);else{const ref=db.doc("notas/pend"),sn=await ref.get();await ref.set({items:(sn.exists?(sn.data().items||[]):[]).concat([it])});}}
 async function delNotas(ids){const S=new Set(ids);const ref=db.doc("notas/pend"),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).filter(n=>!S.has(n.id))});}
