@@ -1550,7 +1550,7 @@ function PLANT_INI(){
   const can=artsActivos().filter(a=>/canalet/i.test(a.desc)),cc=artsActivos().filter(a=>/cazo de carga/i.test(a.desc));
   const v=(id,nom,multi)=>({id,nom,multi:!!multi,ops:[]});
   const ops=ts=>ts.map((t,i)=>({id:"o-"+norm(t).replace(/[^a-z0-9]+/g,"")+"-"+i,t,art:null}));
-  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:ops(["IDRA","BÜHLER","STP"])},{id:"c-horno",nom:"Horno",multi:false,ops:ops(["Krown","Westofen"])},{id:"c-hmed",nom:"Medida del horno",multi:false,ops:ops(["18","21","24"])},
+  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:ops(["IDRA","BÜHLER","STP"])},{id:"c-horno",nom:"Horno",multi:false,ops:ops(["Krown","Westofen"])},
     {id:"c-can",nom:"Canaleta de llenado",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
     {id:"c-cazoc",nom:"Cazo de carga",multi:false,ops:cc.map(a=>({id:"o-cc-"+a.id,t:a.desc.replace(/^cazo de carga\s*/i,"").replace(/(\d)\s*kg/i,"$1 kg")||a.desc,art:a.id})).concat([{id:"o-cc-no",t:"Sin cazo de carga",art:null}])},
     v("c-tubo","Tubo dosificador"),v("c-cont","Contenedor"),{id:"x-eje",nom:"Eje de inyección",auto:"eje"},v("c-cono","Cono de llenado"),v("c-jcono","Junta cono"),v("c-junta","Junta"),
@@ -1620,7 +1620,9 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
         el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},chips.length?chips:[el("span",{class:"hint",text:c.auto==="eje"?"No hay modelos de eje en el catálogo.":"Nada en el catálogo todavía."})])]));return;}
     let lista=c.ops,ocultas=0;
     if(c.segunHorno){const h=hornoSel(P,val);if(h.marca||h.medida){const ok=c.ops.filter(o=>cuadra(o,h));
-      if(!verTodo[c.id]){const s=(val[c.id]||[]).filter(id=>ok.some(o=>o.id===id));if(!s.length&&!tocadoC[c.id]){const esp=ok.filter(o=>especifica(o,h));if(esp.length===1)s.push(esp[0].id);}val[c.id]=s;ocultas=c.ops.length-ok.length;lista=ok;}}}
+      if(!verTodo[c.id]){const antes=(val[c.id]||[]).map(id=>c.ops.find(o=>o.id===id)).filter(Boolean);const s=(val[c.id]||[]).filter(id=>ok.some(o=>o.id===id));
+      if(!s.length&&antes.length){/* cambia el horno: se busca la misma medida en el nuevo */antes.forEach(a=>{const resto=norm(a.t).split(/[^a-z0-9,.]+/).filter(w=>w&&!h.marcas.includes(w));const o=ok.find(z=>especifica(z,h)&&resto.every(w=>wrd(norm(z.t),w)));if(o&&!s.includes(o.id))s.push(o.id);});}
+      if(!s.length&&!tocadoC[c.id]){const esp=ok.filter(o=>especifica(o,h));if(esp.length===1)s.push(esp[0].id);}val[c.id]=s;ocultas=c.ops.length-ok.length;lista=ok;}}}
     const sel0=new Set(val[c.id]||[]);
     const chips=lista.map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{tocadoC[c.id]=true;if(sel0.has(o.id))sel0.delete(o.id);else{if(!c.multi)sel0.clear();sel0.add(o.id);}val[c.id]=Array.from(sel0);pinta();}}));
     if(ocultas)chips.push(el("button",{type:"button",class:"chip",style:"border-style:dotted",text:"ver las otras "+ocultas,onclick:()=>{verTodo[c.id]=true;pinta();}}));
