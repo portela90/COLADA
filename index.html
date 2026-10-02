@@ -191,6 +191,9 @@ details.agotadas>summary:focus-visible{outline:2px solid var(--acc);outline-offs
 .col-stk tr.grp td{background:var(--surf2);padding-top:10px}
 .col-stk tr.sub-tot td{font-weight:700;border-bottom:2px solid var(--line)}
 .col-stk tr.ext td{background:var(--ok-bg)}
+.carg{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-size:14px}
+.carg span{flex:1;min-width:180px}
+.carg.roto{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
 .btn.peq{font-size:13px;padding:6px 12px;border-radius:7px}
 .btn.peligro{background:var(--bad);border-color:var(--bad);color:#fff}
 .del{font-size:12px;padding:3px 8px;margin-top:4px;color:var(--bad,#b3261e)}
@@ -735,6 +738,27 @@ const primerEvMaq=()=>{const e=maqEventos();return e.length?e[0].f:null;};
 function estadoMaq(f,u){const st={};NAVES.forEach(n=>MAQ[n].forEach(m=>{st[m]={nave:n,on:true,cu:false,az:false};}));
   maqEventos().forEach(e=>{if(!st[e.m])return;if(e.f<f||(e.f===f&&(u==null||TI(e.u)<=TI(u))))st[e.m]={nave:st[e.m].nave,on:!!e.on,cu:!!e.cu,az:!!e.az};});return st;}
 function cuentaMaq(st,n){const c={on:0,b:0,a:0,c:0};MAQ[n].forEach(m=>{const x=st[m];if(!x||!x.on)return;c.on++;if(x.az)c.a++;else c.b++;if(x.cu)c.c++;});return c;}
+/* ---------- Cargador de bebederos ----------
+   Con el cargador roto no se mete ninguna caja de bebederos al horno: se
+   funde solo lingote y el consumo de fardos se dispara. Al arreglarlo hay
+   muchos bebederos acumulados y el consumo de fardos baja mucho. Se apunta
+   como un evento más de máquinas (m = "CARG|Nave"), on=false = roto. Esos
+   relevos (y los de recuperación tras arreglarlo) no se usan para aprender
+   el consumo normal. */
+const CARG=n=>"CARG|"+n;
+const antesOIgual=(e,f,u)=>e.f<f||(e.f===f&&(u==null||TI(e.u)<=TI(u)));
+function evCarg(n){return maqEventos().filter(e=>e.m===CARG(n));}
+function cargadorRoto(f,u,n){let r=false;evCarg(n).forEach(e=>{if(antesOIgual(e,f,u))r=!e.on;});return r;}
+/* relevos trabajados desde (f1,u1) incluido hasta (f2,u2) sin incluir */
+function relevosEntre(f1,u1,f2,u2){let n=0;for(let f=f1;f<=f2;f=diaSig(f)){const nr=relevosDia(f)||0;
+  TURNOS.forEach((t,ti)=>{if(ti>=nr)return;if(f===f1&&ti<TI(u1))return;if(f===f2&&ti>=TI(u2))return;n++;});}return n;}
+/* fase en un relevo: ok, roto, o recupera (tras arreglarlo, tantos relevos como estuvo roto, entre 2 y 6) */
+function faseCargador(f,u,n){const ev=evCarg(n).filter(e=>antesOIgual(e,f,u));if(!ev.length)return"ok";
+  const ult=ev[ev.length-1];if(!ult.on)return"roto";
+  const roto=[...ev].reverse().find(e=>!e.on&&(e.f<ult.f||(e.f===ult.f&&TI(e.u)<TI(ult.u))));if(!roto)return"ok";
+  const dur=relevosEntre(roto.f,roto.u,ult.f,ult.u),ven=Math.max(2,Math.min(6,dur));
+  return relevosEntre(ult.f,ult.u,f,u)<ven?"recupera":"ok";}
+function desdeCargador(n){const ev=evCarg(n);const u=ev[ev.length-1];return u&&!u.on?u:null;}
 async function addMaqEv(evs){const g={};evs.forEach(r=>{const m=mesDe(r.f);(g[m]=g[m]||[]).push(r);});
   for(const m in g)await itemsAdd("maq",m,g[m]);}
 /* ---------- Calendario de la fábrica ----------
@@ -759,12 +783,12 @@ function prevision(){
      es proporcional a las máquinas (con máquinas paradas hay menos bebederos
      que refundir y se gasta más lingote), así que se ajusta una recta
      gasto = a + b·máquinas con los datos reales */
-  const A={};const acc=(k,v,md)=>{(A[k]=A[k]||[]).push([md,v]);};
+  const A={},X={};const acc=(k,v,md,fase)=>{if(fase&&fase!=="ok"){(X[k]=X[k]||[]).push([md,v,fase]);return;}(A[k]=A[k]||[]).push([md,v]);};
   rel.forEach(x=>{const f=x.slice(0,10),u=x.slice(11),st=estadoMaq(f,u);
     NAVES.forEach(n=>{const c=cuentaMaq(st,n);
       [["L-2630",c.b],["L-2521-B",c.a]].forEach(([mt,cnt])=>{
         const fa=ms.filter(r=>r.t==="C"&&r.f===f&&r.u===u&&lot[r.o]&&lot[r.o].nave===n&&lot[r.o].material===mt).reduce((a,r)=>a+(r.fa||0),0);
-        if(cnt>0||fa>0)acc(key(n,mt),fa,cnt);});
+        if(cnt>0||fa>0)acc(key(n,mt),fa,cnt,faseCargador(f,u,n));});
       const g=ms.filter(r=>r.t==="G"&&!r.aj&&r.kg<0&&r.f===f&&r.u===u&&r.nv===n).reduce((a,r)=>a-r.kg,0);
       if(c.c>0||g>0)acc("G|"+n,g,c.c);});});
   const dias=[...new Set(rel.map(x=>x.slice(0,10)))];
@@ -785,7 +809,14 @@ function prevision(){
   const out={lineas:{},gran:{},diasDatos:dias.length,relevos:rel.length,desde:f0};
   NAVES.forEach(n=>{const c=cuentaMaq(stH,n);
     [["L-2630",c.b],["L-2521-B",c.a]].forEach(([mt,cnt])=>{const k=key(n,mt),m=modelo(A[k],cnt,B[k]?B[k].medio:0);
-      out.lineas[k]=Object.assign({nave:n,mat:mt,maq:cnt},m);});
+      /* cuánto cambia el gasto con el cargador roto o recuperándose, comparado con lo normal */
+      const fr=(fase)=>{const xs=(X[k]||[]).filter(x=>x[2]===fase);if(xs.length<2||!(m.dia>0))return null;
+        const pr=xs.reduce((a,x)=>a+(m.pend!=null?Math.max(0,(m.dia/TURNOS.length)+m.pend*(x[0]-cnt)):m.dia/TURNOS.length),0);
+        return pr>0?xs.reduce((a,x)=>a+x[1],0)/pr:null;};
+      /* sin datos de otras veces se usa el % que se haya puesto a mano en Mínimos */
+      const cg=cfg.cargador||{},fase=faseCargador(h,turnoAhora(),n),rR=fr("roto")||(cg.roto>0?1+cg.roto/100:null),rC=fr("recupera")||(cg.recup>0?1-cg.recup/100:null);
+      const diaAhora=fase==="roto"&&rR?m.dia*rR:fase==="recupera"&&rC?m.dia*rC:m.dia;
+      out.lineas[k]=Object.assign({nave:n,mat:mt,maq:cnt,fase,rRoto:rR,rRecup:rC,diaAhora},m);});
     const gd=gDias[n],m=modelo(A["G|"+n],c.c,gd&&gd.d.size?gd.kg/gd.d.size:0);
     out.gran[n]=Object.assign({maq:c.c},m);});
   return out;
@@ -807,6 +838,11 @@ function vPrevision(){
   const avisos=[];
   filas.forEach(x=>{const disp=(x.b?x.b.fa:0)+x.prev,falta=x.resto-disp;
     if(falta>0.5)avisos.push(etiqLinea(x.k)+": para acabar el mes faltan unos "+fmt(Math.ceil(falta))+" fardos"+cam(falta,x.mat)+" (tienes "+fmt(x.b?x.b.fa:0)+" en nave y externo"+(x.prev?" + "+fmt(x.prev)+" previstos":"")+").");});
+  NAVES.filter(n=>!fStk.nave||fStk.nave===n).forEach(n=>{const e=desdeCargador(n);if(!e)return;
+    const ls=filas.filter(x=>x.nave===n&&x.rRoto);
+    avisos.unshift(n+": cargador de bebederos ROTO desde el "+dmy(e.f)+" ("+e.u.toLowerCase()+"). Se funde solo lingote"+(ls.length?": ahora "+ls.map(x=>MAT[x.mat].nom+" "+f1(x.diaAhora)+" f/día ("+(x.rRoto>=1?"+":"")+Math.round((x.rRoto-1)*100)+"%)").join(", "):"; cuando haya datos de otras veces, la app calculará cuánto sube")+". Esos relevos no cuentan para el consumo normal.");});
+  NAVES.filter(n=>!fStk.nave||fStk.nave===n).forEach(n=>{const ls=filas.filter(x=>x.nave===n&&x.fase==="recupera");if(!ls.length)return;
+    avisos.unshift(n+": cargador arreglado, se están metiendo los bebederos acumulados; el consumo de lingote estará más bajo unos relevos y tampoco cuenta para el consumo normal.");});
   const gk=granallaKg();
   const gTot=fStk.mat?0:NAVES.filter(n=>!fStk.nave||fStk.nave===n).reduce((a,n)=>a+P.gran[n].dia,0),gMaq=fStk.mat?0:NAVES.filter(n=>!fStk.nave||fStk.nave===n).reduce((a,n)=>a+P.gran[n].maq,0);
   if(gTot>0&&gk<gTot*restan)avisos.push("Granalla de cobre: para acabar el mes faltan unos "+fmt(gTot*restan-gk)+" kg.");
@@ -818,8 +854,9 @@ function vPrevision(){
       el("tbody",{},filas.map(x=>el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),el("div",{class:"sub",text:MAT[x.mat].nom+(x.fuente==="recta"&&x.pend!=null?" · "+(x.pend<0?"cada máquina parada suma "+f1(-x.pend*TURNOS.length)+" f/día":"cada máquina en marcha suma "+f1(x.pend*TURNOS.length)+" f/día"):"")})]),
         el("td",{class:"r num",text:String(x.maq)}),
-        el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:f1(x.dia)+" f"}),el("div",{class:"sub",text:fmt(x.dia*x.kgf)+" kg"})]),
-        el("td",{class:"r num",text:x.dia>0&&x.b?String(Math.floor(x.b.faN/x.dia)):"—"}),
+        el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:f1(x.diaAhora)+" f"}),el("div",{class:"sub",text:fmt(x.diaAhora*x.kgf)+" kg"}),
+          x.fase!=="ok"?el("div",{class:"sub",style:"color:var(--warn)",text:(x.fase==="roto"?"cargador roto":"recuperando bebederos")+((x.fase==="roto"?x.rRoto:x.rRecup)?"":" · normal "+f1(x.dia)+" f")}):null]),
+        el("td",{class:"r num",text:x.diaAhora>0&&x.b?String(Math.floor(x.b.faN/x.diaAhora)):"—"}),
         el("td",{class:"r num"},[el("div",{text:fmt(Math.ceil(x.resto))+" f"}),el("div",{class:"sub",text:fmt(x.resto*x.kgf)+" kg"})]),
         el("td",{class:"r num"},[el("div",{text:fmt(Math.ceil(x.sig))+" f"}),el("div",{class:"sub",text:fmt(x.sig*x.kgf/1000)+" t"+cam(x.sig,x.mat)})])]))
       .concat(gMaq>0||gTot>0?[el("tr",{},[
@@ -841,8 +878,11 @@ function vMaquinas(){
   const st=estadoMaq(mqFecha,mqTurno),sinDatos=!primerEvMaq();
   const cambia=async(ms,patch,txt)=>{const evs=ms.map(m=>{const x=Object.assign({},st[m],patch(st[m]));return{i:uid("q"),f:mqFecha,u:mqTurno,m,on:x.on,cu:x.cu,az:x.az};});
     try{await addMaqEv(evs);if(txt)toast(txt);}catch(e){toast("No se pudo guardar");}};
-  const seccion=n=>{const c=cuentaMaq(st,n);
+  const seccion=n=>{const c=cuentaMaq(st,n),roto=cargadorRoto(mqFecha,mqTurno,n),fz=faseCargador(mqFecha,mqTurno,n);
     return el("div",{class:"maq-nave"},[
+      el("div",{class:"carg"+(roto?" roto":"")},[el("span",{},[el("b",{text:"Cargador de bebederos: "}),document.createTextNode(roto?"ROTO (solo lingote)":fz==="recupera"?"funciona · recuperando bebederos":"funciona")]),
+        el("button",{type:"button",class:"btn sec peq",text:roto?"Ya funciona":"Marcar roto",onclick:async()=>{
+          try{await addMaqEv([{i:uid("q"),f:mqFecha,u:mqTurno,m:CARG(n),on:roto}]);toast(n+": cargador "+(roto?"arreglado":"roto")+" desde "+dmy(mqFecha)+" "+mqTurno.toLowerCase());}catch(e){toast("No se pudo guardar");}}})]),
       el("div",{class:"maq-tit"},[el("b",{text:n}),el("span",{class:"sub",text:c.on+" en marcha · "+c.c+" con granalla de cobre · "+c.a+" AlSi12"}),
         el("button",{type:"button",class:"btn sec del edit",text:"Todas en marcha",onclick:()=>cambia(MAQ[n].filter(m=>!st[m].on),()=>({on:true}),n+": todas en marcha")}),
         el("button",{type:"button",class:"btn sec del",text:"Todas paradas",onclick:()=>cambia(MAQ[n].filter(m=>st[m].on),()=>({on:false}),n+": todas paradas")})]),
@@ -1821,10 +1861,14 @@ function vMin(){
       const v=numES(e.target.value);cfg.granalla=Object.assign({},cfg.granalla,{min:isNaN(v)?0:v});
       try{await saveCfg();toast("Mínimo guardado");}catch(err){toast("No se pudo guardar");}}})])
   ]));
+  const cg=cfg.cargador||{};
+  const pct=(k,txt)=>el("tr",{},[el("td",{text:txt}),el("td",{},[el("input",{class:"num",type:"text",inputmode:"numeric",placeholder:"%",style:"font-size:15px;padding:7px 9px",value:cg[k]?String(cg[k]):"",
+    onchange:async e=>{const v=numES(e.target.value);cfg.cargador=Object.assign({},cfg.cargador,{[k]:v>0?v:0});try{await saveCfg();toast("Guardado");}catch(err){toast("No se pudo guardar");}}})])]);
+  rows.push(pct("roto","Cargador roto: % más de lingote"),pct("recup","Cargador recién arreglado: % menos de lingote"));
   return el("div",{class:"card"},[
     el("div",{class:"hd"},[el("h2",{text:"Mínimos"})]),
     el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{text:"Mínimo de fardos en la nave"})])]),el("tbody",{},rows)])]),
-    el("div",{class:"bd"},[el("p",{class:"hint",text:"El mínimo se mide sobre los fardos que están físicamente en la nave, no sobre el total. Un cero desactiva el aviso."})])
+    el("div",{class:"bd"},[el("p",{class:"hint",text:"El mínimo se mide sobre los fardos que están físicamente en la nave, no sobre el total. Un cero desactiva el aviso. Los % del cargador son una estimación para la previsión mientras no haya datos: cuando haya 2 o más relevos apuntados con el cargador roto (o recuperando), la app usa lo que pasó de verdad."})])
   ]);
 }
 
@@ -2557,7 +2601,7 @@ $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carg
   db.collection("lotes").onSnapshot(sn=>{lotes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));ready=true;render();},()=>{ready=true;render();});
   db.collection("maq").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});maqEv=m;render();},()=>{});
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;ready=true;render();},()=>{});
-  db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg={minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{}};}render();},()=>{});
+  db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg={minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{},cargador:c.cargador||{}};}render();},()=>{});
 })();
 })();
 </script>
