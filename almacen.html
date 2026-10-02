@@ -1540,13 +1540,21 @@ function autoOps(c){if(c.auto==="eje")return(cat.modelos||[]).slice().sort((a,b)
   if(c.auto==="piston")return DIAM.map(d=>({id:d,t:d}));return artsActivos().filter(a=>a.fam===c.auto).map(a=>({id:a.id,t:a.desc,art:a.id}));}
 /* plantilla: [{id,nom,multi,ops:[{id,t,art}]} | {id,nom,auto}]; la primera vez se propone una */
 function plantilla(){if(cat.fichaIny&&Array.isArray(cat.fichaIny.campos))return cat.fichaIny.campos;return PLANT_INI();}
+/* opciones que dependen del horno: si el nombre lleva marca o medida de horno, solo valen para ese horno */
+function hornoSel(P,val){const sel=id=>{const c=P.find(x=>x.id===id);const o=c&&(val[id]||[]).map(i=>c.ops.find(z=>z.id===i)).filter(Boolean)[0];return o?norm(o.t):"";};
+  const lista=id=>{const c=P.find(x=>x.id===id);return c&&c.ops?c.ops.map(o=>norm(o.t)).filter(Boolean):[];};return{marca:sel("c-horno"),medida:sel("c-hmed"),marcas:lista("c-horno"),medidas:lista("c-hmed")};}
+const wrd=(txt,w)=>new RegExp("(^|[^a-z0-9])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^a-z0-9]|$)").test(txt);
+function cuadra(o,h){const t=norm(o.t);const mm=h.marcas.filter(x=>wrd(t,x)),md=h.medidas.filter(x=>wrd(t,x));return(!h.marca||!mm.length||mm.includes(h.marca))&&(!h.medida||!md.length||md.includes(h.medida));}
+const especifica=(o,h)=>{const t=norm(o.t);return h.marcas.some(x=>wrd(t,x))||h.medidas.some(x=>wrd(t,x));};
 function PLANT_INI(){
   const can=artsActivos().filter(a=>/canalet/i.test(a.desc)),cc=artsActivos().filter(a=>/cazo de carga/i.test(a.desc));
   const v=(id,nom,multi)=>({id,nom,multi:!!multi,ops:[]});
-  return[{id:"c-can",nom:"Canaleta de llenado",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
+  const ops=ts=>ts.map((t,i)=>({id:"o-"+norm(t).replace(/[^a-z0-9]+/g,"")+"-"+i,t,art:null}));
+  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:ops(["IDRA","BÜHLER","STP"])},{id:"c-horno",nom:"Horno",multi:false,ops:ops(["Krown","Westofen"])},{id:"c-hmed",nom:"Medida del horno",multi:false,ops:ops(["18","21","24"])},
+    {id:"c-can",nom:"Canaleta de llenado",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
     {id:"c-cazoc",nom:"Cazo de carga",multi:false,ops:cc.map(a=>({id:"o-cc-"+a.id,t:a.desc.replace(/^cazo de carga\s*/i,"").replace(/(\d)\s*kg/i,"$1 kg")||a.desc,art:a.id})).concat([{id:"o-cc-no",t:"Sin cazo de carga",art:null}])},
     v("c-tubo","Tubo dosificador"),v("c-cont","Contenedor"),{id:"x-eje",nom:"Eje de inyección",auto:"eje"},v("c-cono","Cono de llenado"),v("c-jcono","Junta cono"),v("c-junta","Junta"),
-    v("c-dosif","Dosificador"),v("c-resis","Resistencias",true),v("c-centr","Centradores",true),
+    {id:"c-dosif",nom:"Dosificador",multi:false,segunHorno:true,ops:ops(["Krown 18","Krown 21","Krown 24","Westofen 18","Westofen 21","Westofen 24"])},v("c-resis","Resistencias",true),v("c-centr","Centradores",true),
     {id:"x-piston",nom:"Pistón",auto:"piston"},{id:"x-barra",nom:"Barras expulsoras",auto:"barra"},{id:"x-tornillo",nom:"Tornillos tope",auto:"tornillo"}];}
 function valoresDe(m){if(m.ficha)return m.ficha;const v={};const P=plantilla();
   const pon=(cid,f)=>{const c=P.find(x=>x.id===cid);const o=c&&c.ops.find(f);if(o)v[cid]=[o.id];};
@@ -1601,7 +1609,7 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
   const enUso=ex&&(todosMov().some(x=>x.maq===m.id)||todosPist().some(p=>p.maq===m.id));
   const codI=inp("mqCod",m.cod,v=>m.cod=v,{autocomplete:"off"});if(enUso)codI.disabled=true;
   const campos=el("div",{class:"frm",style:"gap:14px"});
-  const av={};P.filter(c=>c.auto).forEach(c=>{av[c.id]=ex?autoVal(c,m0):[];});const nuevosArt=[];
+  const verTodo={},tocadoC={};const av={};P.filter(c=>c.auto).forEach(c=>{av[c.id]=ex?autoVal(c,m0):[];});const nuevosArt=[];
   const pinta=()=>{campos.textContent="";P.forEach(c=>{
     if(c.auto){const sel0=new Set(av[c.id]);const multi=c.auto!=="piston";
       const chips=autoOps(c).concat(nuevosArt.filter(a=>a.fam===c.auto).map(a=>({id:a.id,t:a.desc}))).map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{if(sel0.has(o.id))sel0.delete(o.id);else{if(!multi)sel0.clear();sel0.add(o.id);}av[c.id]=Array.from(sel0);pinta();}}));
@@ -1610,11 +1618,15 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
         sel0.add(a.id);av[c.id]=Array.from(sel0);pinta();}}));
       campos.appendChild(el("div",{style:"display:flex;flex-direction:column;gap:6px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:c.nom+(multi?" · puedes marcar varias":"")}),
         el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},chips.length?chips:[el("span",{class:"hint",text:c.auto==="eje"?"No hay modelos de eje en el catálogo.":"Nada en el catálogo todavía."})])]));return;}
+    let lista=c.ops,ocultas=0;
+    if(c.segunHorno){const h=hornoSel(P,val);if(h.marca||h.medida){const ok=c.ops.filter(o=>cuadra(o,h));
+      if(!verTodo[c.id]){const s=(val[c.id]||[]).filter(id=>ok.some(o=>o.id===id));if(!s.length&&!tocadoC[c.id]){const esp=ok.filter(o=>especifica(o,h));if(esp.length===1)s.push(esp[0].id);}val[c.id]=s;ocultas=c.ops.length-ok.length;lista=ok;}}}
     const sel0=new Set(val[c.id]||[]);
-    const chips=c.ops.map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{if(sel0.has(o.id))sel0.delete(o.id);else{if(!c.multi)sel0.clear();sel0.add(o.id);}val[c.id]=Array.from(sel0);pinta();}}));
+    const chips=lista.map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{tocadoC[c.id]=true;if(sel0.has(o.id))sel0.delete(o.id);else{if(!c.multi)sel0.clear();sel0.add(o.id);}val[c.id]=Array.from(sel0);pinta();}}));
+    if(ocultas)chips.push(el("button",{type:"button",class:"chip",style:"border-style:dotted",text:"ver las otras "+ocultas,onclick:()=>{verTodo[c.id]=true;pinta();}}));
     chips.push(el("button",{type:"button",class:"chip",style:"border-style:dashed",text:"＋ otra",onclick:()=>{const t=(prompt("Nueva opción para «"+c.nom+"»:")||"").trim();if(!t)return;
       let o=c.ops.find(z=>norm(z.t)===norm(t));if(!o){o={id:"o"+uid(),t,art:null};c.ops.push(o);tocada=true;}if(!c.multi)sel0.clear();sel0.add(o.id);val[c.id]=Array.from(sel0);pinta();}}));
-    campos.appendChild(el("div",{style:"display:flex;flex-direction:column;gap:6px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:c.nom+(c.multi?" · puedes marcar varias":"")}),
+    campos.appendChild(el("div",{style:"display:flex;flex-direction:column;gap:6px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:c.nom+(c.segunHorno?" · según el horno":"")+(c.multi?" · puedes marcar varias":"")}),
       el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},chips)]));});
     if(!P.length)campos.appendChild(el("p",{class:"hint",text:"No hay campos. Créalos en Catálogo > Ficha de inyectoras > Configurar campos."}));};
   pinta();
@@ -1652,6 +1664,7 @@ function formPlantilla(){const P=JSON.parse(JSON.stringify(plantilla()));const b
       el("div",{style:"display:flex;gap:6px;align-items:center"},[nom,el("button",{type:"button",class:"btn sec peq",text:"↑","aria-label":"Subir",disabled:ci===0,onclick:()=>{P.splice(ci-1,0,P.splice(ci,1)[0]);pinta();}}),
         el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>{if(confirm("¿Borrar el campo «"+c.nom+"»? Se quita de todas las fichas."))P.splice(ci,1);pinta();}})]),
       el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",checked:!!c.multi,onchange:e=>{c.multi=e.target.checked;}}),"Se pueden marcar varias opciones a la vez"]),
+      el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",checked:!!c.segunHorno,onchange:e=>{c.segunHorno=e.target.checked;}}),"Depende del horno (se proponen las opciones que llevan la marca y medida del horno de la máquina)"]),
       ops,el("button",{type:"button",class:"btn sec peq",style:"align-self:flex-start",text:"＋ Añadir opción",onclick:()=>{c.ops.push({id:"o"+uid(),t:"",art:null});pinta();}})])));});
     box.appendChild(el("button",{type:"button",class:"btn sec",text:"＋ Añadir campo",onclick:()=>{P.push({id:"c"+uid(),nom:"Nuevo campo",multi:false,ops:[]});pinta();}}));
     const faltan=Object.keys(AUTO).filter(k=>!P.some(c=>c.auto===k));
