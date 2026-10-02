@@ -1208,6 +1208,10 @@ function vEntrada(){
       if(ft)rec.ft=ft;
       await addMov(rec);toast("Entrada registrada"+(ft?" con foto":"")+": "+fmt(nk)+" kg");
       if(d.plan){try{await marcarPlan(d.plan,{l:id,f:d.fecha,k:key(d.nave,d.mat)});toast("Entrada registrada y camión del plan marcado como recibido");}catch(e){toast("Entrada registrada, pero no se pudo marcar el camión del plan");}}
+      else{/* sin elegir el camión del plan: se busca el previsto de esa nave y aleación más cercano (±4 días) y se marca recibido */
+        const k=key(d.nave,d.mat),dist=f=>Math.abs((new Date(f)-new Date(d.fecha))/864e5);
+        const c=pendientesPlan().filter(x=>(x.k===k||!x.k)&&dist(x.f)<=4).sort((a,b)=>(a.k===k?0:1)-(b.k===k?0:1)||dist(a.f)-dist(b.f))[0];
+        if(c){try{await marcarPlan(c,{l:id,f:d.fecha,k});toast("Entrada registrada · camión previsto del "+dmy(c.f)+" marcado como recibido");}catch(e){}}}
       draft.ent={nave:d.nave,mat:d.mat,donde:d.donde,fecha:d.fecha,prov:d.prov};render();/* el formulario queda limpio (también los datos leídos) */
     }catch(err){toast("No se pudo guardar");b.disabled=false;b.textContent="Registrar entrada";}}},[
     el("div",{class:"row"},[el("label",{text:"Proveedor"},[selP]),el("label",{text:"Nº albarán"},[el("input",{id:"e-alb",value:d.alb||"",oninput:e=>{d.alb=e.target.value;}})])]),
