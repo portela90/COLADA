@@ -1530,18 +1530,33 @@ function fichaAlbaran(a,d){const fil=[];
 const maqDe=id=>cat.maquinas.find(x=>x.id===id);
 const tipoCan=a=>a&&a.cod?(/k$/i.test(a.cod)?"K":/c$/i.test(a.cod)?"C":""):"";
 function diamDe(m){if(m.diam)return m.diam;const u=ultimoPist(m.id);return u?u.diam:"";}
-/* plantilla: [{id,nom,multi,ops:[{id,t,art}]}]; la primera vez se propone una */
-function plantilla(){if(cat.fichaIny&&Array.isArray(cat.fichaIny.campos))return cat.fichaIny.campos;
-  const can=artsActivos().filter(a=>/canalet/i.test(a.desc)),caz=artsActivos().filter(a=>/cazo/i.test(a.desc)&&/llenad/i.test(a.desc));
-  return[{id:"c-maq",nom:"Modelo de máquina",multi:false,ops:["IDRA","BÜHLER","STP"].map((t,i)=>({id:"o-maq-"+i,t,art:null}))},
-    {id:"c-horno",nom:"Horno",multi:false,ops:[]},
-    {id:"c-can",nom:"Canaleta",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
-    {id:"c-cazo",nom:"Cazo de llenado",multi:false,ops:caz.map(a=>({id:"o-caz-"+a.id,t:a.desc.replace(/^cazo (de )?llenado\s*/i,"").replace(/(\d)\s*kg/i,"$1 kg")||a.desc,art:a.id})).concat([{id:"o-caz-no",t:"Sin cazo",art:null}])},
-    {id:"c-alea",nom:"Aleación",multi:false,ops:[{id:"o-al-9",t:"AlSi9",art:null},{id:"o-al-12",t:"AlSi12",art:null}]}];}
+/* campos que se rellenan con datos de otras partes: ejes (modelos), pistón, barras y tornillos (artículos) */
+const AUTO={eje:"Modelos de eje: se marca qué modelos lleva",piston:"Ø de pistón habitual",barra:"Barras expulsoras del almacén",tornillo:"Tornillos tope del almacén"};
+const autoTxt=(c,m)=>autoVal(c,m).map(id=>c.auto==="eje"?((cat.modelos||[]).find(x=>x.id===id)||{}).cod:c.auto==="piston"?id.replace("Ø ",""):(art(id)||{}).desc).filter(Boolean).join(", ");
+const codsIny=cs=>cs.slice().sort((a,b)=>a.localeCompare(b,"es",{numeric:true})).map((c,i)=>i?c.replace(/^F/i,""):c).join("-");
+function autoVal(c,m){if(c.auto==="eje")return(cat.modelos||[]).filter(x=>inyDe(x).includes(m.cod)).map(x=>x.id);
+  if(c.auto==="piston")return m.diam?[m.diam]:[];return artsActivos().filter(a=>a.fam===c.auto&&(a.iny||[]).includes(m.id)).map(a=>a.id);}
+function autoOps(c){if(c.auto==="eje")return(cat.modelos||[]).slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(x=>({id:x.id,t:x.ref+" ("+x.cod+")"}));
+  if(c.auto==="piston")return DIAM.map(d=>({id:d,t:d}));return artsActivos().filter(a=>a.fam===c.auto).map(a=>({id:a.id,t:a.desc,art:a.id}));}
+/* plantilla: [{id,nom,multi,ops:[{id,t,art}]} | {id,nom,auto}]; la primera vez se propone una */
+function plantilla(){if(cat.fichaIny&&Array.isArray(cat.fichaIny.campos))return cat.fichaIny.campos;return PLANT_INI();}
+function PLANT_INI(){
+  const can=artsActivos().filter(a=>/canalet/i.test(a.desc)),cc=artsActivos().filter(a=>/cazo de carga/i.test(a.desc));
+  const v=(id,nom,multi)=>({id,nom,multi:!!multi,ops:[]});
+  return[{id:"c-can",nom:"Canaleta de llenado",multi:false,ops:can.map(a=>({id:"o-can-"+a.id,t:tipoCan(a)?"De la "+tipoCan(a):a.desc,art:a.id})).concat([{id:"o-can-no",t:"Sin canaleta",art:null}])},
+    {id:"c-cazoc",nom:"Cazo de carga",multi:false,ops:cc.map(a=>({id:"o-cc-"+a.id,t:a.desc.replace(/^cazo de carga\s*/i,"").replace(/(\d)\s*kg/i,"$1 kg")||a.desc,art:a.id})).concat([{id:"o-cc-no",t:"Sin cazo de carga",art:null}])},
+    v("c-tubo","Tubo dosificador"),v("c-cont","Contenedor"),{id:"x-eje",nom:"Eje de inyección",auto:"eje"},v("c-cono","Cono de llenado"),v("c-jcono","Junta cono"),v("c-junta","Junta"),
+    v("c-dosif","Dosificador"),v("c-resis","Resistencias",true),v("c-centr","Centradores",true),
+    {id:"x-piston",nom:"Pistón",auto:"piston"},{id:"x-barra",nom:"Barras expulsoras",auto:"barra"},{id:"x-tornillo",nom:"Tornillos tope",auto:"tornillo"}];}
 function valoresDe(m){if(m.ficha)return m.ficha;const v={};const P=plantilla();
   const pon=(cid,f)=>{const c=P.find(x=>x.id===cid);const o=c&&c.ops.find(f);if(o)v[cid]=[o.id];};
   if(m.canaleta)pon("c-can",o=>o.art===m.canaleta);if(m.cazo)pon("c-cazo",o=>o.art===m.cazo);if(m.alea)pon("c-alea",o=>o.t===m.alea);return v;}
-function lineasFicha(m,conStock){const v=valoresDe(m);return plantilla().map(c=>{const ops=(v[c.id]||[]).map(id=>c.ops.find(o=>o.id===id)).filter(Boolean);if(!ops.length)return null;
+function lineasFicha(m,conStock){const v=valoresDe(m);return plantilla().map(c=>{
+  if(c.auto){const ids=autoVal(c,m);let txt;if(c.auto==="piston"){const d=diamDe(m);if(!d)return null;const pa=pistArt(d);txt=d+(m.diam?"":" (último cambio)")+(conStock&&pa?" · hay "+fmtN(stockDe(pa.id)):"");}
+    else if(c.auto==="eje"){if(!ids.length)return null;txt=ids.map(id=>{const x=(cat.modelos||[]).find(z=>z.id===id);const es=ejes.filter(e=>e.mod===x.cod);return x.ref+(conStock?" · "+es.filter(e=>e.estado==="planta").length+"/"+es.length+" en planta":"");}).join(", ");}
+    else{if(!ids.length)return null;txt=ids.map(id=>{const a=art(id);return a.desc+(conStock?" · hay "+fmtN(stockDe(a.id))+" "+a.ud:"");}).join(", ");}
+    return{c,ops:[],txt};}
+  const ops=(v[c.id]||[]).map(id=>c.ops.find(o=>o.id===id)).filter(Boolean);if(!ops.length)return null;
   return{c,ops,txt:ops.map(o=>{const a=o.art&&art(o.art);return o.t+(conStock&&a?" · hay "+fmtN(stockDe(a.id))+" "+a.ud:"");}).join(", ")};}).filter(Boolean);}
 const resumenFicha=m=>lineasFicha(m).map(l=>l.c.nom+": "+l.txt);
 function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
@@ -1586,7 +1601,16 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
   const enUso=ex&&(todosMov().some(x=>x.maq===m.id)||todosPist().some(p=>p.maq===m.id));
   const codI=inp("mqCod",m.cod,v=>m.cod=v,{autocomplete:"off"});if(enUso)codI.disabled=true;
   const campos=el("div",{class:"frm",style:"gap:14px"});
-  const pinta=()=>{campos.textContent="";P.forEach(c=>{const sel0=new Set(val[c.id]||[]);
+  const av={};P.filter(c=>c.auto).forEach(c=>{av[c.id]=ex?autoVal(c,m0):[];});const nuevosArt=[];
+  const pinta=()=>{campos.textContent="";P.forEach(c=>{
+    if(c.auto){const sel0=new Set(av[c.id]);const multi=c.auto!=="piston";
+      const chips=autoOps(c).concat(nuevosArt.filter(a=>a.fam===c.auto).map(a=>({id:a.id,t:a.desc}))).map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{if(sel0.has(o.id))sel0.delete(o.id);else{if(!multi)sel0.clear();sel0.add(o.id);}av[c.id]=Array.from(sel0);pinta();}}));
+      if(c.auto==="barra"||c.auto==="tornillo")chips.push(el("button",{type:"button",class:"chip",style:"border-style:dashed",text:"＋ otra",onclick:()=>{const t=(prompt("Nombre de la nueva "+(c.auto==="barra"?"barra expulsora":"tornillo tope")+":")||"").trim();if(!t)return;
+        let a=cat.articulos.concat(nuevosArt).find(z=>norm(z.desc)===norm(t));if(!a){a={id:uid(),desc:t,almPpal:(origenRepo()||{}).id||null,alms:[(origenRepo()||{}).id].filter(Boolean),ubic:null,cod:null,fam:c.auto,ud:"ud",diam:null,min:0,pp:0,plazo:null,prov:null,activo:true,iny:[]};nuevosArt.push(a);}
+        sel0.add(a.id);av[c.id]=Array.from(sel0);pinta();}}));
+      campos.appendChild(el("div",{style:"display:flex;flex-direction:column;gap:6px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:c.nom+(multi?" · puedes marcar varias":"")}),
+        el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},chips.length?chips:[el("span",{class:"hint",text:c.auto==="eje"?"No hay modelos de eje en el catálogo.":"Nada en el catálogo todavía."})])]));return;}
+    const sel0=new Set(val[c.id]||[]);
     const chips=c.ops.map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{if(sel0.has(o.id))sel0.delete(o.id);else{if(!c.multi)sel0.clear();sel0.add(o.id);}val[c.id]=Array.from(sel0);pinta();}}));
     chips.push(el("button",{type:"button",class:"chip",style:"border-style:dashed",text:"＋ otra",onclick:()=>{const t=(prompt("Nueva opción para «"+c.nom+"»:")||"").trim();if(!t)return;
       let o=c.ops.find(z=>norm(z.t)===norm(t));if(!o){o={id:"o"+uid(),t,art:null};c.ops.push(o);tocada=true;}if(!c.multi)sel0.clear();sel0.add(o.id);val[c.id]=Array.from(sel0);pinta();}}));
@@ -1604,6 +1628,12 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
      const nue=Object.assign({},m0||{},{id:ex?m0.id:cod,cod,nave:m.nave||null,notas:String(m.notas||"").trim()||null,ficha});
      ["modelo","cierre","horno","hornoKg","canaleta","cazo","alea","molde"].forEach(k=>delete nue[k]);
      const i=cat.maquinas.findIndex(z=>z.id===nue.id);if(i>=0)cat.maquinas[i]=nue;else cat.maquinas.push(nue);
+     /* lo automático se guarda donde vive: modelos de eje, artículos y Ø de pistón */
+     P.filter(c=>c.auto).forEach(c=>{const S=new Set(av[c.id]||[]);
+       if(c.auto==="piston"){nue.diam=[...S][0]||null;return;}
+       if(c.auto==="eje"){(cat.modelos||[]).forEach(x=>{const cs=inyDe(x);const tiene=cs.includes(cod),quiere=S.has(x.id);if(tiene===quiere)return;x.iny=codsIny(quiere?cs.concat([cod]):cs.filter(z=>z!==cod));});return;}
+       nuevosArt.filter(a=>S.has(a.id)&&!cat.articulos.includes(a)).forEach(a=>cat.articulos.push(a));
+       cat.articulos.filter(a=>a.fam===c.auto).forEach(a=>{const tiene=(a.iny||[]).includes(nue.id),quiere=S.has(a.id);if(tiene===quiere)return;a.iny=quiere?(a.iny||[]).concat([nue.id]):(a.iny||[]).filter(z=>z!==nue.id);});});
      if(tocada||!cat.fichaIny)cat.fichaIny={campos:P};
      try{await saveCat();toast("Guardado");}catch(e){return false;}render(true);setTimeout(()=>fichaIny(nue),0);}}]);
   const bx=document.querySelectorAll(".dlg");if(bx.length)bx[bx.length-1].style.maxWidth="620px";}
@@ -1612,6 +1642,10 @@ function formPlantilla(){const P=JSON.parse(JSON.stringify(plantilla()));const b
   const artSel=o=>{const s=el("select",{style:"font-size:14px;padding:6px 8px;width:auto;max-width:190px"},[el("option",{value:"",text:"— sin artículo —"})].concat(artsActivos().slice().sort((a,b)=>a.desc.localeCompare(b.desc)).map(a=>el("option",{value:a.id,text:a.desc}))));s.value=o.art||"";s.onchange=()=>{o.art=s.value||null;};return s;};
   const pinta=()=>{box.textContent="";P.forEach((c,ci)=>{
     const nom=el("input",{value:c.nom,style:"font-weight:600"});nom.oninput=()=>{c.nom=nom.value;};
+    if(c.auto){box.appendChild(el("div",{class:"card",style:"box-shadow:none"},el("div",{class:"bd frm",style:"gap:8px"},[
+      el("div",{style:"display:flex;gap:6px;align-items:center"},[nom,el("button",{type:"button",class:"btn sec peq",text:"↑","aria-label":"Subir",disabled:ci===0,onclick:()=>{P.splice(ci-1,0,P.splice(ci,1)[0]);pinta();}}),
+        el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>{P.splice(ci,1);pinta();}})]),
+      el("p",{class:"hint",text:"Automático: "+AUTO[c.auto]+". Sus opciones salen solas del catálogo."})])));return;}
     const ops=el("div",{style:"display:flex;flex-direction:column;gap:6px"},c.ops.map((o,oi)=>{const t=el("input",{value:o.t,placeholder:"Opción",style:"font-size:15px;padding:7px 9px"});t.oninput=()=>{o.t=t.value;};
       return el("div",{style:"display:flex;gap:6px;align-items:center"},[t,artSel(o),el("button",{type:"button",class:"btn txt peq","aria-label":"Quitar opción",text:"✕",onclick:()=>{c.ops.splice(oi,1);pinta();}})]);}));
     box.appendChild(el("div",{class:"card",style:"box-shadow:none"},el("div",{class:"bd frm",style:"gap:8px"},[
@@ -1619,37 +1653,45 @@ function formPlantilla(){const P=JSON.parse(JSON.stringify(plantilla()));const b
         el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>{if(confirm("¿Borrar el campo «"+c.nom+"»? Se quita de todas las fichas."))P.splice(ci,1);pinta();}})]),
       el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",checked:!!c.multi,onchange:e=>{c.multi=e.target.checked;}}),"Se pueden marcar varias opciones a la vez"]),
       ops,el("button",{type:"button",class:"btn sec peq",style:"align-self:flex-start",text:"＋ Añadir opción",onclick:()=>{c.ops.push({id:"o"+uid(),t:"",art:null});pinta();}})])));});
-    box.appendChild(el("button",{type:"button",class:"btn sec",text:"＋ Añadir campo",onclick:()=>{P.push({id:"c"+uid(),nom:"Nuevo campo",multi:false,ops:[]});pinta();}}));};
+    box.appendChild(el("button",{type:"button",class:"btn sec",text:"＋ Añadir campo",onclick:()=>{P.push({id:"c"+uid(),nom:"Nuevo campo",multi:false,ops:[]});pinta();}}));
+    const faltan=Object.keys(AUTO).filter(k=>!P.some(c=>c.auto===k));
+    if(faltan.length)box.appendChild(el("div",{class:"acciones"},faltan.map(k=>el("button",{type:"button",class:"btn sec peq",text:"＋ "+({eje:"Eje de inyección",piston:"Pistón",barra:"Barras expulsoras",tornillo:"Tornillos tope"})[k]+" (automático)",onclick:()=>{P.push({id:"x-"+k,nom:({eje:"Eje de inyección",piston:"Pistón",barra:"Barras expulsoras",tornillo:"Tornillos tope"})[k],auto:k});pinta();}}))));};
   pinta();
   dlg("Campos de la ficha de inyectora",[el("p",{class:"hint",text:"Cada campo es una cosa que puede montar una máquina (canaleta, cazo, horno…) y sus opciones son lo que se elige. Si enlazas una opción con un artículo del almacén, en la ficha se ve cuántos hay."}),box],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{P.forEach(c=>{c.nom=(c.nom||"").trim()||"Sin nombre";c.ops=c.ops.filter(o=>(o.t||"").trim()).map(o=>Object.assign(o,{t:o.t.trim()}));});
-      cat.fichaIny={campos:P};try{await saveCat();toast("Campos guardados");}catch(e){return false;}render(true);}}]);
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{P.forEach(c=>{c.nom=(c.nom||"").trim()||"Sin nombre";if(c.auto)return;c.ops=c.ops.filter(o=>(o.t||"").trim()).map(o=>Object.assign(o,{t:o.t.trim()}));});
+      P.forEach(c=>{if(c.auto)delete c.ops;});cat.fichaIny={campos:P};try{await saveCat();toast("Campos guardados");}catch(e){return false;}render(true);}}]);
   const bx=document.querySelectorAll(".dlg");if(bx.length)bx[bx.length-1].style.maxWidth="640px";}
 /* fichas de todas las inyectoras en Excel */
 async function excelMaquinas(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const P=plantilla();const H=["Inyectora","Nave"].concat(P.map(c=>c.nom)).concat(["Notas"]);
     const rows=cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>{const v=valoresDe(m);const r={"Inyectora":m.cod,"Nave":m.nave||""};
-      P.forEach(c=>{r[c.nom]=(v[c.id]||[]).map(id=>(c.ops.find(o=>o.id===id)||{}).t).filter(Boolean).join(", ");});r["Notas"]=m.notas||"";return r;});
+      P.forEach(c=>{r[c.nom]=c.auto?autoTxt(c,m):(v[c.id]||[]).map(id=>(c.ops.find(o=>o.id===id)||{}).t).filter(Boolean).join(", ");});r["Notas"]=m.notas||"";return r;});
     const ws=X.utils.json_to_sheet(rows,{header:H});ws["!cols"]=H.map(()=>({wch:18}));X.utils.book_append_sheet(wb,ws,"Inyectoras");
-    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([["Cómo rellenarla"],["Una fila por inyectora. En cada columna escribe la opción tal cual (si son varias, separadas por comas)."],["Si escribes una opción que no existe, se crea."],["Lo que dejes en blanco se quita de la ficha."],[""],["Opciones que hay:"]].concat(P.map(c=>[c.nom+": "+c.ops.map(o=>o.t).join(" | ")]))),"Opciones");
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([["Cómo rellenarla"],["Una fila por inyectora. En cada columna escribe la opción tal cual (si son varias, separadas por comas)."],["Si escribes una opción que no existe, se crea."],["Lo que dejes en blanco se quita de la ficha."],[""],["Opciones que hay:"]].concat(P.map(c=>[c.nom+": "+(c.auto?(c.auto==="eje"?"códigos de modelo de eje (p. ej. 2.3.C)":c.auto==="piston"?"80, 90 esp…":"nombre del artículo tal cual (si no existe, se crea)"):c.ops.map(o=>o.t).join(" | "))]))),"Opciones");
     await downloads.save({filename:"Fichas_inyectoras.xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}
 async function importarMaquinas(file){try{await cargarXLSX();}catch(e){toast("No se pudo cargar el lector de Excel");return;}
   let rows;try{const X=window.XLSX;const wb=X.read(await file.arrayBuffer());rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});}catch(e){toast("No se pudo leer el archivo");return;}
-  const P=JSON.parse(JSON.stringify(plantilla()));const nuevasOps=[],cambios=[];
+  const P=JSON.parse(JSON.stringify(plantilla()));const nuevasOps=[],cambios=[],autoX=[];
   const val=(r,nom)=>{for(const k of Object.keys(r))if(norm(k)===norm(nom))return String(r[k]).trim();return null;};
   rows.forEach(r=>{let c=String(val(r,"Inyectora")||"").toUpperCase().replace(/\s/g,"");if(!c)return;if(/^\d+$/.test(c))c="F"+c;
     const m=cat.maquinas.find(z=>z.cod.toUpperCase()===c);const ficha={};const antes=m?valoresDe(m):{};
-    P.forEach(cp=>{const t=val(r,cp.nom);if(t==null){if(antes[cp.id])ficha[cp.id]=antes[cp.id];return;}
+    P.forEach(cp=>{const t=val(r,cp.nom);if(cp.auto){const sk=x=>String(x||"").split(/\s*[,;]\s*/).filter(Boolean).map(norm).sort().join("|");if(t!=null&&(!m||sk(t)!==sk(autoTxt(cp,m))))autoX.push({c,cp,t});return;}if(t==null){if(antes[cp.id])ficha[cp.id]=antes[cp.id];return;}
       const ids=t.split(/\s*[,;]\s*/).filter(Boolean).map(x=>{let o=cp.ops.find(z=>norm(z.t)===norm(x));if(!o){o={id:"o"+uid(),t:x,art:null};cp.ops.push(o);nuevasOps.push(cp.nom+": "+x);}return o.id;});
       if(ids.length)ficha[cp.id]=cp.multi?ids:[ids[0]];});
     const nv=val(r,"Nave"),nt=val(r,"Notas");
     const nue={nave:nv!=null?(/2/.test(nv)?"Nave 2":nv?"Nave 1":null):(m&&m.nave)||null,notas:nt!=null?nt||null:(m&&m.notas)||null,ficha};
-    const ord=o=>JSON.stringify(Object.keys(o).sort().map(k=>[k,o[k]]));if(!m||ord(valoresDe(m))!==ord(ficha)||m.nave!==nue.nave||(m.notas||null)!==nue.notas)cambios.push({c,m,nue});});
-  if(!cambios.length&&!nuevasOps.length){toast("No hay cambios");return;}
-  dlg("Importar fichas de inyectoras",[el("p",{text:cambios.filter(x=>x.m).length+" inyectoras cambian"+(cambios.some(x=>!x.m)?" · nuevas: "+cambios.filter(x=>!x.m).map(x=>x.c).join(", "):"")}),
+    if(!m||JSON.stringify(valoresDe(m))!==JSON.stringify(ficha)||m.nave!==nue.nave||(m.notas||null)!==nue.notas)cambios.push({c,m,nue});});
+  if(!cambios.length&&!nuevasOps.length&&!autoX.length){toast("No hay cambios");return;}
+  dlg("Importar fichas de inyectoras",[el("p",{text:new Set(cambios.filter(x=>x.m).map(x=>x.c).concat(autoX.map(x=>x.c))).size+" inyectoras cambian"+(cambios.some(x=>!x.m)?" · nuevas: "+cambios.filter(x=>!x.m).map(x=>x.c).join(", "):"")}),
     nuevasOps.length?el("div",{class:"banner"},[el("b",{text:"Opciones nuevas: "}),nuevasOps.slice(0,15).join(" · ")+(nuevasOps.length>15?"…":"")]):null],
     [{t:"Cancelar",cls:"sec"},{t:"Importar",fn:async()=>{cambios.forEach(({c,m,nue})=>{if(m){Object.assign(m,nue);["modelo","cierre","horno","hornoKg","canaleta","cazo","alea","molde"].forEach(k=>delete m[k]);}else cat.maquinas.push(Object.assign({id:c,cod:c},nue));});
+      autoX.forEach(({c,cp,t})=>{const m=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(!m)return;const xs=t.split(/\s*[,;]\s*/).filter(Boolean);
+        if(cp.auto==="piston"){const d=xs[0]?"Ø "+xs[0].replace(/ø/i,"").trim().toLowerCase().replace(/\s*(especial|esp|e)$/," esp"):null;m.diam=d&&DIAM.includes(d)?d:null;return;}
+        if(cp.auto==="eje"){const S=new Set(xs.map(x=>{const mo=(cat.modelos||[]).find(z=>norm(z.cod)===norm(x)||norm(z.ref)===norm(x));return mo&&mo.id;}).filter(Boolean));
+          (cat.modelos||[]).forEach(x=>{const cs=inyDe(x);const tiene=cs.includes(m.cod),quiere=S.has(x.id);if(tiene!==quiere)x.iny=codsIny(quiere?cs.concat([m.cod]):cs.filter(z=>z!==m.cod));});return;}
+        const S=new Set(xs.map(x=>{let a=cat.articulos.find(z=>z.fam===cp.auto&&norm(z.desc)===norm(x));if(!a){a={id:uid(),desc:x,almPpal:(origenRepo()||{}).id||null,alms:[(origenRepo()||{}).id].filter(Boolean),ubic:null,cod:null,fam:cp.auto,ud:"ud",diam:null,min:0,pp:0,plazo:null,prov:null,activo:true,iny:[]};cat.articulos.push(a);}return a.id;}));
+        cat.articulos.filter(a=>a.fam===cp.auto).forEach(a=>{const tiene=(a.iny||[]).includes(m.id),quiere=S.has(a.id);if(tiene!==quiere)a.iny=quiere?(a.iny||[]).concat([m.id]):(a.iny||[]).filter(z=>z!==m.id);});});
       cat.fichaIny={campos:P};try{await saveCat();toast("Fichas importadas");}catch(e){return false;}render(true);}}]);}
 function cerrarDlgs(){document.querySelectorAll(".dlg-ov,.bus-ov").forEach(o=>o.remove());}
 function abrirBuscador(){cerrarDlgs();const ov=el("div",{class:"bus-ov",role:"dialog","aria-label":"Buscar"});const res=el("div",{class:"bus-res"});
