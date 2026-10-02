@@ -412,6 +412,7 @@ const urls={},pidiendo=new Set();
 window.fotoUrlWeb=id=>{if(urls[id])return urls[id];if(!pidiendo.has(id)){pidiendo.add(id);
   sb.storage.from("albaranes").createSignedUrl(id,3600*12).then(r=>{if(r.data&&r.data.signedUrl){urls[id]=r.data.signedUrl;window.dispatchEvent(new Event("colada-refresh"));}});}
   return "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";};
+window.urlFirmada=async id=>{if(urls[id])return urls[id];const r=await sb.storage.from("albaranes").createSignedUrl(id,3600*12);if(r.data&&r.data.signedUrl){urls[id]=r.data.signedUrl;return urls[id];}return null;};
 const assets={upload:async blob=>{const id=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
   const r=await sb.storage.from("albaranes").upload(id,blob,{contentType:blob.type||"image/jpeg"});if(r.error)throw r.error;return{id,contentType:blob.type||"image/jpeg"};},
   delete:async id=>{await sb.storage.from("albaranes").remove([id]);}};

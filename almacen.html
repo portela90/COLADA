@@ -345,6 +345,7 @@ const urls={},pidiendo=new Set();
 window.fotoUrlWeb=id=>{if(urls[id])return urls[id];if(!pidiendo.has(id)){pidiendo.add(id);
   sb.storage.from("albaranes").createSignedUrl(id,3600*12).then(r=>{if(r.data&&r.data.signedUrl){urls[id]=r.data.signedUrl;window.dispatchEvent(new Event("colada-refresh"));}});}
   return "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";};
+window.urlFirmada=async id=>{if(urls[id])return urls[id];const r=await sb.storage.from("albaranes").createSignedUrl(id,3600*12);if(r.data&&r.data.signedUrl){urls[id]=r.data.signedUrl;return urls[id];}return null;};
 const assets={upload:async blob=>{const id=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
   const r=await sb.storage.from("albaranes").upload(id,blob,{contentType:blob.type||"image/jpeg"});if(r.error)throw r.error;return{id,contentType:blob.type||"image/jpeg"};},
   delete:async id=>{await sb.storage.from("albaranes").remove([id]);}};
@@ -361,7 +362,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 (function(){
 "use strict";
 const TABS=[["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movim."],["pist","Pistones"],["ejes","Ejes"],["cat","Catálogo"]];
-const FAM={consumible:"Consumible",piston:"Pistón",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
+const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
+const TEC=f=>f==="barra"||f==="tornillo";
 const UDS=["ud","kg","l","m","caja","rollo"];
 const DIAM=["Ø 50","Ø 60","Ø 70","Ø 70 esp","Ø 80","Ø 90","Ø 90 esp","Ø 100","Ø 100 esp"];
 const MOTIVOS=["DESGASTE","ROTURA","FUGA DE AGUA","PISTÓN AGARROTADO","CAMBIO REF","CAMBIO PREVENTIVO","PRUEBAS","TRABAJANDO SIN PISTONWAX"];
@@ -479,7 +481,7 @@ const rq={txt:"",acc:null,dudas:[],cargando:false,ult:"",lote:null,ia:false,nota
 function lsGet(k){try{return localStorage.getItem(k)||"";}catch(e){return"";}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
-function ctxIA(){return{articulos:artsActivos().map(a=>({id:a.id,desc:a.desc,cod:a.cod||"",ud:a.ud,fam:a.fam,diam:a.diam||""})),
+function ctxIA(){return{articulos:artsActivos().map(a=>({id:a.id,desc:a.desc+((a.iny||[]).length?" [va en "+a.iny.map(maqN).join(",")+"]":""),cod:a.cod||"",ud:a.ud,fam:a.fam,diam:a.diam||""})),
   almacenes:cat.almacenes.map(l=>({id:l.id,nom:l.nom,nave:l.nave||"",tipo:l.tipo||""})),maquinas:cat.maquinas.map(m=>({id:m.id,cod:m.cod,nave:m.nave||""})),
   proveedores:cat.proveedores.map(p=>({id:p.id,nom:p.nom})),ejes:ejes.map(e=>e.cod+" ("+e.estado+")"),operarios:responsables(),diametros:DIAM,motivos:MOTIVOS,destinos:DESTINOS};}
 function almSug(r){if(r.tipo==="piston"){const p=pistArt(r.diam);if(p&&r.maq&&!r.alm){r.alm=almPara(r.maq,p.id);r.auto.alm=1;}return;}
@@ -543,7 +545,7 @@ function filaR(r){const a=art(r.art);let box;
   return box;}
 /* ---- crear un artículo desde una nota ---- */
 const QUITA=new Set("de del la el los las un una unos unas en a al para y con por he ha han hemos se lo le que hoy ayer ya otro otra mas tambien almacen nave".split(" "));
-const VERBO=/^(baj|repon|repus|dej|gast|consum|entr|lleg|recib|cont|pas|sub|met|sac|llev|traslad|necesit|cog|pues|usad|traid|traen|quedan|hay)/;
+const VERBO=/^(cambi|baj|repon|repus|dej|gast|consum|entr|lleg|recib|cont|pas|sub|met|sac|llev|traslad|necesit|cog|pues|usad|traid|traen|quedan|hay)/;
 const UNID=/^(kg|kilos?|m|metros?|l|litros?|ud|uds|unidad(es)?|cajas?|rollos?|sacos?|bolsas?|piezas?|pzas?)$/;
 function sugNombre(txt){const ali=new Set();aliasAlm().forEach(({al})=>al.forEach(a=>a.split(" ").forEach(w=>ali.add(w))));
   const out=[];let emp=false;
@@ -617,8 +619,8 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
     const esPist=/\bpiston(es)?\b/.test(t);
     const T_ENT=/\b(entrada|llegad[oa]s?|ha llegado|han llegado|recibid[oa]s?|recibo|recibimos|traen|traido|trajeron)\b/,T_CON=/\b(contad[oa]s?|conte|contamos|recuento|inventario)\b/,
       T_TRA=/\b(traslad\w*|baj(o|ar|ado|amos|e)|sub(o|ir|ido|imos|e)|pasad[oa]s?|pas(o|ar|amos)|llevad[oa]s?|llev(o|ar|amos)|repu(s|es)\w*|repon\w*|dej(o|ar|ado|amos|e)|meter|metid[oa]s?|met(o|emos))\b/,
-      T_CONS=/\b(gast\w*|consum\w*|sacad[oa]s?|sac(o|ar|amos)|usad[oa]s? en|pues(to|tos|ta|tas)|cog\w*|necesit\w*)\b/;
-    let tipo=(hayMaq&&(esPist||/\bcambi/.test(t)))?"piston":T_ENT.test(t)?"entrada":T_CON.test(t)?"conteo":(T_TRA.test(t)&&!/\ben el eje\b/.test(t))?"traslado":esPist&&hayMaq?"piston":T_CONS.test(t)?"consumo":null;
+      T_CONS=/\b(cambiad[oa]s?|cambi(o|amos|e|ar)|gast\w*|consum\w*|sacad[oa]s?|sac(o|ar|amos)|usad[oa]s? en|pues(to|tos|ta|tas)|cog\w*|necesit\w*)\b/;
+    let tipo=(hayMaq&&(esPist||(/\bcambi/.test(t)&&!/\b(barra|tornillo)/.test(t))))?"piston":T_ENT.test(t)?"entrada":T_CON.test(t)?"conteo":(T_TRA.test(t)&&!/\ben el eje\b/.test(t))?"traslado":esPist&&hayMaq?"piston":T_CONS.test(t)?"consumo":null;
     const expl=!!tipo,propio=sugNombre(orig);if(!tipo)tipo=prev&&prev.tipo!=="piston"&&!propio?prev.tipo:(esPist&&!hayMaq?"traslado":"consumo");
     /* inyectora */
     let maq=null;const mq=t.match(/\bf\s*-?\s*(\d{1,2})\b/)||t.match(/\b(?:la|maquina|inyectora|iny|en)\s+(\d{1,2})\b/);
@@ -649,6 +651,8 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
     /* artículo (antes que la cantidad, para que «Duo 15» o «2kg» cuenten como parte del nombre) */
     let a=null;
     if(tipo!=="piston"){a=diam?pistArt(diam):buscaArt(t,false);
+      const ft=/\bbarra/.test(t)?"barra":/\btornillo/.test(t)?"tornillo":null;
+      if(ft&&maq&&(!a||a.fam===ft)){const cs=artsActivos().filter(z=>z.fam===ft&&(z.iny||[]).includes(maq));if(cs.length===1)a=cs[0];else if(cs.length>1&&!(a&&cs.includes(a)))a=null;}
       if(a&&!diam){norm(a.desc).split(/[^a-z0-9ñ,]+/).filter(w=>w&&!STOPW.has(w)).forEach(w=>{const b=sing(w);t=t.replace(new RegExp("\\b"+b.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(es|s)?\\b")," ");});if(a.cod)t=t.replace(new RegExp("\\b"+norm(a.cod)+"\\b")," ");}}
     /* cantidad */
     if(cant==null){const cm=t.match(/(\d+(?:[.,]\d+)?)(?!\d|[.,]\d)/);
@@ -659,7 +663,7 @@ function leerLocal(txt){const base=hoy();let fUlt=null,lastEje={},prev=null;cons
     if(tipo==="piston"){x.tipo="piston";x.maquina=maq;x.diametro=diam;if(!maq)x._duda="No sé en qué inyectora: «"+orig.trim()+"»";}
     else{x.tipo=tipo;if(maq)x.maquina=maq;
       if(!a&&hereda&&prev.articulo&&!diam)a=art(prev.articulo);
-      x.articulo=a?a.id:null;if(diam)x.diametro=diam;
+      x.articulo=a?a.id:null;if(diam)x.diametro=diam;if(x.cantidad==null&&a&&TEC(a.fam))x.cantidad=1;
       if(hereda){if(tipo==="traslado"){if(!x.almacen&&prev.almacen&&x.destino!==prev.almacen)x.almacen=prev.almacen;if(!x.destino&&prev.destino&&x.almacen!==prev.destino)x.destino=prev.destino;}else if(!x.almacen&&prev.almacen)x.almacen=prev.almacen;
         if(prev.cantidad==null&&prev.articulo===x.articulo&&!prev._usada){const k=acc.indexOf(prev);if(k>=0)acc.splice(k,1);}
         prev._usada=true;}
@@ -780,15 +784,35 @@ function pintarLista(){const box=$("lstStock");if(!box)return;box.textContent=""
     const n=nivel(a),st=f.alm?stockDe(a.id,f.alm):stockDe(a.id);
     const rep=almsDe(a).map(l=>corto(l)+" "+fmtN(stockDe(a.id,l.id))).join(" · ");
     box.appendChild(el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),
-      el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),el("div",{class:"t2",text:[a.cod,a.ubic?"📍 "+a.ubic:null,rep||"Sin existencias"].filter(Boolean).join(" · ")})]),
+      el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),el("div",{class:"t2",text:[a.cod,(a.iny||[]).length?"Iny. "+a.iny.map(maqN).join(", "):null,a.ubic?"📍 "+a.ubic:null,rep||"Sin existencias"].filter(Boolean).join(" · ")})]),
       el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud})])]));});}
 function aplicarPedido(x,f){if(f){const q=cantPedir(x);x.pedido=f;x.pedCant=q||null;const pl=plazoArt(x);x.prevista=pl?sumaDias(f,pl):null;}else{delete x.pedido;delete x.pedCant;delete x.prevista;}}
 async function marcarPedido(a,f){const x=art(a.id);if(!x)return;aplicarPedido(x,f);try{await saveCat();toast(f?"Marcado como pedido":"Marca quitada");}catch(e){}render(true);}
+/* planos y documentos (PDF o foto) */
+function abrirDoc(d){const w=window.open("","_blank");Promise.resolve(window.urlFirmada?window.urlFirmada(d.id):fotoUrl(d.id)).then(u=>{if(!u){if(w)w.close();toast("No se pudo abrir");return;}if(w)w.location=u;else location.href=u;});}
+function docThumb(d,quitar){const esImg=/^image\//.test(d.tipo||"");let img=null;
+  if(esImg){img=el("img",{alt:d.nombre,style:"width:130px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff",onclick:()=>{Promise.resolve(window.urlFirmada?window.urlFirmada(d.id):fotoUrl(d.id)).then(u=>{if(u)lightbox(u);});}});
+    Promise.resolve(window.urlFirmada?window.urlFirmada(d.id):fotoUrl(d.id)).then(u=>{if(u)img.src=u;});}
+  return el("div",{style:"display:flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:140px"},[esImg?img:el("button",{type:"button",class:"btn sec peq",text:"Abrir PDF",onclick:()=>abrirDoc(d)}),
+    el("span",{class:"sub",style:"overflow-wrap:anywhere",text:d.nombre}),quitar&&assets?el("button",{type:"button",class:"btn txt peq",style:"padding:0",text:"Quitar",onclick:()=>confirmar("¿Quitar "+d.nombre+"?","Se quita el archivo de la ficha.","Quitar",quitar)}):null]);}
+function subirDoc(onDoc){if(!assets)return null;const up=el("input",{type:"file",accept:"image/*,application/pdf",style:"font-size:14px"});
+  up.addEventListener("change",async()=>{const f=up.files[0];if(!f)return;up.disabled=true;toast("Subiendo "+f.name+"…");
+    try{const blob=/^image\//.test(f.type)&&f.size>3e6?await comprimir(f):f;const r=await assets.upload(blob);await onDoc({id:r.id,nombre:f.name,tipo:f.type||r.contentType,fecha:hoy()});}
+    catch(e){up.disabled=false;toast("No se pudo subir: "+(e&&(e.message||e.code)||"error"));}});
+  return fld("Subir plano o foto (PDF o imagen)",up);}
+function planoBox(a){const docs=a.docs||[];const iny=(a.iny||[]).map(maqN).filter(x=>x!=="—");
+  if(!docs.length&&!iny.length&&!a.plano&&!a.notas&&!TEC(a.fam))return null;
+  const reabre=()=>{cerrarDlgs();ficha(art(a.id));};
+  const box=el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"},docs.length?docs.map(d=>docThumb(d,async()=>{const x=art(a.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");reabre();})):[el("p",{class:"hint",text:"Todavía no hay plano."})]);
+  return el("div",{style:"display:flex;flex-direction:column;gap:8px"},[el("div",{class:"gh",style:"border-radius:6px",text:"Plano"+(a.plano?" · nº "+a.plano:"")}),
+    iny.length?el("p",{class:"sub",text:"Va en: "+iny.join(", ")}):null,a.notas?el("p",{class:"sub",text:a.notas}):null,box,
+    subirDoc(async d=>{const x=art(a.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Plano guardado");reabre();})]);}
 function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id).sort((x,y)=>(y.f+y.ts).localeCompare(x.f+x.ts)).slice(0,12);
   const ir=t=>{Object.assign(draft.m,{tipo:t,art:a.id,alm:draft.m.alm||(cat.almacenes[0]||{}).id||"",cant:""});close();irA("mov");};
   const close=dlg(a.desc,[el("div",{class:"sub",text:[FAM[a.fam],a.cod,a.diam,a.ubic?"Ubicación: "+a.ubic:null,provN(a.prov)].filter(Boolean).join(" · ")}),
     el("dl",{class:"kpis num"},[el("div",{},[el("dt",{text:"Total"}),el("dd",{text:fmtN(stockDe(a.id))+" "+a.ud})])].concat(cat.almacenes.map(l=>el("div",{},[el("dt",{text:l.nom}),el("dd",{text:fmtN(stockDe(a.id,l.id))})]))).concat([
       el("div",{},[el("dt",{text:"Mínimo"}),el("dd",{text:fmtN(+a.min||0)})]),el("div",{},[el("dt",{text:"Consumo/día"}),el("dd",{text:consDia(a)?fmtN(Math.round(consDia(a)*100)/100):"—"})]),el("div",{},[el("dt",{text:"Plazo entrega"}),el("dd",{text:plazoArt(a)?plazoArt(a)+" días":"—"})]),el("div",{},[el("dt",{text:"Pedir al llegar a"}),el("dd",{text:fmtN(Math.ceil(puntoPedido(a)))})]),el("div",{},[el("dt",{text:"Pedir ahora"}),el("dd",{text:cantPedir(a)?fmtN(cantPedir(a))+" "+a.ud:"—"})]),el("div",{},[el("dt",{text:"Estado"}),el("dd",{},el("span",{class:"pill "+n,text:NIV[n]}))])])),
+    planoBox(a),
     el("div",{class:"acciones"},[el("button",{type:"button",class:"btn peq",text:"Entrada",onclick:()=>ir("entrada")}),el("button",{type:"button",class:"btn peq",text:"Consumo",onclick:()=>ir("salida")}),
       el("button",{type:"button",class:"btn sec peq",text:"Contar",onclick:()=>ir("ajuste")}),el("button",{type:"button",class:"btn sec peq",text:"Editar",onclick:()=>{close();formArticulo(a);}})]),
     movs.length?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Tipo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"})])),
@@ -1183,13 +1207,13 @@ function listaPedido(){const{txt,arts}=textoPedido();const aj=cat.ajustes||{};
   dlg("Lista de pedido",[aj.resp||aj.email?el("p",{class:"sub"},["Para: ",el("b",{text:[aj.resp,aj.email].filter(Boolean).join(" · ")})]):el("p",{class:"hint",text:"Pon el responsable de pedidos en Catálogo > Pedidos."}),ta,
     el("a",{class:"btn sec",href:"https://wa.me/"+(telWA(aj.tel)||"")+"?text="+encodeURIComponent(txt),target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por WhatsApp"+(aj.resp?" a "+aj.resp.split(" ")[0]:"")}),
     el("p",{class:"hint",text:"Cantidad a pedir = mínimo + lo que se gasta durante el plazo de entrega − stock actual. Así, cuando llegue el pedido, sigues teniendo el mínimo."})],acts);}
-const PLANT=["Descripción","Código","Familia","Unidad","Almacén","Cantidad","Stock mínimo","Punto de pedido","Proveedor","Plazo (días)","Ubicación"];
+const PLANT=["Descripción","Código","Familia","Unidad","Almacén","Cantidad","Stock mínimo","Punto de pedido","Proveedor","Plazo (días)","Ubicación","Nº plano","Inyectoras"];
 async function descargarPlantilla(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
     const ej=[{"Descripción":"Manguera reforzada agua y aire 1/2\"","Código":"MAN-12","Familia":"Consumible","Unidad":"m","Almacén":(cat.almacenes[1]||cat.almacenes[0]||{}).nom||"Nave 1","Cantidad":50,"Stock mínimo":20,"Punto de pedido":"","Proveedor":(cat.proveedores[0]||{}).nom||"","Plazo (días)":7,"Ubicación":"E1-B2"},
       {"Descripción":"Guantes anticorte talla 9","Código":"","Familia":"Consumible","Unidad":"ud","Almacén":(cat.almacenes[0]||{}).nom||"Almacén general","Cantidad":24,"Stock mínimo":10,"Punto de pedido":"","Proveedor":"","Plazo (días)":"","Ubicación":"E2-B1"}];
     const ws=X.utils.json_to_sheet(ej,{header:PLANT});ws["!cols"]=PLANT.map(h=>({wch:h==="Descripción"?36:14}));X.utils.book_append_sheet(wb,ws,"Artículos");
-    const inf=[["Cómo rellenarla"],["Una fila por artículo y almacén. Solo la Descripción es obligatoria."],["Si pones Cantidad, se registra como recuento en ese almacén: el stock queda exactamente en esa cantidad."],["Si el artículo ya existe (mismo código o misma descripción), se actualizan sus datos."],["Borra las dos filas de ejemplo antes de importar."],[""],["Almacenes válidos:"]].concat(cat.almacenes.map(l=>[l.nom])).concat([[""],["Familias: Consumible, Pistón, Eje, Repuesto, Otro"],["Unidades: "+UDS.join(", ")]]);
+    const inf=[["Cómo rellenarla"],["Una fila por artículo y almacén. Solo la Descripción es obligatoria."],["Si pones Cantidad, se registra como recuento en ese almacén: el stock queda exactamente en esa cantidad."],["Si el artículo ya existe (mismo código o misma descripción), se actualizan sus datos."],["Borra las dos filas de ejemplo antes de importar."],[""],["Almacenes válidos:"]].concat(cat.almacenes.map(l=>[l.nom])).concat([[""],["Familias: Consumible, Pistón, Barra expulsora, Tornillo tope, Eje, Repuesto, Otro"],["Inyectoras (para barras y tornillos): separadas por comas, p. ej. F53, F54, F63 (o F54-63)"],["Unidades: "+UDS.join(", ")]]);
     X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(inf),"Instrucciones");
     await downloads.save({filename:"Plantilla_articulos_almacen.xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Plantilla descargada");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear la plantilla");}btn.disabled=false;}
@@ -1199,14 +1223,15 @@ async function importarExcel(file){try{await cargarXLSX();}catch(e){toast("No se
   const col=(r,keys)=>{for(const k of Object.keys(r)){const n=norm(k);if(keys.some(x=>n.startsWith(x)))return r[k];}return"";};
   const plan=[],errs=[],provNue={};
   rows.forEach((r,i)=>{const desc=String(col(r,["descrip","articulo","nombre"])).trim();if(!desc)return;
-    const cod=String(col(r,["codigo","ref"])).trim()||null;const fm=norm(col(r,["famil"]));const fam=fm.startsWith("pist")?"piston":fm.startsWith("rep")?"repuesto":fm.startsWith("eje")?"eje":fm.startsWith("otr")?"otro":"consumible";
+    const cod=String(col(r,["codigo","ref"])).trim()||null;const fm=norm(col(r,["famil"]));const fam=fm.startsWith("pist")?"piston":fm.startsWith("barr")?"barra":fm.startsWith("torn")?"tornillo":fm.startsWith("rep")?"repuesto":fm.startsWith("eje")?"eje":fm.startsWith("otr")?"otro":"consumible";
     const udR=norm(col(r,["unid"]));const ud=UDS.includes(udR)?udR:(udR.startsWith("metro")?"m":udR.startsWith("litro")?"l":udR.startsWith("kilo")?"kg":"ud");
     const almR=norm(col(r,["almacen"]));const alm=almR?cat.almacenes.find(l=>norm(l.nom)===almR||norm(l.nom).includes(almR)||almR.includes(norm(l.nom))):null;
     const num=v=>{const n=parseN(v);return isFinite(n)&&n>=0?n:null;};const cant=num(col(r,["cantidad","stock actual","existencia"]));
     const provR=String(col(r,["provee"])).trim();let prov=null;if(provR){const pv=cat.proveedores.find(x=>norm(x.nom)===norm(provR));if(pv)prov=pv.id;else{provNue[norm(provR)]=provNue[norm(provR)]||{id:uid(),nom:provR};prov=provNue[norm(provR)].id;}}
     const ex=cat.articulos.find(a=>(cod&&a.cod&&norm(a.cod)===norm(cod))||norm(a.desc)===norm(desc))||plan.find(p=>(cod&&p.cod&&norm(p.cod)===norm(cod))||norm(p.desc)===norm(desc));
     if(cant!=null&&!alm){errs.push("Fila "+(i+2)+": «"+desc+"» tiene cantidad pero el almacén «"+(col(r,["almacen"])||"vacío")+"» no existe");return;}
-    plan.push({fila:i+2,ex:ex&&!ex.fila?ex:null,dup:ex&&ex.fila?ex:null,desc,cod,fam,ud,alm:alm?alm.id:null,cant,min:num(col(r,["stock min","minimo","min"])),pp:num(col(r,["punto"])),plazo:num(col(r,["plazo"])),prov,ubic:String(col(r,["ubica"])).trim()||null});});
+    plan.push({fila:i+2,ex:ex&&!ex.fila?ex:null,dup:ex&&ex.fila?ex:null,desc,cod,fam,ud,alm:alm?alm.id:null,cant,min:num(col(r,["stock min","minimo","min"])),pp:num(col(r,["punto"])),plazo:num(col(r,["plazo"])),prov,ubic:String(col(r,["ubica"])).trim()||null,plano:String(col(r,["n plano","nº plano","plano"])).trim()||null,
+      iny:(()=>{const t=String(col(r,["inyect","maquina"])).toUpperCase().replace(/\s/g,"");if(!t)return null;const out=[];t.split(/[,;\/]+/).forEach(g=>{g.split("-").forEach(x=>{const c=x.startsWith("F")?x:"F"+x;const m=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(m)out.push(m.id);});});return out;})()});});
   if(!plan.length){toast(errs.length?errs[0]:"No hay filas con descripción");return;}
   const nuevos=plan.filter(p=>!p.ex&&!p.dup).length,act=plan.length-nuevos,conCant=plan.filter(p=>p.cant!=null).length;
   const tb=el("tbody",{},plan.slice(0,40).map(p=>el("tr",{},[el("td",{},[el("div",{text:p.desc}),el("div",{class:"sub",text:[p.cod,p.ubic].filter(Boolean).join(" · ")})]),el("td",{text:p.alm?almN(p.alm):"—"}),el("td",{class:"r num",text:p.cant!=null?fmtN(p.cant):"—"}),el("td",{class:"r num",text:p.min!=null?fmtN(p.min):"—"}),el("td",{},el("span",{class:"pill "+(p.ex||p.dup?"info":"ok"),text:p.ex||p.dup?"Actualiza":"Nuevo"}))])));
@@ -1218,8 +1243,8 @@ async function importarExcel(file){try{await cargarXLSX();}catch(e){toast("No se
       Object.values(provNue).forEach(x=>cat.proveedores.push({id:x.id,nom:x.nom,tel:null,email:null}));
       const movs=[];const hy=hoy();
       plan.forEach(p=>{let a=p.ex||(p.dup&&cat.articulos.find(z=>z.id===p.dup.id));
-        if(!a){a={id:uid(),almPpal:p.alm||null,alms:p.alm?[p.alm]:[],desc:p.desc,cod:p.cod,fam:p.fam,ud:p.ud,diam:null,min:p.min||0,pp:p.pp||0,plazo:p.plazo||null,prov:p.prov,ubic:p.ubic,activo:true};cat.articulos.push(a);p.id=a.id;}
-        else{if(p.alm){a.alms=Array.from(new Set((a.alms||[]).concat([p.alm])));if(!a.almPpal)a.almPpal=p.alm;}if(p.cod)a.cod=p.cod;if(p.min!=null)a.min=p.min;if(p.pp!=null)a.pp=p.pp;if(p.plazo!=null)a.plazo=p.plazo;if(p.prov)a.prov=p.prov;if(p.ubic)a.ubic=p.ubic;a.activo=true;}
+        if(!a){a={id:uid(),almPpal:p.alm||null,alms:p.alm?[p.alm]:[],desc:p.desc,cod:p.cod,fam:p.fam,ud:p.ud,diam:null,min:p.min||0,pp:p.pp||0,plazo:p.plazo||null,prov:p.prov,ubic:p.ubic,plano:p.plano,iny:p.iny||[],activo:true};cat.articulos.push(a);p.id=a.id;}
+        else{if(p.alm){a.alms=Array.from(new Set((a.alms||[]).concat([p.alm])));if(!a.almPpal)a.almPpal=p.alm;}if(p.cod)a.cod=p.cod;if(p.min!=null)a.min=p.min;if(p.pp!=null)a.pp=p.pp;if(p.plazo!=null)a.plazo=p.plazo;if(p.prov)a.prov=p.prov;if(p.ubic)a.ubic=p.ubic;if(p.plano)a.plano=p.plano;if(p.iny&&p.iny.length)a.iny=Array.from(new Set((a.iny||[]).concat(p.iny)));a.activo=true;}
         p.id=a.id;});
       const acum={};plan.filter(p=>p.cant!=null).forEach(p=>{const k=p.id+"|"+p.alm;const t=stockDe(p.id,p.alm);movs.push({f:hy,tipo:"ajuste",art:p.id,alm:p.alm,cant:Math.round((p.cant-t)*1000)/1000,contado:p.cant,teorico:t,nota:"Importado desde Excel"});});
       try{await saveCat();if(movs.length)await addMovs(movs);toast("Importados "+plan.length+" artículos");}catch(e){toast("No se pudo importar");return false;}render(true);}}]);}
@@ -1312,20 +1337,12 @@ function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id)||m0;con
   const iny=inyDe(m);const inyTxt=iny.length?iny.map(x=>{const q=cat.maquinas.find(z=>z.cod===x);return x+(q&&q.nave?" ("+q.nave.replace("Nave ","N")+")":"");}).join(", "):(m.iny||"—");
   const dato=(k,v)=>v?[el("dt",{text:k}),el("dd",{text:String(v)})]:[];
   const docBox=el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"});
-  docs.forEach(d=>{const url=fotoUrl(d.id);const esImg=/^image\//.test(d.tipo||"");
-    docBox.appendChild(el("div",{style:"display:flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:140px"},[
-      esImg?el("img",{src:url,alt:d.nombre,style:"width:130px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff",onclick:()=>lightbox(url)})
-           :el("a",{href:url,target:"_blank",rel:"noopener",class:"btn sec peq",style:"text-decoration:none",text:"Abrir PDF"}),
-      el("span",{class:"sub",style:"overflow-wrap:anywhere",text:d.nombre}),
-      assets?el("button",{type:"button",class:"btn txt peq",style:"padding:0",text:"Quitar",onclick:()=>confirmar("¿Quitar "+d.nombre+"?","Se borra el archivo de la ficha del modelo.","Quitar",async()=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();try{await assets.delete(d.id);}catch(e){}toast("Archivo quitado");document.querySelectorAll(".dlg-ov").forEach(o=>o.remove());fichaModelo(m);})}):null]));});
+  docs.forEach(d=>docBox.appendChild(docThumb(d,async()=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaModelo(m);})));
   if(!docs.length)docBox.appendChild(el("p",{class:"hint",text:"Todavía no hay plano. Súbelo en PDF o como foto."}));
-  const up=assets?el("input",{type:"file",id:"mdFile",accept:"image/*,application/pdf",style:"font-size:14px"}):null;
-  if(up)up.addEventListener("change",async()=>{const f=up.files[0];if(!f)return;up.disabled=true;toast("Subiendo "+f.name+"…");
-    try{const r=await assets.upload(f);const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).concat([{id:r.id,nombre:f.name,tipo:r.contentType||f.type,fecha:hoy()}]);await saveCat();toast("Plano guardado");document.querySelectorAll(".dlg-ov").forEach(o=>o.remove());fichaModelo(m);}
-    catch(e){up.disabled=false;toast("No se pudo subir: "+(e&&(e.message||e.code)||"error"));}});
+  const up=subirDoc(async d=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Plano guardado");cerrarDlgs();fichaModelo(m);});
   dlg(m.ref+" · "+m.cod,[
     el("dl",{class:"kpis num"},[["En planta",c("planta")+" / "+es.length],["En reparación",c("reparacion")+c("devuelto")],["Preparados",c("preparado")],["Mínimo",+m.min||0]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
-    el("div",{class:"gh",style:"border-radius:6px",text:"Plano y documentos"}),docBox,up?fld("Subir plano o foto (PDF o imagen)",up):null,
+    el("div",{class:"gh",style:"border-radius:6px",text:"Plano y documentos"}),docBox,up,
     el("div",{class:"gh",style:"border-radius:6px",text:"Datos del modelo"}),
     el("dl",{class:"datos"},[].concat(dato("Código",m.cod),dato("Referencia",m.ref),dato("Longitud",m.long),dato("Rosca",m.rosca),dato("Ø pistón",m.diamP),dato("Nº plano / rev.",m.plano),dato("Inyectoras",inyTxt),dato("Notas",m.notas))),
     el("div",{class:"gh",style:"border-radius:6px",text:"Reparaciones del modelo"}),
@@ -1447,14 +1464,19 @@ function vCat(v){
   v.appendChild(sec("Proveedores",cat.proveedores.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(p=>el("button",{type:"button",class:"it",onclick:()=>formSimple("proveedores",p)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:p.nom}),el("div",{class:"t2",text:[p.sum,p.contacto,p.tel,p.email,p.plazo?"plazo "+p.plazo+" días":null].filter(Boolean).join(" · ")})])])),()=>formSimple("proveedores")));}
 function formArticulo(a){const x=a?JSON.parse(JSON.stringify(a)):{fam:"consumible",ud:"ud",desc:"",cod:"",min:"",pp:"",cant:"",prov:"",diam:"",activo:true};
   const diamF=fld("Diámetro",sel("aDiam",DIAM.map(z=>[z,z]),x.diam,v=>x.diam=v,"—"),x.fam!=="piston");
+  const iy=new Set(x.iny||[]);
+  const tecF=el("div",{class:"frm",style:"gap:10px"},[el("div",{class:"row"},[fld("Nº de plano / revisión",inp("aPlano",x.plano,v=>x.plano=v,{autocomplete:"off"})),fld("Medidas / notas técnicas",inp("aNotas",x.notas,v=>x.notas=v,{autocomplete:"off"}))]),
+    el("fieldset",{style:"border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0"},[el("legend",{class:"sub",text:"Inyectoras donde va"}),
+      el("div",{style:"display:flex;flex-wrap:wrap;gap:4px 14px"},cat.maquinas.slice().sort((p,q)=>p.cod.localeCompare(q.cod,"es",{numeric:true})).map(m=>el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",checked:iy.has(m.id),onchange:e=>{e.target.checked?iy.add(m.id):iy.delete(m.id);}}),m.cod])))])]);
+  tecF.hidden=!TEC(x.fam);
   const usado=a&&todosMov().some(m=>m.art===a.id);
   const xs=new Set(a?almsDe(a).map(l=>l.id):[(origenRepo()||{}).id].filter(Boolean));
   const body=[fld("Descripción",inp("aDesc",x.desc,v=>x.desc=v,{autocomplete:"off"})),
     fld("Ubicación (estantería / balda)",inp("aUbic",x.ubic,v=>x.ubic=v,{autocomplete:"off",placeholder:"p. ej. Nave 1 · E3-B2"})),
     fld("Almacén principal (donde entra y desde donde se repone)",sel("aPpal",almOpts(),x.almPpal||(a?ppalDe(a):(origenRepo()||{}).id),v=>{x.almPpal=v;const cb=document.getElementById("aAl_"+v);if(cb&&!cb.checked){cb.checked=true;xs.add(v);}})),
     el("fieldset",{style:"border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0"},[el("legend",{class:"sub",text:"Almacenes donde está"})].concat(cat.almacenes.map(l=>el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",id:"aAl_"+l.id,checked:xs.has(l.id),onchange:e=>{e.target.checked?xs.add(l.id):xs.delete(l.id);}}),l.nom])))),
-    el("div",{class:"row"},[fld("Código",inp("aCod",x.cod,v=>x.cod=v,{autocomplete:"off"})),fld("Familia",sel("aFam",Object.entries(FAM),x.fam,v=>{x.fam=v;diamF.hidden=v!=="piston";}))]),
-    el("div",{class:"row"},[fld("Unidad",sel("aUd",UDS.map(u=>[u,u]),x.ud,v=>x.ud=v)),diamF]),
+    el("div",{class:"row"},[fld("Código",inp("aCod",x.cod,v=>x.cod=v,{autocomplete:"off"})),fld("Familia",sel("aFam",Object.entries(FAM),x.fam,v=>{x.fam=v;diamF.hidden=v!=="piston";tecF.hidden=!TEC(v);}))]),
+    el("div",{class:"row"},[fld("Unidad",sel("aUd",UDS.map(u=>[u,u]),x.ud,v=>x.ud=v)),diamF]),tecF,
     el("div",{class:"row"},[fld("Stock mínimo",inp("aMin",x.min,v=>x.min=v,{inputmode:"decimal",class:"num"})),fld("Punto de pedido",inp("aPp",x.pp,v=>x.pp=v,{inputmode:"decimal",class:"num"}))]),
     el("div",{class:"row"},[fld("Proveedor habitual",sel("aProv",provOpts(),x.prov,v=>x.prov=v,"—")),fld("Plazo de entrega (días)",inp("aPlazo",x.plazo,v=>x.plazo=v,{inputmode:"numeric",class:"num",placeholder:"Del proveedor"}))]),
     el("p",{class:"hint",text:"La app calcula sola cuándo y cuánto pedir con el consumo de los últimos 60 días y el plazo de entrega: avisa al llegar a mínimo + consumo durante el plazo, y pide lo que falta para eso. Ej.: mínimo 10, gasta 1 al día, plazo 5 días, hay 7 → pide 8. Si dejas el plazo vacío usa el del proveedor. El punto de pedido es opcional, para que avise antes."})];
@@ -1464,7 +1486,7 @@ function formArticulo(a){const x=a?JSON.parse(JSON.stringify(a)):{fam:"consumibl
     const num=k=>{const n=parseN(x[k]);return isFinite(n)&&n>=0?n:0;};
     const pp=x.almPpal||(a?ppalDe(a):(origenRepo()||{}).id)||null;if(pp)xs.add(pp);
     const nue={id:a?a.id:uid(),desc:x.desc.trim(),almPpal:pp,alms:Array.from(xs),ubic:(x.ubic||"").trim()||null,cod:(x.cod||"").trim()||null,fam:x.fam,ud:x.ud,diam:x.fam==="piston"?(x.diam||null):null,min:num("min"),pp:num("pp"),plazo:parseInt(x.plazo,10)>0?parseInt(x.plazo,10):null,prov:x.prov||null,activo:x.activo!==false};
-    if(a&&a.pedido)nue.pedido=a.pedido;
+    if(a&&a.pedido)nue.pedido=a.pedido;if(a&&a.docs)nue.docs=a.docs;nue.plano=(x.plano||"").trim()||null;nue.notas=(x.notas||"").trim()||null;nue.iny=TEC(x.fam)||iy.size?Array.from(iy):[];
     if(nue.cod&&cat.articulos.some(z=>z.id!==nue.id&&z.cod&&z.cod.toLowerCase()===nue.cod.toLowerCase())){toast("Ya hay un artículo con ese código");return false;}
     const i=cat.articulos.findIndex(z=>z.id===nue.id);if(i>=0)cat.articulos[i]=nue;else cat.articulos.push(nue);
     try{await saveCat();toast("Artículo guardado");}catch(e){return false;}render(true);}}];
@@ -1502,6 +1524,10 @@ function fichaIny(m){const mods=(cat.modelos||[]).filter(x=>inyDe(x).includes(m.
   dlg("Inyectora "+m.cod,[el("p",{class:"sub",text:[m.nave,m.notas].filter(Boolean).join(" · ")||"—"}),
     el("div",{class:"gh",style:"border-radius:6px",text:"Modelos de eje que lleva ("+mods.length+")"}),
     mods.length?el("div",{class:"card"},el("div",{class:"lst"},mods.map(x=>el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();fichaModelo(x);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:x.ref}),el("div",{class:"t2",text:x.cod+" · "+ejes.filter(e=>e.mod===x.cod&&e.estado==="planta").length+" en planta"+((x.docs||[]).length?" · con plano":"")})])])))):el("p",{class:"hint",text:"Ningún modelo tiene esta inyectora."}),
+    (()=>{const bt=artsActivos().filter(a=>(a.iny||[]).includes(m.id));return el("div",{style:"display:flex;flex-direction:column;gap:8px"},[el("div",{class:"gh",style:"border-radius:6px",text:"Barras y tornillos ("+bt.length+")"}),
+      bt.length?el("div",{class:"card"},el("div",{class:"lst"},bt.map(a=>el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();ficha(a);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),
+        el("div",{class:"t2",text:[FAM[a.fam],a.plano?"plano "+a.plano:null,(a.docs||[]).length?"con plano":"sin plano",(a.iny||[]).length>1?"también en "+a.iny.filter(z=>z!==m.id).map(maqN).join(", "):null].filter(Boolean).join(" · ")})]),
+        el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])])))):el("p",{class:"hint",text:"Ninguna barra ni tornillo tiene marcada esta inyectora."})]);})(),
     el("div",{class:"gh",style:"border-radius:6px",text:"Últimos cambios de pistón"}),
     ps.length?el("div",{class:"tw"},el("table",{},el("tbody",{},ps.map(p=>el("tr",{},[el("td",{class:"num",text:fmtF(p.f)}),el("td",{text:p.diam}),el("td",{text:cap(p.motivo)})]))))):el("p",{class:"hint",text:"Sin cambios registrados."})],[{t:"Cerrar",cls:"sec"}]);}
 function cerrarDlgs(){document.querySelectorAll(".dlg-ov,.bus-ov").forEach(o=>o.remove());}
@@ -1517,7 +1543,7 @@ function abrirBuscador(){cerrarDlgs();const ov=el("div",{class:"bus-ov",role:"di
     const ok=h=>{const n=norm(h);return toks.every(t=>n.includes(t));};
     const grupo=(tit,items)=>{if(!items.length)return;wrap.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:tit+" ("+items.length+")"})),el("div",{class:"lst"},items.slice(0,12))]));};
     const oTok=raw.split(/\s+/).filter(Boolean);
-    grupo("Artículos",artsActivos().filter(a=>ok([a.desc,a.cod,a.ubic,FAM[a.fam],a.diam,provN(a.prov)].join(" "))).map(a=>el("button",{type:"button",class:"it",onclick:ir(()=>ficha(a))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(a.desc,oTok)),el("div",{class:"t2"},marca([a.cod,a.ubic?"📍 "+a.ubic:null,cat.almacenes.map(l=>[l.nom,stockDe(a.id,l.id)]).filter(x=>x[1]).map(x=>x[0]+" "+fmtN(x[1])).join(" · ")].filter(Boolean).join(" · "),oTok))]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])])));
+    grupo("Artículos",artsActivos().filter(a=>ok([a.desc,a.cod,a.ubic,FAM[a.fam],a.diam,provN(a.prov),a.plano,a.notas,(a.iny||[]).map(maqN).join(" "),(a.docs||[]).map(d=>d.nombre).join(" ")].join(" "))).map(a=>el("button",{type:"button",class:"it",onclick:ir(()=>ficha(a))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(a.desc,oTok)),el("div",{class:"t2"},marca([a.cod,a.ubic?"📍 "+a.ubic:null,cat.almacenes.map(l=>[l.nom,stockDe(a.id,l.id)]).filter(x=>x[1]).map(x=>x[0]+" "+fmtN(x[1])).join(" · ")].filter(Boolean).join(" · "),oTok))]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])])));
     grupo("Modelos de eje y planos",(cat.modelos||[]).filter(m=>ok([m.ref,m.cod,m.long,m.iny,m.diamP,m.plano,m.notas,(m.docs||[]).map(d=>d.nombre).join(" ")].join(" "))).map(m=>el("button",{type:"button",class:"it",onclick:ir(()=>fichaModelo(m))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(m.ref,oTok)),el("div",{class:"t2"},marca([m.cod,m.iny,m.plano?"plano "+m.plano:null].filter(Boolean).join(" · "),oTok))]),el("span",{class:"pill "+((m.docs||[]).length?"ok":"na"),text:(m.docs||[]).length?"Con plano":"Sin plano"})])));
     grupo("Ejes",ejes.filter(e=>ok([e.cod,ejeRef(e),e.mod,obsE(e),ultAlb(e.cod)].join(" "))).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(e=>{const[t,c]=EST_E[e.estado]||["—","na"];return el("button",{type:"button",class:"it",onclick:ir(()=>fichaEje(e))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(e.cod+" · "+ejeRef(e),oTok)),el("div",{class:"t2"},marca([ultAlb(e.cod)?"Alb. "+ultAlb(e.cod):null,obsE(e)].filter(Boolean).join(" · "),oTok))]),el("span",{class:"pill "+c,text:t})]);}));
     const AL=albaranes();grupo("Albaranes",Object.keys(AL).filter(ok).sort().reverse().map(k=>el("button",{type:"button",class:"it",onclick:ir(()=>fichaAlbaran(k,AL[k]))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(k,oTok)),el("div",{class:"t2",text:AL[k].reps.length+" ejes · "+AL[k].movs.length+" entradas"})])])));
