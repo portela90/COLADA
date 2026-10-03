@@ -1487,11 +1487,11 @@ async function resolverPend(ejeCod,pendId){const L=ejePend();if(!L.length)return
 async function quitarPendPist(pistId){if(!pistId||!ejePend().some(p=>p.pist===pistId))return;cat.ejePend=ejePend().filter(p=>p.pist!==pistId);await saveCat();}
 function prepararPend(p){const cs=new Set();(p.mods||[]).forEach(c=>{const m=modelo(c);if(m)grupoEje(m).forEach(x=>cs.add(x.cod));});
   const lista=ejes.filter(e=>e.estado==="planta"&&(!cs.size||cs.has(e.mod))).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
-  const ag=p.motivo===AGARR;const f={eje:"",desp:ag?"":"ROTURA DE PISTÓN"};
+  const ag=p.motivo===AGARR;const puesto=ejeEnMaq(p.maq);const f={eje:puesto?puesto.cod:"",desp:ag?"":"ROTURA DE PISTÓN"};
   const cuenta={};todasRep().forEach(r=>{const d=String(r.desp||"").trim().toUpperCase();if(d&&d!=="—")cuenta[d]=(cuenta[d]||0)+1;});
   const dlD=el("datalist",{id:"lPendD"},Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,40).map(d=>el("option",{value:d})));const dl=el("datalist",{id:"lPendE"},lista.map(e=>el("option",{value:e.cod})));
   dlg((ag?"Eje con pistón agarrotado de la ":"Eje roto de la ")+p.maq,[el("p",{class:"sub",text:"Cambio de pistón por "+(ag?"pistón agarrotado":"rotura")+" el "+fmtF(p.f)+(p.diam?" ("+p.diam+")":"")+". Modelo: "+((p.mods||[]).map(c=>{const m=modelo(c);return m?m.ref+" ("+c+")":c;}).join(" o ")||"no se sabe (la máquina no tiene eje en la ficha)")+"."}),
-    fld("Número del eje que se ha quitado",inp("pdE","",v=>f.eje=v.trim(),{list:"lPendE",autocomplete:"off",placeholder:lista[0]?"p. ej. "+lista[0].cod:"código del eje"})),dl,
+    puesto?el("p",{class:"hint",text:"La app tenía apuntado que en la "+p.maq+" estaba el "+puesto.cod+". Cámbialo si no es ese."}):null,fld("Número del eje que se ha quitado",inp("pdE",f.eje,v=>f.eje=v.trim(),{list:"lPendE",autocomplete:"off",placeholder:lista[0]?"p. ej. "+lista[0].cod:"código del eje"})),dl,
     fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off",list:"lPendD",placeholder:"p. ej. NO SE PUEDE SACAR EL PISTÓN, FUGA DE AGUA, POROS…"})),dlD],
     [{t:"Cancelar",cls:"sec"},{t:"Preparar para enviar",fn:async()=>{const e=ejes.find(x=>norm(x.cod)===norm(f.eje));if(!e){toast("Ese eje no existe");return false;}
       if(e.estado!=="planta"){toast(e.cod+" no está en planta");return false;}if(!f.desp.trim()){toast("Pon el desperfecto");return false;}
@@ -1506,7 +1506,7 @@ function tarjetaPend(){const L=ejePend();if(!L.length)return null;
 async function updReps(list){const g={};list.forEach(([r,p])=>{(g[r.y]=g[r.y]||[]).push([r.id,p]);});
   for(const y of Object.keys(g)){const ref=db.doc("rep/"+y),sn=await ref.get();if(!sn.exists)continue;const m=new Map(g[y]);
     await ref.set({items:(sn.data().items||[]).map(x=>m.has(x.id)?Object.assign({},x,m.get(x.id)):x)});}}
-async function updEje(e,patch){const c=Object.assign({},e,patch);delete c.id;await db.doc("ejes/"+e.id).set(c);}
+async function updEje(e,patch){if(patch&&patch.estado&&patch.estado!=="planta")patch=Object.assign({},patch,{maq:null});const c=Object.assign({},e,patch);delete c.id;await db.doc("ejes/"+e.id).set(c);}
 const ejeRef=e=>{const m=modelo(e.mod);return m?m.ref:e.mod;};
 const diasAb=r=>r.env?laborables(r.env,hoy()):null;
 function pillDias(n){if(n==null)return el("span",{class:"pill info",text:"Sin enviar"});return el("span",{class:"pill na",text:n+" días"});}
@@ -1559,7 +1559,7 @@ function pintaBus(){const box=$("eRes");if(!box)return;box.textContent="";const 
 function obsE(e){const u=ultAlb(e.cod);let o=e.obs||"";if(u)o=o.replace(/\s*·?\s*Últ\. albarán \S+/,"").trim();return o||null;}
 function ultAlb(cod){const r=repsDe(cod).filter(x=>x.alb&&x.res==="ok");return r.length?r[r.length-1].alb:null;}
 function itemEje(e){const[t,c]=EST_E[e.estado]||["—","na"];const ab=abiertaDe(e.cod);
-  return el("button",{type:"button",class:"it",onclick:()=>fichaEje(e)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+(e.marcado?"":" · sin marcar")}),el("div",{class:"t2",text:[ejeRef(e),ab&&ab.desp?ab.desp:null,ultAlb(e.cod)?"Alb. "+ultAlb(e.cod):null,obsE(e)].filter(Boolean).join(" · ")})]),el("span",{class:"pill "+c,text:t})]);}
+  return el("button",{type:"button",class:"it",onclick:()=>fichaEje(e)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+(e.marcado?"":" · sin marcar")}),el("div",{class:"t2",text:[ejeRef(e),e.estado==="planta"&&e.maq?"puesto en "+e.maq:null,ab&&ab.desp?ab.desp:null,ultAlb(e.cod)?"Alb. "+ultAlb(e.cod):null,obsE(e)].filter(Boolean).join(" · ")})]),el("span",{class:"pill "+c,text:t})]);}
 function inyDe(m){const t=String(m.iny||"").replace(/\s/g,"");if(!t)return[];const parts=t.split("-");return parts.map(x=>x.startsWith("F")?x:"F"+x).filter(x=>/^F\d+$/.test(x));}
 function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id)||m0;const es=ejes.filter(e=>e.mod===m.cod).sort((a,b)=>(+a.num||0)-(+b.num||0));
   const c=k=>es.filter(e=>e.estado===k).length;const docs=m.docs||[];
@@ -1599,7 +1599,10 @@ function formEje(e,mod){const x=e?Object.assign({},e):{mod:mod||"",num:"",marcad
 const docId=cod=>"e-"+cod.replace(/"/g,"q").replace(/[^A-Za-z0-9_\-.~:@+]/g,"_");
 function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=abiertaDe(e.cod);const[et,ec]=EST_E[e.estado]||["—","na"];
   const body=[el("div",{},[el("span",{class:"pill "+ec,text:et})," ",el("span",{class:"sub",text:[ejeRef(e),e.marcado?"Marcado":"Sin marcar",ultAlb(e.cod)?"Albarán de la última reparación: "+ultAlb(e.cod):null,obsE(e)].filter(Boolean).join(" · ")})])];
-  const acts=[];
+  const acts=[];const re=()=>{const z=ejes.find(q=>q.id===e.id);if(z)setTimeout(()=>fichaEje(z),350);};
+  body.push(el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;align-items:center"},[el("span",{class:"sub",style:"flex:1 1 100%",text:e.estado==="planta"?(e.maq?"Puesto en la "+e.maq+(e.maqF?" (desde "+fmtF(e.maqF)+")":""):"De repuesto o sin saber en qué máquina está"):"No está en planta"}),
+    e.estado==="planta"?el("button",{type:"button",class:"btn sec peq",text:e.maq?"Cambiar máquina":"Puesto en máquina…",onclick:()=>{cerrarDlgs();elegirMaq(e,re);}}):null,
+    el("button",{type:"button",class:"btn sec peq",text:"Mover (planta / taller)…",onclick:()=>{cerrarDlgs();corregirEstado(e,re);}})]));
   const fecha=()=>fld("Fecha",inp("efF",f.f,v=>f.f=v,{type:"date"}));
   if(e.estado==="planta"){body.push(fld("Desperfecto detectado",inp("efD","",v=>f.desp=v,{autocomplete:"off"})));
     acts.push({t:"Preparar para enviar",fn:async()=>{if(!f.desp.trim()){toast("Describe el desperfecto");return false;}await addRep({eje:e.cod,desp:f.desp.trim(),alta:hoy(),env:null});await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}});}
@@ -1831,7 +1834,9 @@ function revisionEjes(){if(!db){toast("No se puede guardar en esta vista");retur
     const ts=new Date().toISOString(),ant=estR(e),antTxt=(EST_E[e.estado]||[e.estado])[0];
     try{await cambiarEstadoEje(e,"planta",hoy(),{rev:ts,cont:hoy()});}catch(er){aviso("bad","No se pudo guardar: "+(er&&er.message||"error"));return;}
     st.ult.unshift(e.cod);st.abierto=e.mod;
-    aviso(ant==="planta"?"ok":"warn",ant==="planta"?"✓ "+e.cod+" revisado · "+ejeRef(e):"✓ "+e.cod+" revisado. La app lo tenía «"+antTxt+"»: lo he pasado a planta.");
+    const mq=maqsDeEje(e);const bts=mq.map(c=>el("button",{type:"button",class:"btn sec peq",text:"Puesto en "+c,onclick:async()=>{await ponerEnMaq(e,c);aviso("ok","✓ "+e.cod+" revisado y puesto en "+c+".");setTimeout(pinta,300);cI.focus();}}));
+    if(e.maq)bts.push(el("button",{type:"button",class:"btn txt peq",text:"Es repuesto",onclick:async()=>{await quitarDeMaq(e);aviso("ok","✓ "+e.cod+" revisado · de repuesto.");setTimeout(pinta,300);cI.focus();}}));
+    aviso(ant==="planta"?"ok":"warn",(ant==="planta"?"✓ "+e.cod+" revisado · "+ejeRef(e):"✓ "+e.cod+" revisado. La app lo tenía «"+antTxt+"»: lo he pasado a planta.")+(e.maq?" Apuntado puesto en "+e.maq+".":mq.length?" Si está puesto en una máquina, toca cuál:":""),bts);
     cI.value="";cI.focus();setTimeout(pinta,300);}
   cI.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();marcar();}});
   function pinta(){const d=revDesde();const vivos=ejes.filter(e=>e.estado!=="baja");const tot=vivos.length,rv=vivos.filter(revisado).length;
@@ -1843,7 +1848,7 @@ function revisionEjes(){if(!db){toast("No se puede guardar en esta vista");retur
     lst.textContent="";const vistos=new Set();
     (cat.modelos||[]).slice().sort(porCod).forEach(m=>{const k=grupoKey(m);if(vistos.has(k))return;vistos.add(k);const G=grupoEje(m),cs=G.map(x=>x.cod),M=maqG(m);
       const es=ejes.filter(e=>cs.includes(e.mod)&&e.estado!=="baja").sort(porCod);if(!es.length)return;const r=es.filter(revisado);const sinRev=es.filter(e=>!revisado(e));
-      const plSin=sinRev.filter(e=>estR(e)==="planta").length,dif=plSin-M;
+      const plSin=sinRev.filter(e=>estR(e)==="planta").length,dif=plSin-Math.max(0,M-r.filter(e=>e.maq&&estR(e)==="planta").length);
       const niv=!r.length?"":dif===0?"ok":dif>0?"bad":"warn";
       const txt=!r.length?"sin empezar":dif===0?"cuadra":dif>0?"sobran "+dif:"faltan "+(-dif);
       const abierto=st.abierto===k||st.abierto===m.cod;
@@ -1862,6 +1867,33 @@ function revisionEjes(){if(!db){toast("No se puede guardar en esta vista");retur
   dlg("Revisar ejes",[el("p",{class:"hint",text:"Escribe el código grabado en cada eje que revises y pulsa Intro. Si un código ya está revisado te avisa: puede haber dos ejes con el mismo código. Los puestos en máquina no hace falta revisarlos: la app comprueba que cuadren con las máquinas."}),
     cab,el("div",{style:"display:flex;gap:8px"},[cI,el("button",{type:"button",class:"btn",text:"Revisado",onclick:marcar})]),dl,res,lst],[{t:"Cerrar",cls:"sec"}]);
   setTimeout(()=>cI.focus(),60);}
+
+/* ===== EJE PUESTO EN CADA MÁQUINA y corrección manual de dónde está un eje ===== */
+const ejeEnMaq=cod=>ejes.find(e=>e.maq===cod&&e.estado==="planta");
+const maqsDeEje=e=>{const m=modelo(e.mod);return m?[...new Set([].concat(...grupoEje(m).map(inyDe)))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true})):[];};
+async function ponerEnMaq(e,cod,f){f=f||hoy();
+  for(const o of ejes.filter(z=>z.maq===cod&&z.id!==e.id)){await updEje(o,{maq:null});o.maq=null;}
+  if(estR(e)!=="planta")await cambiarEstadoEje(e,"planta",f,{maq:cod,maqF:f});else{await updEje(e,{maq:cod,maqF:f});Object.assign(e,{maq:cod,maqF:f});}}
+async function quitarDeMaq(e){if(!e.maq)return;await updEje(e,{maq:null});e.maq=null;}
+function elegirMaq(e,despues){const sug=maqsDeEje(e);const x={otra:""};
+  const btn=(cod)=>{const ya=ejeEnMaq(cod);return el("button",{type:"button",class:"btn "+(e.maq===cod?"":"sec")+" peq",text:cod+(ya&&ya.id!==e.id?" (ahora "+ya.cod+")":""),onclick:async()=>{cerrarDlgs();await ponerEnMaq(e,cod);toast(e.cod+" puesto en "+cod+(ya&&ya.id!==e.id?" · "+ya.cod+" queda de repuesto":""));if(despues)despues();}});};
+  dlg("¿Dónde está puesto "+e.cod+"?",[sug.length?el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Máquinas que llevan este modelo"}),el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},sug.map(btn))]):el("p",{class:"hint",text:"Ninguna máquina tiene este modelo en su ficha."}),
+    fld("Otra máquina",sel("emOtra",maqOpts().map(([id,t])=>[maqN(id),t]),"",v=>x.otra=v,"Elige…")),
+    el("p",{class:"hint",text:"Si en esa máquina había otro eje apuntado, ese pasa a ser repuesto."})],
+    [{t:"Es repuesto (no está puesto)",cls:"sec",fn:async()=>{await quitarDeMaq(e);toast(e.cod+" de repuesto");if(despues)despues();}},{t:"Cancelar",cls:"sec"},
+     {t:"Guardar",fn:async()=>{if(!x.otra){toast("Elige una máquina");return false;}await ponerEnMaq(e,x.otra);toast(e.cod+" puesto en "+x.otra);if(despues)despues();}}]);}
+function elegirEjeMaq(m,despues){const ms=modsMaq(m.cod);const cs=new Set();ms.forEach(x=>grupoEje(x).forEach(g=>cs.add(g.cod)));
+  const lista=ejes.filter(e=>cs.has(e.mod)&&e.estado!=="baja").sort(porCod);const ya=ejeEnMaq(m.cod);
+  dlg("Eje puesto en la "+m.cod,[lista.length?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},lista.map(e=>el("button",{type:"button",class:"btn "+(ya&&ya.id===e.id?"":"sec")+" peq",
+      text:e.cod+(e.estado!=="planta"?" ("+(EST_E[e.estado]||[e.estado])[0].toLowerCase()+")":e.maq&&e.maq!==m.cod?" (en "+e.maq+")":""),onclick:async()=>{cerrarDlgs();await ponerEnMaq(e,m.cod);toast(e.cod+" puesto en "+m.cod);if(despues)despues();}}))):el("p",{class:"hint",text:"No hay ejes del modelo de esta máquina."}),
+    el("p",{class:"hint",text:"Si eliges uno que la app tenía en el taller, pasa a planta. El que estuviera puesto antes queda de repuesto."})],
+    [ya?{t:"No sé cuál lleva",cls:"sec",fn:async()=>{await quitarDeMaq(ya);toast("Quitado");if(despues)despues();}}:null,{t:"Cerrar",cls:"sec"}].filter(Boolean));}
+function corregirEstado(e,despues){const x={nu:estR(e),f:hoy()};const ops=[["planta","En planta"],["preparado","Preparado"],["reparacion","En taller"]];
+  const seg=el("div",{class:"seg",role:"group","aria-label":"Dónde está"},ops.map(([k,t])=>{const b=el("button",{type:"button","aria-pressed":String(x.nu===k),text:t});b.onclick=()=>{x.nu=k;seg.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",String(z===b)));};return b;}));
+  dlg("Mover "+e.cod,[el("p",{class:"sub",text:"Ahora la app lo tiene «"+(EST_E[e.estado]||[e.estado])[0]+"»"+(e.maq?" (puesto en "+e.maq+")":"")+". Marca dónde está de verdad."}),seg,fld("Fecha",inp("ceF",x.f,v=>x.f=v,{type:"date"})),
+    el("p",{class:"hint",text:"Para corregir errores o movimientos que no se apuntaron. Las reparaciones abiertas se cierran o se anulan solas."})],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(x.nu===estR(e)){toast("No cambia nada");return false;}try{await cambiarEstadoEje(e,x.nu,x.f||hoy(),{cont:x.f||hoy()});}catch(er){toast("No se pudo guardar");return false;}
+      toast(e.cod+" → "+ops.find(o=>o[0]===x.nu)[1]);if(despues)despues();}}]);}
 
 /* ===== CATÁLOGO ===== */
 function vCat(v){
@@ -2011,6 +2043,8 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
     el("dl",{class:"kpis num"},[["Ø pistón",dm||"—"],["Pistones 3 meses",String(c3)],["Último cambio",u?"hace "+dias(u.f,hy)+" d":"—"],["Stock de ese Ø",pa?fmtN(stockDe(pa.id)):"—"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
     gh("Lo que monta"),datos.length?el("dl",{class:"datos"},datos):el("p",{class:"hint",text:"Sin rellenar. Pulsa «Editar ficha» y marca lo que lleva esta máquina."}),
     gh("Ejes · "+(mods.length?mods.length+" modelo"+(mods.length>1?"s":""):"ninguno")),
+    mods.length?(()=>{const ep=ejeEnMaq(m.cod);return el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 2px"},[el("span",{},["Eje puesto: ",el("b",{text:ep?ep.cod:"sin saber"}),ep&&ep.maqF?el("span",{class:"sub",text:" · desde "+fmtF(ep.maqF)}):null]),
+      el("button",{type:"button",class:"btn sec peq",text:ep?"Cambiar":"Indicar",onclick:()=>{cerrarDlgs();elegirEjeMaq(m,()=>setTimeout(()=>fichaIny(m),350));}})]);})():null,
     mods.length?lista(mods,x=>{const es=ejes.filter(e=>e.mod===x.cod);const p=es.filter(e=>e.estado==="planta").length;return el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();fichaModelo(x);}},[
       el("span",{class:"stripe "+(+x.min>0?(p<+x.min?"bad":p===+x.min?"warn":"ok"):"")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.ref}),
         el("div",{class:"t2",text:[x.cod,x.long,x.rosca?"rosca "+x.rosca:null,(x.docs||[]).length?"con plano":"sin plano",es.length-p?(es.length-p)+" fuera de planta":null].filter(Boolean).join(" · ")})]),
