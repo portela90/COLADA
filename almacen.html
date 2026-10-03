@@ -1195,8 +1195,8 @@ function textoPedido(){const hy=hoy();const arts=artsActivos().filter(a=>cantPed
     Object.keys(g).sort((x,y)=>(x==="SIN PROVEEDOR ASIGNADO")-(y==="SIN PROVEEDOR ASIGNADO")||x.localeCompare(y)).forEach(k=>{const pv=cat.proveedores.find(x=>x.nom===k);
       L.push("PROVEEDOR: "+k.toUpperCase()+(pv&&pv.plazo?" (plazo "+pv.plazo+" días)":""));g[k].forEach(a=>{
     L.push("- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+fmtN(cantPedir(a))+" "+a.ud+" (stock "+fmtN(stockDe(a.id))+", mínimo "+fmtN(+a.min||0)+(consPlazo(a)>0?", consumo en "+plazoArt(a)+" días de plazo: "+fmtN(Math.round(consPlazo(a)*10)/10):"")+")"+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""));});L.push("");});}
-  const bajos=(cat.modelos||[]).map(m=>({m,p:ejes.filter(e=>e.mod===m.cod&&e.estado==="planta").length,f:ejes.filter(e=>e.mod===m.cod&&e.estado!=="planta").length})).filter(x=>+x.m.min>0&&x.p<=+x.m.min);
-  if(bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>L.push("- "+m.ref+" ("+m.cod+"): "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")));L.push("");}
+  const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m),f:ejes.filter(e=>grupoEje(m).some(g=>g.cod===e.mod)&&e.estado!=="planta").length})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
+  if(bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>L.push("- "+grupoNom(m)+": "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")));L.push("");}
   if(!arts.length&&!bajos.length)L.push("Todo por encima del mínimo. No hace falta pedir nada.");
   return{txt:L.join("\n").trim(),arts};}
 function listaPedido(){const{txt,arts}=textoPedido();const aj=cat.ajustes||{};
@@ -1304,11 +1304,13 @@ function sugArt(a,P,S){const s=S.art[a.id];if(!s||!(s.rate>0))return null;const 
 function modeloDeEje(cod){const e=ejes.find(x=>x.cod===cod);return e?e.mod:String(cod||"").replace(/-\d+$/,"");}
 function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anulada"&&(r.alta||r.env));if(!rs.length)return{D:0,L:[]};
   const f0=rs.map(r=>r.alta||r.env).sort()[0],lim=sumaDias(hy,-365);const ini=f0<lim?lim:f0;const D=Math.max(1,dias(ini,hy)+1);
-  const L=(cat.modelos||[]).map(m=>{const n=rs.filter(r=>(r.alta||r.env)>=ini&&modeloDeEje(r.eje)===m.cod).length;const lam=n/D;const maq=inyDe(m).length;
-    const es=ejes.filter(e=>e.mod===m.cod);const pl=es.filter(e=>e.estado==="planta").length,tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
+  const vistos=new Set();const L=[];(cat.modelos||[]).forEach(m=>{const k=grupoKey(m);if(vistos.has(k))return;vistos.add(k);const G=grupoEje(m),cs=G.map(x=>x.cod);
+    const n=rs.filter(r=>(r.alta||r.env)>=ini&&cs.includes(modeloDeEje(r.eje))).length;const lam=n/D;const maq=maqG(m);
+    const es=ejes.filter(e=>cs.includes(e.mod));const pl=es.filter(e=>e.estado==="planta").length,tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
     const min=maq+poisQ(lam*P.taller,P.nivel/100),ideal=Math.max(min+(lam>0?1:0),maq+poisQ(lam*(P.taller+30),P.nivel/100));
     const bajo=pl<=min;const pedir=bajo?Math.min(tal,Math.max(0,ideal-pl)):0;const faltan=bajo?Math.max(0,ideal-pl-tal):0;
-    return{m,n,lam,maq,pl,tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,mes:lam*S.dm};});
+    const ahora=Math.max(0,...G.map(x=>+x.min||0));
+    L.push({m,G,nom:grupoNom(m),n,lam,maq,pl,rep:Math.max(0,pl-maq),tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,ahora,mes:lam*S.dm});});
   return{D,ini,L};}
 function prevTodo(){const P=prevCfg(),S=prevDatos();const arts=artsActivos().map(a=>sugArt(a,P,S)).filter(Boolean);return{P,S,arts,E:sugEjes(P,S)};}
 const fmtR=(x,cont)=>cont?String(Math.round(x)):fmtN(Math.round(x*10)/10);
@@ -1325,10 +1327,10 @@ function vPrev(v){const R=prevTodo(),{P,S,arts,E}=R;const mesN=nomMes(S.mesSig);
   if(E.L.length){const Ls=E.L.slice().sort((a,b)=>(b.faltan+b.pedir>0)-(a.faltan+a.pedir>0)||b.lam-a.lam);
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes de inyección"}),el("span",{class:"der sub",text:"mínimo en planta por modelo"})]),
       el("div",{class:"lst"},Ls.map(x=>{const niv=x.faltan?"bad":x.pedir?"warn":"ok";
-        return el("button",{type:"button",class:"it",onclick:()=>detEje(x,P)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.m.ref+" ("+x.m.cod+")"}),
-          el("div",{class:"t2",text:[x.maq+" máq.","hay "+x.pl+" en planta"+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(+x.m.min!==x.min?" (ahora "+(+x.m.min||0)+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
+        return el("button",{type:"button",class:"it",onclick:()=>detEje(x,P)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.nom}),
+          el("div",{class:"t2",text:["en planta "+x.pl+": "+x.maq+(x.maq===1?" puesto":" puestos")+" en máquina + "+x.rep+" de repuesto"+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(x.ahora!==x.min?" (ahora "+x.ahora+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
           x.faltan?el("div",{class:"cant num"},[el("b",{text:"+"+x.faltan}),el("small",{text:"faltan ejes"})]):x.pedir?el("div",{class:"cant num"},[el("b",{text:x.pedir}),el("small",{text:"pedir al taller"})]):el("span",{class:"pill ok",text:"OK"})]);})),
-      el("p",{class:"hint",style:"padding:8px 14px",text:"Mínimo = las máquinas que lo llevan + los que se pueden romper mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
+      el("p",{class:"hint",style:"padding:8px 14px",text:"Cada inyectora tiene siempre un eje puesto, que cuenta como «en planta». Si varios modelos van en las mismas máquinas (p. ej. 2.1.A y 2.1.A\" en F23 y F24), se cuentan juntos. Mínimo = los puestos en máquina + los que se pueden romper mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
   /* artículos */
   const fila=x=>{const niv=x.pedir>0?(x.st<x.min?"bad":"warn"):"ok";const ud=x.a.ud;
     return el("button",{type:"button",class:"it",onclick:()=>detArt(x,P,S)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.a.desc}),
@@ -1349,19 +1351,19 @@ function detArt(x,P,S){const a=x.a,ud=a.ud,mesN=nomMes(S.mesSig);
   dlg(a.desc,[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
     el("p",{class:"hint",text:x.plA?"El mínimo es el colchón para los días malos: la app ya suma aparte lo que se gasta durante el plazo de entrega para avisarte de pedir.":"Como no tiene plazo de entrega, el mínimo incluye lo que se gasta en "+P.plazo+" días más el colchón. Pon el plazo en su ficha y el cálculo se ajusta."})],
     [{t:"Cerrar",cls:"sec"}]);}
-function detEje(x,P){const filas=[["Inyectoras",inyDe(x.m).join(", ")||"—"],["Roturas en el último año",String(x.n)],["Roturas previstas en el mes",fmtN(Math.round(x.mes*10)/10)],
-  ["En planta",x.pl+" de "+x.tot],["En el taller",String(x.tal)],["Preparados para enviar",String(x.prep)],["Mínimo en planta",x.min+" (ahora "+(+x.m.min||0)+")"],["Ideal en planta",String(x.ideal)]];
-  dlg(x.m.ref+" ("+x.m.cod+")",[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
+function detEje(x,P){const filas=[["Inyectoras",[...new Set([].concat(...x.G.map(inyDe)))].join(", ")||"—"],["Roturas en el último año",String(x.n)],["Roturas previstas en el mes",fmtN(Math.round(x.mes*10)/10)],
+  ["En planta",x.pl+" de "+x.tot],["Puestos en máquina",String(x.maq)],["De repuesto",String(x.rep)],["En el taller",String(x.tal)],["Preparados para enviar",String(x.prep)],["Mínimo en planta (con los puestos)",x.min+" (ahora "+x.ahora+")"],["Ideal en planta",String(x.ideal)]];
+  dlg(x.nom,[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
     x.faltan?el("div",{class:"banner",text:"Aunque traigas todos los del taller no llegas al ideal: faltan "+x.faltan+" eje(s) de este modelo."}):null,
     el("p",{class:"hint",text:x.bajo?"Estás en el mínimo o por debajo: pide "+x.pedir+" al taller.":"Por encima del mínimo: no hace falta pedir al taller todavía."})],[{t:"Cerrar",cls:"sec"}]);}
 function textoPrev(R){const{S,arts,E}=R;const mesN=nomMes(S.mesSig);const L=["PREVISIÓN DE PEDIDO HASTA FIN DE "+mesN.toUpperCase()+" · "+fmtF(hoy()),""];
   const ps=arts.filter(x=>x.pedir>0);if(ps.length){const g={};ps.forEach(x=>{const k=provN(x.a.prov)||"SIN PROVEEDOR ASIGNADO";(g[k]=g[k]||[]).push(x);});
     Object.keys(g).sort().forEach(k=>{L.push("PROVEEDOR: "+k.toUpperCase());g[k].sort((a,b)=>a.a.desc.localeCompare(b.a.desc,"es",{numeric:true})).forEach(x=>L.push("- "+x.a.desc+(x.a.cod?" ["+x.a.cod+"]":"")+": "+fmtN(x.pedir)+" "+x.a.ud+" (previsión "+mesN+" "+fmtR(x.mes.lo,x.cont)+"–"+fmtR(x.mes.hi,x.cont)+", stock "+fmtN(x.st)+")"));L.push("");});}
-  const ej=E.L.filter(x=>x.pedir>0||x.faltan>0);if(ej.length){L.push("EJES A PEDIR AL TALLER:");ej.forEach(x=>L.push("- "+x.m.ref+" ("+x.m.cod+"): "+(x.pedir?"traer "+x.pedir:"")+(x.faltan?(x.pedir?" · ":"")+"faltan "+x.faltan+" (no hay más en el taller)":"")+" · en planta "+x.pl+", mínimo "+x.min));L.push("");}
+  const ej=E.L.filter(x=>x.pedir>0||x.faltan>0);if(ej.length){L.push("EJES A PEDIR AL TALLER:");ej.forEach(x=>L.push("- "+x.nom+": "+(x.pedir?"traer "+x.pedir:"")+(x.faltan?(x.pedir?" · ":"")+"faltan "+x.faltan+" (no hay más en el taller)":"")+" · en planta "+x.pl+", mínimo "+x.min));L.push("");}
   if(!ps.length&&!ej.length)L.push("Con el stock actual está todo cubierto hasta final de "+mesN+".");
   return L.join("\n").trim();}
 function aplicarPrev(R){const{arts,E}=R;
-  const cMin=arts.filter(x=>(+x.a.min||0)!==x.min),cEje=E.L.filter(x=>(+x.m.min||0)!==x.min);
+  const cMin=arts.filter(x=>(+x.a.min||0)!==x.min),cEje=E.L.filter(x=>x.G.some(m=>(+m.min||0)!==x.min));
   const cDot=[];arts.forEach(x=>Object.keys(x.dot).forEach(l=>{const ah=+(((cat.dot||{})[l]||{})[x.a.id])||0;if(ah!==x.dot[l])cDot.push({x,l,v:x.dot[l]});}));
   const op={min:cMin.length>0,eje:cEje.length>0,dot:cDot.length>0};
   const ck=(k,t,n)=>el("label",{style:"display:flex;gap:10px;align-items:center;flex-direction:row"},[el("input",{type:"checkbox",checked:op[k]&&n>0,disabled:!n,style:"width:22px;height:22px;flex:none",onchange:e=>op[k]=e.target.checked}),el("span",{text:t+" ("+(n?n+" cambian":"sin cambios")+")"})]);
@@ -1369,7 +1371,7 @@ function aplicarPrev(R){const{arts,E}=R;
     el("p",{class:"hint",text:"Con esto los avisos de «Reponer», la lista de pedido y los avisos de ejes usan los valores calculados. Se puede deshacer desde el Historial. Conviene repetirlo una vez al mes."})],
     [{t:"Cancelar",cls:"sec"},{t:"Aplicar",fn:async()=>{if(!op.min&&!op.eje&&!op.dot){toast("Marca algo");return false;}
       if(op.min)cMin.forEach(x=>{const a=art(x.a.id);if(a)a.min=x.min;});
-      if(op.eje)cEje.forEach(x=>{const m=(cat.modelos||[]).find(z=>z.id===x.m.id||z.cod===x.m.cod);if(m)m.min=x.min;});
+      if(op.eje)cEje.forEach(x=>x.G.forEach(g=>{const m=(cat.modelos||[]).find(z=>z.cod===g.cod);if(m)m.min=x.min;}));
       if(op.dot){cat.dot=cat.dot||{};cDot.forEach(({x,l,v})=>{(cat.dot[l]=cat.dot[l]||{})[x.a.id]=v;});}
       try{await saveCat();toast("Aplicado");}catch(e){return false;}render(true);}}]);}
 function formPrev(){const x=prevCfg();
@@ -1381,6 +1383,13 @@ function formPrev(){const x=prevCfg();
 
 /* ===== EJES ===== */
 const modelo=cod=>(cat.modelos||[]).find(m=>m.cod===cod);
+/* modelos que se montan en las mismas inyectoras (p. ej. 2.1.A y 2.1.A" en F23/F24): cuentan juntos */
+function grupoEje(m){const ms=cat.modelos||[];const S=new Set([m]);let ch=true;while(ch){ch=false;ms.forEach(x=>{if(S.has(x))return;const ix=inyDe(x);if(ix.length&&[...S].some(y=>inyDe(y).some(c=>ix.includes(c)))){S.add(x);ch=true;}});}return ms.filter(x=>S.has(x)).concat(S.has(m)&&!ms.includes(m)?[m]:[]);}
+const grupoKey=m=>grupoEje(m).map(x=>x.cod).join("+");
+const grupoNom=m=>grupoEje(m).map(x=>x.ref+" ("+x.cod+")").join(" + ");
+function plantaG(m){const cs=grupoEje(m).map(x=>x.cod);return ejes.filter(e=>cs.includes(e.mod)&&e.estado==="planta").length;}
+const maqG=m=>[...new Set([].concat(...grupoEje(m).map(inyDe)))].length;
+const unoPorGrupo=(x,i,a)=>a.findIndex(y=>grupoKey(y.m)===grupoKey(x.m))===i;
 function todasRep(){const o=[];Object.keys(reps).forEach(y=>(reps[y]||[]).forEach(r=>o.push(Object.assign({y},r))));return o;}
 function repsDe(cod){return todasRep().filter(r=>r.eje===cod).sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||""));}
 function abiertaDe(cod){const r=repsDe(cod).filter(x=>!x.res);return r[r.length-1];}
@@ -1403,7 +1412,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
   v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
   /* modelos bajo mínimo */
-  const bajos=(cat.modelos||[]).map(m=>({m,p:ejes.filter(e=>e.mod===m.cod&&e.estado==="planta").length})).filter(x=>+x.m.min>0&&x.p<=+x.m.min);
+  const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m)})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
   if(bajos.length)v.appendChild(el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Modelos en el mínimo ("+bajos.length+")"})),
     el("div",{class:"lst"},bajos.map(({m,p})=>{const tall=ejesTaller(m.cod);const sinPed=tall.filter(e=>{const ab=abiertaDe(e.cod);return!(ab&&ab.traer);});
       return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(p<+m.min?"bad":"warn")}),el("button",{type:"button",class:"ppal linkish",style:"all:unset;flex:1;min-width:0;cursor:pointer",onclick:()=>fichaModelo(m)},[el("div",{class:"t1",text:m.ref}),
@@ -1426,7 +1435,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   /* modelos */
   const mods=(cat.modelos||[]).slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Modelos ("+mods.length+")"})),
-    mods.length?el("div",{class:"lst"},mods.map(m=>{const es=ejes.filter(e=>e.mod===m.cod);const p=es.filter(e=>e.estado==="planta").length;const niv=+m.min>0?(p<+m.min?"bad":p===+m.min?"warn":"ok"):"";
+    mods.length?el("div",{class:"lst"},mods.map(m=>{const es=ejes.filter(e=>e.mod===m.cod);const p=es.filter(e=>e.estado==="planta").length;const pg=plantaG(m);const niv=+m.min>0?(pg<+m.min?"bad":pg===+m.min?"warn":"ok"):"";
       return el("button",{type:"button",class:"it",onclick:()=>fichaModelo(m)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:m.ref}),
         el("div",{class:"t2",text:[m.cod,m.iny,es.filter(e=>e.estado!=="planta").length?es.filter(e=>e.estado!=="planta").length+" fuera":null].filter(Boolean).join(" · ")})]),
         el("div",{class:"cant num"},[el("b",{text:p+"/"+es.length}),el("small",{text:"en planta"+(+m.min>0?" · mín "+m.min:"")})])]);})):el("div",{class:"empty",text:"Sin modelos. Añádelos en Catálogo."})]));
@@ -1506,10 +1515,10 @@ function checkList(list,marc){const sel0=new Set(marc instanceof Set?Array.from(
     el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod}),el("div",{class:"t2",text:[ejeRef(e),ab&&ab.desp,ab&&ab.env?diasAb(ab)+" días":null,ab&&ab.traer?"ya pedido el "+fmtF(ab.traer):null].filter(Boolean).join(" · ")}),modBajo(e.mod)?el("span",{class:"pill bad",style:"margin-top:3px",text:"Modelo en el mínimo"}):null])]);})));
   return{box,sel:()=>list.filter(e=>sel0.has(e.id))};}
 function telWA(t){let d=String(t||"").replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.length===9)d="34"+d;return d;}
-function modBajo(cod){const m=modelo(cod);return!!(m&&+m.min>0&&ejes.filter(e=>e.mod===cod&&e.estado==="planta").length<=+m.min);}
+function modBajo(cod){const m=modelo(cod);return!!(m&&+m.min>0&&plantaG(m)<=+m.min);}
 function ejesTaller(mod){return ejes.filter(e=>(e.estado==="reparacion"||e.estado==="devuelto")&&(!mod||e.mod===mod));}
 function pedirTraer(mod){if(typeof mod!=="string")mod=null;
-  const bajo=new Set((cat.modelos||[]).filter(m=>+m.min>0&&ejes.filter(e=>e.mod===m.cod&&e.estado==="planta").length<=+m.min).map(m=>m.cod));
+  const bajo=new Set((cat.modelos||[]).filter(m=>+m.min>0&&plantaG(m)<=+m.min).map(m=>m.cod));
   const envD=e=>{const ab=abiertaDe(e.cod);return ab&&ab.env||"9";};
   const list=ejesTaller(mod).sort((a,b)=>(bajo.has(b.mod)-bajo.has(a.mod))||envD(a).localeCompare(envD(b))||a.cod.localeCompare(b.cod,"es",{numeric:true}));
   const pre=new Set(mod?list.filter(e=>{const ab=abiertaDe(e.cod);return!(ab&&ab.traer);}).map(e=>e.id):[]);
