@@ -1517,7 +1517,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   v.appendChild(el("div",{class:"acciones"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
-    el("button",{type:"button",class:"btn sec",text:"Recuento",onclick:()=>recuentoEjes()}),
+    el("button",{type:"button",class:"btn sec",text:"Revisar ejes",onclick:()=>revisionEjes()}),
     el("button",{type:"button",class:"btn sec",text:"Nuevo eje",onclick:()=>formEje()})]));
   const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
   v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
@@ -1742,39 +1742,56 @@ const EST_R=[["planta","En planta"],["preparado","Preparado"],["reparacion","En 
 const estR=e=>e.estado==="devuelto"?"reparacion":e.estado;
 const porCod=(a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true});
 function recuentoEjes(modIni){const mods=(cat.modelos||[]).slice().sort(porCod);if(!mods.length){toast("No hay modelos de eje");return;}
-  const st={mod:modIni||mods[0].cod,f:hoy(),cam:{},nue:[],vistos:new Set()};
+  /* marca por eje: visto (lo veo de repuesto) · maquina (sé que está puesto) · reparacion · preparado · baja. Sin marca = se queda como está */
+  const st={mod:modIni||mods[0].cod,f:hoy(),mk:{},nue:[],vistos:new Set()};
   const cuerpo=el("div",{style:"display:grid;gap:10px"});
   const selM=sel("rcMod",[],st.mod,v=>{st.mod=v;pinta();});
-  const opts=()=>{selM.textContent="";mods.forEach(m=>{const n=ejes.filter(e=>e.mod===m.cod&&st.cam[e.id]!=null&&st.cam[e.id]!==estR(e)).length+st.nue.filter(x=>x.mod===m.cod).length;
-    selM.appendChild(el("option",{value:m.cod,text:(st.vistos.has(m.cod)?"✓ ":"")+m.cod+" · "+m.ref+(n?" ("+n+" cambios)":"")}));});selM.value=st.mod;};
-  const totCam=()=>Object.keys(st.cam).filter(id=>{const e=ejes.find(x=>x.id===id);return e&&st.cam[id]!==estR(e);}).length+st.nue.length;
+  const fin=e=>{const k=st.mk[e.id];return k==="visto"||k==="maquina"?"planta":k||estR(e);};
+  const cambia=e=>fin(e)!==estR(e);
+  const nCam=cod=>ejes.filter(e=>(!cod||e.mod===cod)&&cambia(e)).length+st.nue.filter(x=>!cod||x.mod===cod).length;
+  const opts=()=>{selM.textContent="";mods.forEach(m=>{const n=nCam(m.cod);selM.appendChild(el("option",{value:m.cod,text:(st.vistos.has(m.cod)?"✓ ":"")+m.cod+" · "+m.ref+(n?" ("+n+" cambios)":"")}));});selM.value=st.mod;};
   const info=el("p",{class:"sub",style:"margin:0"});
+  const ix=()=>mods.findIndex(m=>m.cod===st.mod);
+  const MK=[["visto","Lo veo"],["maquina","En máquina"],["reparacion","En taller"],["preparado","Preparado"]];
+  function cuadre(){const m=modelo(st.mod);if(!m)return null;const G=grupoEje(m),cs=G.map(x=>x.cod),M=maqG(m);
+    const es=ejes.filter(e=>cs.includes(e.mod));const vis=es.filter(e=>st.mk[e.id]==="visto").length+st.nue.filter(x=>cs.includes(x.mod)).length;
+    const sinVer=es.filter(e=>fin(e)==="planta"&&st.mk[e.id]!=="visto");const d=sinVer.length-M;
+    const pl=(n,a,b)=>n+" "+(n===1?a:b);if(!es.some(e=>st.mk[e.id])&&!st.nue.some(x=>cs.includes(x.mod)))return el("p",{class:"hint",text:"Cuando marques los repuestos que ves, aquí te dirá si cuadra con las "+pl(M,"máquina","máquinas")+" que llevan este eje."});
+    const comp=G.length>1?" (lo comparte con "+G.filter(x=>x.cod!==st.mod).map(x=>x.cod).join(", ")+": se cuentan juntos)":"";
+    let txt,niv;
+    if(d===0){niv="ok";txt="Cuadra: "+pl(vis,"repuesto visto","repuestos vistos")+" + "+pl(M,"puesto en máquina","puestos en máquina")+" = "+(vis+M)+" en planta"+comp+".";}
+    else if(d>0){niv="bad";txt="Sobran "+d+": la app tiene "+sinVer.length+" en planta que no ves, pero solo hay "+pl(M,"máquina","máquinas")+comp+". "+(d===1?"Ese estará en el taller o perdido: márcalo «En taller» (o dalo de baja si se ha desechado).":"Esos "+d+" estarán en el taller o perdidos: márcalos «En taller» (o dales de baja si se han desechado).");}
+    else{niv="warn";txt="Faltan "+(-d)+": hay "+pl(M,"máquina","máquinas")+comp+" y solo "+sinVer.length+" ejes en planta sin ver. Alguno que la app tiene en el taller estará ya puesto: márcalo «En máquina».";}
+    return el("div",{class:"banner",style:niv==="ok"?"background:var(--ok-bg);color:var(--ok);border-color:var(--ok)":niv==="bad"?"background:var(--bad-bg);color:var(--bad);border-color:var(--bad)":"",text:txt});}
   function pinta(){st.vistos.add(st.mod);opts();cuerpo.textContent="";const m=modelo(st.mod);
-    const es=ejes.filter(e=>e.mod===st.mod).sort(porCod);const est=e=>st.cam[e.id]!=null?st.cam[e.id]:estR(e);
-    const cuenta=k=>es.filter(e=>est(e)===k).length+st.nue.filter(x=>x.mod===st.mod&&k==="planta").length;
-    cuerpo.appendChild(el("div",{class:"sub",text:(m?inyDe(m).length+" máquinas lo llevan ("+inyDe(m).join(", ")+"). ":"")+"Ahora: "+cuenta("planta")+" en planta · "+cuenta("preparado")+" preparados · "+cuenta("reparacion")+" en taller"+(cuenta("baja")?" · "+cuenta("baja")+" no están":"")}));
-    es.forEach(e=>{const cambia=est(e)!==estR(e);const ab=abiertaDe(e.cod);
-      const seg=el("div",{class:"seg",role:"group","aria-label":"Dónde está "+e.cod,style:"display:grid;grid-template-columns:repeat(4,1fr);gap:4px"},EST_R.map(([k,t])=>{const b=el("button",{type:"button","aria-pressed":String(est(e)===k),text:t,style:"font-size:12px;padding:7px 4px;min-width:0"});
-        b.onclick=()=>{if(k===estR(e))delete st.cam[e.id];else st.cam[e.id]=k;pinta();};return b;}));
-      cuerpo.appendChild(el("div",{style:"display:grid;gap:4px;padding:8px 10px;border-radius:8px;border:1px solid "+(cambia?"var(--warn)":"var(--line2)")+";background:"+(cambia?"var(--warn-bg)":"transparent")},[
-        el("div",{style:"display:flex;justify-content:space-between;gap:8px;align-items:baseline"},[el("b",{text:e.cod}),el("span",{class:"sub",text:cambia?"antes: "+(EST_R.find(x=>x[0]===estR(e))||[0,e.estado])[1]:[ab&&ab.desp&&ab.desp!=="—"?ab.desp:null,e.cont?"contado "+fmtF(e.cont):null].filter(Boolean).join(" · ")})]),seg]));});
+    const es=ejes.filter(e=>e.mod===st.mod).sort(porCod);
+    cuerpo.appendChild(el("div",{class:"sub",text:m?inyDe(m).length+" máquinas lo llevan ("+(inyDe(m).join(", ")||"ninguna en la ficha")+"). Los puestos en máquina no hace falta identificarlos: déjalos sin tocar.":""}));
+    const cq=cuadre();if(cq)cuerpo.appendChild(cq);
+    es.forEach(e=>{const ab=abiertaDe(e.cod);const ch=cambia(e);const k=st.mk[e.id];
+      const seg=el("div",{class:"seg",role:"group","aria-label":"Dónde está "+e.cod,style:"display:grid;grid-template-columns:repeat(4,1fr);gap:4px"},MK.map(([kk,t])=>{const b=el("button",{type:"button","aria-pressed":String(k===kk),text:t,style:"font-size:12px;padding:7px 2px;min-width:0"});
+        b.onclick=()=>{if(st.mk[e.id]===kk)delete st.mk[e.id];else st.mk[e.id]=kk;pinta();};return b;}));
+      const est=(EST_E[e.estado]||[e.estado])[0];
+      cuerpo.appendChild(el("div",{style:"display:grid;gap:4px;padding:8px 10px;border-radius:8px;border:1px solid "+(k==="baja"?"var(--bad)":ch?"var(--warn)":k?"var(--ok)":"var(--line2)")+";background:"+(k==="baja"?"var(--bad-bg)":ch?"var(--warn-bg)":"transparent")},[
+        el("div",{style:"display:flex;justify-content:space-between;gap:8px;align-items:baseline"},[el("b",{text:e.cod}),el("span",{class:"sub",text:"la app dice: "+est+(ab&&ab.desp&&ab.desp!=="—"&&e.estado!=="planta"?" · "+ab.desp:"")+(e.cont?" · contado "+fmtF(e.cont):"")})]),
+        k==="baja"?el("div",{style:"display:flex;justify-content:space-between;align-items:center"},[el("span",{class:"sub",text:"Se dará de baja (desechado o perdido)"}),el("button",{type:"button",class:"btn txt peq",text:"Deshacer",onclick:()=>{delete st.mk[e.id];pinta();}})]):seg,
+        k==="baja"?null:el("button",{type:"button",class:"btn txt peq",style:"justify-self:end;font-size:12px",text:"Dar de baja…",onclick:()=>confirmar("¿Dar de baja "+e.cod+"?","Solo si se ha desechado o se ha perdido. Si puede estar en el taller, márcalo «En taller». Su historial se conserva.","Dar de baja",()=>{st.mk[e.id]="baja";pinta();})})]));});
     st.nue.filter(x=>x.mod===st.mod).forEach(x=>cuerpo.appendChild(el("div",{style:"display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;border:1px solid var(--ok);background:var(--ok-bg)"},[
-      el("span",{},[el("b",{text:x.mod+"-"+x.num}),el("span",{class:"sub",text:" · nuevo, en planta"})]),el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>{st.nue=st.nue.filter(z=>z!==x);pinta();}})])));
+      el("span",{},[el("b",{text:x.mod+"-"+x.num}),el("span",{class:"sub",text:" · nuevo, lo veo en planta"})]),el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>{st.nue=st.nue.filter(z=>z!==x);pinta();}})])));
     const nI=inp("rcNum","",null,{inputmode:"numeric",class:"num",placeholder:"Nº",style:"width:80px"});
-    cuerpo.appendChild(el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[el("span",{class:"sub",text:"¿Hay uno que no sale en la lista? "+st.mod+"-"}),nI,
+    cuerpo.appendChild(el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[el("span",{class:"sub",text:"¿Ves uno que no sale en la lista? "+st.mod+"-"}),nI,
       el("button",{type:"button",class:"btn sec peq",text:"Añadir",onclick:()=>{const n=parseInt(nI.value,10);if(!(n>0)){toast("Pon el número");return;}const cod=st.mod+"-"+n;
         if(ejes.some(z=>z.cod===cod)||st.nue.some(z=>z.mod===st.mod&&z.num===n)){toast(cod+" ya está en la lista");return;}st.nue.push({mod:st.mod,num:n});pinta();}})]));
     const i=ix();if(i<mods.length-1)cuerpo.appendChild(el("button",{type:"button",class:"btn sec",text:"Siguiente modelo: "+mods[i+1].cod+" →",onclick:()=>{st.mod=mods[i+1].cod;pinta();const d=cuerpo.closest(".dlg");if(d)d.scrollTop=0;}}));
-    const t=totCam();info.textContent=t?t+" cambios sin guardar en total":"Sin cambios todavía";}
-  const ix=()=>mods.findIndex(m=>m.cod===st.mod);
+    const t=nCam();info.textContent=t?t+" ejes cambian en total":"Sin cambios todavía";}
   const nav=el("div",{style:"display:flex;gap:8px"},[el("button",{type:"button",class:"btn sec peq",text:"← Anterior",onclick:()=>{const i=ix();if(i>0){st.mod=mods[i-1].cod;pinta();}}}),
     el("button",{type:"button",class:"btn sec peq",text:"Siguiente modelo →",onclick:()=>{const i=ix();if(i<mods.length-1){st.mod=mods[i+1].cod;pinta();}else toast("Era el último modelo");}})]);
   pinta();
-  dlg("Recuento de ejes",[el("p",{class:"hint",text:"Ve modelo a modelo y marca dónde está de verdad cada eje. Los que están puestos en una máquina cuentan como «En planta». Solo se guarda lo que cambies."}),
+  dlg("Recuento de ejes",[el("p",{class:"hint",text:"Marca solo lo que sabes: «Lo veo» los repuestos que tienes delante y «En taller» los que te confirma el taller. Los que están puestos en las máquinas déjalos sin tocar; la app comprueba que cuadren con el número de máquinas. Lo que no toques se queda como está."}),
     fld("Fecha del recuento",inp("rcF",st.f,v=>st.f=v,{type:"date"})),fld("Modelo",selM),nav,cuerpo,info],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{const t=totCam();if(!t){toast("No has cambiado nada");return false;}
-      if(!confirm("Se van a ajustar "+t+" ejes. Las reparaciones que estaban abiertas se cierran o se anulan según corresponda. ¿Seguir?"))return false;
-      try{const n=await aplicarRecuento(st);toast("Recuento guardado: "+n+" ejes ajustados");}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));return false;}render(true);}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{const t=nCam();const vistos=Object.keys(st.mk).length;if(!t&&!vistos){toast("No has marcado nada");return false;}
+      if(t&&!confirm("Se van a ajustar "+t+" ejes. Las reparaciones abiertas se cierran o se anulan según corresponda. ¿Seguir?"))return false;
+      const cam={};Object.keys(st.mk).forEach(id=>{cam[id]=st.mk[id]==="visto"||st.mk[id]==="maquina"?"planta":st.mk[id];});
+      try{const n=await aplicarRecuento({f:st.f,cam,nue:st.nue,vistos:st.vistos,marcados:Object.keys(st.mk)});toast(n?"Recuento guardado: "+n+" ejes ajustados":"Recuento guardado: todo cuadraba");}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));return false;}render(true);}}]);}
 async function aplicarRecuento(st){const f=st.f||hoy();let n=0;
   for(const id of Object.keys(st.cam)){const e=ejes.find(x=>x.id===id);const nu=st.cam[id];if(!e||estR(e)===nu)continue;const ant=estR(e);const ab=abiertaDe(e.cod);
     if(nu==="baja"){if(ab)await updReps([[ab,{res:"anulada",rec:f,obs:"Baja en recuento"}]]);await updEje(e,{estado:"baja",baja:f,cont:f});}
@@ -1786,6 +1803,65 @@ async function aplicarRecuento(st){const f=st.f||hoy();let n=0;
     await db.doc("ejes/"+docId(cod)).set({cod,mod:x.mod,num:x.num,estado:"planta",marcado:true,obs:"Alta en recuento",alta:f,cont:f});n++;}
   const vis=[...st.vistos];let tocado=false;(cat.modelos||[]).forEach(m=>{if(vis.includes(m.cod)){m.cont=f;tocado=true;}});if(tocado)await saveCat();
   return n;}
+
+/* ===== REVISIÓN DE EJES: marcar uno a uno por código, avisando de códigos repetidos ===== */
+const revDesde=()=>(cat.revEjes||{}).desde||null;
+const revisado=e=>!!(revDesde()&&e.rev&&e.rev.slice(0,10)>=revDesde());
+const codN=c=>String(c||"").toUpperCase().replace(/[\s.\-_]/g,"");
+const horaRev=t=>{if(!t)return"";const d=new Date(t);return isNaN(d)?fmtF(String(t).slice(0,10)):fmtF(t.slice(0,10))+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});};
+/* pasa un eje a otro estado dejando las reparaciones coherentes */
+async function cambiarEstadoEje(e,nu,f,extra){const ant=estR(e),ab=abiertaDe(e.cod);const x=Object.assign({},extra||{});
+  if(ant===nu){await updEje(e,x);return;}
+  if(nu==="baja"){if(ab)await updReps([[ab,{res:"anulada",rec:f,obs:"Baja en revisión"}]]);x.baja=f;}
+  else if(nu==="planta"){if(ab)await updReps([[ab,ant==="reparacion"?{res:"ok",rec:f,recuento:true}:{res:"anulada",rec:f}]]);}
+  else if(nu==="reparacion"){if(ab&&!ab.env)await updReps([[ab,{env:f}]]);else if(!ab)await addRep({eje:e.cod,desp:"SIN DATOS (REVISIÓN)",alta:f,env:f,recuento:true});}
+  else if(nu==="preparado"){if(!ab)await addRep({eje:e.cod,desp:"SIN DATOS (REVISIÓN)",alta:f,env:null,recuento:true});else if(ab.env)await updReps([[ab,{env:null}]]);}
+  await updEje(e,Object.assign({estado:nu},x));Object.assign(e,{estado:nu},x);}
+function revisionEjes(){if(!db){toast("No se puede guardar en esta vista");return;}
+  const st={msg:null,abierto:null,ult:[]};
+  const res=el("div",{"aria-live":"polite"}),cab=el("div"),lst=el("div",{style:"display:grid;gap:8px"});
+  const dl=el("datalist",{id:"lRevE"});
+  const cI=inp("revCod","",null,{list:"lRevE",autocomplete:"off",placeholder:"Código del eje (p. ej. 2.3.C-4)",style:"font-size:18px"});
+  const aviso=(niv,txt,btns)=>{res.textContent="";res.appendChild(el("div",{class:"banner",style:niv==="ok"?"background:var(--ok-bg);color:var(--ok);border-color:var(--ok)":niv==="bad"?"background:var(--bad-bg);color:var(--bad);border-color:var(--bad);font-weight:600":"",},[el("div",{text:txt})].concat(btns&&btns.length?[el("div",{style:"display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"},btns)]:[])));};
+  async function marcar(){const raw=cI.value.trim();if(!raw)return;const n=codN(raw);const e=ejes.find(z=>codN(z.cod)===n);
+    if(!e){const m=(cat.modelos||[]).slice().sort((a,b)=>b.cod.length-a.cod.length).find(mo=>n.startsWith(codN(mo.cod)));const num=m?parseInt(n.slice(codN(m.cod).length),10):NaN;
+      aviso("warn","«"+raw+"» no existe en la app."+(m&&num>0?" ¿Es un eje nuevo del modelo "+m.ref+" ("+m.cod+")?":" Revisa el código."),m&&num>0?[el("button",{type:"button",class:"btn peq",text:"Dar de alta "+m.cod+"-"+num,onclick:async()=>{const cod=m.cod+"-"+num;const ts=new Date().toISOString();
+        await db.doc("ejes/"+docId(cod)).set({cod,mod:m.cod,num,estado:"planta",marcado:true,obs:"Alta en revisión",alta:hoy(),cont:hoy(),rev:ts});st.ult.unshift(cod);aviso("ok","✓ "+cod+" dado de alta y revisado.");cI.value="";cI.focus();setTimeout(pinta,300);}})]:null);return;}
+    if(revisado(e)){aviso("bad","⚠ "+e.cod+" YA ESTÁ REVISADO ("+horaRev(e.rev)+"). Puede que haya dos ejes con el mismo código: comprueba la marca grabada.");cI.select();return;}
+    const ts=new Date().toISOString(),ant=estR(e),antTxt=(EST_E[e.estado]||[e.estado])[0];
+    try{await cambiarEstadoEje(e,"planta",hoy(),{rev:ts,cont:hoy()});}catch(er){aviso("bad","No se pudo guardar: "+(er&&er.message||"error"));return;}
+    st.ult.unshift(e.cod);st.abierto=e.mod;
+    aviso(ant==="planta"?"ok":"warn",ant==="planta"?"✓ "+e.cod+" revisado · "+ejeRef(e):"✓ "+e.cod+" revisado. La app lo tenía «"+antTxt+"»: lo he pasado a planta.");
+    cI.value="";cI.focus();setTimeout(pinta,300);}
+  cI.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();marcar();}});
+  function pinta(){const d=revDesde();const vivos=ejes.filter(e=>e.estado!=="baja");const tot=vivos.length,rv=vivos.filter(revisado).length;
+    dl.textContent="";ejes.filter(e=>!revisado(e)).sort(porCod).forEach(e=>dl.appendChild(el("option",{value:e.cod})));
+    cab.textContent="";cab.appendChild(el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"},[
+      el("span",{class:"sub",text:d?"Revisión desde el "+fmtF(d)+": "+rv+" de "+tot+" revisados":"Sin revisión empezada"}),
+      el("button",{type:"button",class:"btn sec peq",text:d?"Empezar otra revisión":"Empezar revisión",onclick:()=>confirmar("¿Empezar una revisión nueva?","Todos los ejes vuelven a quedar como «sin revisar». No se borra nada más.","Empezar",async()=>{cat.revEjes={desde:hoy()};await saveCat();res.textContent="";pinta();})})]));
+    if(!d){lst.textContent="";return;}
+    lst.textContent="";const vistos=new Set();
+    (cat.modelos||[]).slice().sort(porCod).forEach(m=>{const k=grupoKey(m);if(vistos.has(k))return;vistos.add(k);const G=grupoEje(m),cs=G.map(x=>x.cod),M=maqG(m);
+      const es=ejes.filter(e=>cs.includes(e.mod)&&e.estado!=="baja").sort(porCod);if(!es.length)return;const r=es.filter(revisado);const sinRev=es.filter(e=>!revisado(e));
+      const plSin=sinRev.filter(e=>estR(e)==="planta").length,dif=plSin-M;
+      const niv=!r.length?"":dif===0?"ok":dif>0?"bad":"warn";
+      const txt=!r.length?"sin empezar":dif===0?"cuadra":dif>0?"sobran "+dif:"faltan "+(-dif);
+      const abierto=st.abierto===k||st.abierto===m.cod;
+      const det=abierto?el("div",{style:"display:grid;gap:6px;padding:8px 0 4px"},[
+        el("p",{class:"hint",text:"Sin revisar en planta: "+plSin+" · máquinas que lo llevan: "+M+(inyDe(m).length||G.length>1?" ("+[...new Set([].concat(...G.map(inyDe)))].join(", ")+")":"")+". "+(dif>0?"Sobran "+dif+": de los que no has visto, alguno estará en el taller o perdido.":dif<0?"Faltan "+(-dif)+": algún eje que la app tiene en el taller estará puesto en máquina.":"Los que quedan sin revisar en planta son los puestos en máquina.")}),
+      ].concat(sinRev.map(e=>el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line2);padding-top:6px"},[
+        el("span",{},[el("b",{text:e.cod}),el("span",{class:"sub",text:" · "+(EST_E[e.estado]||[e.estado])[0]})]),
+        el("div",{style:"display:flex;gap:4px;flex-wrap:wrap"},[estR(e)!=="reparacion"?el("button",{type:"button",class:"btn sec peq",text:"Está en el taller",onclick:async()=>{await cambiarEstadoEje(e,"reparacion",hoy(),{cont:hoy()});toast(e.cod+" en taller");setTimeout(pinta,300);}}):null,
+          estR(e)!=="planta"?el("button",{type:"button",class:"btn sec peq",text:"Está en máquina",onclick:async()=>{await cambiarEstadoEje(e,"planta",hoy(),{cont:hoy()});toast(e.cod+" en planta");setTimeout(pinta,300);}}):null,
+          el("button",{type:"button",class:"btn txt peq",text:"Baja…",onclick:()=>confirmar("¿Dar de baja "+e.cod+"?","Solo si se ha desechado o perdido. Si puede estar en el taller, usa «Está en el taller». Su historial se conserva.","Dar de baja",async()=>{await cambiarEstadoEje(e,"baja",hoy(),{cont:hoy()});setTimeout(pinta,300);})})])])))):null;
+      lst.appendChild(el("div",{style:"border:1px solid var(--line2);border-radius:8px;padding:8px 10px"},[
+        el("button",{type:"button",style:"appearance:none;border:0;background:none;font:inherit;color:inherit;width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding:0;text-align:left",onclick:()=>{st.abierto=abierto?null:k;pinta();}},[
+          el("span",{},[el("b",{text:G.map(x=>x.cod).join(" + ")}),el("span",{class:"sub",text:" · "+r.length+"/"+es.length+" revisados"})]),
+          el("span",{class:"pill "+(niv||"na"),text:txt})]),det]));});}
+  pinta();
+  dlg("Revisar ejes",[el("p",{class:"hint",text:"Escribe el código grabado en cada eje que revises y pulsa Intro. Si un código ya está revisado te avisa: puede haber dos ejes con el mismo código. Los puestos en máquina no hace falta revisarlos: la app comprueba que cuadren con las máquinas."}),
+    cab,el("div",{style:"display:flex;gap:8px"},[cI,el("button",{type:"button",class:"btn",text:"Revisado",onclick:marcar})]),dl,res,lst],[{t:"Cerrar",cls:"sec"}]);
+  setTimeout(()=>cI.focus(),60);}
 
 /* ===== CATÁLOGO ===== */
 function vCat(v){
@@ -2096,7 +2172,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
   db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data())).filter(e=>e.estado!=="baja");listo("ejes");},()=>listo("ejes"));
