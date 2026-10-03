@@ -443,7 +443,7 @@ async function addPists(list){const g={};list.forEach(r=>{r.id=r.id||uid();r.ts=
 async function addPist(rec){rec.id=uid();rec.ts=Date.now();if(db.itemsAdd){await db.itemsAdd("pist",rec.f.slice(0,4),[rec]);return;}const ref=db.doc("pist/"+rec.f.slice(0,4)),sn=await ref.get();
   const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});}
 async function delPist(p){const ref=db.doc("pist/"+p.f.slice(0,4)),sn=await ref.get();if(!sn.exists)return;
-  await ref.set({items:(sn.data().items||[]).filter(x=>x.id!==p.id)});if(p.movId)await delMov(p.movId,p.f);}
+  await ref.set({items:(sn.data().items||[]).filter(x=>x.id!==p.id)});if(p.movId)await delMov(p.movId,p.f);try{await quitarPendPist(p.id);}catch(e){}}
 
 /* ---------- dialogs ---------- */
 function dlg(title,body,actions){const ov=el("div",{class:"dlg-ov",role:"dialog","aria-modal":"true","aria-label":title});
@@ -695,7 +695,7 @@ async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>fa
     else if(r.tipo==="conteo"){const st=stockDe(r.art,r.alm);movs.push({f:r.f,tipo:"ajuste",art:r.art,alm:r.alm,cant:Math.round((q-st)*1000)/1000,contado:q,teorico:st,nota:nota||"Recuento"});}
     else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo"&&r.maq)m.maq=r.maq;
       if(r.tipo==="entrada"){if(r.prov)m.prov=r.prov;if((r.alb||"").trim())m.alb=r.alb.trim();}movs.push(m);}});
-  try{if(movs.length)await addMovs(movs);if(pists.length)await addPists(pists);
+  try{if(movs.length)await addMovs(movs);if(pists.length){await addPists(pists);try{await ejePendDe(pists);}catch(e){}}
     for(const r of L.filter(x=>x.tipo.startsWith("eje_"))){const e=ejeDe(r.eje);if(!e)continue;
       if(r.tipo==="eje_prep"){await addRep({eje:e.cod,desp:r.desp.trim().toUpperCase(),alta:r.f,env:null});await updEje(e,{estado:"preparado"});}
       else if(r.tipo==="eje_env")await enviar([e],r.f);else await recibir([e],r.f,(r.alb||"").trim(),"ok");}
@@ -1068,7 +1068,7 @@ async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar 
     const pa=pistArt(d.diam);
     if(pa&&d.desc&&d.alm){const m=await addMov({f:d.f,tipo:"salida",art:pa.id,alm:d.alm,cant:q,maq:d.maq,nota:"Cambio de pistón · "+cap(d.motivo)});rec.movId=m.id;}
     await addPist(rec);
-    toast("Cambio registrado en "+maqN(d.maq));if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1"});
+    try{await ejePendDe([rec]);}catch(e){}toast("Cambio registrado en "+maqN(d.maq));if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1"});
   }catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));}
   render(true);}
 async function addMovs(list){const g={};list.forEach(r=>{r.id=r.id||uid();r.ts=Date.now();(g[mesDe(r.f)]=g[mesDe(r.f)]||[]).push(r);});
@@ -1305,12 +1305,12 @@ function modeloDeEje(cod){const e=ejes.find(x=>x.cod===cod);return e?e.mod:Strin
 function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anulada"&&(r.alta||r.env));if(!rs.length)return{D:0,L:[]};
   const f0=rs.map(r=>r.alta||r.env).sort()[0],lim=sumaDias(hy,-365);const ini=f0<lim?lim:f0;const D=Math.max(1,dias(ini,hy)+1);
   const vistos=new Set();const L=[];(cat.modelos||[]).forEach(m=>{const k=grupoKey(m);if(vistos.has(k))return;vistos.add(k);const G=grupoEje(m),cs=G.map(x=>x.cod);
-    const n=rs.filter(r=>(r.alta||r.env)>=ini&&cs.includes(modeloDeEje(r.eje))).length;const lam=n/D;const maq=maqG(m);
-    const es=ejes.filter(e=>cs.includes(e.mod));const pl=es.filter(e=>e.estado==="planta").length,tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
+    const pend=pendDeGrupo(m).length;const n=rs.filter(r=>(r.alta||r.env)>=ini&&cs.includes(modeloDeEje(r.eje))).length+pend;const lam=n/D;const maq=maqG(m);
+    const es=ejes.filter(e=>cs.includes(e.mod));const pl=Math.max(0,es.filter(e=>e.estado==="planta").length-pend),tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
     const min=maq+poisQ(lam*P.taller,P.nivel/100),ideal=Math.max(min+(lam>0?1:0),maq+poisQ(lam*(P.taller+30),P.nivel/100));
     const bajo=pl<=min;const pedir=bajo?Math.min(tal,Math.max(0,ideal-pl)):0;const faltan=bajo?Math.max(0,ideal-pl-tal):0;
     const ahora=Math.max(0,...G.map(x=>+x.min||0));
-    L.push({m,G,nom:grupoNom(m),n,lam,maq,pl,rep:Math.max(0,pl-maq),tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,ahora,mes:lam*S.dm});});
+    L.push({m,G,pend,nom:grupoNom(m),n,lam,maq,pl,rep:Math.max(0,pl-maq),tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,ahora,mes:lam*S.dm});});
   return{D,ini,L};}
 function prevTodo(){const P=prevCfg(),S=prevDatos();const arts=artsActivos().map(a=>sugArt(a,P,S)).filter(Boolean);return{P,S,arts,E:sugEjes(P,S)};}
 const fmtR=(x,cont)=>cont?String(Math.round(x)):fmtN(Math.round(x*10)/10);
@@ -1328,7 +1328,7 @@ function vPrev(v){const R=prevTodo(),{P,S,arts,E}=R;const mesN=nomMes(S.mesSig);
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes de inyección"}),el("span",{class:"der sub",text:"mínimo en planta por modelo"})]),
       el("div",{class:"lst"},Ls.map(x=>{const niv=x.faltan?"bad":x.pedir?"warn":"ok";
         return el("button",{type:"button",class:"it",onclick:()=>detEje(x,P)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.nom}),
-          el("div",{class:"t2",text:["en planta "+x.pl+": "+x.maq+(x.maq===1?" puesto":" puestos")+" en máquina + "+x.rep+" de repuesto"+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(x.ahora!==x.min?" (ahora "+x.ahora+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
+          el("div",{class:"t2",text:["en planta "+x.pl+": "+x.maq+(x.maq===1?" puesto":" puestos")+" en máquina + "+x.rep+" de repuesto"+(x.pend?" · "+x.pend+" roto sin número":"")+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(x.ahora!==x.min?" (ahora "+x.ahora+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
           x.faltan?el("div",{class:"cant num"},[el("b",{text:"+"+x.faltan}),el("small",{text:"faltan ejes"})]):x.pedir?el("div",{class:"cant num"},[el("b",{text:x.pedir}),el("small",{text:"pedir al taller"})]):el("span",{class:"pill ok",text:"OK"})]);})),
       el("p",{class:"hint",style:"padding:8px 14px",text:"Cada inyectora tiene siempre un eje puesto, que cuenta como «en planta». Si varios modelos van en las mismas máquinas (p. ej. 2.1.A y 2.1.A\" en F23 y F24), se cuentan juntos. Mínimo = los puestos en máquina + los que se pueden romper mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
   /* artículos */
@@ -1387,13 +1387,41 @@ const modelo=cod=>(cat.modelos||[]).find(m=>m.cod===cod);
 function grupoEje(m){const ms=cat.modelos||[];const S=new Set([m]);let ch=true;while(ch){ch=false;ms.forEach(x=>{if(S.has(x))return;const ix=inyDe(x);if(ix.length&&[...S].some(y=>inyDe(y).some(c=>ix.includes(c)))){S.add(x);ch=true;}});}return ms.filter(x=>S.has(x)).concat(S.has(m)&&!ms.includes(m)?[m]:[]);}
 const grupoKey=m=>grupoEje(m).map(x=>x.cod).join("+");
 const grupoNom=m=>grupoEje(m).map(x=>x.ref+" ("+x.cod+")").join(" + ");
-function plantaG(m){const cs=grupoEje(m).map(x=>x.cod);return ejes.filter(e=>cs.includes(e.mod)&&e.estado==="planta").length;}
+function plantaG(m){const cs=grupoEje(m).map(x=>x.cod);return Math.max(0,ejes.filter(e=>cs.includes(e.mod)&&e.estado==="planta").length-pendDeGrupo(m).length);}
 const maqG=m=>[...new Set([].concat(...grupoEje(m).map(inyDe)))].length;
 const unoPorGrupo=(x,i,a)=>a.findIndex(y=>grupoKey(y.m)===grupoKey(x.m))===i;
 function todasRep(){const o=[];Object.keys(reps).forEach(y=>(reps[y]||[]).forEach(r=>o.push(Object.assign({y},r))));return o;}
 function repsDe(cod){return todasRep().filter(r=>r.eje===cod).sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||""));}
 function abiertaDe(cod){const r=repsDe(cod).filter(x=>!x.res);return r[r.length-1];}
-async function addRep(rec){rec.id=uid();rec.ts=Date.now();const y=(rec.env||rec.alta).slice(0,4);const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});}
+async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();const y=(rec.env||rec.alta).slice(0,4);const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});
+  try{await resolverPend(rec.eje,pendId);}catch(e){}}
+/* --- ejes rotos sin identificar: un cambio de pistón por ROTURA en una máquina deja un eje de su modelo pendiente de preparar --- */
+const MOT_EJE=["ROTURA"];
+const ejePend=()=>cat.ejePend||[];
+const modsMaq=cod=>(cat.modelos||[]).filter(m=>inyDe(m).includes(cod));
+function pendDeGrupo(m){const cs=grupoEje(m).map(x=>x.cod);return ejePend().filter(p=>(p.mods||[]).some(c=>cs.includes(c)));}
+async function ejePendDe(recs){const nue=(recs||[]).filter(r=>r&&r.maq&&MOT_EJE.includes(r.motivo)).map(r=>{const cod=maqN(r.maq);return{id:uid(),f:r.f,maq:cod,mods:modsMaq(cod).map(m=>m.cod),pist:r.id||null,diam:r.diam||null};});
+  if(!nue.length)return;cat.ejePend=ejePend().concat(nue);await saveCat();setTimeout(()=>toast("Eje de "+nue.map(p=>p.maq).join(", ")+" apuntado para preparar (falta poner su número)"),2700);}
+async function resolverPend(ejeCod,pendId){const L=ejePend();if(!L.length)return;let i=pendId?L.findIndex(p=>p.id===pendId):-1;
+  if(i<0&&ejeCod){const mo=modelo(modeloDeEje(ejeCod));if(!mo)return;const cs=grupoEje(mo).map(x=>x.cod);i=L.map((p,k)=>[p,k]).filter(([p])=>(p.mods||[]).some(c=>cs.includes(c))).sort((a,b)=>a[0].f.localeCompare(b[0].f)).map(x=>x[1])[0];if(i==null)i=-1;}
+  if(i<0)return;cat.ejePend=L.filter((_,k)=>k!==i);await saveCat();}
+async function quitarPendPist(pistId){if(!pistId||!ejePend().some(p=>p.pist===pistId))return;cat.ejePend=ejePend().filter(p=>p.pist!==pistId);await saveCat();}
+function prepararPend(p){const cs=new Set();(p.mods||[]).forEach(c=>{const m=modelo(c);if(m)grupoEje(m).forEach(x=>cs.add(x.cod));});
+  const lista=ejes.filter(e=>e.estado==="planta"&&(!cs.size||cs.has(e.mod))).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
+  const f={eje:"",desp:"ROTURA DE PISTÓN"};const dl=el("datalist",{id:"lPendE"},lista.map(e=>el("option",{value:e.cod})));
+  dlg("Eje roto de la "+p.maq,[el("p",{class:"sub",text:"Cambio de pistón por rotura el "+fmtF(p.f)+(p.diam?" ("+p.diam+")":"")+". Modelo: "+((p.mods||[]).map(c=>{const m=modelo(c);return m?m.ref+" ("+c+")":c;}).join(" o ")||"no se sabe (la máquina no tiene eje en la ficha)")+"."}),
+    fld("Número del eje que se ha quitado",inp("pdE","",v=>f.eje=v.trim(),{list:"lPendE",autocomplete:"off",placeholder:lista[0]?"p. ej. "+lista[0].cod:"código del eje"})),dl,
+    fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off"}))],
+    [{t:"Cancelar",cls:"sec"},{t:"Preparar para enviar",fn:async()=>{const e=ejes.find(x=>norm(x.cod)===norm(f.eje));if(!e){toast("Ese eje no existe");return false;}
+      if(e.estado!=="planta"){toast(e.cod+" no está en planta");return false;}if(!f.desp.trim()){toast("Pon el desperfecto");return false;}
+      await addRep({eje:e.cod,desp:f.desp.trim().toUpperCase(),alta:p.f||hoy(),env:null},p.id);await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}}]);}
+function tarjetaPend(){const L=ejePend();if(!L.length)return null;
+  return el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Ejes rotos sin número ("+L.length+")"})),
+    el("div",{class:"lst"},L.slice().sort((a,b)=>a.f.localeCompare(b.f)).map(p=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe bad"}),
+      el("div",{class:"ppal"},[el("div",{class:"t1",text:p.maq+" · "+((p.mods||[]).join(" / ")||"modelo sin saber")}),el("div",{class:"t2",text:"Rotura de pistón el "+fmtF(p.f)+" · ya se ha puesto otro eje de planta"})]),
+      el("div",{style:"display:flex;gap:6px;width:100%;margin-top:4px;justify-content:flex-end"},[el("button",{type:"button",class:"btn sec peq",text:"No hay que repararlo",onclick:()=>confirmar("¿Quitar de la lista?","El eje de la "+p.maq+" no se manda a reparar.","Quitar",async()=>{cat.ejePend=ejePend().filter(x=>x.id!==p.id);await saveCat();render(true);})}),
+        el("button",{type:"button",class:"btn peq",text:"Poner número y preparar",onclick:()=>prepararPend(p)})])]))),
+    el("p",{class:"hint",style:"padding:8px 14px",text:"Salen solos al apuntar un cambio de pistón por rotura. Mientras no tengan número, ya cuentan como un eje menos en planta."})]);}
 async function updReps(list){const g={};list.forEach(([r,p])=>{(g[r.y]=g[r.y]||[]).push([r.id,p]);});
   for(const y of Object.keys(g)){const ref=db.doc("rep/"+y),sn=await ref.get();if(!sn.exists)continue;const m=new Map(g[y]);
     await ref.set({items:(sn.data().items||[]).map(x=>m.has(x.id)?Object.assign({},x,m.get(x.id)):x)});}}
@@ -1411,6 +1439,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
     el("button",{type:"button",class:"btn sec",text:"Nuevo eje",onclick:()=>formEje()})]));
   const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
   v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
+  const tp=tarjetaPend();if(tp)v.appendChild(tp);
   /* modelos bajo mínimo */
   const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m)})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
   if(bajos.length)v.appendChild(el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Modelos en el mínimo ("+bajos.length+")"})),
@@ -1867,7 +1896,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
   db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));listo("ejes");},()=>listo("ejes"));
