@@ -1426,7 +1426,7 @@ function tarjetaPend(){const L=ejePend();if(!L.length)return null;
   return el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Ejes quitados sin número ("+L.length+")"})),
     el("div",{class:"lst"},L.slice().sort((a,b)=>a.f.localeCompare(b.f)).map(p=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(p.motivo===AGARR?"warn":"bad")}),
       el("div",{class:"ppal"},[el("div",{class:"t1",text:p.maq+" · "+((p.mods||[]).join(" / ")||"modelo sin saber")}),el("div",{class:"t2",text:(p.motivo===AGARR?"Pistón agarrotado":"Rotura de pistón")+" el "+fmtF(p.f)+" · ya se ha puesto otro eje de planta"})]),
-      el("div",{style:"display:flex;gap:6px;width:100%;margin-top:4px;justify-content:flex-end"},[el("button",{type:"button",class:"btn sec peq",text:p.motivo===AGARR?"Recuperado en planta":"No hay que repararlo",onclick:()=>confirmar(p.motivo===AGARR?"¿Recuperado en planta?":"¿Quitar de la lista?",p.motivo===AGARR?"El eje de la "+p.maq+" se ha recuperado y vuelve a contar como disponible en planta.":"El eje de la "+p.maq+" no se manda a reparar.",p.motivo===AGARR?"Recuperado":"Quitar",async()=>{if(p.motivo===AGARR)await contarAgarr("rec");cat.ejePend=ejePend().filter(x=>x.id!==p.id);await saveCat();render(true);})}),
+      el("div",{style:"display:flex;gap:6px;width:100%;margin-top:4px;justify-content:flex-end"},[el("button",{type:"button",class:"btn sec peq",text:p.motivo===AGARR?"Recuperado en planta":"No hay que repararlo",onclick:()=>confirmar(p.motivo===AGARR?"¿Recuperado en planta?":"¿Quitar de la lista?",p.motivo===AGARR?"El eje de la "+p.maq+" se ha recuperado y vuelve a contar como disponible en planta.":"El eje de la "+p.maq+" no se manda a reparar.",p.motivo===AGARR?"Recuperado":"Quitar",async()=>{if(p.motivo===AGARR){await contarAgarr("rec");cat.ejeRecup=ejeRecup().concat([{id:uid(),f:hoy(),fPist:p.f,maq:p.maq,mods:p.mods||[]}]);}cat.ejePend=ejePend().filter(x=>x.id!==p.id);await saveCat();render(true);})}),
         el("button",{type:"button",class:"btn peq",text:"Poner número y preparar",onclick:()=>prepararPend(p)})])]))),
     el("p",{class:"hint",style:"padding:8px 14px",text:"Salen solos al apuntar un cambio de pistón por rotura o por pistón agarrotado. Mientras estén aquí cuentan como un eje menos en planta. De los agarrotados se recupera en planta un "+Math.round(tasaRecup()*100)+" % (se va ajustando con lo que marcas)."})]);}
 async function updReps(list){const g={};list.forEach(([r,p])=>{(g[r.y]=g[r.y]||[]).push([r.id,p]);});
@@ -1475,6 +1475,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
       return el("button",{type:"button",class:"it",onclick:()=>fichaModelo(m)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:m.ref}),
         el("div",{class:"t2",text:[m.cod,m.iny,es.filter(e=>e.estado!=="planta").length?es.filter(e=>e.estado!=="planta").length+" fuera":null].filter(Boolean).join(" · ")})]),
         el("div",{class:"cant num"},[el("b",{text:p+"/"+es.length}),el("small",{text:"en planta"+(+m.min>0?" · mín "+m.min:"")})])]);})):el("div",{class:"empty",text:"Sin modelos. Añádelos en Catálogo."})]));
+  v.appendChild(informeCostes());
   v.appendChild(analisisEjes());
   pintaBus();}
 function pintaBus(){const box=$("eRes");if(!box)return;box.textContent="";const q=(draft.eb||"").trim().toLowerCase();if(!q)return;
@@ -1543,8 +1544,8 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
   dlg("Eje "+e.cod,body,acts);}
 async function enviar(list,f){const ups=[];for(const e of list){const ab=abiertaDe(e.cod);if(ab&&!ab.env)ups.push([ab,{env:f}]);else await addRep({eje:e.cod,desp:"—",alta:f,env:f});}
   if(ups.length)await updReps(ups);for(const e of list)await updEje(e,{estado:"reparacion"});}
-async function recibir(list,f,alb,res,obs){const ups=[];list.forEach(e=>{const ab=abiertaDe(e.cod);if(!ab)return;
-  if(res==="ok")ups.push([ab,{res:"ok",rec:f,alb:alb||ab.alb||null}]);else ups.push([ab,{nook:true,dev:f,obs:obs||null,alb:alb||ab.alb||null}]);});
+async function recibir(list,f,alb,res,obs,imp){const ups=[];list.forEach(e=>{const ab=abiertaDe(e.cod);if(!ab)return;
+  if(res==="ok")ups.push([ab,Object.assign({res:"ok",rec:f,alb:alb||ab.alb||null},imp>0?{imp}:{})]);else ups.push([ab,{nook:true,dev:f,obs:obs||null,alb:alb||ab.alb||null}]);});
   if(ups.length)await updReps(ups);for(const e of list)await updEje(e,{estado:res==="ok"?"planta":"devuelto"});}
 function checkList(list,marc){const sel0=new Set(marc instanceof Set?Array.from(marc):marc?list.map(e=>e.id):[]);
   const box=el("div",{class:"card"},el("div",{class:"lst"},list.map(e=>{const ab=abiertaDe(e.cod);return el("label",{class:"chk it",style:"cursor:pointer"},[el("input",{type:"checkbox",checked:sel0.has(e.id),onchange:ev=>{ev.target.checked?sel0.add(e.id):sel0.delete(e.id);}}),
@@ -1578,9 +1579,9 @@ function mensajeTaller(list,provId){const pv=cat.proveedores.find(x=>x.id===prov
 function envioMultiple(){const list=ejes.filter(e=>e.estado==="preparado").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy()};const cl=checkList(list,true);
   dlg("Enviar a reparar",[fld("Fecha de envío",inp("emF",f.f,v=>f.f=v,{type:"date"})),el("p",{class:"hint",text:"Desmarca los que no quieras enviar todavía: se quedan como «Preparado para enviar» para otro día."}),cl.box],
     [{t:"Cancelar",cls:"sec"},{t:"Enviar",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await enviar(s,f.f);toast(s.length+" ejes enviados a reparar");}catch(er){toast("No se pudo guardar");return false;}}}]);}
-function recepcionMultiple(){const list=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy(),alb:""};const cl=checkList(list,false);
-  dlg("Recibir de reparación",[fld("Fecha de recepción",inp("rmF",f.f,v=>f.f=v,{type:"date"})),fld("Albarán",inp("rmA","",v=>f.alb=v,{autocomplete:"off"})),el("p",{class:"hint",text:"Marca los ejes que llegan bien (OK). Si alguno llega mal, regístralo desde su ficha como NO-OK."}),cl.box],
-    [{t:"Cancelar",cls:"sec"},{t:"Recibir OK",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await recibir(s,f.f,f.alb,"ok");toast(s.length+" ejes recibidos OK");}catch(er){toast("No se pudo guardar");return false;}}}]);}
+function recepcionMultiple(){const list=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy(),alb:"",imp:""};const cl=checkList(list,false);
+  dlg("Recibir de reparación",[fld("Fecha de recepción",inp("rmF",f.f,v=>f.f=v,{type:"date"})),fld("Albarán",inp("rmA","",v=>f.alb=v,{autocomplete:"off"})),fld("Importe por eje en € (opcional; si no, se usa el precio del modelo)",inp("rmI","",v=>f.imp=v,{inputmode:"decimal",class:"num"})),el("p",{class:"hint",text:"Marca los ejes que llegan bien (OK). Si alguno llega mal, regístralo desde su ficha como NO-OK."}),cl.box],
+    [{t:"Cancelar",cls:"sec"},{t:"Recibir OK",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await recibir(s,f.f,f.alb,"ok",null,parseN(f.imp));toast(s.length+" ejes recibidos OK");}catch(er){toast("No se pudo guardar");return false;}}}]);}
 function analisisEjes(){const all=todasRep().filter(r=>r.env&&r.res!=="anulada"),hy=hoy(),ano=hy.slice(0,4);
   const pm={};all.forEach(r=>{if(r.env.startsWith(ano)){const m=+r.env.slice(5,7);(pm[m]=pm[m]||{e:0,r:0}).e++;}if(r.res==="ok"&&r.rec&&r.rec.startsWith(ano)){const m=+r.rec.slice(5,7);(pm[m]=pm[m]||{e:0,r:0}).r++;}});
   const pe={};all.forEach(r=>{const x=pe[r.eje]=pe[r.eje]||{n:0,d:0,u:""};x.n++;x.d+=dias(r.env,r.res&&r.rec?r.rec:hy);if(r.env>x.u)x.u=r.env;});
@@ -1593,6 +1594,73 @@ function analisisEjes(){const all=todasRep().filter(r=>r.env&&r.res!=="anulada")
     el("div",{class:"gh",text:"Envíos y recepciones OK · "+ano}),t([["Mes"],["Enviados",1],["Recibidos OK",1]],ms.map(m=>el("tr",{},[el("td",{text:cap(MESES[m-1])}),el("td",{class:"r num",text:pm[m].e}),el("td",{class:"r num",text:pm[m].r})]))),
     el("div",{class:"gh",text:"Ejes con más reparaciones"}),t([["Eje"],["Ref."],["Reparaciones",1],["Días fuera",1],["Último envío"]],top.map(([k,x])=>{const e=ejes.find(z=>z.cod===k);return el("tr",{},[el("td",{},el("b",{text:k})),el("td",{text:e?ejeRef(e):"—"}),el("td",{class:"r num",text:x.n}),el("td",{class:"r num",text:x.d}),el("td",{class:"num",text:fmtF(x.u)})]);})),
     el("div",{class:"gh",text:"Plazo y calidad por albarán"}),t([["Albarán"],["Ejes",1],["Días medios",1],["NO-OK",1]],albs.map(([k,x])=>el("tr",{},[el("td",{class:"num",text:k}),el("td",{class:"r num",text:x.n}),el("td",{class:"r num",text:fmtN(Math.round(x.d/x.n*10)/10)}),el("td",{class:"r num",text:x.nk?x.nk+" ("+Math.round(x.nk/x.n*100)+" %)":"—"})])))]);}
+
+/* ===== COSTES DE REPARACIÓN DE EJES Y AHORRO POR RECUPERAR EN PLANTA ===== */
+const eur=n=>(Math.round((+n||0)*100)/100).toLocaleString("es-ES",{minimumFractionDigits:0,maximumFractionDigits:2})+" €";
+const precioMod=cod=>{const m=modelo(cod);return m&&+m.precioRep>0?+m.precioRep:0;};
+function costeRep(r){if(+r.imp>0)return{v:+r.imp,o:"albarán"};const p=precioMod(modeloDeEje(r.eje));return p?{v:p,o:"precio del modelo"}:{v:0,o:"sin precio"};}
+const ejeRecup=()=>cat.ejeRecup||[];
+function periodoIC(k){const hy=hoy(),y=hy.slice(0,4),m=hy.slice(0,7);
+  if(k==="mes")return{d:m+"-01",h:hy,t:"Este mes ("+fmtMes(m)+")"};
+  if(k==="mesant"){const p=sumaDias(m+"-01",-1);return{d:p.slice(0,7)+"-01",h:p,t:cap(fmtMes(p.slice(0,7)))};}
+  if(k==="ano")return{d:y+"-01-01",h:hy,t:"Año "+y};
+  return{d:sumaDias(hy,-365),h:hy,t:"Últimos 12 meses"};}
+function datosIC(k){const P=periodoIC(k),en=f=>f&&f>=P.d&&f<=P.h;
+  const reps=todasRep().filter(r=>r.res!=="anulada");
+  const recib=reps.filter(r=>r.res==="ok"&&en(r.rec)).map(r=>Object.assign({},r,{mod:modeloDeEje(r.eje),c:costeRep(r)}));
+  const env=reps.filter(r=>en(r.env));
+  const taller=reps.filter(r=>r.env&&!r.res).map(r=>Object.assign({},r,{mod:modeloDeEje(r.eje),c:costeRep(r)}));
+  const recu=ejeRecup().filter(x=>en(x.f)).map(x=>{const mod=(x.mods||[])[0]||"";return Object.assign({},x,{mod,ah:precioMod(mod)});});
+  const porMod={};const pm=k2=>porMod[k2]=porMod[k2]||{rep:0,coste:0,rec:0,ahorro:0};
+  recib.forEach(r=>{const x=pm(r.mod);x.rep++;x.coste+=r.c.v;});recu.forEach(r=>{const x=pm(r.mod);x.rec++;x.ahorro+=r.ah;});
+  const porMes={};recib.forEach(r=>{const x=porMes[r.rec.slice(0,7)]=porMes[r.rec.slice(0,7)]||{rep:0,coste:0,rec:0,ahorro:0};x.rep++;x.coste+=r.c.v;});
+  recu.forEach(r=>{const x=porMes[r.f.slice(0,7)]=porMes[r.f.slice(0,7)]||{rep:0,coste:0,rec:0,ahorro:0};x.rec++;x.ahorro+=r.ah;});
+  const sinPrecio=[...new Set(recib.filter(r=>!r.c.v).map(r=>r.mod).concat(recu.filter(r=>!r.ah).map(r=>r.mod)).concat(taller.filter(r=>!r.c.v).map(r=>r.mod)))].filter(Boolean);
+  return{P,recib,env,taller,recu,porMod,porMes,sinPrecio,coste:recib.reduce((t,r)=>t+r.c.v,0),ahorro:recu.reduce((t,r)=>t+r.ah,0),costeTaller:taller.reduce((t,r)=>t+r.c.v,0)};}
+function textoIC(D){const L=["INFORME DE EJES DE INYECCIÓN · "+D.P.t.toUpperCase()+" · MAPRI",""];
+  L.push("Reparados por el taller (recibidos OK): "+D.recib.length+" ejes · coste "+eur(D.coste));
+  L.push("Recuperados en planta (no se mandaron al taller): "+D.recu.length+" ejes · ahorro "+eur(D.ahorro));
+  L.push("Enviados a reparar en el periodo: "+D.env.length);
+  L.push("En el taller ahora: "+D.taller.length+" ejes · coste previsto "+eur(D.costeTaller));L.push("");
+  const ks=Object.keys(D.porMod).sort((a,b)=>D.porMod[b].coste-D.porMod[a].coste);
+  if(ks.length){L.push("POR MODELO:");ks.forEach(k=>{const x=D.porMod[k],m=modelo(k);L.push("- "+(m?m.ref+" ("+k+")":k)+": "+x.rep+" reparados ("+eur(x.coste)+")"+(x.rec?" · "+x.rec+" recuperados ("+eur(x.ahorro)+" ahorrados)":""));});}
+  if(D.sinPrecio.length){L.push("");L.push("Sin precio de reparación (no suman): "+D.sinPrecio.join(", "));}
+  return L.join("\n");}
+function informeCostes(){draft.ic=draft.ic||"12m";const D=datosIC(draft.ic);
+  const seg=el("div",{class:"seg",role:"group","aria-label":"Periodo"},[["mes","Este mes"],["mesant","Mes pasado"],["ano","Este año"],["12m","12 meses"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.ic===k),text:t,onclick:()=>{draft.ic=k;render(true);}})));
+  const t=(h,rows)=>el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},h.map(([x,r])=>el("th",{class:r?"r":null,text:x})))),el("tbody",{},rows)]));
+  const ks=Object.keys(D.porMod).sort((a,b)=>D.porMod[b].coste+D.porMod[b].ahorro-D.porMod[a].coste-D.porMod[a].ahorro);const ms=Object.keys(D.porMes).sort();
+  return el("details",{class:"card",open:draft.icOpen?true:null,ontoggle:e=>{draft.icOpen=e.target.open;}},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"Costes de reparación y ahorro"})),
+    el("div",{class:"bd",style:"display:grid;gap:10px"},[seg,
+      el("dl",{class:"kpis num"},[["Coste taller",eur(D.coste)],["Reparados",String(D.recib.length)],["Ahorro en planta",eur(D.ahorro)],["Recuperados",String(D.recu.length)],["En taller ahora",D.taller.length+" · "+eur(D.costeTaller)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
+      D.sinPrecio.length?el("div",{class:"banner",text:"Sin precio de reparación: "+D.sinPrecio.join(", ")+". Esos ejes no suman. Ponlo en «Precios de reparación»."}):null,
+      el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Descargar Excel",onclick:e=>excelIC(D,e.currentTarget)}),
+        el("button",{type:"button",class:"btn sec",text:"Copiar resumen",onclick:async()=>{const tx=textoIC(D);try{await navigator.clipboard.writeText(tx);toast("Resumen copiado");}catch(er){dlg("Resumen",el("textarea",{readonly:true,style:"min-height:240px;font-size:13px",value:tx}),[{t:"Cerrar",cls:"sec"}]);}}}),
+        el("button",{type:"button",class:"btn sec",text:"Precios de reparación",onclick:formPrecios})])]),
+    ks.length?el("div",{class:"gh",text:"Por modelo · "+D.P.t}):null,ks.length?t([["Modelo"],["Reparados",1],["Coste",1],["Recuperados",1],["Ahorro",1]],ks.map(k=>{const x=D.porMod[k],m=modelo(k);return el("tr",{},[el("td",{text:m?m.ref+" ("+k+")":k}),el("td",{class:"r num",text:x.rep}),el("td",{class:"r num",text:eur(x.coste)}),el("td",{class:"r num",text:x.rec}),el("td",{class:"r num",text:eur(x.ahorro)})]);})):el("p",{class:"hint",style:"padding:8px 14px",text:"No hay reparaciones recibidas ni ejes recuperados en este periodo."}),
+    ms.length>1?el("div",{class:"gh",text:"Por mes"}):null,ms.length>1?t([["Mes"],["Reparados",1],["Coste",1],["Recuperados",1],["Ahorro",1]],ms.map(k=>{const x=D.porMes[k];return el("tr",{},[el("td",{text:cap(fmtMes(k))}),el("td",{class:"r num",text:x.rep}),el("td",{class:"r num",text:eur(x.coste)}),el("td",{class:"r num",text:x.rec}),el("td",{class:"r num",text:eur(x.ahorro)})]);})):null,
+    el("p",{class:"hint",style:"padding:8px 14px",text:"Coste = importe del albarán si lo pusiste al recibir; si no, el precio de reparación del modelo. Ahorro = precio de reparación de cada eje con pistón agarrotado que recuperas en planta («Recuperado en planta»)."})]);}
+function formPrecios(){const x={};(cat.modelos||[]).forEach(m=>x[m.id]=m.precioRep||"");
+  const mods=(cat.modelos||[]).slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
+  dlg("Precios de reparación por modelo",[el("p",{class:"hint",text:"Lo que suele cobrar el taller por reparar un eje de cada modelo. Si al recibir pones el importe del albarán, se usa ese."}),
+    el("div",{class:"tw"},el("table",{},el("tbody",{},mods.map(m=>el("tr",{},[el("td",{},[el("div",{text:m.ref}),el("div",{class:"sub",text:m.cod})]),el("td",{},inp("pr"+m.id,x[m.id],v=>x[m.id]=v,{inputmode:"decimal",class:"num",placeholder:"€",style:"width:90px;padding:7px 6px;font-size:16px"}))])))))],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{(cat.modelos||[]).forEach(m=>{const n=parseN(x[m.id]);if(isFinite(n)&&n>0)m.precioRep=n;else delete m.precioRep;});try{await saveCat();toast("Precios guardados");}catch(e){return false;}render(true);}}]);}
+async function excelIC(D,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
+  try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const ref=c=>{const m=modelo(c);return m?m.ref:"";};
+    const res=[["Informe de ejes de inyección · MAPRI"],["Periodo",D.P.t+" ("+fmtF(D.P.d)+" a "+fmtF(D.P.h)+")"],[],["Reparados por el taller (recibidos OK)",D.recib.length],["Coste de reparación (€)",Math.round(D.coste*100)/100],
+      ["Recuperados en planta",D.recu.length],["Ahorro por recuperar en planta (€)",Math.round(D.ahorro*100)/100],["Enviados a reparar en el periodo",D.env.length],["En el taller ahora",D.taller.length],["Coste previsto de los que están en el taller (€)",Math.round(D.costeTaller*100)/100]];
+    if(D.sinPrecio.length)res.push([],["Modelos sin precio (no suman)",D.sinPrecio.join(", ")]);
+    const w1=X.utils.aoa_to_sheet(res);w1["!cols"]=[{wch:48},{wch:40}];X.utils.book_append_sheet(wb,w1,"Resumen");
+    const pm=Object.keys(D.porMod).map(k=>{const x=D.porMod[k];return{"Modelo":k,"Referencia":ref(k),"Reparados":x.rep,"Coste (€)":Math.round(x.coste*100)/100,"Recuperados en planta":x.rec,"Ahorro (€)":Math.round(x.ahorro*100)/100,"Precio reparación (€)":precioMod(k)||""};});
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(pm.length?pm:[{"Modelo":"Sin datos"}]),"Por modelo");
+    const pmes=Object.keys(D.porMes).sort().map(k=>{const x=D.porMes[k];return{"Mes":cap(fmtMes(k)),"Reparados":x.rep,"Coste (€)":Math.round(x.coste*100)/100,"Recuperados en planta":x.rec,"Ahorro (€)":Math.round(x.ahorro*100)/100};});
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(pmes.length?pmes:[{"Mes":"Sin datos"}]),"Por mes");
+    const det=D.recib.sort((a,b)=>a.rec.localeCompare(b.rec)).map(r=>({"Eje":r.eje,"Modelo":r.mod,"Referencia":ref(r.mod),"Desperfecto":r.desp||"","Enviado":r.env?fmtF(r.env):"","Recibido":fmtF(r.rec),"Albarán":r.alb||"","Coste (€)":r.c.v||"","Origen del coste":r.c.o}));
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(det.length?det:[{"Eje":"Sin reparaciones en el periodo"}]),"Reparaciones");
+    const rc=D.recu.sort((a,b)=>a.f.localeCompare(b.f)).map(r=>({"Fecha recuperado":fmtF(r.f),"Inyectora":r.maq,"Modelo":r.mod,"Referencia":ref(r.mod),"Cambio de pistón":r.fPist?fmtF(r.fPist):"","Ahorro (€)":r.ah||""}));
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(rc.length?rc:[{"Fecha recuperado":"Sin ejes recuperados en el periodo"}]),"Recuperados en planta");
+    await downloads.save({filename:"Informe_ejes_"+D.P.d+"_"+D.P.h+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Informe descargado");
+  }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el informe");}btn.disabled=false;}
 
 /* ===== CATÁLOGO ===== */
 function vCat(v){
@@ -1903,7 +1971,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
   db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));listo("ejes");},()=>listo("ejes"));
