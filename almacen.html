@@ -1328,9 +1328,9 @@ function vPrev(v){const R=prevTodo(),{P,S,arts,E}=R;const mesN=nomMes(S.mesSig);
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes de inyección"}),el("span",{class:"der sub",text:"mínimo en planta por modelo"})]),
       el("div",{class:"lst"},Ls.map(x=>{const niv=x.faltan?"bad":x.pedir?"warn":"ok";
         return el("button",{type:"button",class:"it",onclick:()=>detEje(x,P)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.nom}),
-          el("div",{class:"t2",text:["en planta "+x.pl+": "+x.maq+(x.maq===1?" puesto":" puestos")+" en máquina + "+x.rep+" de repuesto"+(x.pend?" · "+x.pend+" quitado sin número":"")+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(x.ahora!==x.min?" (ahora "+x.ahora+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
+          el("div",{class:"t2",text:["en planta "+x.pl+": "+x.maq+(x.maq===1?" puesto":" puestos")+" en máquina + "+x.rep+" de repuesto"+(x.pend?" · "+x.pend+" quitado sin número":"")+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(x.ahora!==x.min?" (ahora "+x.ahora+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" a reparar/mes":"ninguno a reparar"].join(" · ")})]),
           x.faltan?el("div",{class:"cant num"},[el("b",{text:"+"+x.faltan}),el("small",{text:"faltan ejes"})]):x.pedir?el("div",{class:"cant num"},[el("b",{text:x.pedir}),el("small",{text:"pedir al taller"})]):el("span",{class:"pill ok",text:"OK"})]);})),
-      el("p",{class:"hint",style:"padding:8px 14px",text:"Cada inyectora tiene siempre un eje puesto, que cuenta como «en planta». Si varios modelos van en las mismas máquinas (p. ej. 2.1.A y 2.1.A\" en F23 y F24), se cuentan juntos. Mínimo = los puestos en máquina + los que se pueden romper mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
+      el("p",{class:"hint",style:"padding:8px 14px",text:"Cada inyectora tiene siempre un eje puesto, que cuenta como «en planta». Si varios modelos van en las mismas máquinas (p. ej. 2.1.A y 2.1.A\" en F23 y F24), se cuentan juntos. Mínimo = los puestos en máquina + los que pueden tener que ir a reparar (por cualquier desperfecto) mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
   /* artículos */
   const fila=x=>{const niv=x.pedir>0?(x.st<x.min?"bad":"warn"):"ok";const ud=x.a.ud;
     return el("button",{type:"button",class:"it",onclick:()=>detArt(x,P,S)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.a.desc}),
@@ -1342,7 +1342,7 @@ function vPrev(v){const R=prevTodo(),{P,S,arts,E}=R;const mesN=nomMes(S.mesSig);
   if(otros.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consumibles y recambios ("+otros.length+")"}),el("span",{class:"der sub",text:"previsión de "+mesN})]),el("div",{class:"lst"},otros.map(fila))]));
   const sin=artsActivos().filter(a=>!arts.some(x=>x.a.id===a.id));
   if(sin.length)v.appendChild(el("details",{class:"card"},[el("summary",{class:"gh",style:"cursor:pointer",text:sin.length+" artículos sin consumos registrados (sin previsión)"}),el("p",{class:"hint",style:"padding:8px 14px",text:sin.map(a=>a.desc).sort((a,b)=>a.localeCompare(b,"es")).join(" · ")})]));
-  v.appendChild(el("p",{class:"hint",text:"Se calcula con los consumos reales (últimos 6 meses como máximo) y las roturas de ejes del último año, con una seguridad del "+P.nivel+" %. «Pedir» = lo que se gastará hasta final de "+mesN+" + el mínimo − el stock − lo ya pedido. «Planta» = lo que conviene tener en cada almacén de producción para "+P.cob+" días."}));}
+  v.appendChild(el("p",{class:"hint",text:"Se calcula con los consumos reales (últimos 6 meses como máximo) y las ejes mandados a reparar en el último año (por cualquier desperfecto), con una seguridad del "+P.nivel+" %. «Pedir» = lo que se gastará hasta final de "+mesN+" + el mínimo − el stock − lo ya pedido. «Planta» = lo que conviene tener en cada almacén de producción para "+P.cob+" días."}));}
 function detArt(x,P,S){const a=x.a,ud=a.ud,mesN=nomMes(S.mesSig);
   const filas=[["Gasta de media",fmtN(Math.round(x.mesUd*10)/10)+" "+ud+"/mes"],["Previsión de "+mesN,fmtR(x.mes.lo,x.cont)+" a "+fmtR(x.mes.hi,x.cont)+" "+ud+" (lo normal "+fmtR(x.mes.mu,x.cont)+")"],
     ["Plazo de entrega",x.pl+" días"+(x.plA?"":" (no tiene plazo puesto; uso "+P.plazo+")")],["Stock mínimo sugerido",fmtN(x.min)+" "+ud+" (ahora "+fmtN(+a.min||0)+")"],
@@ -1351,7 +1351,7 @@ function detArt(x,P,S){const a=x.a,ud=a.ud,mesN=nomMes(S.mesSig);
   dlg(a.desc,[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
     el("p",{class:"hint",text:x.plA?"El mínimo es el colchón para los días malos: la app ya suma aparte lo que se gasta durante el plazo de entrega para avisarte de pedir.":"Como no tiene plazo de entrega, el mínimo incluye lo que se gasta en "+P.plazo+" días más el colchón. Pon el plazo en su ficha y el cálculo se ajusta."})],
     [{t:"Cerrar",cls:"sec"}]);}
-function detEje(x,P){const filas=[["Inyectoras",[...new Set([].concat(...x.G.map(inyDe)))].join(", ")||"—"],["Roturas en el último año",fmtN(Math.round(x.n*10)/10)],["Roturas previstas en el mes",fmtN(Math.round(x.mes*10)/10)],
+function detEje(x,P){const filas=[["Inyectoras",[...new Set([].concat(...x.G.map(inyDe)))].join(", ")||"—"],["Mandados a reparar en el último año",fmtN(Math.round(x.n*10)/10)],["Previstos a reparar en el mes",fmtN(Math.round(x.mes*10)/10)],
   ["En planta",x.pl+" de "+x.tot],["Puestos en máquina",String(x.maq)],["De repuesto",String(x.rep)],["En el taller",String(x.tal)],["Preparados para enviar",String(x.prep)],["Mínimo en planta (con los puestos)",x.min+" (ahora "+x.ahora+")"],["Ideal en planta",String(x.ideal)]];
   dlg(x.nom,[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
     x.faltan?el("div",{class:"banner",text:"Aunque traigas todos los del taller no llegas al ideal: faltan "+x.faltan+" eje(s) de este modelo."}):null,
@@ -1413,10 +1413,12 @@ async function resolverPend(ejeCod,pendId){const L=ejePend();if(!L.length)return
 async function quitarPendPist(pistId){if(!pistId||!ejePend().some(p=>p.pist===pistId))return;cat.ejePend=ejePend().filter(p=>p.pist!==pistId);await saveCat();}
 function prepararPend(p){const cs=new Set();(p.mods||[]).forEach(c=>{const m=modelo(c);if(m)grupoEje(m).forEach(x=>cs.add(x.cod));});
   const lista=ejes.filter(e=>e.estado==="planta"&&(!cs.size||cs.has(e.mod))).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
-  const ag=p.motivo===AGARR;const f={eje:"",desp:ag?"PISTÓN AGARROTADO":"ROTURA DE PISTÓN"};const dl=el("datalist",{id:"lPendE"},lista.map(e=>el("option",{value:e.cod})));
+  const ag=p.motivo===AGARR;const f={eje:"",desp:ag?"":"ROTURA DE PISTÓN"};
+  const cuenta={};todasRep().forEach(r=>{const d=String(r.desp||"").trim().toUpperCase();if(d&&d!=="—")cuenta[d]=(cuenta[d]||0)+1;});
+  const dlD=el("datalist",{id:"lPendD"},Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,40).map(d=>el("option",{value:d})));const dl=el("datalist",{id:"lPendE"},lista.map(e=>el("option",{value:e.cod})));
   dlg((ag?"Eje con pistón agarrotado de la ":"Eje roto de la ")+p.maq,[el("p",{class:"sub",text:"Cambio de pistón por "+(ag?"pistón agarrotado":"rotura")+" el "+fmtF(p.f)+(p.diam?" ("+p.diam+")":"")+". Modelo: "+((p.mods||[]).map(c=>{const m=modelo(c);return m?m.ref+" ("+c+")":c;}).join(" o ")||"no se sabe (la máquina no tiene eje en la ficha)")+"."}),
     fld("Número del eje que se ha quitado",inp("pdE","",v=>f.eje=v.trim(),{list:"lPendE",autocomplete:"off",placeholder:lista[0]?"p. ej. "+lista[0].cod:"código del eje"})),dl,
-    fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off"}))],
+    fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off",list:"lPendD",placeholder:"p. ej. NO SE PUEDE SACAR EL PISTÓN, FUGA DE AGUA, POROS…"})),dlD],
     [{t:"Cancelar",cls:"sec"},{t:"Preparar para enviar",fn:async()=>{const e=ejes.find(x=>norm(x.cod)===norm(f.eje));if(!e){toast("Ese eje no existe");return false;}
       if(e.estado!=="planta"){toast(e.cod+" no está en planta");return false;}if(!f.desp.trim()){toast("Pon el desperfecto");return false;}
       await addRep({eje:e.cod,desp:f.desp.trim().toUpperCase(),alta:p.f||hoy(),env:null},p.id);await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}}]);}
