@@ -1376,7 +1376,7 @@ function sugArt(a,P,S){const s=S.art[a.id];if(!s||!(s.rate>0))return null;const 
   const dot={};lineas().forEach(l=>{const r=S.alm[a.id+"|"+l.id];if(r>0)dot[l.id]=Math.max(cont?1:0,cuantil(r*P.cob,disp*r*P.cob,cont,P.nivel));});
   return{a,s,cont,pl,plA,min,muL,mes,st,pend,pedir,dot,mesUd:s.rate*30.4};}
 function modeloDeEje(cod){const e=ejes.find(x=>x.cod===cod);return e?e.mod:String(cod||"").replace(/-\d+$/,"");}
-function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anulada"&&(r.alta||r.env));if(!rs.length)return{D:0,L:[]};
+function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anulada"&&!r.recuento&&(r.alta||r.env));if(!rs.length)return{D:0,L:[]};
   const f0=rs.map(r=>r.alta||r.env).sort()[0],lim=sumaDias(hy,-365);const ini=f0<lim?lim:f0;const D=Math.max(1,dias(ini,hy)+1);
   const vistos=new Set();const L=[];(cat.modelos||[]).forEach(m=>{const k=grupoKey(m);if(vistos.has(k))return;vistos.add(k);const G=grupoEje(m),cs=G.map(x=>x.cod);
     const pd=pendDeGrupo(m),pend=pd.length;const n=rs.filter(r=>(r.alta||r.env)>=ini&&cs.includes(modeloDeEje(r.eje))).length+pd.reduce((t,p)=>t+pesoPend(p),0);const lam=n/D;const maq=maqG(m);
@@ -1468,7 +1468,7 @@ function todasRep(){const o=[];Object.keys(reps).forEach(y=>(reps[y]||[]).forEac
 function repsDe(cod){return todasRep().filter(r=>r.eje===cod).sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||""));}
 function abiertaDe(cod){const r=repsDe(cod).filter(x=>!x.res);return r[r.length-1];}
 async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();const y=(rec.env||rec.alta).slice(0,4);const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});
-  try{await resolverPend(rec.eje,pendId);}catch(e){}}
+  if(!rec.recuento)try{await resolverPend(rec.eje,pendId);}catch(e){}}
 /* --- ejes rotos sin identificar: un cambio de pistón por ROTURA en una máquina deja un eje de su modelo pendiente de preparar --- */
 const MOT_EJE=["ROTURA","PISTÓN AGARROTADO"];
 const AGARR="PISTÓN AGARROTADO";
@@ -1517,6 +1517,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   v.appendChild(el("div",{class:"acciones"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
+    el("button",{type:"button",class:"btn sec",text:"Recuento",onclick:()=>recuentoEjes()}),
     el("button",{type:"button",class:"btn sec",text:"Nuevo eje",onclick:()=>formEje()})]));
   const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
   v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
@@ -1735,6 +1736,56 @@ async function excelIC(D,btn){if(!downloads){toast("Esta vista no permite descar
     X.utils.book_append_sheet(wb,X.utils.json_to_sheet(rc.length?rc:[{"Fecha recuperado":"Sin ejes recuperados en el periodo"}]),"Recuperados en planta");
     await downloads.save({filename:"Informe_ejes_"+D.P.d+"_"+D.P.h+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Informe descargado");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el informe");}btn.disabled=false;}
+
+/* ===== RECUENTO DE EJES: revisar modelo a modelo dónde está cada eje y ajustar ===== */
+const EST_R=[["planta","En planta"],["preparado","Preparado"],["reparacion","En taller"],["baja","No está"]];
+const estR=e=>e.estado==="devuelto"?"reparacion":e.estado;
+const porCod=(a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true});
+function recuentoEjes(modIni){const mods=(cat.modelos||[]).slice().sort(porCod);if(!mods.length){toast("No hay modelos de eje");return;}
+  const st={mod:modIni||mods[0].cod,f:hoy(),cam:{},nue:[],vistos:new Set()};
+  const cuerpo=el("div",{style:"display:grid;gap:10px"});
+  const selM=sel("rcMod",[],st.mod,v=>{st.mod=v;pinta();});
+  const opts=()=>{selM.textContent="";mods.forEach(m=>{const n=ejes.filter(e=>e.mod===m.cod&&st.cam[e.id]!=null&&st.cam[e.id]!==estR(e)).length+st.nue.filter(x=>x.mod===m.cod).length;
+    selM.appendChild(el("option",{value:m.cod,text:(st.vistos.has(m.cod)?"✓ ":"")+m.cod+" · "+m.ref+(n?" ("+n+" cambios)":"")}));});selM.value=st.mod;};
+  const totCam=()=>Object.keys(st.cam).filter(id=>{const e=ejes.find(x=>x.id===id);return e&&st.cam[id]!==estR(e);}).length+st.nue.length;
+  const info=el("p",{class:"sub",style:"margin:0"});
+  function pinta(){st.vistos.add(st.mod);opts();cuerpo.textContent="";const m=modelo(st.mod);
+    const es=ejes.filter(e=>e.mod===st.mod).sort(porCod);const est=e=>st.cam[e.id]!=null?st.cam[e.id]:estR(e);
+    const cuenta=k=>es.filter(e=>est(e)===k).length+st.nue.filter(x=>x.mod===st.mod&&k==="planta").length;
+    cuerpo.appendChild(el("div",{class:"sub",text:(m?inyDe(m).length+" máquinas lo llevan ("+inyDe(m).join(", ")+"). ":"")+"Ahora: "+cuenta("planta")+" en planta · "+cuenta("preparado")+" preparados · "+cuenta("reparacion")+" en taller"+(cuenta("baja")?" · "+cuenta("baja")+" no están":"")}));
+    es.forEach(e=>{const cambia=est(e)!==estR(e);const ab=abiertaDe(e.cod);
+      const seg=el("div",{class:"seg",role:"group","aria-label":"Dónde está "+e.cod,style:"display:grid;grid-template-columns:repeat(4,1fr);gap:4px"},EST_R.map(([k,t])=>{const b=el("button",{type:"button","aria-pressed":String(est(e)===k),text:t,style:"font-size:12px;padding:7px 4px;min-width:0"});
+        b.onclick=()=>{if(k===estR(e))delete st.cam[e.id];else st.cam[e.id]=k;pinta();};return b;}));
+      cuerpo.appendChild(el("div",{style:"display:grid;gap:4px;padding:8px 10px;border-radius:8px;border:1px solid "+(cambia?"var(--warn)":"var(--line2)")+";background:"+(cambia?"var(--warn-bg)":"transparent")},[
+        el("div",{style:"display:flex;justify-content:space-between;gap:8px;align-items:baseline"},[el("b",{text:e.cod}),el("span",{class:"sub",text:cambia?"antes: "+(EST_R.find(x=>x[0]===estR(e))||[0,e.estado])[1]:[ab&&ab.desp&&ab.desp!=="—"?ab.desp:null,e.cont?"contado "+fmtF(e.cont):null].filter(Boolean).join(" · ")})]),seg]));});
+    st.nue.filter(x=>x.mod===st.mod).forEach(x=>cuerpo.appendChild(el("div",{style:"display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;border:1px solid var(--ok);background:var(--ok-bg)"},[
+      el("span",{},[el("b",{text:x.mod+"-"+x.num}),el("span",{class:"sub",text:" · nuevo, en planta"})]),el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>{st.nue=st.nue.filter(z=>z!==x);pinta();}})])));
+    const nI=inp("rcNum","",null,{inputmode:"numeric",class:"num",placeholder:"Nº",style:"width:80px"});
+    cuerpo.appendChild(el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[el("span",{class:"sub",text:"¿Hay uno que no sale en la lista? "+st.mod+"-"}),nI,
+      el("button",{type:"button",class:"btn sec peq",text:"Añadir",onclick:()=>{const n=parseInt(nI.value,10);if(!(n>0)){toast("Pon el número");return;}const cod=st.mod+"-"+n;
+        if(ejes.some(z=>z.cod===cod)||st.nue.some(z=>z.mod===st.mod&&z.num===n)){toast(cod+" ya está en la lista");return;}st.nue.push({mod:st.mod,num:n});pinta();}})]));
+    const i=ix();if(i<mods.length-1)cuerpo.appendChild(el("button",{type:"button",class:"btn sec",text:"Siguiente modelo: "+mods[i+1].cod+" →",onclick:()=>{st.mod=mods[i+1].cod;pinta();const d=cuerpo.closest(".dlg");if(d)d.scrollTop=0;}}));
+    const t=totCam();info.textContent=t?t+" cambios sin guardar en total":"Sin cambios todavía";}
+  const ix=()=>mods.findIndex(m=>m.cod===st.mod);
+  const nav=el("div",{style:"display:flex;gap:8px"},[el("button",{type:"button",class:"btn sec peq",text:"← Anterior",onclick:()=>{const i=ix();if(i>0){st.mod=mods[i-1].cod;pinta();}}}),
+    el("button",{type:"button",class:"btn sec peq",text:"Siguiente modelo →",onclick:()=>{const i=ix();if(i<mods.length-1){st.mod=mods[i+1].cod;pinta();}else toast("Era el último modelo");}})]);
+  pinta();
+  dlg("Recuento de ejes",[el("p",{class:"hint",text:"Ve modelo a modelo y marca dónde está de verdad cada eje. Los que están puestos en una máquina cuentan como «En planta». Solo se guarda lo que cambies."}),
+    fld("Fecha del recuento",inp("rcF",st.f,v=>st.f=v,{type:"date"})),fld("Modelo",selM),nav,cuerpo,info],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{const t=totCam();if(!t){toast("No has cambiado nada");return false;}
+      if(!confirm("Se van a ajustar "+t+" ejes. Las reparaciones que estaban abiertas se cierran o se anulan según corresponda. ¿Seguir?"))return false;
+      try{const n=await aplicarRecuento(st);toast("Recuento guardado: "+n+" ejes ajustados");}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));return false;}render(true);}}]);}
+async function aplicarRecuento(st){const f=st.f||hoy();let n=0;
+  for(const id of Object.keys(st.cam)){const e=ejes.find(x=>x.id===id);const nu=st.cam[id];if(!e||estR(e)===nu)continue;const ant=estR(e);const ab=abiertaDe(e.cod);
+    if(nu==="baja"){if(ab)await updReps([[ab,{res:"anulada",rec:f,obs:"Baja en recuento"}]]);await updEje(e,{estado:"baja",baja:f,cont:f});}
+    else if(nu==="planta"){if(ab)await updReps([[ab,ant==="reparacion"?{res:"ok",rec:f,recuento:true}:{res:"anulada",rec:f}]]);await updEje(e,{estado:"planta",cont:f});}
+    else if(nu==="reparacion"){if(ab&&!ab.env)await updReps([[ab,{env:f}]]);else if(!ab)await addRep({eje:e.cod,desp:"SIN DATOS (RECUENTO)",alta:f,env:f,recuento:true});await updEje(e,{estado:"reparacion",cont:f});}
+    else if(nu==="preparado"){if(!ab)await addRep({eje:e.cod,desp:"SIN DATOS (RECUENTO)",alta:f,env:null,recuento:true});else if(ab.env)await updReps([[ab,{env:null}]]);await updEje(e,{estado:"preparado",cont:f});}
+    n++;}
+  for(const x of st.nue){const cod=x.mod+"-"+x.num;if(ejes.some(z=>z.cod===cod))continue;
+    await db.doc("ejes/"+docId(cod)).set({cod,mod:x.mod,num:x.num,estado:"planta",marcado:true,obs:"Alta en recuento",alta:f,cont:f});n++;}
+  const vis=[...st.vistos];let tocado=false;(cat.modelos||[]).forEach(m=>{if(vis.includes(m.cod)){m.cont=f;tocado=true;}});if(tocado)await saveCat();
+  return n;}
 
 /* ===== CATÁLOGO ===== */
 function vCat(v){
@@ -2048,7 +2099,7 @@ tabsUI();render(true);
   db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
-  db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));listo("ejes");},()=>listo("ejes"));
+  db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data())).filter(e=>e.estado!=="baja");listo("ejes");},()=>listo("ejes"));
   db.doc("notas/pend").onSnapshot(sn=>{notas=sn.exists?((sn.data()||{}).items||[]):[];render();},()=>{});
   db.collection("rep").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});reps=m;listo("rep");},()=>listo("rep"));
 })();
