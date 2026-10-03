@@ -831,8 +831,9 @@ const almById=id=>cat.almacenes.find(l=>l.id===id);
 function faltas(almId){const d=(cat.dot||{})[almId]||{};return Object.keys(d).map(id=>{const a=art(id);if(!a||a.activo===false)return null;const obj=+d[id]||0;const st=stockDe(id,almId);const org=ppalDe(a);
   return{a,obj,st,org:org!==almId?org:null,falta:Math.max(0,Math.ceil(obj-st))};}).filter(Boolean);}
 function vRepo(v){draft.rv=draft.rv||"hoy";
-  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
+  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"],["prev","Previsión"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
   if(draft.rv==="dot"){vDotacion(v);return;}
+  if(draft.rv==="prev"){vPrev(v);return;}
   const ls=lineas();
   if(!ls.length){v.appendChild(el("div",{class:"banner",text:"Marca al menos un almacén como «de producción» en Catálogo > Almacenes."}));return;}
   const todas=[];ls.forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)todas.push(Object.assign({l},f));}));
@@ -1267,6 +1268,116 @@ async function exportarExcel(btn){if(!downloads){toast("Esta vista no permite de
     await downloads.save({filename:"Almacen_MAPRI_"+hoy()+".xlsx",data:new Blob([out])});toast("Copia descargada");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel: "+(e&&(e.message||e.code)||"error"));}
   btn.disabled=false;btn.textContent=t0;}
+
+/* ===== PREVISIÓN: mínimos, dotación de planta, ejes y pedido del mes siguiente ===== */
+const PREV0={nivel:95,plazo:7,cob:7,taller:7};
+const prevCfg=()=>Object.assign({},PREV0,cat.prev||{});
+const ZN={90:1.2816,95:1.6449,99:2.3263};
+const CONTABLE=a=>a.ud!=="kg"&&a.ud!=="l"&&a.ud!=="m";
+const redU=(x,cont)=>cont?Math.ceil(x-1e-9):Math.ceil(x*10-1e-9)/10;
+function poisQ(mu,p){if(!(mu>0))return 0;if(mu>60)return Math.ceil(mu+(ZN[Math.round(p*100)]||1.6449)*Math.sqrt(mu));let k=0,t=Math.exp(-mu),c=t;while(c<p&&k<2000){k++;t*=mu/k;c+=t;}return k;}
+/* cantidad que cubre la demanda con la seguridad elegida (media mu, varianza vr) */
+function cuantil(mu,vr,cont,niv){if(!(mu>0))return 0;const z=ZN[niv]||1.6449;
+  if(cont&&vr<=mu*1.3)return poisQ(mu,niv/100);
+  return redU(mu+z*Math.sqrt(Math.max(vr,cont?mu:0)),cont);}
+const finMes=f=>{const d=new Date(f+"T12:00:00");return new Date(d.getFullYear(),d.getMonth()+1,0,12).toISOString().slice(0,10);};
+function prevDatos(){const hy=hoy();const ms=todosMov().filter(m=>m.tipo==="salida"&&m.f<=hy);
+  const sig1=sumaDias(finMes(hy),1),sigFin=finMes(sig1);const base={hy,mesSig:mesDe(sig1),dm:dias(sig1,sigFin)+1,H:dias(hy,sigFin)};
+  if(!ms.length)return Object.assign(base,{D:0,art:{},alm:{}});
+  const ini0=ms.map(m=>m.f).sort()[0],lim=sumaDias(hy,-182);const ini=ini0<lim?lim:ini0;const D=Math.max(1,dias(ini,hy)+1),W=Math.floor(D/7);
+  const art={},alm={};
+  ms.forEach(m=>{if(m.f<ini)return;const c=+m.cant||0;const s=art[m.art]=art[m.art]||{tot:0,sem:new Array(Math.max(W,1)).fill(0)};s.tot+=c;
+    const w=Math.floor(dias(m.f,hy)/7);if(w<W)s.sem[w]+=c;if(m.alm){const k=m.art+"|"+m.alm;alm[k]=(alm[k]||0)+c;}});
+  Object.values(art).forEach(s=>{s.rate=s.tot/D;let vrd=0;if(W>=2){const mw=s.sem.reduce((p,c)=>p+c,0)/W;vrd=s.sem.reduce((p,c)=>p+(c-mw)*(c-mw),0)/(W-1)/7;}s.vrd=vrd;});
+  Object.keys(alm).forEach(k=>alm[k]=alm[k]/D);
+  return Object.assign(base,{D,ini,art,alm});}
+function sugArt(a,P,S){const s=S.art[a.id];if(!s||!(s.rate>0))return null;const cont=CONTABLE(a),z=ZN[P.nivel]||1.6449;
+  const disp=s.rate>0?Math.max(cont?1:0,s.vrd/s.rate):0;/* dispersión: 1 = como el azar */
+  const plA=plazoArt(a),pl=plA||P.plazo;const muL=s.rate*pl,qL=cuantil(muL,s.vrd*pl,cont,P.nivel);
+  const min=plA?Math.max(0,redU(qL-muL,cont)):qL;
+  const muM=s.rate*S.dm,sdM=Math.sqrt(Math.max(s.vrd,cont?s.rate:0)*S.dm);
+  const mes={mu:muM,lo:Math.max(0,cont?Math.floor(muM-z*sdM):Math.round((muM-z*sdM)*10)/10),hi:cuantil(muM,s.vrd*S.dm,cont,P.nivel)};
+  const st=stockDe(a.id),pend=a.pedido?(+a.pedCant||0):0;
+  const pedir=Math.max(0,redU(s.rate*S.H+min-st-pend,cont));
+  const dot={};lineas().forEach(l=>{const r=S.alm[a.id+"|"+l.id];if(r>0)dot[l.id]=Math.max(cont?1:0,cuantil(r*P.cob,disp*r*P.cob,cont,P.nivel));});
+  return{a,s,cont,pl,plA,min,muL,mes,st,pend,pedir,dot,mesUd:s.rate*30.4};}
+function modeloDeEje(cod){const e=ejes.find(x=>x.cod===cod);return e?e.mod:String(cod||"").replace(/-\d+$/,"");}
+function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anulada"&&(r.alta||r.env));if(!rs.length)return{D:0,L:[]};
+  const f0=rs.map(r=>r.alta||r.env).sort()[0],lim=sumaDias(hy,-365);const ini=f0<lim?lim:f0;const D=Math.max(1,dias(ini,hy)+1);
+  const L=(cat.modelos||[]).map(m=>{const n=rs.filter(r=>(r.alta||r.env)>=ini&&modeloDeEje(r.eje)===m.cod).length;const lam=n/D;const maq=inyDe(m).length;
+    const es=ejes.filter(e=>e.mod===m.cod);const pl=es.filter(e=>e.estado==="planta").length,tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
+    const min=maq+poisQ(lam*P.taller,P.nivel/100),ideal=Math.max(min+(lam>0?1:0),maq+poisQ(lam*(P.taller+30),P.nivel/100));
+    const bajo=pl<=min;const pedir=bajo?Math.min(tal,Math.max(0,ideal-pl)):0;const faltan=bajo?Math.max(0,ideal-pl-tal):0;
+    return{m,n,lam,maq,pl,tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,mes:lam*S.dm};});
+  return{D,ini,L};}
+function prevTodo(){const P=prevCfg(),S=prevDatos();const arts=artsActivos().map(a=>sugArt(a,P,S)).filter(Boolean);return{P,S,arts,E:sugEjes(P,S)};}
+const fmtR=(x,cont)=>cont?String(Math.round(x)):fmtN(Math.round(x*10)/10);
+const nomMes=m=>MESES[+m.slice(5,7)-1];
+function vPrev(v){const R=prevTodo(),{P,S,arts,E}=R;const mesN=nomMes(S.mesSig);
+  if(!S.D&&!E.D){v.appendChild(el("div",{class:"banner",text:"Todavía no hay consumos ni reparaciones registrados. La previsión sale en cuanto haya datos."}));return;}
+  const aPedir=arts.filter(x=>x.pedir>0),ejP=E.L.filter(x=>x.pedir>0||x.faltan>0);
+  v.appendChild(el("dl",{class:"kpis num"},[["Datos de consumo",S.D+" días"],["Datos de ejes",E.D+" días"],["Artículos a pedir",String(aPedir.length)],["Ejes a pedir al taller",String(ejP.reduce((p,x)=>p+x.pedir,0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  if(S.D&&S.D<90)v.appendChild(el("div",{class:"banner",text:"Solo hay "+S.D+" días de consumos (desde el "+fmtF(S.ini)+"). Las cifras son orientativas y se afinan solas cada semana que pasa."}));
+  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Aplicar lo sugerido",onclick:()=>aplicarPrev(R)}),
+    el("button",{type:"button",class:"btn sec",text:"Copiar pedido previsto",onclick:async()=>{const t=textoPrev(R);try{await navigator.clipboard.writeText(t);toast("Pedido copiado");}catch(e){dlg("Pedido previsto",el("textarea",{readonly:true,style:"min-height:260px;font-family:'IBM Plex Mono',monospace;font-size:13px",value:t}),[{t:"Cerrar",cls:"sec"}]);}}}),
+    el("button",{type:"button",class:"btn sec",text:"Ajustes",onclick:()=>formPrev()})]));
+  /* ejes */
+  if(E.L.length){const Ls=E.L.slice().sort((a,b)=>(b.faltan+b.pedir>0)-(a.faltan+a.pedir>0)||b.lam-a.lam);
+    v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes de inyección"}),el("span",{class:"der sub",text:"mínimo en planta por modelo"})]),
+      el("div",{class:"lst"},Ls.map(x=>{const niv=x.faltan?"bad":x.pedir?"warn":"ok";
+        return el("button",{type:"button",class:"it",onclick:()=>detEje(x,P)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.m.ref+" ("+x.m.cod+")"}),
+          el("div",{class:"t2",text:[x.maq+" máq.","hay "+x.pl+" en planta"+(x.tal?" · "+x.tal+" en taller":""),"mínimo "+x.min+(+x.m.min!==x.min?" (ahora "+(+x.m.min||0)+")":""),"ideal "+x.ideal,x.lam>0?fmtN(Math.round(x.lam*304)/10)+" roturas/mes":"sin roturas"].join(" · ")})]),
+          x.faltan?el("div",{class:"cant num"},[el("b",{text:"+"+x.faltan}),el("small",{text:"faltan ejes"})]):x.pedir?el("div",{class:"cant num"},[el("b",{text:x.pedir}),el("small",{text:"pedir al taller"})]):el("span",{class:"pill ok",text:"OK"})]);})),
+      el("p",{class:"hint",style:"padding:8px 14px",text:"Mínimo = las máquinas que lo llevan + los que se pueden romper mientras el taller trae uno ("+P.taller+" días). Cuando en planta quedan el mínimo o menos, pide al taller hasta llegar al ideal (para aguantar un mes)."})]));}
+  /* artículos */
+  const fila=x=>{const niv=x.pedir>0?(x.st<x.min?"bad":"warn"):"ok";const ud=x.a.ud;
+    return el("button",{type:"button",class:"it",onclick:()=>detArt(x,P,S)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.a.desc}),
+      el("div",{class:"t2",text:[mesN+": "+fmtR(x.mes.lo,x.cont)+"–"+fmtR(x.mes.hi,x.cont)+" "+ud,"hay "+fmtN(x.st)+(x.pend?" (+"+fmtN(x.pend)+" pedido)":""),"mínimo "+fmtN(x.min)+(+x.a.min!==x.min?" (ahora "+fmtN(+x.a.min||0)+")":""),Object.keys(x.dot).length?"planta "+Object.keys(x.dot).map(k=>corto(almById(k))+" "+fmtN(x.dot[k])).join(", "):null].filter(Boolean).join(" · ")})]),
+      x.pedir>0?el("div",{class:"cant num"},[el("b",{text:fmtN(x.pedir)}),el("small",{text:"pedir "+ud})]):el("span",{class:"pill ok",text:"Cubierto"})]);};
+  const ord=(a,b)=>(b.pedir>0)-(a.pedir>0)||b.mesUd-a.mesUd;
+  const pis=arts.filter(x=>x.a.fam==="piston").sort((a,b)=>DIAM.indexOf(a.a.diam)-DIAM.indexOf(b.a.diam)||ord(a,b)),otros=arts.filter(x=>x.a.fam!=="piston").sort(ord);
+  if(pis.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pistones"}),el("span",{class:"der sub",text:"previsión de "+mesN})]),el("div",{class:"lst"},pis.map(fila))]));
+  if(otros.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consumibles y recambios ("+otros.length+")"}),el("span",{class:"der sub",text:"previsión de "+mesN})]),el("div",{class:"lst"},otros.map(fila))]));
+  const sin=artsActivos().filter(a=>!arts.some(x=>x.a.id===a.id));
+  if(sin.length)v.appendChild(el("details",{class:"card"},[el("summary",{class:"gh",style:"cursor:pointer",text:sin.length+" artículos sin consumos registrados (sin previsión)"}),el("p",{class:"hint",style:"padding:8px 14px",text:sin.map(a=>a.desc).sort((a,b)=>a.localeCompare(b,"es")).join(" · ")})]));
+  v.appendChild(el("p",{class:"hint",text:"Se calcula con los consumos reales (últimos 6 meses como máximo) y las roturas de ejes del último año, con una seguridad del "+P.nivel+" %. «Pedir» = lo que se gastará hasta final de "+mesN+" + el mínimo − el stock − lo ya pedido. «Planta» = lo que conviene tener en cada almacén de producción para "+P.cob+" días."}));}
+function detArt(x,P,S){const a=x.a,ud=a.ud,mesN=nomMes(S.mesSig);
+  const filas=[["Gasta de media",fmtN(Math.round(x.mesUd*10)/10)+" "+ud+"/mes"],["Previsión de "+mesN,fmtR(x.mes.lo,x.cont)+" a "+fmtR(x.mes.hi,x.cont)+" "+ud+" (lo normal "+fmtR(x.mes.mu,x.cont)+")"],
+    ["Plazo de entrega",x.pl+" días"+(x.plA?"":" (no tiene plazo puesto; uso "+P.plazo+")")],["Stock mínimo sugerido",fmtN(x.min)+" "+ud+" (ahora "+fmtN(+a.min||0)+")"],
+    ["Hay ahora",fmtN(x.st)+" "+ud+(x.pend?" + "+fmtN(x.pend)+" pedido":"")],["Pedir para llegar a fin de "+mesN,fmtN(x.pedir)+" "+ud]]
+    .concat(lineas().map(l=>[corto(l)+" (planta)",x.dot[l.id]!=null?fmtN(x.dot[l.id])+" "+ud+" (ahora "+fmtN(+(((cat.dot||{})[l.id]||{})[a.id])||0)+", hay "+fmtN(stockDe(a.id,l.id))+")":"no se gasta desde aquí"]));
+  dlg(a.desc,[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
+    el("p",{class:"hint",text:x.plA?"El mínimo es el colchón para los días malos: la app ya suma aparte lo que se gasta durante el plazo de entrega para avisarte de pedir.":"Como no tiene plazo de entrega, el mínimo incluye lo que se gasta en "+P.plazo+" días más el colchón. Pon el plazo en su ficha y el cálculo se ajusta."})],
+    [{t:"Cerrar",cls:"sec"}]);}
+function detEje(x,P){const filas=[["Inyectoras",inyDe(x.m).join(", ")||"—"],["Roturas en el último año",String(x.n)],["Roturas previstas en el mes",fmtN(Math.round(x.mes*10)/10)],
+  ["En planta",x.pl+" de "+x.tot],["En el taller",String(x.tal)],["Preparados para enviar",String(x.prep)],["Mínimo en planta",x.min+" (ahora "+(+x.m.min||0)+")"],["Ideal en planta",String(x.ideal)]];
+  dlg(x.m.ref+" ("+x.m.cod+")",[el("dl",{class:"kpis num"},filas.map(([k,t])=>el("div",{},[el("dt",{text:k}),el("dd",{style:"font-size:15px",text:t})]))),
+    x.faltan?el("div",{class:"banner",text:"Aunque traigas todos los del taller no llegas al ideal: faltan "+x.faltan+" eje(s) de este modelo."}):null,
+    el("p",{class:"hint",text:x.bajo?"Estás en el mínimo o por debajo: pide "+x.pedir+" al taller.":"Por encima del mínimo: no hace falta pedir al taller todavía."})],[{t:"Cerrar",cls:"sec"}]);}
+function textoPrev(R){const{S,arts,E}=R;const mesN=nomMes(S.mesSig);const L=["PREVISIÓN DE PEDIDO HASTA FIN DE "+mesN.toUpperCase()+" · "+fmtF(hoy()),""];
+  const ps=arts.filter(x=>x.pedir>0);if(ps.length){const g={};ps.forEach(x=>{const k=provN(x.a.prov)||"SIN PROVEEDOR ASIGNADO";(g[k]=g[k]||[]).push(x);});
+    Object.keys(g).sort().forEach(k=>{L.push("PROVEEDOR: "+k.toUpperCase());g[k].sort((a,b)=>a.a.desc.localeCompare(b.a.desc,"es",{numeric:true})).forEach(x=>L.push("- "+x.a.desc+(x.a.cod?" ["+x.a.cod+"]":"")+": "+fmtN(x.pedir)+" "+x.a.ud+" (previsión "+mesN+" "+fmtR(x.mes.lo,x.cont)+"–"+fmtR(x.mes.hi,x.cont)+", stock "+fmtN(x.st)+")"));L.push("");});}
+  const ej=E.L.filter(x=>x.pedir>0||x.faltan>0);if(ej.length){L.push("EJES A PEDIR AL TALLER:");ej.forEach(x=>L.push("- "+x.m.ref+" ("+x.m.cod+"): "+(x.pedir?"traer "+x.pedir:"")+(x.faltan?(x.pedir?" · ":"")+"faltan "+x.faltan+" (no hay más en el taller)":"")+" · en planta "+x.pl+", mínimo "+x.min));L.push("");}
+  if(!ps.length&&!ej.length)L.push("Con el stock actual está todo cubierto hasta final de "+mesN+".");
+  return L.join("\n").trim();}
+function aplicarPrev(R){const{arts,E}=R;
+  const cMin=arts.filter(x=>(+x.a.min||0)!==x.min),cEje=E.L.filter(x=>(+x.m.min||0)!==x.min);
+  const cDot=[];arts.forEach(x=>Object.keys(x.dot).forEach(l=>{const ah=+(((cat.dot||{})[l]||{})[x.a.id])||0;if(ah!==x.dot[l])cDot.push({x,l,v:x.dot[l]});}));
+  const op={min:cMin.length>0,eje:cEje.length>0,dot:cDot.length>0};
+  const ck=(k,t,n)=>el("label",{style:"display:flex;gap:10px;align-items:center;flex-direction:row"},[el("input",{type:"checkbox",checked:op[k]&&n>0,disabled:!n,style:"width:22px;height:22px;flex:none",onchange:e=>op[k]=e.target.checked}),el("span",{text:t+" ("+(n?n+" cambian":"sin cambios")+")"})]);
+  dlg("Aplicar lo sugerido",[ck("min","Stock mínimo de cada artículo",cMin.length),ck("eje","Mínimo en planta de cada modelo de eje",cEje.length),ck("dot","Lo que tiene que haber en cada almacén de producción",cDot.length),
+    el("p",{class:"hint",text:"Con esto los avisos de «Reponer», la lista de pedido y los avisos de ejes usan los valores calculados. Se puede deshacer desde el Historial. Conviene repetirlo una vez al mes."})],
+    [{t:"Cancelar",cls:"sec"},{t:"Aplicar",fn:async()=>{if(!op.min&&!op.eje&&!op.dot){toast("Marca algo");return false;}
+      if(op.min)cMin.forEach(x=>{const a=art(x.a.id);if(a)a.min=x.min;});
+      if(op.eje)cEje.forEach(x=>{const m=(cat.modelos||[]).find(z=>z.id===x.m.id||z.cod===x.m.cod);if(m)m.min=x.min;});
+      if(op.dot){cat.dot=cat.dot||{};cDot.forEach(({x,l,v})=>{(cat.dot[l]=cat.dot[l]||{})[x.a.id]=v;});}
+      try{await saveCat();toast("Aplicado");}catch(e){return false;}render(true);}}]);}
+function formPrev(){const x=prevCfg();
+  const num=(id,lab,k,hint)=>fld(lab,inp(id,x[k],v=>{const n=parseN(v);if(n>0)x[k]=Math.round(n);},{inputmode:"numeric",class:"num"}));
+  const seg=el("div",{class:"seg",role:"group","aria-label":"Seguridad"},[90,95,99].map(n=>{const b=el("button",{type:"button","aria-pressed":String(x.nivel===n),text:n+" %"});b.onclick=()=>{x.nivel=n;seg.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",String(z===b)));};return b;}));
+  dlg("Ajustes de la previsión",[el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Seguridad (cuanto más alta, menos riesgo de quedarse corto y más stock)"}),seg]),
+    num("pvPl","Plazo de entrega si el artículo no tiene (días)","plazo"),num("pvCob","Cada cuántos días se repone la planta","cob"),num("pvTa","Días que tarda el taller en traer un eje cuando lo pides","taller")],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{cat.prev=x;try{await saveCat();toast("Guardado");}catch(e){return false;}render(true);}}]);}
 
 /* ===== EJES ===== */
 const modelo=cod=>(cat.modelos||[]).find(m=>m.cod===cod);
@@ -1747,7 +1858,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
   db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));listo("ejes");},()=>listo("ejes"));
