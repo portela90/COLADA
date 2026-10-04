@@ -656,7 +656,7 @@ function iSal(P,fil){const o={};todosMov().forEach(m=>{if(m.tipo!=="salida"||!iE
   return Object.values(o).sort((x,y)=>x.a.fam.localeCompare(y.a.fam)||x.a.desc.localeCompare(y.a.desc,"es",{numeric:true}));}
 function iBT(f,P,o){const C=todosMov().filter(m=>m.tipo==="salida"&&iEn(m.f,P)&&(art(m.art)||{}).fam===f);const t=C.reduce((s,m)=>s+(+m.cant||0),0);if(!t)return["Ningún cambio en el periodo."];
   const L=["Total: "+iN(t)+" ud"];const g=kf=>{const x={};C.forEach(m=>{const k=kf(m);x[k]=(x[k]||0)+(+m.cant||0);});return Object.entries(x).sort((a,b)=>b[1]-a[1]);};
-  L.push(...g(m=>(art(m.art)||{}).desc||"?").map(([k,n])=>"- "+k+": "+iN(n)));
+  L.push(...g(m=>art(m.art)?nomBT(art(m.art)):"?").map(([k,n])=>"- "+k+": "+iN(n)));
   if(o.maq)L.push("Por máquina: "+g(m=>m.maq?maqN(m.maq):"sin máquina").map(([k,n])=>k+" "+iN(n)).join(" · "));
   if(o.mot)L.push("Por motivo: "+g(m=>cap(m.motivo||"sin motivo")).map(([k,n])=>k+" "+iN(n)).join(" · "));
   if(o.det)C.sort((a,b)=>a.f.localeCompare(b.f)).forEach(m=>L.push("  · "+fmtF(m.f)+" "+(m.maq?maqN(m.maq):"")+" · "+((art(m.art)||{}).desc||"")+" ×"+iN(m.cant)+(m.motivo?" · "+cap(m.motivo):"")+(m.resp?" · "+respTxt(m.resp):"")));
@@ -686,7 +686,7 @@ const INF_ALM=[
  {id:"bt_bar",grupo:"Barras y tornillos",nom:"Cambios de barras expulsoras",per:true,opts:[["maq","Por máquina",true],["mot","Por motivo",true],["det","Detalle de cada cambio",false]],texto:(P,o)=>iBT("barra",P,o),hoja:P=>iBTh("barra",P)},
  {id:"bt_tor",grupo:"Barras y tornillos",nom:"Cambios de tornillos tope",per:true,opts:[["maq","Por máquina",true],["mot","Por motivo",true],["det","Detalle de cada cambio",false]],texto:(P,o)=>iBT("tornillo",P,o),hoja:P=>iBTh("tornillo",P)},
  {id:"bt_stk",grupo:"Barras y tornillos",nom:"Stock de barras y tornillos",per:false,opts:[["maq","Máquinas donde van",false]],
-  texto:(P,o)=>{const L=[];["barra","tornillo"].forEach(f=>{const A=artsBT(f);if(!A.length)return;L.push(BT[f].nom+":");A.forEach(a=>L.push("- "+a.desc+": "+iN(stockDe(a.id))+" ud"+(+a.min>0?" (mín "+iN(+a.min)+")":"")+(o.maq&&maqsArt(a).length?" · "+maqsArt(a).join(", "):"")));});return L.length?L:["No hay barras ni tornillos dados de alta."];}},
+  texto:(P,o)=>{const L=[];["barra","tornillo"].forEach(f=>{const A=artsBT(f);if(!A.length)return;L.push(BT[f].nom+":");A.forEach(a=>L.push("- "+nomBT(a)+": "+iN(stockDe(a.id))+" ud"+(+a.min>0?" (mín "+iN(+a.min)+")":"")+(o.maq&&maqsArt(a).length?" · "+maqsArt(a).join(", "):"")));});return L.length?L:["No hay barras ni tornillos dados de alta."];}},
  {id:"m_cons",grupo:"Material",nom:"Consumo de material",per:true,opts:[["pist","Incluir pistones",false],["alm","Por almacén",false]],
   texto:(P,o)=>{const L=iSal(P,a=>o.pist||a.fam!=="piston");return L.length?L.map(x=>"- "+x.a.desc+": "+iN(x.q)+" "+x.a.ud+(o.alm?" ("+Object.entries(x.alm).map(([l,q])=>corto(almById(l)||{nom:l})+" "+iN(q)).join(", ")+")":"")):["Sin consumos en el periodo."];},
   hoja:(P,o)=>({nombre:"Consumo de material",filas:iSal(P,a=>o.pist||a.fam!=="piston").map(x=>({"Artículo":x.a.desc,"Código":x.a.cod||"","Familia":FAM[x.a.fam]||"","Cantidad":x.q,"Unidad":x.a.ud}))})},
@@ -745,7 +745,10 @@ window.INF={app:"MAPRI · Almacén",bloques:INF_ALM,base:INF_ALM_BASE,perDef:"me
 /* ===== BARRAS EXPULSORAS Y TORNILLOS TOPE ===== */
 const BT={barra:{nom:"Barras expulsoras",uno:"barra expulsora",corto:"Barra"},tornillo:{nom:"Tornillos tope",uno:"tornillo tope",corto:"Tornillo"}};
 const MOT_BT=["ROTURA","DESGASTE","DOBLADA","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
-const artsBT=f=>artsActivos().filter(a=>a.fam===f).sort((x,y)=>x.desc.localeCompare(y.desc,"es",{numeric:true}));
+const PREF_BT={barra:"BE"};
+const artsBT=f=>artsActivos().filter(a=>a.fam===f).sort((x,y)=>(x.cod||"~"+x.desc).localeCompare(y.cod||"~"+y.desc,"es",{numeric:true}));
+function sigCodBT(f){const p=PREF_BT[f];if(!p)return"";const re=new RegExp("^"+p+"-(\\d+)$","i");let mx=0;cat.articulos.forEach(a=>{const m=re.exec(String(a.cod||"").trim());if(m)mx=Math.max(mx,+m[1]);});return p+"-"+String(mx+1).padStart(2,"0");}
+const nomBT=a=>{if(!a.cod)return a.desc;const d=String(a.desc||"").replace(a.cod,"").replace(/^(barra expulsora|tornillo tope)\s*/i,"").replace(/^[\s·\-]+|[\s·\-]+$/g,"");return d?a.cod+" · "+d:a.cod;};
 const cambiosBT=(f,desde)=>todosMov().filter(m=>m.tipo==="salida"&&(!desde||m.f>=desde)&&(art(m.art)||{}).fam===f).sort((a,b)=>(b.f+(b.ts||0)).localeCompare(a.f+(a.ts||0)));
 const maqsArt=a=>(a.iny||[]).map(id=>maqN(id)).filter(x=>x&&x!=="—").sort((p,q)=>p.localeCompare(q,"es",{numeric:true}));
 function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
@@ -759,23 +762,23 @@ function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
   /* referencias */
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:N.nom+" ("+A.length+")"}),el("span",{class:"der sub",text:"stock y dónde van"})]),
     A.length?el("div",{class:"lst"},A.map(a=>{const st=stockDe(a.id),n=nivel(a),ms=maqsArt(a),c90=cambiosBT(f,sumaDias(hy,-90)).filter(m=>m.art===a.id).reduce((t,m)=>t+(+m.cant||0),0);
-      return el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),
-        el("div",{class:"t2",text:[a.cod,a.plano?"plano "+a.plano:((a.docs||[]).length?"con plano":"sin plano"),ms.length?"va en "+ms.join(", "):"sin máquinas asignadas",c90?"cambios en 3 meses: "+c90:null].filter(Boolean).join(" · ")})]),
+      return el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:nomBT(a)}),
+        el("div",{class:"t2",text:[a.plano?"plano "+a.plano:((a.docs||[]).length?"con plano":"sin plano"),ms.length?"va en "+ms.join(", "):"sin máquinas asignadas",c90?"cambios en 3 meses: "+c90:null].filter(Boolean).join(" · ")})]),
         el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:+a.min>0?"mín "+fmtN(+a.min):a.ud})])]);})):el("div",{class:"empty"},["Todavía no hay ninguna "+N.uno+". ",el("button",{type:"button",class:"btn peq",text:"Añadir la primera",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})])]));
   /* por máquina */
   const maqs=cat.maquinas.slice().sort((p,q)=>p.cod.localeCompare(q.cod,"es",{numeric:true}));const sinAsig=maqs.filter(m=>!A.some(a=>(a.iny||[]).includes(m.id)));
   const selMq=sel("btMaq",maqOpts(),draft.btMaq||"",x=>{draft.btMaq=x;render(true);},"Elige una inyectora…");
   const m=draft.btMaq?cat.maquinas.find(z=>z.id===draft.btMaq):null;
   let det=null;if(m){const lleva=A.filter(a=>(a.iny||[]).includes(m.id));const ult=cambiosBT(f).filter(x=>x.maq===m.id).slice(0,5);
-    det=el("div",{style:"display:grid;gap:8px;margin-top:8px"},[lleva.length?el("div",{class:"lst"},lleva.map(a=>el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),el("div",{class:"t2",text:[a.cod,maqsArt(a).length>1?"también en "+maqsArt(a).filter(c=>c!==m.cod).join(", "):null].filter(Boolean).join(" · ")})]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:"en stock"})])]))):el("p",{class:"hint",text:"La "+m.cod+" no tiene ninguna "+N.uno+" asignada. Ábrela en su ficha (Editar) y marca la "+m.cod+" en «Inyectoras donde va»."}),
-      ult.length?el("p",{class:"sub",text:"Últimos cambios: "+ult.map(x=>fmtF(x.f)+" "+(art(x.art)||{}).desc+(x.motivo?" ("+cap(x.motivo)+")":"")).join(" · ")}):el("p",{class:"hint",text:"Sin cambios registrados en esta máquina."}),
+    det=el("div",{style:"display:grid;gap:8px;margin-top:8px"},[lleva.length?el("div",{class:"lst"},lleva.map(a=>el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:nomBT(a)}),el("div",{class:"t2",text:[maqsArt(a).length>1?"también en "+maqsArt(a).filter(c=>c!==m.cod).join(", "):null].filter(Boolean).join(" · ")})]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:"en stock"})])]))):el("p",{class:"hint",text:"La "+m.cod+" no tiene ninguna "+N.uno+" asignada. Ábrela en su ficha (Editar) y marca la "+m.cod+" en «Inyectoras donde va»."}),
+      ult.length?el("p",{class:"sub",text:"Últimos cambios: "+ult.map(x=>fmtF(x.f)+" "+(art(x.art)?nomBT(art(x.art)):"")+(x.motivo?" ("+cap(x.motivo)+")":"")).join(" · ")}):el("p",{class:"hint",text:"Sin cambios registrados en esta máquina."}),
       el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:"Registrar cambio en la "+m.cod,onclick:()=>cambioBT(f,m.id)})]);}
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Por inyectora"}),el("span",{class:"der sub",text:sinAsig.length?sinAsig.length+" sin "+N.uno+" asignada":"todas asignadas"})]),el("div",{class:"bd"},[selMq,det])]));
   /* últimos cambios */
   const ult=cambiosBT(f,sumaDias(hy,-60)).slice(0,25);
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Últimos cambios"}),el("span",{class:"der sub",text:"60 días"})]),
     ult.length?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Inyectora"}),el("th",{text:N.corto}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Motivo"})])),
-      el("tbody",{},ult.map(x=>el("tr",{},[el("td",{class:"num",text:fmtF(x.f)}),el("td",{text:x.maq?maqN(x.maq):"—"}),el("td",{text:(art(x.art)||{}).desc||"?"}),el("td",{class:"r num",text:fmtN(+x.cant||0)}),el("td",{text:x.motivo?cap(x.motivo):(x.nota||"—")})])))])):el("p",{class:"hint",style:"padding:10px 14px",text:"Sin cambios en los últimos 60 días."})]));}
+      el("tbody",{},ult.map(x=>el("tr",{},[el("td",{class:"num",text:fmtF(x.f)}),el("td",{text:x.maq?maqN(x.maq):"—"}),el("td",{text:art(x.art)?(art(x.art).cod||art(x.art).desc):"?"}),el("td",{class:"r num",text:fmtN(+x.cant||0)}),el("td",{text:x.motivo?cap(x.motivo):(x.nota||"—")})])))])):el("p",{class:"hint",style:"padding:10px 14px",text:"Sin cambios en los últimos 60 días."})]));}
 function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",cant:"1",motivo:"ROTURA",alm:"",resp:(typeof lsGet==="function"?lsGet("alm.resp"):"")||"",nota:""};
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const A=artsBT(f);const m=d.maq?cat.maquinas.find(z=>z.id===d.maq):null;
@@ -783,7 +786,7 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
     if(!d.art&&suyas.length===1)d.art=suyas[0].id;
     const a=art(d.art);if(a&&!d.alm){const con=cat.almacenes.filter(l=>stockDe(a.id,l.id)>0);d.alm=(con.find(l=>l.tipo==="produccion")||con[0]||{}).id||ppalDe(a);}
     box.appendChild(el("div",{class:"row"},[fld("Fecha",inp("btF",d.f,v=>d.f=v,{type:"date"})),fld("Inyectora",sel("btM",maqOpts(),d.maq,v=>{d.maq=v;d.art="";d.alm="";pinta();},"Elige…"))]));
-    const opts=[].concat(suyas.length?[el("optgroup",{label:"Las de la "+(m?m.cod:"máquina")},suyas.map(x=>el("option",{value:x.id,text:x.desc+" · hay "+fmtN(stockDe(x.id))})))]:[]).concat(otras.length?[el("optgroup",{label:suyas.length?"Otras":N.nom},otras.map(x=>el("option",{value:x.id,text:x.desc+" · hay "+fmtN(stockDe(x.id))})))]:[]);
+    const opts=[].concat(suyas.length?[el("optgroup",{label:"Las de la "+(m?m.cod:"máquina")},suyas.map(x=>el("option",{value:x.id,text:nomBT(x)+" · hay "+fmtN(stockDe(x.id))})))]:[]).concat(otras.length?[el("optgroup",{label:suyas.length?"Otras":N.nom},otras.map(x=>el("option",{value:x.id,text:nomBT(x)+" · hay "+fmtN(stockDe(x.id))})))]:[]);
     const s=el("select",{id:"btA"},[el("option",{value:"",text:A.length?"Elige…":"No hay referencias: créala primero"})].concat(opts));s.value=d.art;s.onchange=()=>{d.art=s.value;d.alm="";pinta();};
     box.appendChild(el("div",{class:"row"},[fld(cap(N.uno),s),fld("Cantidad",inp("btC",d.cant,v=>d.cant=v,{inputmode:"numeric",class:"num"}))]));
     if(m&&!suyas.length&&A.length)box.appendChild(el("p",{class:"hint",text:"La "+m.cod+" no tiene ninguna asignada: si eliges una, se le asigna sola para la próxima vez."}));
@@ -2199,7 +2202,7 @@ function vCat(v){
   v.appendChild(sec("Operarios",(cat.operarios||[]).map(o=>el("button",{type:"button",class:"it",onclick:()=>formSimple("operarios",o)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:o.nom||"(sin nombre)"}),el("div",{class:"t2",text:o.num?"Nº "+o.num:"Sin nº"})])])),()=>formSimple("operarios")));
   v.appendChild(sec("Almacenes",cat.almacenes.map(l=>el("button",{type:"button",class:"it",onclick:()=>formSimple("almacenes",l)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:l.nom}),el("div",{class:"t2",text:[l.tipo==="produccion"?"Producción (se repone)":l.tipo==="central"?"Central":null,l.nave,l.notas].filter(Boolean).join(" · ")})])])),()=>formSimple("almacenes")));
   v.appendChild(sec("Proveedores",cat.proveedores.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(p=>el("button",{type:"button",class:"it",onclick:()=>formSimple("proveedores",p)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:p.nom}),el("div",{class:"t2",text:[p.sum,p.contacto,p.tel,p.email,p.plazo?"plazo "+p.plazo+" días":null].filter(Boolean).join(" · ")})])])),()=>formSimple("proveedores")));}
-function formArticulo(a,pre){const x=a?JSON.parse(JSON.stringify(a)):Object.assign({fam:"consumible",ud:"ud",desc:"",cod:"",min:"",pp:"",cant:"",prov:"",diam:"",activo:true},pre||{});
+function formArticulo(a,pre){const x=a?JSON.parse(JSON.stringify(a)):Object.assign({fam:"consumible",ud:"ud",desc:"",cod:"",min:"",pp:"",cant:"",prov:"",diam:"",activo:true},pre||{});if(!a&&!x.cod&&PREF_BT[x.fam]){x.cod=sigCodBT(x.fam);if(!x.desc)x.desc="Barra expulsora "+x.cod;}
   const diamF=fld("Diámetro",sel("aDiam",DIAM.map(z=>[z,z]),x.diam,v=>x.diam=v,"—"),x.fam!=="piston");
   const iy=new Set(x.iny||[]);
   const tecF=el("div",{class:"frm",style:"gap:10px"},[el("div",{class:"row"},[fld("Nº de plano / revisión",inp("aPlano",x.plano,v=>x.plano=v,{autocomplete:"off"})),fld("Medidas / notas técnicas",inp("aNotas",x.notas,v=>x.notas=v,{autocomplete:"off"}))]),
@@ -2212,7 +2215,7 @@ function formArticulo(a,pre){const x=a?JSON.parse(JSON.stringify(a)):Object.assi
     fld("Ubicación (estantería / balda)",inp("aUbic",x.ubic,v=>x.ubic=v,{autocomplete:"off",placeholder:"p. ej. Nave 1 · E3-B2"})),
     fld("Almacén principal (donde entra y desde donde se repone)",sel("aPpal",almOpts(),x.almPpal||(a?ppalDe(a):(origenRepo()||{}).id),v=>{x.almPpal=v;const cb=document.getElementById("aAl_"+v);if(cb&&!cb.checked){cb.checked=true;xs.add(v);}})),
     el("fieldset",{style:"border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0"},[el("legend",{class:"sub",text:"Almacenes donde está"})].concat(cat.almacenes.map(l=>el("label",{class:"chk",style:"font-size:14px"},[el("input",{type:"checkbox",id:"aAl_"+l.id,checked:xs.has(l.id),onchange:e=>{e.target.checked?xs.add(l.id):xs.delete(l.id);}}),l.nom])))),
-    el("div",{class:"row"},[fld("Código",inp("aCod",x.cod,v=>x.cod=v,{autocomplete:"off"})),fld("Familia",sel("aFam",Object.entries(FAM),x.fam,v=>{x.fam=v;diamF.hidden=v!=="piston";tecF.hidden=!TEC(v);}))]),
+    el("div",{class:"row"},[fld("Código",inp("aCod",x.cod,v=>x.cod=v,{autocomplete:"off"})),fld("Familia",sel("aFam",Object.entries(FAM),x.fam,v=>{x.fam=v;diamF.hidden=v!=="piston";tecF.hidden=!TEC(v);if(!a&&!(x.cod||"").trim()&&PREF_BT[v]){x.cod=sigCodBT(v);const ci=document.getElementById("aCod");if(ci)ci.value=x.cod;}}))]),
     el("div",{class:"row"},[fld("Unidad",sel("aUd",UDS.map(u=>[u,u]),x.ud,v=>x.ud=v)),diamF]),tecF,
     el("div",{class:"row"},[fld("Stock mínimo",inp("aMin",x.min,v=>x.min=v,{inputmode:"decimal",class:"num"})),fld("Punto de pedido",inp("aPp",x.pp,v=>x.pp=v,{inputmode:"decimal",class:"num"}))]),
     el("div",{class:"row"},[fld("Proveedor habitual",sel("aProv",provOpts(),x.prov,v=>x.prov=v,"—")),fld("Plazo de entrega (días)",inp("aPlazo",x.plazo,v=>x.plazo=v,{inputmode:"numeric",class:"num",placeholder:"Del proveedor"}))]),
@@ -2220,6 +2223,7 @@ function formArticulo(a,pre){const x=a?JSON.parse(JSON.stringify(a)):Object.assi
   if(a)body.push(el("label",{class:"chk"},[el("input",{type:"checkbox",id:"aAct",checked:x.activo!==false,onchange:e=>x.activo=e.target.checked}),"Artículo activo"]));
   const acts=[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{
     if(!x.desc.trim()){toast("Pon una descripción");return false;}
+    {const cc=(x.cod||"").trim().toUpperCase();const otro=cc&&cat.articulos.find(z=>z.id!==(a&&a.id)&&String(z.cod||"").trim().toUpperCase()===cc);if(otro){toast("El código "+cc+" ya está en uso: "+otro.desc);return false;}if(PREF_BT[x.fam]&&cc)x.cod=cc;}
     const num=k=>{const n=parseN(x[k]);return isFinite(n)&&n>=0?n:0;};
     const pp=x.almPpal||(a?ppalDe(a):(origenRepo()||{}).id)||null;if(pp)xs.add(pp);
     const nue={id:a?a.id:uid(),desc:x.desc.trim(),almPpal:pp,alms:Array.from(xs),ubic:(x.ubic||"").trim()||null,cod:(x.cod||"").trim()||null,fam:x.fam,ud:x.ud,diam:x.fam==="piston"?(x.diam||null):null,min:num("min"),pp:num("pp"),plazo:parseInt(x.plazo,10)>0?parseInt(x.plazo,10):null,prov:x.prov||null,activo:x.activo!==false};
