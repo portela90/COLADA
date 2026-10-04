@@ -156,6 +156,7 @@ details.agotadas>summary:focus-visible{outline:2px solid var(--acc);outline-offs
 .chips{display:flex;gap:6px;overflow-x:auto;padding:8px 16px;background:var(--surf);border-bottom:1px solid var(--line);scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{appearance:none;flex:none;font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--ink2);cursor:pointer;white-space:nowrap}
+.inc{display:grid;gap:6px}.inc-t{font-size:12px;color:var(--mut)}.inc-g{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}.inc-r{display:flex;flex-wrap:wrap;gap:6px}
 .chip[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
 .chip.limpiar{background:none;border-color:transparent;color:var(--acc);text-decoration:underline}
 .chip:focus-visible,.chip-sel:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -680,20 +681,30 @@ function vParte(B,ud,ahora){
     .filter(x=>x.fa>0||x.kg>0||x.cFa>0);
   /* en pantalla se aplica el filtro de Stock; «Copiar parte» siempre lleva todo */
   const filasV=filas.filter(x=>tab!=="stock"||pasaF(x.nave,x.mat));
-  const texto=()=>{
+  const opsP=[["#","Datos"],["con","Consumido"],["stk","En nave / externo"],["tot","Total"],["dias","Días de material"],["gran","Granalla de cobre"],["#","Naves"]].concat([...new Set(filas.map(x=>x.nave))].map(n=>["nv:"+n,n]));
+  const texto=s=>{s=s||incluirSel("parte",opsP);
     const L=["PARTE "+(ud?dmy(ud):"—")];
-    filas.forEach(x=>{
+    filas.filter(x=>s["nv:"+x.nave]!==false).forEach(x=>{
       L.push("");L.push(x.nave.toUpperCase()+" · "+MAT[x.mat].nom);
-      L.push("  Consumido: "+fmt(x.cFa)+" fardos  ("+fmt(x.cKg)+" kg)");
-      L.push("  En nave: "+fmt(x.faN)+" f ("+fmt(x.kgN)+" kg)  ·  Externo: "+fmt(x.faE)+" f ("+fmt(x.kgE)+" kg)");
-      L.push("  Total: "+fmt(x.fa)+" fardos  ("+fmt(x.kg)+" kg)");
-      if(x.dias!=null)L.push("  Material en nave para "+x.dias+" día"+(x.dias===1?"":"s"));
+      if(s.con)L.push("  Consumido: "+fmt(x.cFa)+" fardos  ("+fmt(x.cKg)+" kg)");
+      if(s.stk)L.push("  En nave: "+fmt(x.faN)+" f ("+fmt(x.kgN)+" kg)  ·  Externo: "+fmt(x.faE)+" f ("+fmt(x.kgE)+" kg)");
+      if(s.tot)L.push("  Total: "+fmt(x.fa)+" fardos  ("+fmt(x.kg)+" kg)");
+      if(s.dias&&x.dias!=null)L.push("  Material en nave para "+x.dias+" día"+(x.dias===1?"":"s"));
     });
-    L.push("");L.push("GRANALLA DE COBRE");
+    if(s.gran){L.push("");L.push("GRANALLA DE COBRE");
     L.push("  Consumido: "+fmt(gc.tot)+" kg"+(gcNaves.length>1?"  ("+gcNaves.join(" · ")+")":""));
-    L.push("  Quedan: "+fmt(gk)+" kg");
+    L.push("  Quedan: "+fmt(gk)+" kg");}
     return L.join("\n");
   };
+  const ventanaParte=()=>{const ta=el("textarea",{readonly:"",style:"min-height:220px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;width:100%"});
+    const ch=incluirChips("parte",opsP,s=>{ta.value=texto(s);});ta.value=texto(ch.sel);
+    const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};const tec=e=>{if(e.key==="Escape")cerrar();};
+    const copiarP=async()=>{const t=ta.value;try{await navigator.clipboard.writeText(t);toast("Parte copiado");cerrar();}
+        catch(e){ta.removeAttribute("readonly");ta.select();try{document.execCommand("copy");toast("Parte copiado");cerrar();}catch(e2){toast("Selecciona el texto y cópialo");}}};
+    const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Copiar parte"},[
+      el("h3",{text:"Parte del "+(ud?dmy(ud):"—")}),ch.node,ta,
+      el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cerrar",onclick:cerrar}),el("button",{type:"button",class:"btn",text:"Copiar",onclick:copiarP})])])]);
+    document.addEventListener("keydown",tec);document.body.appendChild(ov);};
   const dual=(fa,kg,fuerte)=>el("td",{class:"r num"},[
     el("div",{style:fuerte?"font-weight:600":"",text:fmt(fa)+" f"}),
     el("div",{class:"sub",text:fmt(kg)+" kg"})]);
@@ -702,12 +713,7 @@ function vParte(B,ud,ahora){
       el("input",{id:"parte-f",type:"date",max:hoy(),value:ud||"","aria-label":"Día del parte",style:"width:auto;font-size:14px;padding:5px 8px;margin-left:auto",
         onchange:e=>{parteDia=e.target.value||"";render();}}),
       parteDia?el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:6px 12px",text:"Último día",onclick:()=>{parteDia="";render();}}):null,
-      el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:6px 12px",text:"Copiar parte",onclick:async()=>{
-        const t=texto();
-        try{await navigator.clipboard.writeText(t);toast("Parte copiado");}
-        catch(e){const ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";
-          document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Parte copiado");}catch(e2){toast("No se pudo copiar");}ta.remove();}
-      }})]),
+      el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:6px 12px",text:"Copiar parte",onclick:ventanaParte})]),
     /* el parte es al cierre de ese día: si después se ha apuntado algo, se
        enseña también lo que hay en nave ahora para que no parezca descuadre */
     (ahora&&ud&&ud<hoy()&&todosMovs().some(r=>!r.h&&r.f>ud&&(r.t==="C"||r.t==="A"||r.t==="E"||r.t==="T")))?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner",
@@ -1598,33 +1604,44 @@ const periodo=I=>I.completo?"Del "+dmyA(I.d1)+" al "+dmyA(I.dn)+". El stock a "+
 const f2=n=>(Math.round((n||0)*10)/10).toLocaleString("es-ES",{minimumFractionDigits:0,maximumFractionDigits:1});
 const dmyA=f=>f?f.split("-").reverse().join("/"):"";
 /* texto para pegar en un correo al responsable de compras */
-function textoCierre(I){
+const opsCierre=I=>[["#","Secciones del resumen"],["alu","Aluminio por nave"],["val","Valoración en €"],["gran","Granalla de cobre"],["cua","Comprobación de cuadre"],
+  ["#","Naves"]].concat([...new Set(I.filas.map(x=>x.nave))].map(n=>["nv:"+n,n])).concat([["#","Hojas del Excel (el Resumen va siempre)"],["h:Coladas a fin de mes","Coladas a fin de mes"],["h:Entradas del mes","Entradas del mes"],["h:Movimientos","Movimientos"],["h:Granalla de cobre","Granalla de cobre"]]);
+/* ---------- elegir qué incluir en un informe (se recuerda en este dispositivo, por informe) ---------- */
+function incluirSel(id,ops){let g={};try{g=JSON.parse(localStorage.getItem("inf."+id)||"{}");}catch(e){}const s={};ops.forEach(o=>{if(o[0]==="#")return;s[o[0]]=o[0] in g?!!g[o[0]]:o[2]!==false;});return s;}
+function incluirChips(id,ops,onch,titulo){const s=incluirSel(id,ops);const box=document.createElement("div");box.className="inc";
+  const lab=document.createElement("div");lab.className="inc-t";lab.textContent=titulo||"Qué incluir (toca para quitar o poner):";box.appendChild(lab);
+  let row=null;const fila=()=>{row=document.createElement("div");row.className="inc-r";box.appendChild(row);};fila();
+  ops.forEach(o=>{if(o[0]==="#"){const g=document.createElement("div");g.className="inc-g";g.textContent=o[1];box.appendChild(g);fila();return;}
+    const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=o[1];b.setAttribute("aria-pressed",String(s[o[0]]));
+    b.onclick=()=>{s[o[0]]=!s[o[0]];b.setAttribute("aria-pressed",String(s[o[0]]));let g={};try{g=JSON.parse(localStorage.getItem("inf."+id)||"{}");}catch(e){}g[o[0]]=s[o[0]];try{localStorage.setItem("inf."+id,JSON.stringify(g));}catch(e){}if(onch)onch(s);};row.appendChild(b);});
+  return{node:box,sel:s};}
+function textoCierre(I,s){s=s||incluirSel("cierre",opsCierre(I));const FI=I.filas.filter(x=>s["nv:"+x.nave]!==false);
   const L=[],sg=v=>(v>0?"+":v<0?"−":"")+fmt(Math.abs(v)),tit=Mayus(nomMes(I.m));
   L.push("CIERRE DE COLADA · "+tit.toUpperCase());
   L.push(periodo(I));
-  L.push("");L.push("ALUMINIO");
-  I.filas.forEach(x=>{L.push(x.nave+" · "+MAT[x.mat].nom+" ("+x.mat+")");
+  if(s.alu){L.push("");L.push("ALUMINIO");
+  FI.forEach(x=>{L.push(x.nave+" · "+MAT[x.mat].nom+" ("+x.mat+")");
     L.push("  "+labIni(I)+": "+fmt(x.ini.fa)+" f · "+fmt(x.ini.kg)+" kg");
     L.push("  Entradas: "+fmt(x.ent.fa)+" f · "+fmt(x.ent.kg)+" kg");
     L.push("  Consumo: "+fmt(x.con.fa)+" f · "+fmt(x.con.kg)+" kg");
     if(Math.round(x.aju.fa)||Math.round(x.aju.kg))L.push("  Ajustes por recuento: "+sg(x.aju.fa)+" f · "+sg(x.aju.kg)+" kg");
     L.push("  Stock final: "+fmt(x.fin.fa)+" f · "+fmt(x.fin.kg)+" kg (nave "+fmt(x.fin.faN)+" f · externo "+fmt(x.fin.faE)+" f)");
     if(x.conPrev.kg>0&&!I.completo)L.push("  Consumo total del mes (con el anterior al arranque): "+fmt(x.conTot.fa)+" f · "+fmt(x.conTot.kg)+" kg");
-    if(!x.cua.ok)L.push("  ¡No cuadra! Diferencia "+sg(x.cua.fa)+" f · "+sg(x.cua.kg)+" kg");});
-  L.push("");L.push("VALORACIÓN (al precio del mes)");
-  Object.keys(MAT).forEach(mt=>{const fs=I.filas.filter(x=>x.mat===mt);if(!fs.length)return;const pv=I.precio[mt].v;
+    if(!x.cua.ok)L.push("  ¡No cuadra! Diferencia "+sg(x.cua.fa)+" f · "+sg(x.cua.kg)+" kg");});}
+  if(s.val){L.push("");L.push("VALORACIÓN (al precio del mes)");
+  Object.keys(MAT).forEach(mt=>{const fs=FI.filter(x=>x.mat===mt);if(!fs.length)return;const pv=I.precio[mt].v;
     L.push(MAT[mt].nom+(pv?" a "+eurT(pv)+" €/t":" (sin precio)"));
     const sm=k=>fs.reduce((a,x)=>a+x.eur[k],0);
     fs.forEach(x=>L.push("  "+x.nave+": consumo "+eur(x.eur.con)+" · stock final "+eur(x.eur.fin)));
-    if(fs.length>1)L.push("  Total "+MAT[mt].nom+": consumo "+eur(sm("con"))+" · stock final "+eur(sm("fin")));});
-  const g=I.gran;L.push("");L.push("GRANALLA DE COBRE");
+    if(fs.length>1)L.push("  Total "+MAT[mt].nom+": consumo "+eur(sm("con"))+" · stock final "+eur(sm("fin")));});}
+  const g=I.gran;if(s.gran){L.push("");L.push("GRANALLA DE COBRE");
   L.push("  "+(I.arranque?"Inicial (arranque)":"Inicial")+": "+f2(g.ini)+" kg");
   L.push("  Entradas: "+f2(g.ent)+" kg");
   L.push("  Consumo: "+f2(g.con)+" kg"+(Object.keys(g.nave).length?" ("+Object.keys(g.nave).sort().map(n=>n+" "+f2(g.nave[n])).join(" · ")+")":""));
   if(Math.abs(g.aj)>=0.05)L.push("  Ajustes por recuento: "+(g.aj>0?"+":"−")+f2(Math.abs(g.aj))+" kg");
   L.push("  Final: "+f2(g.fin)+" kg");
-  if(!g.ok)L.push("  ¡No cuadra! Diferencia "+f2(g.cua)+" kg");
-  L.push("");L.push(I.todoOk?"Todo cuadra: inicial + entradas − consumo ± ajustes = final.":"Hay líneas que no cuadran: revisar antes de enviar.");
+  if(!g.ok)L.push("  ¡No cuadra! Diferencia "+f2(g.cua)+" kg");}
+  if(s.cua){L.push("");L.push(I.todoOk?"Todo cuadra: inicial + entradas − consumo ± ajustes = final.":"Hay líneas que no cuadran: revisar antes de enviar.");}
   return L.join("\n");
 }
 const Mayus=t=>t.charAt(0).toUpperCase()+t.slice(1);
@@ -1634,7 +1651,7 @@ function cargarExcelJS(){
     sc.src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
     sc.onload=()=>window.ExcelJS?res(window.ExcelJS):rej(new Error("sin ExcelJS"));sc.onerror=()=>rej(new Error("no carga"));document.head.appendChild(sc);});
 }
-async function excelCierre(I){
+async function excelCierre(I,s){s=s||incluirSel("cierre",opsCierre(I));
   const X=await cargarExcelJS(),wb=new X.Workbook(),tit=Mayus(nomMes(I.m));
   const VERDE={type:"pattern",pattern:"solid",fgColor:{argb:"FFC6EFCE"}},VTX={color:{argb:"FF006100"}};
   const GRIS={type:"pattern",pattern:"solid",fgColor:{argb:"FFE7E6E6"}};
@@ -1771,6 +1788,7 @@ async function excelCierre(I){
   const rt=wg.addRow(["Total","","","",k1(I.gran.ent)||0,k1(I.gran.con)||0,k1(I.gran.aj)||0,Math.round(I.gran.fin*1000)/1000,I.gran.ok?"✓ Cuadra con el stock final":"No cuadra: "+f2(I.gran.cua)+" kg"]);
   rt.eachCell(c=>{c.font={bold:true};c.fill=GRIS;c.border=borde;});[5,6,7,8].forEach(i=>rt.getCell(i).numFmt="#,##0.0");
   [11,9,9,20,13,13,12,12,50].forEach((w,i)=>wg.getColumn(i+1).width=w);wg.views=[{state:"frozen",ySplit:3}];
+  wb.worksheets.slice().forEach(w=>{if(w.name!=="Resumen"&&s["h:"+w.name]===false)wb.removeWorksheet(w.id);});
   return wb.xlsx.writeBuffer();
 }
 /* Enviar el cierre por correo (Excel + resumen) con la función enviar-cierre de Supabase */
@@ -1863,6 +1881,7 @@ function vCierre(){
       (cfg.cierres||{})[cierreMes]&&cfg.cierres[cierreMes].enviado?el("p",{class:"hint",text:"Enviado por correo el "+dmyA((cfg.cierres[cierreMes].enviado||"").slice(0,10))+(cfg.cierres[cierreMes].a?" a "+cfg.cierres[cierreMes].a:"")+"."}):null,
       el("p",{class:"hint",text:(I.completo?periodo(I)+" ":I.arranque?"La app arrancó el "+dmyA(I.arranque)+" con inventario físico: ese es el inicial. ":"")+"Entradas "+fmt(tE)+" kg · Consumo "+fmt(tC)+" kg · Stock final "+fmt(tF)+" kg."+(cierreMes===act?" El mes aún no ha terminado: el final es el de hoy.":"")}),
       tabla,tablaPrev,valor,cobre,
+      incluirChips("cierre",opsCierre(I),null,"Qué incluir al copiar, descargar o enviar (se recuerda):").node,
       el("div",{class:"seg"},[
         el("button",{type:"button",class:"btn",text:"Informe de cierre (Excel)",onclick:e=>bajar(e,()=>excelCierre(I),"cierre-colada-"+cierreMes+".xlsx","Informe descargado")}),
         el("button",{type:"button",class:"btn sec",text:"Copiar resumen",onclick:copiar}),
