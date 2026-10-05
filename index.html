@@ -331,7 +331,8 @@ function pantallaImportar(vacia){return new Promise(res=>{
 
 /* ---------- usuario en la cabecera y gestión de usuarios ---------- */
 function ponUsuario(){const hd=document.querySelector("header");if(!hd||document.getElementById("usr-btn"))return;
-  hd.appendChild(h("a",{id:"app-sw",class:"usr-btn",href:P?"./":"almacen.html",style:"text-decoration:none",text:P?"⇄ Colada":"⇄ Almacén"}));
+  const APP=window.APP_ID||(P?"almacen":"colada");[["colada","./","⇄ Colada"],["almacen","almacen.html","⇄ Almacén"],["iny","inyectoras.html","⇄ Inyectoras"]].filter(x=>x[0]!==APP)
+    .forEach(([k,u,t],i)=>hd.appendChild(h("a",{id:i?"app-sw2":"app-sw",class:"usr-btn",href:u,style:"text-decoration:none",text:t})));
   hd.appendChild(h("button",{id:"hist-btn",class:"usr-btn",type:"button",title:"Historial y deshacer","aria-label":"Historial y deshacer",text:"↶ Historial",onclick:panelHist}));
   hd.appendChild(h("button",{id:"usr-btn",class:"usr-btn",type:"button",text:(yo.nombre||yo.email||"").split(" ")[0],onclick:panelUsuario}));}
 async function panelUsuario(){
