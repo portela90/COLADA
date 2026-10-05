@@ -59,6 +59,16 @@ nav button[aria-selected=true]{color:var(--acc);border-top-color:var(--acc)}
 .hint{color:var(--mut);font-size:13px;margin:4px 0 10px}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-size:12px;text-transform:uppercase}
 .bar{height:8px;border-radius:4px;background:var(--surf2);overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.btn.grande{display:block;width:100%;font-size:18px;min-height:56px;margin:0 0 12px;background:var(--ok)}
+.ot .tit{all:unset;display:flex;gap:8px;align-items:flex-start;cursor:pointer}.ot .tit .t{flex:1}.ot .tit .mas{color:var(--mut);font-size:22px;line-height:1}
+.ot.curso{background:var(--surf2);box-shadow:inset 4px 0 0 var(--acc2)}
+.row.acc{flex-wrap:wrap}.row.acc>*{flex:1 1 auto}
+.linea{all:unset;display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;width:100%;cursor:pointer}div.linea{cursor:default}
+table.det th{width:34%;text-transform:none;font-size:13px}h4{margin:14px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+ol.hist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}ol.hist small{color:var(--mut)}
+.seg.sel button[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+.bar.llena i{background:var(--bad)}
+.ot .tit:focus-visible,.linea:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -73,7 +83,7 @@ const CHECK_FIN=["Espátulas","Palas","Martillo","Aspiradora","Hidrolimpiadora",
 const DIAS=[["lunes","L"],["martes","M"],["miercoles","X"],["jueves","J"],["viernes","V"],["sabado","S"],["domingo","D"]];
 const TURNOS_S=["Partido","Tarde","Refuerzo"],TURNOS_F=["Mañana finde"];
 const EST={pendiente:["Pendiente","warn"],en_curso:["En curso","info"],hecha:["Hecha","ok"],no_hecha:["No hecha","bad"]};
-const ERR={SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador"};
+const ERR={SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x==="html")e.innerHTML=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -116,20 +126,46 @@ function pinPad(w){let pin="",pin1=null;const nuevo=!w.tiene_pin;const msg=el("p
   pintaDots();cerrar=dlg(w.nombre,el("div",null,[msg,dots,pad]),[{t:"Cancelar",cls:"sec"}]);}
 
 /* ---------- tarjeta de OT ---------- */
+const durTxt=m=>m==null?"":m<60?Math.max(0,Math.round(m))+" min":Math.floor(m/60)+" h "+String(Math.round(m%60)).padStart(2,"0")+" min";
+const desde=ts=>(Date.now()-new Date(ts).getTime())/60000;
+const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
+function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
+  const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
 function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.rol==="admin";
-  const quien=o.todo_equipo?"Todo el equipo "+(o.equipo||""):(o.nombres||[]).join(", ");
+  const quien=quienTxt(o);const sinCubrir=(o.cubre||[]).some(c=>!c.sustituto);
   const acc=[];
-  if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"Empezar",onclick:()=>cambia(o,"en_curso",re)}));
-  if(o.estado==="pendiente"||o.estado==="en_curso"){acc.push(el("button",{class:"btn ok peq",text:"Terminar",onclick:()=>terminar(o,re)}));acc.push(el("button",{class:"btn sec peq",text:"No se pudo",onclick:()=>noHecha(o,re)}));}
-  if(o.estado==="hecha"||o.estado==="no_hecha")acc.push(el("button",{class:"btn sec peq",text:"Reabrir",onclick:()=>cambia(o,"pendiente",re)}));
-  acc.push(el("button",{class:"btn sec peq",text:"📷 Fotos"+(o.nfotos?" ("+o.nfotos+")":""),onclick:()=>verFotos(o,re)}));
-  if(admin)acc.push(el("button",{class:"btn sec peq",text:"Editar",onclick:()=>formOT(o,re)}));
-  return el("div",{class:"ot"},[el("div",{style:"display:flex;gap:8px;align-items:flex-start"},[el("div",{class:"t",style:"flex:1",text:o.titulo}),el("span",{class:"pill "+ec,text:et})]),
+  if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"▶ Empezar",onclick:()=>cambia(o,"en_curso",re)}));
+  if(o.estado==="en_curso")acc.push(el("button",{class:"btn ok peq",text:"✔ Terminar",onclick:()=>terminar(o,re)}));
+  if(o.estado==="pendiente"||o.estado==="en_curso")acc.push(el("button",{class:"btn sec peq",text:"No se pudo",onclick:()=>noHecha(o,re)}));
+  if(o.estado==="hecha"||o.estado==="no_hecha")acc.push(el("button",{class:"btn sec peq",text:"Reabrir",onclick:()=>{if(confirm("¿Reabrir este trabajo? Se borran la hora de inicio y de fin."))cambia(o,"pendiente",re);}}));
+  acc.push(el("button",{class:"btn sec peq",text:"📷"+(o.nfotos?" "+o.nfotos:""),"aria-label":"Fotos",onclick:()=>verFotos(o,re)}));
+  if(admin)acc.push(el("button",{class:"btn sec peq",text:sinAsignar(o)?"Asignar":"Editar",onclick:()=>formOT(o,re)}));
+  return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
-    el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,o.turno?el("span",{text:"⏱ "+o.turno}):null,quien?el("span",{text:"👤 "+quien}):null,
-      o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,o.hecho_por_n&&o.estado!=="pendiente"?el("span",{text:(o.estado==="en_curso"?"Empezó ":"Por ")+o.hecho_por_n+(o.fin?" a las "+hora(o.fin):o.inicio?" a las "+hora(o.inicio):"")}):null,o.nota?el("span",{text:"📝 "+o.nota}):null]),
-    el("div",{class:"row",style:"flex-wrap:wrap"},acc)]);}
-async function cambia(o,e,re,nota){try{await rpc("estado_ot",{p_tok:S.tok,p_ot:o.id,p_estado:e,p_nota:nota||null});toast(EST[e][0]);re();}catch(er){toast(er.message);}}
+    el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
+      sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
+      o.lugar?el("span",{text:"📍 "+o.lugar}):null,o.turno?el("span",{text:"🕑 "+o.turno}):null,quien?el("span",{text:"👤 "+quien}):null,
+      o.origen==="rapida"&&o.creado_por_n?el("span",{text:"Abierta por "+o.creado_por_n.split(" ")[0]+" a las "+hora(o.creado)}):null,
+      o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,
+      o.estado==="en_curso"&&o.inicio?el("span",{class:"pill info"},["⏱ Empezó "+hora(o.inicio)+(o.hecho_por_n?" ("+o.hecho_por_n.split(" ")[0]+")":"")+" · lleva ",el("b",{class:"vivo","data-ini":o.inicio,text:durTxt(desde(o.inicio))})]):null,
+      o.estado==="hecha"&&o.minutos!=null?el("span",{class:"pill ok",text:"⏱ "+durTxt(o.minutos)}):null,
+      o.hecho_por_n&&(o.estado==="hecha"||o.estado==="no_hecha")?el("span",{text:"Por "+o.hecho_por_n+(o.fin?" a las "+hora(o.fin):"")}):null,o.nota?el("span",{text:"📝 "+o.nota}):null]),
+    el("div",{class:"row acc"},acc)]);}
+setInterval(()=>document.querySelectorAll(".vivo").forEach(x=>x.textContent=durTxt(desde(x.dataset.ini))),30000);
+async function cambia(o,e,re,nota){try{await rpc("estado_ot",{p_tok:S.tok,p_ot:o.id,p_estado:e,p_nota:nota||null});toast(e==="en_curso"?"Empezado: el tiempo cuenta desde ahora":EST[e][0]);re();}catch(er){toast(er.message);}}
+const ACC={creada:"Creada",en_curso:"Empezada",hecha:"Terminada",no_hecha:"No se pudo",pendiente:"Reabierta",reasignada:"Asignada a",editada:"Editada",checklist:"Checklist",borrada:"Borrada",foto:"Foto añadida"};
+const diaDe=ts=>{const d=new Date(ts);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
+function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("p",{class:"hint",text:"Cargando…"}));
+  const fila=(k,v)=>v?el("tr",null,[el("th",{text:k}),el("td",{text:v})]):null;
+  const ck=Object.entries(o.checklist||{}).concat(Object.entries(o.checklist_final||{}));
+  dlg(o.titulo,el("div",null,[o.descripcion?el("p",{style:"margin:0 0 10px",text:o.descripcion}):null,
+    el("table",{class:"det"},el("tbody",null,[fila("Día",fLarga(o.fecha)),fila("Dónde",o.lugar),fila("Quién",quienTxt(o)||(sinAsignar(o)?"Sin asignar":"")),fila("Estado",(EST[o.estado]||[o.estado])[0]),
+      fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota)])),
+    ck.length?el("div",null,[el("h4",{text:"Checklist"}),el("div",{class:"chips"},ck.map(([k,v])=>el("span",{class:"pill "+(v==="OK"?"ok":v==="NO-OK"?"bad":""),text:k+": "+v})))]):null,
+    el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]));
+  rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
+  if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(x.data?el("a",{href:x.data,target:"_blank"},el("img",{src:x.data,alt:"foto"})):el("span",{class:"pill",text:"📦 guardada en la copia"})))).catch(()=>{});
+  else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
 function noHecha(o,re){let n="";dlg("No se pudo hacer",el("div",null,[fld("¿Por qué?",area("",x=>n=x))]),[{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"bad",fn:async()=>{if(!n.trim()){toast("Explica el motivo");return false;}await cambia(o,"no_hecha",re,n.trim());}}]);}
 function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map(([k,c])=>el("button",{type:"button",class:c,"aria-pressed":String(v===k),text:k,onclick:()=>{on(k);b.forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===k)));}}));return el("div",{class:"seg"},b);}
 function terminar(o,re){const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=finde(o.fecha)||o.equipo==="Finde";let nota="";const fotos=[];
@@ -145,48 +181,129 @@ function terminar(o,re){const ck=Object.assign({},o.checklist||{}),fin=Object.as
 function comprime(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const M=1280,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);let q=.7,d=c.toDataURL("image/jpeg",q);while(d.length>650000&&q>.3){q-=.1;d=c.toDataURL("image/jpeg",q);}ok(d);};im.onerror=ko;im.src=r.result;};r.onerror=ko;r.readAsDataURL(f);});}
 async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class:"empty",text:"Cargando…"}));
   const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
-  const carga=async()=>{try{const L=await rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id});box.textContent="";if(!L.length)box.appendChild(el("p",{class:"hint",text:"Sin fotos todavía."}));L.forEach(x=>box.appendChild(el("a",{href:x.data,target:"_blank",title:(x.por||"")+" "+hora(x.creado)},el("img",{src:x.data,alt:"foto de "+(x.por||"")}))));}catch(e){box.textContent=e.message;}};
+  const carga=async()=>{try{const L=await rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id});box.textContent="";if(!L.length)box.appendChild(el("p",{class:"hint",text:"Sin fotos todavía."}));L.forEach(x=>box.appendChild(x.data?el("a",{href:x.data,target:"_blank",title:(x.por||"")+" "+hora(x.creado)},el("img",{src:x.data,alt:"foto de "+(x.por||"")})):el("span",{class:"pill",text:"📦 guardada en la copia"})));}catch(e){box.textContent=e.message;}};
   dlg("Fotos · "+o.titulo,el("div",null,[box,add]));carga();}
 
 /* ---------- vista del día (operario y admin) ---------- */
 async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:(f===hoyISO()?"Hoy · ":"")+fLarga(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
+  const re=()=>pinta();
+  v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
-  const re=()=>pinta();
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
-  box.textContent="";const D=R.dia,A=R.atrasadas;
+  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
-    box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Pendientes",n("pendiente")+n("en_curso")],["Hechas",n("hecha")],["No hechas",n("no_hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
-    box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Horas extra",onclick:()=>formExtra(f,re)})]));
-    if(R.extras.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas extra este día"})),el("div",{class:"bd"},R.extras.map(x=>el("div",{style:"display:flex;gap:8px;align-items:center;padding:4px 0"},[el("span",{style:"flex:1",text:"👤 "+x.nombre+" · con "+x.equipo+(x.horas?" · "+x.horas+" h":"")+(x.nota?" · "+x.nota:"")}),el("button",{class:"btn sec peq",text:"Quitar",onclick:async()=>{try{await rpc("extra_quitar",{p_tok:S.tok,p_id:x.id});re();}catch(e){toast(e.message);}}})])))]));}
-  else if(R.extras.length)box.appendChild(el("div",{class:"aviso",text:"Hoy vienes de horas extra con el equipo "+R.extras[0].equipo}));
+    if(R.espacio!=null&&R.espacio>=80)box.appendChild(el("div",{class:"aviso"},["La base de datos está al "+R.espacio+" %",el("small",{text:"Haz una copia en Resumen y libera espacio."})]));
+    box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Por hacer",n("pendiente")],["En curso",n("en_curso")],["Hechas",n("hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
+    box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"＋ Horas extra",onclick:()=>formExtra(f,re)})]));
+    if(AU.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones"})),el("div",{class:"bd"},AU.map(x=>el("button",{class:"linea",onclick:()=>formSust(x,re)},[
+      el("span",{style:"flex:1",text:x.motivo==="Horas extra"?"👤 "+x.sustituto_n+" hace los trabajos de "+x.ausente_n:"🚫 "+x.ausente_n+" · "+(x.motivo||"Falta")+(x.hasta!==x.desde?" hasta "+fCorta(x.hasta):"")}),
+      x.motivo==="Horas extra"?null:el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"lo cubre "+x.sustituto_n.split(" ")[0]:"sin cubrir"})])))]));
+    if(R.extras.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas extra este día"})),el("div",{class:"bd"},R.extras.map(x=>el("div",{class:"linea"},[el("span",{style:"flex:1",text:"👤 "+x.nombre+" · con "+x.equipo+(x.horas?" · "+x.horas+" h":"")+(x.nota?" · "+x.nota:"")}),
+      el("button",{class:"btn sec peq",text:"＋ Darle trabajo",onclick:()=>formOT({fecha:f,equipo:x.equipo,asignados:[x.trabajador]},re)}),
+      el("button",{class:"btn sec peq",text:"Quitar",onclick:async()=>{try{await rpc("extra_quitar",{p_tok:S.tok,p_id:x.id});re();}catch(e){toast(e.message);}}})])))]));
+    const SA=D.filter(sinAsignar);if(SA.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Sin asignar ("+SA.length+")"})),SA.map(o=>tarjeta(o,re))]));}
+  else{if(R.extras.length)box.appendChild(el("div",{class:"aviso",text:"Hoy vienes de horas extra con el equipo "+R.extras[0].equipo}));
+    AU.filter(x=>x.sustituto===S.yo.id).forEach(x=>box.appendChild(el("div",{class:"aviso"},["Hoy haces también los trabajos de "+x.ausente_n,el("small",{text:x.motivo&&x.motivo!=="Horas extra"?"Motivo: "+x.motivo:"Te salen abajo con su nombre."})])));}
   if(A.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Atrasadas ("+A.length+")"})]),A.map(o=>tarjeta(o,re))]));
-  const pend=D.filter(o=>o.estado==="pendiente"||o.estado==="en_curso"),hechas=D.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
-  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Trabajos del día":"Mis trabajos")+" ("+pend.length+" por hacer)"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:D.length?"¡Todo hecho! 👍":"No hay trabajos para este día."})]));
-  if(hechas.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Terminadas ("+hechas.length+")"})),hechas.map(o=>tarjeta(o,re))]));
-  box.appendChild(el("button",{class:"btn sec",style:"width:100%",text:"⚠ Avisar de una incidencia",onclick:()=>incidencia(re)}));}
-function incidencia(re){let t="",d="";dlg("Incidencia",el("div",null,[el("p",{class:"hint",text:"Algo que hay que limpiar o arreglar ya. Se crea un trabajo urgente para hoy."}),fld("¿Qué pasa?",inp("",x=>t=x,{placeholder:"p. ej. derrame de aceite en la F28"})),fld("Detalles (opcional)",area("",x=>d=x))]),
-  [{t:"Cancelar",cls:"sec"},{t:"Crear",fn:async()=>{if(!t.trim()){toast("Escribe qué pasa");return false;}await rpc("ot_rapida",{p_tok:S.tok,p_titulo:t,p_desc:d});toast("Incidencia creada");re();}}]);}
-
+  const vis=admin?D.filter(o=>!sinAsignar(o)):D;
+  const cur=vis.filter(o=>o.estado==="en_curso"),pend=vis.filter(o=>o.estado==="pendiente"),hechas=vis.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
+  if(cur.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"En curso ("+cur.length+")"})),cur.map(o=>tarjeta(o,re))]));
+  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:D.length?"Nada pendiente 👍":"No hay trabajos para este día."})]));
+  if(hechas.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Terminadas ("+hechas.length+")"})),hechas.map(o=>tarjeta(o,re))]));}
+/* abrir OT: pensado para el móvil, 3 toques */
+async function abrirOT(re){const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true};const fotos=[];
+  const tit=inp("",x=>o.titulo=x,{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
+  const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…",list:"lugares-dl"});
+  const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
+  const pl=()=>{lchips.textContent="";LUG.slice(0,8).forEach(x=>lchips.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(o.lugar===x),text:x,onclick:()=>{o.lugar=x;lug.value=x;pl();}})));};
+  rpc("lugares",{p_tok:S.tok}).then(L=>{LUG=L;L.forEach(x=>dl.appendChild(el("option",{value:x})));pl();}).catch(()=>{});
+  const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
+  const fbox=el("div",{class:"fotos"});
+  const cerrar=dlg("Abrir OT",el("div",null,[fld("¿Qué hay que hacer?",tit),fld("¿Dónde?",lug),dl,lchips,
+    fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
+    admin?null:fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
+    fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
+    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;const d=await comprime(f);fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
+    [{t:"Cancelar",cls:"sec"},{t:"Abrir OT",fn:async()=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer");tit.focus();return false;}
+      const r=await rpc("ot_abrir",{p_tok:S.tok,p:o});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
+      toast(o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();}}]);
+  setTimeout(()=>tit.focus(),50);}
 /* ---------- administrador ---------- */
+/* faltas, bajas y sustituciones */
+const MOTIVOS=["Baja","Vacaciones","Permiso","Otro"];
+async function formSust(s0,re){const L=await trabajadores();const s=Object.assign({motivo:"Baja",desde:hoyISO(),hasta:hoyISO()},JSON.parse(JSON.stringify(s0)));
+  const chA=chipsTrab(L,s.ausente?[s.ausente]:[],false),chS=chipsTrab(L,s.sustituto?[s.sustituto]:[],false);
+  const mot=el("div",{class:"chips"});const pm=()=>{mot.textContent="";MOTIVOS.concat(s.motivo==="Horas extra"?["Horas extra"]:[]).forEach(k=>mot.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(s.motivo===k),text:k,onclick:()=>{s.motivo=k;pm();}})));};pm();
+  const bot=[{t:"Cancelar",cls:"sec"}];
+  if(s.id)bot.push({t:"Quitar",cls:"bad",fn:async()=>{if(!confirm("¿Quitar esta falta?"))return false;await rpc("sust_borrar",{p_tok:S.tok,p_id:s.id});toast("Quitada");re();}});
+  bot.push({t:"Guardar",fn:async()=>{const a=chA.val()[0],b=chS.val()[0]||null;if(!a){toast("Elige quién falta");return false;}if(a===b){toast("No puede cubrirse a sí mismo");return false;}
+    if(s.hasta<s.desde){toast("La fecha «hasta» es antes que «desde»");return false;}
+    await rpc("sust_guardar",{p_tok:S.tok,p:{id:s.id||null,ausente:a,sustituto:b,desde:s.desde,hasta:s.hasta,motivo:s.motivo,nota:s.nota||null}});toast(b?"Guardado: sus trabajos le salen a quien le cubre":"Guardado");re();}});
+  dlg(s.id?"Editar falta":"Alguien falta",el("div",null,[el("p",{class:"hint",text:"Los trabajos de la persona que falta le salen a quien le cubre, esos días. Puedes elegir a cualquiera, también de otro equipo."}),
+    fld("¿Quién falta?",chA),fld("Motivo",mot),
+    el("div",{class:"row"},[fld("Desde",inp(s.desde,x=>s.desde=x,{type:"date"})),fld("Hasta",inp(s.hasta,x=>s.hasta=x,{type:"date"}))]),
+    fld("¿Quién le cubre? (si no hay nadie, déjalo sin marcar)",chS),fld("Nota (opcional)",inp(s.nota,x=>s.nota=x))]),bot);}
+/* copia de seguridad: ZIP con fotos + Excel de todos los trabajos */
+function cargaJS(src,glob){return window[glob]?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>ko(new Error("No se pudo cargar "+glob+". Revisa internet."));document.head.appendChild(s);});}
+const limpio=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40);
+async function hacerCopia(info){const msg=el("p",{class:"hint",style:"font-size:15px",text:"Preparando…"});const bar=el("div",{class:"bar"},el("i",{style:"width:0%"}));
+  const cerrar=dlg("Haciendo copia",el("div",null,[msg,bar,el("p",{class:"hint",text:"No cierres la app hasta que termine."})]),[]);
+  const pr=(t,p)=>{msg.textContent=t;bar.firstChild.style.width=Math.round(p)+"%";};
+  try{await Promise.all([cargaJS("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","JSZip"),cargaJS("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","XLSX")]);
+    pr("Leyendo trabajos…",3);const [O,F]=await Promise.all([rpc("ots_export",{p_tok:S.tok}),rpc("fotos_lista",{p_tok:S.tok})]);
+    const zip=new JSZip();const nomF={},cuenta={};
+    F.forEach(f=>{const b=f.fecha+"_"+limpio(f.titulo);cuenta[b]=(cuenta[b]||0)+1;nomF[f.id]="fotos/"+f.fecha.slice(0,7)+"/"+b+"_"+cuenta[b]+".jpg";});
+    const fotosDe={};F.forEach(f=>(fotosDe[f.ot]=fotosDe[f.ot]||[]).push(nomF[f.id].split("/").pop()));
+    const filas=O.map(o=>({"Fecha":o.fecha,"Trabajo":o.titulo,"Descripción":o.descripcion||"","Dónde":o.lugar||"","Tipo":o.tipo||"","Equipo":o.equipo||"","Turno":o.turno||"",
+      "Asignado a":o.todo_equipo?"Todo el equipo":(o.nombres||[]).join(", "),"Estado":(EST[o.estado]||[o.estado])[0],"Empezó":o.inicio?hora(o.inicio):"","Terminó":o.fin?hora(o.fin):"","Minutos":o.minutos==null?"":o.minutos,
+      "Hecho por":o.hecho_por_n||"","Checklist":o.resultado||"","Detalle checklist":Object.entries(Object.assign({},o.checklist||{},o.checklist_final||{})).map(([k,v])=>k+": "+v).join("; "),
+      "Nota":o.nota||"","Origen":({fija:"Tarea fija",manual:"Jefe",rapida:"Abierta por operario",excel:"Excel"})[o.origen]||o.origen,"Abierta por":o.creado_por_n||"","Urgente":o.prioridad==="alta"?"Sí":"","Fotos":(fotosDe[o.id]||[]).join(", ")}));
+    const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(filas);ws["!cols"]=[12,30,30,14,12,10,12,24,10,8,8,8,18,10,40,30,18,18,8,40].map(w=>({wch:w}));ws["!autofilter"]={ref:ws["!ref"]};
+    XLSX.utils.book_append_sheet(wb,ws,"Trabajos");zip.file("trabajos.xlsx",XLSX.write(wb,{type:"array",bookType:"xlsx"}));
+    const ids=F.map(f=>f.id);let hechas=0;
+    for(let i=0;i<ids.length;i+=10){const D=await rpc("fotos_datos",{p_tok:S.tok,p_ids:ids.slice(i,i+10)});
+      D.forEach(d=>{if(d.data)zip.file(nomF[d.id],d.data.split(",")[1],{base64:true});});hechas+=D.length;pr("Descargando fotos "+hechas+" de "+ids.length+"…",5+85*hechas/Math.max(1,ids.length));}
+    pr("Creando el archivo…",92);const blob=await zip.generateAsync({type:"blob"});
+    const nombre="limpieza-copia-"+hoyISO()+".zip";const a=el("a",{href:URL.createObjectURL(blob),download:nombre});document.body.appendChild(a);a.click();a.remove();
+    S.copiados=ids;ls.set("limp.copia",hoyISO());cerrar();
+    dlg("Copia hecha ✔",el("div",null,[el("p",{text:"Se ha descargado «"+nombre+"» con "+O.length+" trabajos y "+ids.length+" fotos."}),
+      el("p",{class:"hint",text:"Guárdalo en tu ordenador, un pendrive o tu Google Drive. Cuando lo tengas guardado, ya puedes liberar espacio: se borran de la app solo las fotos que van en esta copia. Los trabajos se quedan."})]),
+      [{t:"Ahora no",cls:"sec"},{t:"Liberar espacio",cls:"bad",fn:()=>liberar()}]);}
+  catch(e){cerrar();toast(e.message);}}
+async function liberar(){const ids=S.copiados||[];if(!ids.length){toast("Primero haz la copia");return false;}
+  if(!confirm("¿Has guardado el archivo de la copia? Se borrarán "+ids.length+" fotos de la app (siguen en tu copia)."))return false;
+  let n=0;for(let i=0;i<ids.length;i+=200)n+=await rpc("fotos_liberar",{p_tok:S.tok,p_ids:ids.slice(i,i+200)});
+  S.copiados=null;toast("Espacio liberado: "+n+" fotos");pinta();}
+function bloqueCopia(){const box=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Copia de seguridad"})),el("div",{class:"empty",text:"Cargando…"})]);
+  rpc("espacio",{p_tok:S.tok}).then(E=>{box.lastChild.remove();const pct=Math.round(E.total*100/E.limite);const ult=ls.get("limp.copia");
+    box.appendChild(el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px",text:"Espacio usado: "+pct+" % ("+Math.round(E.total/1048576)+" MB de "+Math.round(E.limite/1048576)+" MB)"}),
+      el("div",{class:"bar"+(pct>=80?" llena":"")},el("i",{style:"width:"+Math.min(100,pct)+"%"})),
+      el("p",{class:"hint",text:E.fotos+" fotos en la app ("+Math.round(E.fotos_bytes/1048576)+" MB)"+(E.liberadas?" · "+E.liberadas+" ya guardadas en copias":"")+(ult?" · última copia desde este móvil: "+fCorta(ult):"")}),
+      el("div",{class:"row"},[el("button",{class:"btn",text:"⬇ Hacer copia",onclick:()=>hacerCopia(E)}),S.copiados&&S.copiados.length?el("button",{class:"btn bad",text:"Liberar espacio ("+S.copiados.length+" fotos)",onclick:()=>liberar()}):null])]));}).catch(e=>{box.lastChild.textContent=e.message;});
+  return box;}
+
 let TRAB=null;async function trabajadores(force){if(!TRAB||force)TRAB=await rpc("trabajadores_admin",{p_tok:S.tok});return TRAB;}
 function chipsTrab(L,sel0,multi){const s=new Set(sel0||[]);const box=el("div",{class:"chips"});const pint=()=>{box.textContent="";L.filter(w=>w.activo).forEach(w=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(s.has(w.id)),text:w.nombre,onclick:()=>{if(s.has(w.id))s.delete(w.id);else{if(!multi)s.clear();s.add(w.id);}pint();}})));};pint();box.val=()=>Array.from(s);return box;}
 async function formOT(o0,re){const L=await trabajadores();const o=Object.assign({fecha:hoyISO(),equipo:"Semana",prioridad:"normal",asignados:[],todo_equipo:false},o0);
   const ch=chipsTrab(L,o.asignados,true);
-  const cuerpo=el("div",null,[fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
+  const cuerpo=el("div",null,[fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Dónde",inp(o.lugar,v=>o.lugar=v,{placeholder:"p. ej. F28, pasillo Nave 2…"})),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
     el("div",{class:"row"},[fld("Fecha",inp(o.fecha,v=>o.fecha=v,{type:"date"})),fld("Equipo",sel([["Semana","Semana"],["Finde","Finde"]],o.equipo,v=>o.equipo=v))]),
     el("div",{class:"row"},[fld("Turno",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),o.turno,v=>o.turno=v)),fld("Prioridad",sel([["normal","Normal"],["alta","Urgente"]],o.prioridad,v=>o.prioridad=v))]),
-    fld("Quién lo hace",ch),el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 10px"},[el("input",{type:"checkbox",checked:o.todo_equipo,onchange:e=>o.todo_equipo=e.target.checked}),"Lo ve todo el equipo (como «Equipo Finde»)"])]);
+    fld("Quién lo hace",ch),el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 10px"},[el("input",{type:"checkbox",checked:o.todo_equipo,onchange:e=>o.todo_equipo=e.target.checked}),"Lo ve todo el equipo"])]);
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(o.id)bot.push({t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar este trabajo?"))return false;await rpc("ot_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}});
-  bot.push({t:"Guardar",fn:async()=>{const p={id:o.id||null,titulo:o.titulo,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
+  bot.push({t:"Guardar",fn:async()=>{const p={id:o.id||null,titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
     if(!p.asignados.length&&!p.todo_equipo){toast("Elige quién lo hace");return false;}await rpc("ot_guardar",{p_tok:S.tok,p});toast("Guardada");re();}});
-  dlg(o.id?"Editar trabajo":"Nuevo trabajo",cuerpo,bot);}
-async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=finde(f)?"Finde":"Semana";const ch=chipsTrab(L,[],false);
-  dlg("Horas extra · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:"Esa persona ese día trabaja con el equipo que elijas y ve sus trabajos."}),fld("Quién viene",ch),el("div",{class:"row"},[fld("Con el equipo",sel([["Finde","Finde"],["Semana","Semana"]],eq,v=>eq=v)),fld("Horas (opcional)",inp("",v=>h=v,{inputmode:"decimal"}))]),fld("Nota (opcional)",inp("",v=>n=v))]),
-   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const w=ch.val()[0];if(!w){toast("Elige a la persona");return false;}const hh=parseFloat(String(h).replace(",","."));
-     await rpc("extra_poner",{p_tok:S.tok,p_fecha:f,p_trab:w,p_horas:isFinite(hh)?hh:null,p_nota:n,p_equipo:eq});toast("Apuntado");re();}}]);}
+  dlg(o.id?(sinAsignar(o)?"Asignar trabajo":"Editar trabajo"):"Nuevo trabajo",cuerpo,bot);}
+async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=finde(f)?"Finde":"Semana";const ch=chipsTrab(L,[],false),chC=chipsTrab(L,[],false);
+  dlg("Horas extra · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:"Ese día esa persona ve los trabajos de «todo el equipo» que elijas. Si además marcas a quién sustituye, ve también los trabajos de esa persona. Y siempre puedes darle trabajos sueltos con «＋ Darle trabajo»."}),
+    fld("¿Quién viene?",ch),el("div",{class:"row"},[fld("Con el equipo",sel([["Finde","Finde"],["Semana","Semana"]],eq,v=>eq=v)),fld("Horas (opcional)",inp("",v=>h=v,{inputmode:"decimal"}))]),
+    fld("¿Hace los trabajos de alguien? (opcional)",chC),fld("Nota (opcional)",inp("",v=>n=v))]),
+   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const w=ch.val()[0],c=chC.val()[0];if(!w){toast("Elige a la persona");return false;}if(w===c){toast("No puede sustituirse a sí mismo");return false;}const hh=parseFloat(String(h).replace(",","."));
+     await rpc("extra_poner",{p_tok:S.tok,p_fecha:f,p_trab:w,p_horas:isFinite(hh)?hh:null,p_nota:n,p_equipo:eq});
+     if(c)await rpc("sust_guardar",{p_tok:S.tok,p:{ausente:c,sustituto:w,desde:f,hasta:f,motivo:"Horas extra"}});toast("Apuntado");re();}}]);}
 async function vTareas(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("p",{class:"hint",text:"Las tareas fijas se convierten solas en trabajos cada día que les toca. «Todos» = de lunes a viernes en Semana, sábado y domingo en Finde."}));
   v.appendChild(el("button",{class:"btn",style:"width:100%;margin:0 0 12px",text:"＋ Nueva tarea fija",onclick:()=>formTarea({},()=>pinta())}));v.appendChild(box);
   try{const T=await rpc("tareas",{p_tok:S.tok});box.textContent="";["Semana","Finde"].forEach(eq=>{const X=T.filter(t=>t.equipo===eq);
@@ -203,9 +320,14 @@ async function formTarea(t0,re){const L=await trabajadores();const t=Object.assi
     el("div",{class:"row"},[fld("Equipo",sel([["Semana","Semana"],["Finde","Finde"]],t.equipo,v=>t.equipo=v)),fld("Turno",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(x=>[x,x])),t.turno,v=>t.turno=v))]),
     fld("Quién la hace",ch),el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 8px"},[el("input",{type:"checkbox",checked:t.todo_equipo,onchange:e=>t.todo_equipo=e.target.checked}),"Todo el equipo"]),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:t.activo,onchange:e=>t.activo=e.target.checked}),"Activa (si la quitas, se pausa)"])]),bot);}
-async function vEquipo(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("button",{class:"btn",style:"width:100%;margin:0 0 12px",text:"＋ Nuevo compañero",onclick:()=>formTrab({},()=>pinta())}));v.appendChild(box);
-  try{const L=await trabajadores(true);box.textContent="";box.appendChild(el("div",{class:"card"},L.map(w=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTrab(w,()=>pinta())},[el("div",{class:"t",text:w.nombre+(w.rol==="admin"?" · administrador":"")+(w.activo?"":" (de baja)")}),
-    el("div",{class:"meta"},[el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"})])]))));}
+async function vEquipo(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Alguien falta",onclick:()=>formSust({},()=>pinta())}),el("button",{class:"btn sec",text:"＋ Nuevo compañero",onclick:()=>formTrab({},()=>pinta())})]));v.appendChild(box);
+  try{const [L,SU]=await Promise.all([trabajadores(true),rpc("sust_lista",{p_tok:S.tok})]);box.textContent="";const hoy=hoyISO();
+    const act=SU.filter(x=>x.hasta>=hoy&&x.motivo!=="Horas extra");
+    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones ("+act.length+")"})),act.length?act.map(x=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formSust(x,()=>pinta())},[el("div",{class:"t",text:x.ausente_n+" · "+(x.motivo||"Falta")}),
+      el("div",{class:"meta"},[el("span",{text:"📅 "+(x.desde===x.hasta?fCorta(x.desde):fCorta(x.desde)+" → "+fCorta(x.hasta))}),x.desde<=hoy?el("span",{class:"pill warn",text:"Falta hoy"}):el("span",{class:"pill",text:"Próximamente"}),
+        el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"Lo cubre "+x.sustituto_n:"Sin cubrir"}),x.nota?el("span",{text:"📝 "+x.nota}):null])])):el("div",{class:"empty",text:"Nadie falta. Si alguien está de baja o de vacaciones, pulsa «＋ Alguien falta» y elige quién le cubre."})]));
+    const faltaHoy=new Set(SU.filter(x=>x.desde<=hoy&&x.hasta>=hoy&&x.motivo!=="Horas extra").map(x=>x.ausente));box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Compañeros"})),L.map(w=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTrab(w,()=>pinta())},[el("div",{class:"t",text:w.nombre+(w.rol==="admin"?" · administrador":"")+(w.activo?"":" (ya no trabaja)")}),
+    el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"})])]))]));}
   catch(e){box.textContent=e.message;}}
 function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;
   const eqb=el("div",{class:"chips"});const pe=()=>{eqb.textContent="";["Semana","Finde"].forEach(k=>eqb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(w.equipos.includes(k)),text:k,onclick:()=>{w.equipos=w.equipos.includes(k)?w.equipos.filter(x=>x!==k):w.equipos.concat([k]);if(!w.equipos.length)w.equipos=[k];pe();}})));};pe();
@@ -224,14 +346,17 @@ function formAviso(a0,re){const a=Object.assign({fecha:hoyISO(),activo:true},a0)
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:a.activo,onchange:e=>a.activo=e.target.checked}),"Visible"])]),bot);}
 async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=hoyISO();
   v.appendChild(el("div",{class:"chips",style:"margin:0 0 12px"},[[7,"7 días"],[30,"30 días"]].map(([k,t])=>el("button",{class:"chip","aria-pressed":String(S.rs===k),text:t,onclick:()=>{S.rs=k;pinta();}}))));
-  const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);
+  const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);v.appendChild(bloqueCopia());
   try{const [O,X]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:des,p_hasta:has}),rpc("extras_mes",{p_tok:S.tok,p_mes:has})]);box.textContent="";
-    const P={};O.forEach(o=>{const ns=o.todo_equipo?["Equipo "+(o.equipo||"")]:(o.nombres&&o.nombres.length?o.nombres:["Sin asignar"]);ns.forEach(n=>{const p=P[n]=P[n]||{t:0,h:0,no:0,mal:0};p.t++;if(o.estado==="hecha")p.h++;if(o.estado==="no_hecha")p.no++;if(o.resultado==="NO-OK")p.mal++;});});
+    const P={};O.forEach(o=>{const ns=(o.estado==="hecha"||o.estado==="no_hecha")&&o.hecho_por_n?[o.hecho_por_n]:o.todo_equipo?["Equipo "+(o.equipo||"")]:(o.nombres&&o.nombres.length?o.nombres.map(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);return c?c.sustituto:n;}):["Sin asignar"]);ns.forEach(n=>{const p=P[n]=P[n]||{t:0,h:0,no:0,mal:0,min:0,nm:0};p.t++;if(o.estado==="hecha"){p.h++;if(o.minutos!=null){p.min+=o.minutos;p.nm++;}}if(o.estado==="no_hecha")p.no++;if(o.resultado==="NO-OK")p.mal++;});});
     const tot=O.length,hech=O.filter(o=>o.estado==="hecha").length;
     box.appendChild(el("div",{class:"kpis"},[["Trabajos",tot],["Hechos",hech],["% hecho",tot?Math.round(hech*100/tot)+"%":"—"],["Checklist NO-OK",O.filter(o=>o.resultado==="NO-OK").length]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
-    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Por persona"})),el("table",null,[el("thead",null,el("tr",null,["Persona","Hechos","No hechos","NO-OK",""].map(h=>el("th",{text:h})))),
-      el("tbody",null,Object.keys(P).sort().map(n=>{const p=P[n];return el("tr",null,[el("td",{text:n}),el("td",{text:p.h+"/"+p.t}),el("td",{text:String(p.no)}),el("td",{text:String(p.mal)}),el("td",{style:"width:30%"},el("div",{class:"bar"},el("i",{style:"width:"+(p.t?Math.round(p.h*100/p.t):0)+"%"})))]);}))])]));
+    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Por persona"})),el("table",null,[el("thead",null,el("tr",null,["Persona","Hechos","No hechos","NO-OK","Tiempo medio",""].map(h=>el("th",{text:h})))),
+      el("tbody",null,Object.keys(P).sort().map(n=>{const p=P[n];return el("tr",null,[el("td",{text:n}),el("td",{text:p.h+"/"+p.t}),el("td",{text:String(p.no)}),el("td",{text:String(p.mal)}),el("td",{text:p.nm?durTxt(p.min/p.nm):"—"}),el("td",{style:"width:22%"},el("div",{class:"bar"},el("i",{style:"width:"+(p.t?Math.round(p.h*100/p.t):0)+"%"})))]);}))])]));
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas extra este mes"})),X.length?el("table",null,el("tbody",null,X.map(x=>el("tr",null,[el("td",{text:x.nombre}),el("td",{text:x.dias+" día"+(x.dias>1?"s":"")}),el("td",{text:x.horas!=null?x.horas+" h":"—"}),el("td",{text:x.fechas.map(f=>fCorta(f.fecha)).join(", ")})])))):el("div",{class:"empty",text:"Nadie este mes."})]));
+    const TT={};O.filter(o=>o.estado==="hecha"&&o.minutos!=null).forEach(o=>{const t=TT[o.titulo]=TT[o.titulo]||{n:0,s:0,mn:1e9,mx:0};t.n++;t.s+=o.minutos;t.mn=Math.min(t.mn,o.minutos);t.mx=Math.max(t.mx,o.minutos);});
+    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Cuánto tarda cada trabajo"})),Object.keys(TT).length?el("table",null,[el("thead",null,el("tr",null,["Trabajo","Veces","Media","Mín – Máx"].map(h=>el("th",{text:h})))),
+      el("tbody",null,Object.keys(TT).sort((a,b)=>TT[b].s/TT[b].n-TT[a].s/TT[a].n).map(k=>{const t=TT[k];return el("tr",null,[el("td",{text:k}),el("td",{text:String(t.n)}),el("td",{text:durTxt(t.s/t.n)}),el("td",{text:durTxt(t.mn)+" – "+durTxt(t.mx)})]);}))]):el("div",{class:"empty",text:"Todavía no hay tiempos. Salen cuando los trabajos se empiezan con «▶ Empezar» y se terminan con «✔ Terminar»."})]));
     const noh=O.filter(o=>o.estado==="no_hecha"||o.resultado==="NO-OK");
     if(noh.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Problemas ("+noh.length+")"})),noh.map(o=>el("div",{class:"ot"},[el("div",{class:"t",text:fCorta(o.fecha)+" · "+o.titulo}),el("div",{class:"d",text:[o.estado==="no_hecha"?"No hecha":"Checklist NO-OK",o.nota,o.hecho_por_n].filter(Boolean).join(" · ")})]))]));}
   catch(e){box.textContent=e.message;}}
