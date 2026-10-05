@@ -841,16 +841,17 @@ function revBox(a){const R=revsDe(a),v=R[R.length-1],hy=hoy();
     el("div",{class:"gh",style:"border-radius:6px",text:"Plano"+(v?" · "+revTxt(v.n)+" vigente":" · sin subir")+(a.plano?" · nº "+a.plano:"")}),
     !esModelo(a)&&iny.length?el("p",{class:"sub",text:"Va en: "+iny.join(", ")}):null,!esModelo(a)&&a.notas?el("p",{class:"sub",text:a.notas}):null,
     reciente?el("div",{class:"banner",text:"Modificado hace "+dias(v.f,hy)+" días ("+fmtF(v.f)+"): "+v.cambio}):null,
-    v?el("div",{style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[v.doc?docThumb(v.doc):null,el("div",{class:"sub",text:revTxt(v.n)+" · "+fmtF(v.f)+(v.by?" · "+v.by:"")+(v.n>1?" · "+v.cambio:"")})]):el("p",{class:"hint",text:"Todavía no hay plano. Súbelo como Rev. 01."}),
+    v?el("div",{style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[v.gen?miniGen(a,v):v.doc?docThumb(v.doc):null,el("div",{class:"sub",text:revTxt(v.n)+" · "+fmtF(v.f)+(v.by?" · "+v.by:"")+(v.n>1?" · "+v.cambio:"")})]):el("p",{class:"hint",text:"Todavía no hay plano. Súbelo como Rev. 01."}),
     v&&(v.cotas||[]).length?el("p",{class:"sub",text:"Cotas críticas: "+cotasTxt(v.cotas)}):null,
-    el("div",{class:"acciones"},[assets?el("button",{type:"button",class:"btn sec peq",text:v?"Modificar plano (nueva revisión)":"Subir plano (Rev. 01)",onclick:()=>{cerrarDlgs();formRev(a,()=>reabreRev(a));}}):null,
+    el("div",{class:"acciones"},[(v&&v.gen)||(!v&&a.geo)?el("button",{type:"button",class:"btn sec peq",text:v?"Cambiar medidas (nueva revisión)":"Crear plano con las medidas",onclick:()=>{cerrarDlgs();formGeo(a,()=>reabreRev(a));}}):null,
+      assets?el("button",{type:"button",class:"btn sec peq",text:v?(v.gen?"Marcar o subir otro plano":"Modificar plano (nueva revisión)"):"Subir plano (Rev. 01)",onclick:()=>{cerrarDlgs();formRev(a,()=>reabreRev(a));}}):null,
       R.length>1?el("button",{type:"button",class:"btn sec peq",text:"Historial ("+R.length+")",onclick:()=>{cerrarDlgs();histRev(a);}}):null])]);}
 function formRev(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1],n=v?v.n+1:1;const st=revStock(a);
   const x={doc:null,cambio:v?"":"Plano inicial",motivo:"",by:quienSoy(),cotas:JSON.parse(JSON.stringify((v&&v.cotas)||[]))};
   const estado=el("p",{class:"sub",text:v?"Elige cómo hacer la nueva revisión:":"Todavía no has subido el archivo."});
   const sube=subirDoc(async d=>{x.doc=d;estado.textContent="✓ "+d.nombre+" subido";},v?"…o sube un plano nuevo (PDF o foto)":"Plano (PDF o foto)");
-  const marcar=v&&v.doc?el("button",{type:"button",class:"btn",text:"✎ Modificar sobre el plano actual",onclick:async e=>{const b=e.currentTarget;b.disabled=true;
-      const blob=await editarPlano(v.doc,()=>[revTxt(n)+" · "+fmtF(hoy())+" · "+(x.by||"").trim(),(x.cambio||"").trim()].filter(Boolean));b.disabled=false;if(!blob)return;
+  const marcar=v&&(v.doc||v.gen)?el("button",{type:"button",class:"btn",text:"✎ Modificar sobre el plano actual",onclick:async e=>{const b=e.currentTarget;b.disabled=true;
+      const blob=await editarPlano(v.gen?{blobFn:()=>blobPlano(a,v,"image/png"),nombre:"plano.png"}:v.doc,()=>[revTxt(n)+" · "+fmtF(hoy())+" · "+(x.by||"").trim(),(x.cambio||"").trim()].filter(Boolean));b.disabled=false;if(!blob)return;
       estado.textContent="Subiendo el plano modificado…";try{const r=await assets.upload(blob);x.doc={id:r.id,nombre:(a.cod||"plano")+"_"+revTxt(n).replace(". ","")+".jpg",tipo:"image/jpeg",fecha:hoy()};estado.textContent="✓ Plano modificado listo ("+revTxt(n)+")";}
       catch(er){estado.textContent="No se pudo subir: "+((er&&er.message)||"error");}}}):null;
   const cot=el("div",{style:"display:grid;gap:6px"});
@@ -878,13 +879,94 @@ function histRev(a0){const a=revObj(a0.id);const A=revsDe(a);const R=A.slice().r
     return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap;align-items:flex-start"},[el("span",{class:"stripe "+(i===0?"ok":"")}),
     el("div",{class:"ppal"},[el("div",{class:"t1",text:revTxt(r.n)+(i===0?" · vigente":" · obsoleta")+" · "+fmtF(r.f)}),
       el("div",{class:"t2",text:[r.by?"por "+r.by:null,r.n>1?"Cambio: "+r.cambio:"Plano inicial",r.motivo?"Motivo: "+r.motivo:null,dc.length?"Cotas: "+dc.join("; "):null,r.antes!=null?"Había "+fmtN(r.stock)+" "+revUd(a)+" de la "+revTxt(r.antes):"Al subirlo había "+fmtN(r.stock)+" "+revUd(a)].filter(Boolean).join(" · ")})]),
-    r.doc?el("button",{type:"button",class:"btn sec peq",text:"Ver plano",onclick:()=>abrirDoc(r.doc)}):null]);})),
+    r.gen?el("button",{type:"button",class:"btn sec peq",text:"Ver plano",onclick:()=>verPlanoGen(a,r)}):r.doc?el("button",{type:"button",class:"btn sec peq",text:"Ver plano",onclick:()=>abrirDoc(r.doc)}):null]);})),
     el("p",{class:"hint",text:"Las revisiones no se borran: así siempre se puede consultar qué plano había y cuándo cambió."})],[{t:"Cerrar",cls:"sec"}]);}
+/* ===== GENERADOR DE PLANOS DE BARRAS EXPULSORAS (se dibuja a partir de las medidas) ===== */
+const EXT_T={M16i:"Rosca interior M16",M20i:"Rosca interior M20",M16e:"Espárrago M16 × 140"};
+const geoDef=g=>Object.assign({d:30,L:400,ext:"M16i",lr:25,ec:25,rd:"M20",nota:""},g||{});
+const geoTot=g=>(+g.L||0)+(+g.lr||0);
+function cotasGeo(g){g=geoDef(g);return[{n:"Longitud importante",v:g.L+" ±0.2"},{n:"Longitud total",v:String(geoTot(g))},{n:"Ø cuerpo",v:"Ø"+g.d+" ±0.25"},{n:"Rosca punta",v:g.rd+" × "+g.lr},{n:"Entrecaras",v:"e/c "+g.ec},{n:"Extremo",v:EXT_T[g.ext]||g.ext}];}
+function difGeo(a,b){const o=[],A=geoDef(a),B=geoDef(b);[["L","Longitud importante"],["d","Ø cuerpo"],["lr","Largo rosca punta"],["ec","Entrecaras"],["rd","Rosca punta"]].forEach(([k,t])=>{if(String(A[k])!==String(B[k]))o.push(t+" "+A[k]+" → "+B[k]);});
+  if(A.ext!==B.ext)o.push("Extremo: "+(EXT_T[A.ext]||A.ext)+" → "+(EXT_T[B.ext]||B.ext));if((A.nota||"")!==(B.nota||""))o.push("Nota cambiada");return o;}
+function svgBarra(a,rev,hist){const g=geoDef(rev.gen),esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const L=+g.L,lr=+g.lr,tot=L+lr,d=+g.d,ec=+g.ec,stud=g.ext==="M16e"?140:0;
+  const IZ=300,DE=Math.min(60,L-IZ>20?60:Math.max(20,L-IZ)),GAP=14;const anch=stud+IZ+DE+lr;const s=Math.min(0.55,222/anch);
+  const x0=18+stud*s,y=88,r=d/2*s,f=ec/2*s;
+  const roto=L>IZ+DE+10;const xr=roto?x0+IZ*s+GAP:x0;const X=p=>!roto||p<=IZ?x0+p*s:xr+(p-(L-DE))*s;
+  const ln=(x1,y1,x2,y2,c)=>'<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+'"'+(c?' class="'+c+'"':'')+'/>';
+  const tx=(x,yy,t,o)=>'<text x="'+x.toFixed(2)+'" y="'+yy.toFixed(2)+'"'+(o||' text-anchor="middle"')+'>'+esc(t)+'</text>';
+  const cota=(p1,p2,yy,t)=>{const a1=X(p1),a2=X(p2);return ln(a1,y+r,a1,yy+1.5,"fino")+ln(a2,y+r,a2,yy+1.5,"fino")+ln(a1,yy,a2,yy,"cota")+tx((a1+a2)/2,yy-1.2,t);};
+  let S="";
+  /* contorno: tramos con radio r o entrecaras f */
+  const tramos=[[0,50,r],[50,80,f],[80,250,r],[250,280,f],[280,roto?IZ:L,r]].filter(t=>t[0]<(roto?IZ:L));if(roto)tramos.push([L-DE,L,r]);
+  tramos.forEach(([a1,a2,rr],i)=>{const p1=X(a1),p2=X(Math.min(a2,roto&&a1<IZ?IZ:a2));S+=ln(p1,y-rr,p2,y-rr)+ln(p1,y+rr,p2,y+rr);
+    const prev=tramos[i-1];if(!prev||prev[1]!==a1)S+=ln(p1,y-rr,p1,y+rr);else S+=ln(p1,y-Math.max(rr,prev[2]),p1,y-Math.min(rr,prev[2]))+ln(p1,y+Math.min(rr,prev[2]),p1,y+Math.max(rr,prev[2]));
+    if(rr===f&&a2-a1===30){S+='<rect x="'+p1.toFixed(2)+'" y="'+(y-f).toFixed(2)+'" width="'+(p2-p1).toFixed(2)+'" height="'+(2*f).toFixed(2)+'" class="sin"/>'+ln(p1,y-f,p2,y+f,"fino")+ln(p1,y+f,p2,y-f,"fino");}});
+  if(roto){const b1=X(IZ),b2=xr;[b1,b2].forEach((bx,k)=>{S+='<path d="M'+bx.toFixed(2)+' '+(y-r).toFixed(2)+' C '+(bx+(k?-3:3)).toFixed(2)+' '+(y-r/2).toFixed(2)+', '+(bx+(k?3:-3)).toFixed(2)+' '+(y+r/2).toFixed(2)+', '+bx.toFixed(2)+' '+(y+r).toFixed(2)+'"/>';});}
+  const xL=X(L);S+=ln(xL,y-r,xL,y+r);
+  /* rosca de la punta */
+  const rt=(g.rd==="M16"?8:10)*s,xe=xL+lr*s;S+=ln(xL,y-rt,xe-0.8,y-rt)+ln(xL,y+rt,xe-0.8,y+rt)+ln(xe-0.8,y-rt,xe,y-rt+0.8)+ln(xe-0.8,y+rt,xe,y+rt-0.8)+ln(xe,y-rt+0.8,xe,y+rt-0.8)+ln(xL,y-rt*0.85,xe-0.8,y-rt*0.85,"fino")+ln(xL,y+rt*0.85,xe-0.8,y+rt*0.85,"fino");
+  /* extremo izquierdo */
+  if(g.ext==="M16e"){const rs=8*s,xs=x0-140*s;S+=ln(xs,y-rs,x0,y-rs)+ln(xs,y+rs,x0,y+rs)+ln(xs,y-rs,xs,y+rs)+ln(xs,y-rs*0.85,x0,y-rs*0.85,"fino")+ln(xs,y+rs*0.85,x0,y+rs*0.85,"fino");
+    S+=ln(xs,y+r+4,x0,y+r+4,"cota")+ln(xs,y+rs,xs,y+r+5.5,"fino")+tx((xs+x0)/2,y+r+2.8,"140")+tx(xs-1.5,y+1.2,"M16",' text-anchor="end"');}
+  else{const ri=(g.ext==="M20i"?10:8)*s,pr=g.ext==="M20i"?35:30;S+=ln(x0,y-ri,x0+pr*s,y-ri,"oculta")+ln(x0,y+ri,x0+pr*s,y+ri,"oculta")+ln(x0+pr*s,y-ri,x0+pr*s,y+ri,"oculta");
+    if(g.ext==="M16i")S+=ln(x0+30*s,y-ri,x0+35*s,y,"oculta")+ln(x0+30*s,y+ri,x0+35*s,y,"oculta");
+    S+=ln(x0,y-r-10,x0+pr*s,y-r-10,"cota")+ln(x0+pr*s,y-r,x0+pr*s,y-r-11.5,"fino")+ln(x0,y-r,x0,y-r-(g.ext==="M16i"?19:11.5),"fino")+tx(x0+pr*s/2,y-r-11.2,String(pr));
+    if(g.ext==="M16i")S+=ln(x0,y-r-18,x0+35*s,y-r-18,"cota")+ln(x0+35*s,y-r,x0+35*s,y-r-19.5,"fino")+tx(x0+35*s/2,y-r-19.2,"35");
+    S+=tx(x0+1.5,y+ri+3.4,g.ext==="M20i"?"M20":"M16",' text-anchor="start" font-size="2.8"');}
+  /* eje y cotas */
+  S+=ln((g.ext==="M16e"?x0-140*s:x0)-4,y,xe+4,y,"eje");
+  S+=cota(0,50,y+r+8,"50")+cota(50,80,y+r+8,"30")+cota(0,250,y+r+17,"250")+cota(250,280,y+r+17,"30")+cota(0,L,y+r+26,L+" ±0.2")+cota(0,tot,y+r+35,String(tot));
+  S+=ln(xL,y-r,xL,y-r-10,"fino")+ln(xe,y-rt,xe,y-r-10,"fino")+ln(xL,y-r-8.5,xe,y-r-8.5,"cota")+tx((xL+xe)/2,y-r-9.7,String(lr));
+  S+=tx((xL+xe)/2,y+rt+4.2,g.rd);
+  const xd=X(160);S+=ln(xd,y-r,xd,y+r,"cota")+'<text transform="translate('+(xd-1.2).toFixed(2)+' '+y+') rotate(-90)" text-anchor="middle" font-size="2.8">Ø'+d+' ±0.25</text>';
+  /* vista de la punta */
+  const cx=277,R=Math.max(r,7);S+='<circle cx="'+cx+'" cy="'+y+'" r="'+R.toFixed(2)+'"/><circle cx="'+cx+'" cy="'+y+'" r="'+(R*0.55).toFixed(2)+'" class="fino"/>'+ln(cx-R*0.62,y-R*0.8,cx-R*0.62,y+R*0.8)+ln(cx+R*0.62,y-R*0.8,cx+R*0.62,y+R*0.8)+ln(cx-R*0.62,y-R-6,cx+R*0.62,y-R-6,"cota")+tx(cx,y-R-7.2,"e/c"+ec);
+  /* marcado */
+  const maqs=(a.iny||[]).map(id=>maqN(id)).filter(z=>z&&z!=="—").map(z=>"F-"+z.replace(/^F/,""));
+  S+='<rect x="'+(X(80)+4).toFixed(2)+'" y="'+(y-r-40).toFixed(2)+'" width="112" height="13" rx="6" class="nube"/>'+tx(X(80)+60,y-r-31.5,"Marcar en todas las barras: "+(maqs.join(", ")||a.cod))+ln(X(80)+20,y-r-27,X(80)+14,y-r+0.5,"fino");
+  if(g.nota)S+=tx(18,30,g.nota,' text-anchor="start" class="nota"');
+  /* cajetín */
+  const cy=160,cxj=158,w=127;const fila=(yy,h)=>'<rect x="'+cxj+'" y="'+yy+'" width="'+w+'" height="'+h+'" class="caj"/>';
+  S+=fila(cy,10)+fila(cy+10,8)+fila(cy+18,8)+fila(cy+26,16);
+  S+=tx(cxj+2,cy+6.5,"Barra de expulsión "+(a.cod||""),' text-anchor="start" class="t2"')+tx(cxj+w-2,cy+6.5,"Material: Fe-510b",' text-anchor="end"');
+  S+=tx(cxj+2,cy+15.5,revTxt(rev.n)+" · "+fmtF(rev.f)+(rev.by?" · "+rev.by:""),' text-anchor="start"')+tx(cxj+w-2,cy+15.5,"Escala: sin escala · cotas en mm",' text-anchor="end"');
+  S+=tx(cxj+2,cy+23.5,(g.tipo||a.tipoIny||"")+(maqs.length?" · "+maqs.join(", "):""),' text-anchor="start"');
+  S+=tx(cxj+2,cy+33,"CIE Inyectametal · MAPRI",' text-anchor="start" class="t2"')+tx(cxj+w-2,cy+33,(a.cod||"")+" "+revTxt(rev.n),' text-anchor="end" class="t3"');
+  /* revisiones */
+  const H=(hist||[]).slice(-4);if(H.length){let yy=160;S+=tx(12,yy-2,"Revisiones",' text-anchor="start" class="t2"');H.forEach(h=>{yy+=6.5;S+=tx(12,yy,revTxt(h.n)+" · "+fmtF(h.f)+" · "+(h.n>1?h.cambio:"Plano inicial").slice(0,70),' text-anchor="start"');});}
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210" width="297mm" height="210mm" font-family="Arial, Helvetica, sans-serif" font-size="3.4"><style>line,path,circle,rect{stroke:#111;stroke-width:0.35;fill:none}.fino{stroke-width:0.18}.cota{stroke-width:0.18;marker-start:url(#fl);marker-end:url(#fl)}.oculta{stroke-dasharray:1.6 0.8;stroke-width:0.22}.eje{stroke-dasharray:6 1 1 1;stroke-width:0.18}.sin{stroke-width:0.25}.nube{stroke-dasharray:1.5 1;stroke-width:0.25}.caj{stroke-width:0.3}text{fill:#111;stroke:none}.t2{font-weight:bold;font-size:4}.t3{font-weight:bold;font-size:5.2;fill:#b00}.nota{font-size:4.2;font-weight:bold}</style><defs><marker id="fl" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L6 3 L0 6 z" style="fill:#111;stroke:none"/></marker></defs><rect x="0" y="0" width="297" height="210" style="fill:#fff;stroke:none"/><rect x="6" y="6" width="285" height="198" class="caj"/>'+S+'</svg>';}
+function blobPlano(a,rev,tipo){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=3508;c.height=2480;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):ko(new Error("no se pudo dibujar")),tipo||"image/png");};img.onerror=()=>ko(new Error("no se pudo dibujar el plano"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
+function verPlanoGen(a,rev){const w=window.open("","_blank");const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));
+  const html='<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+(a.cod||"Plano")+" "+revTxt(rev.n)+'</title><style>@page{size:A4 landscape;margin:0}body{margin:0;background:#888}svg{display:block;width:100%;height:auto;background:#fff}@media print{body{background:#fff}}</style>'+svg;
+  if(w){w.document.open();w.document.write(html);w.document.close();}else toast("Permite las ventanas emergentes para ver el plano");}
+function miniGen(a,rev){const d=el("div",{style:"width:180px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:zoom-in",onclick:()=>verPlanoGen(a,rev),title:"Abrir plano"});d.innerHTML=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));const s=d.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";return d;}
+/* formulario: cambiar medidas → nueva revisión dibujada */
+function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1];const n=v?v.n+1:1;const g=geoDef((v&&v.gen)||a.geo);const x={by:quienSoy(),cambio:"",motivo:"",tocado:false};const st=revStock(a);
+  const prev=el("div",{style:"background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden"});const dif=el("p",{class:"sub"});
+  const pinta=()=>{prev.innerHTML=svgBarra(a,{n,f:hoy(),by:x.by,gen:g},R.concat([{n,f:hoy(),cambio:x.cambio||"(sin describir)"}]));const s=prev.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";
+    const ds=v&&v.gen?difGeo(v.gen,g):[];dif.textContent=ds.length?"Cambios: "+ds.join(" · "):(v?"Todavía no has cambiado ninguna medida.":"");if(!x.tocado){x.cambio=ds.join(" · ");const ci=document.getElementById("gfC");if(ci)ci.value=x.cambio;}};
+  const num=(id,lab,k)=>fld(lab,inp(id,g[k],z=>{const q=parseN(z);if(isFinite(q)&&q>0){g[k]=q;pinta();}},{inputmode:"decimal",class:"num"}));
+  const extS=sel("gfE",Object.entries(EXT_T),g.ext,z=>{g.ext=z;pinta();});
+  pinta();
+  dlg((v?"Modificar medidas · ":"Plano · ")+(a.cod||a.desc)+" · "+revTxt(n),[
+    el("div",{class:"row"},[num("gfL","Longitud importante (±0.2)","L"),num("gfD","Ø cuerpo (±0.25)","d")]),
+    el("div",{class:"row"},[num("gfR","Largo rosca punta","lr"),num("gfEC","Entrecaras (e/c)","ec")]),
+    el("div",{class:"row"},[fld("Extremo",extS),fld("Rosca punta",sel("gfRD",[["M20","M20"],["M16","M16"]],g.rd,z=>{g.rd=z;pinta();}))]),
+    fld("Nota en el plano (opcional)",inp("gfN",g.nota,z=>{g.nota=z;pinta();},{autocomplete:"off",placeholder:"p. ej. Tornillos DIN912 M20x120"})),
+    prev,dif,
+    v?fld("Qué cambia (se rellena solo; puedes completarlo)",inp("gfC",x.cambio,z=>{x.cambio=z;x.tocado=true;},{autocomplete:"off"})):null,
+    v?fld("Por qué (opcional)",inp("gfM","",z=>x.motivo=z,{autocomplete:"off"})):null,
+    fld("Quién lo modifica",inp("gfB",x.by,z=>{x.by=z;pinta();},{autocomplete:"off"})),
+    el("div",{class:"banner",style:"background:var(--surf2);color:inherit",text:"Ahora hay "+fmtN(st)+" "+revUd(a)+(v?" de la "+revTxt(v.n):"")+". Se apunta en la revisión."})],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar "+revTxt(n),fn:async()=>{const ds=v&&v.gen?difGeo(v.gen,g):["x"];if(v&&!ds.length){toast("No has cambiado ninguna medida");return false;}if(v&&!(x.cambio||"").trim()){toast("Escribe qué cambia");return false;}if(!(x.by||"").trim()){toast("Pon quién lo modifica");return false;}
+      const z=revObj(a.id);const alm={};cat.almacenes.forEach(l=>{const q=stockDe(z.id,l.id);if(q)alm[l.id]=q;});
+      z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:v?x.cambio.trim():"Plano inicial",motivo:(x.motivo||"").trim()||null,gen:Object.assign({},g),doc:null,stock:st,stockAlm:alm,antes:v?v.n:null,cotas:cotasGeo(g)}]);z.geo=Object.assign({},g);
+      try{await saveCat();toast(revTxt(n)+" guardada");}catch(e){return false;}if(despues)despues();}}]);}
 /* ===== EDITOR DE PLANOS: marcar encima del plano vigente (tapar cotas, escribir, flechas, recuadros, lápiz) ===== */
 function cargarPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
   s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";ok(window.pdfjsLib);};s.onerror=()=>ko(new Error("No se pudo cargar el lector de PDF"));document.head.appendChild(s);});}
-async function baseDePlano(doc){const u=await (window.urlFirmada?window.urlFirmada(doc.id):fotoUrl(doc.id));if(!u)throw new Error("No se pudo abrir el plano");
-  const bl=await (await fetch(u)).blob();
+async function baseDePlano(doc){let bl;if(doc.blobFn)bl=await doc.blobFn();else{const u=await (window.urlFirmada?window.urlFirmada(doc.id):fotoUrl(doc.id));if(!u)throw new Error("No se pudo abrir el plano");bl=await (await fetch(u)).blob();}
   if(/pdf/i.test(bl.type||doc.tipo||"")||/\.pdf$/i.test(doc.nombre||"")){const L=await cargarPdfJs();const pdf=await L.getDocument({data:await bl.arrayBuffer()}).promise;const pg=await pdf.getPage(1);
     const v0=pg.getViewport({scale:1});const sc=Math.min(3,3000/Math.max(v0.width,v0.height));const vp=pg.getViewport({scale:sc});const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
     const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:cx,viewport:vp}).promise;return c;}
@@ -969,7 +1051,7 @@ function pedidoBT(f){const A=artsBT(f);if(!A.length){toast("No hay referencias")
     cat.pedidosBT=pedidosBT().concat([{id:uid(),f:hy,prov:st.prov,email:st.email||null,via,by:quienSoy()||null,lin:L.map(l=>({art:l.a.id,cod:l.a.cod||l.a.desc,cant:l.cant,rev:l.rev?l.rev.n:null}))}]);
     L.forEach(l=>{const z=art(l.a.id);z.pedido=hy;z.pedCant=l.cant;z.pedRev=l.rev?l.rev.n:null;const pl=plazoArt(z);z.prevista=pl?sumaDias(hy,pl):null;});
     await saveCat();return true;};
-  const archivos=async()=>{const out=[];for(const l of lineas()){if(!l.rev||!l.rev.doc)continue;const u=await (window.urlFirmada?window.urlFirmada(l.rev.doc.id):null);if(!u)continue;const b=await (await fetch(u)).blob();
+  const archivos=async()=>{const out=[];for(const l of lineas()){if(l.rev&&l.rev.gen){try{const b=await blobPlano(l.a,l.rev,"image/png");out.push(new File([b],(l.a.cod||"plano")+"_"+revTxt(l.rev.n).replace(". ","")+".png",{type:"image/png"}));}catch(e){}continue;}if(!l.rev||!l.rev.doc)continue;const u=await (window.urlFirmada?window.urlFirmada(l.rev.doc.id):null);if(!u)continue;const b=await (await fetch(u)).blob();
     const ext=(l.rev.doc.nombre.match(/\.[a-z0-9]+$/i)||[""])[0]||(/pdf/.test(b.type)?".pdf":".jpg");out.push(new File([b],(l.a.cod||"plano")+"_"+revTxt(l.rev.n).replace(". ","")+ext,{type:b.type||l.rev.doc.tipo||"application/pdf"}));}return out;};
   const asunto=()=>"Pedido "+BT[f].nom.toLowerCase()+" MAPRI · "+fmtF(hoy());
   dlg("Pedido de "+BT[f].nom.toLowerCase(),[
