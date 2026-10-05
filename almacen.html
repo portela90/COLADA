@@ -100,6 +100,14 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .pe-cv{flex:1;width:100%;min-height:0;touch-action:none;display:block;cursor:crosshair}
 .pe-help{color:#cfd6d2;font:12px system-ui,sans-serif;padding:6px 10px}
 .pe-msg{color:#fff;margin:auto;font:16px system-ui,sans-serif}
+.pv{position:fixed;inset:0;z-index:2500;background:#5b625f;display:flex;flex-direction:column}
+.pv-bar{display:flex;gap:6px;align-items:center;padding:8px;padding-top:max(8px,env(safe-area-inset-top,0px));background:#1f2321;flex-wrap:wrap}
+.pv-b{appearance:none;border:1px solid #555d59;background:#343a37;color:#eee;font:600 14px system-ui,sans-serif;padding:9px 13px;border-radius:8px;cursor:pointer;min-width:44px}
+.pv-x{background:#e8f0ea;color:#111;border-color:#e8f0ea}
+.pv-t{flex:1;color:#eee;font:600 14px system-ui,sans-serif;min-width:80px}
+.pv-c{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px}
+.pv-c svg{display:block;background:#fff;margin:0 auto;height:auto;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+@media print{@page{size:A4 landscape;margin:0}body.pv-print>*:not(.pv){display:none!important}body.pv-print .pv{position:static;background:#fff}body.pv-print .pv-bar{display:none}body.pv-print .pv-c{padding:0;overflow:visible}body.pv-print .pv-c svg{width:100%!important;box-shadow:none}}
 .inf-dlg{max-width:640px;display:flex;flex-direction:column;gap:8px}
 .inf-it{display:grid;gap:2px;text-align:left;appearance:none;font:inherit;color:inherit;background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;width:100%}
 .inf-it b{font-size:15px}.inf-it span{font-size:12px;color:var(--mut)}
@@ -890,56 +898,93 @@ function difGeo(a,b){const o=[],A=geoDef(a),B=geoDef(b);[["L","Longitud importan
   if(A.ext!==B.ext)o.push("Extremo: "+(EXT_T[A.ext]||A.ext)+" → "+(EXT_T[B.ext]||B.ext));if((A.nota||"")!==(B.nota||""))o.push("Nota cambiada");return o;}
 function svgBarra(a,rev,hist){const g=geoDef(rev.gen),esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
   const L=+g.L,lr=+g.lr,tot=L+lr,d=+g.d,ec=+g.ec,stud=g.ext==="M16e"?140:0;
-  const IZ=300,DE=Math.min(60,L-IZ>20?60:Math.max(20,L-IZ)),GAP=14;const anch=stud+IZ+DE+lr;const s=Math.min(0.55,222/anch);
-  const x0=18+stud*s,y=88,r=d/2*s,f=ec/2*s;
-  const roto=L>IZ+DE+10;const xr=roto?x0+IZ*s+GAP:x0;const X=p=>!roto||p<=IZ?x0+p*s:xr+(p-(L-DE))*s;
-  const ln=(x1,y1,x2,y2,c)=>'<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+'"'+(c?' class="'+c+'"':'')+'/>';
-  const tx=(x,yy,t,o)=>'<text x="'+x.toFixed(2)+'" y="'+yy.toFixed(2)+'"'+(o||' text-anchor="middle"')+'>'+esc(t)+'</text>';
-  const cota=(p1,p2,yy,t)=>{const a1=X(p1),a2=X(p2);return ln(a1,y+r,a1,yy+1.5,"fino")+ln(a2,y+r,a2,yy+1.5,"fino")+ln(a1,yy,a2,yy,"cota")+tx((a1+a2)/2,yy-1.2,t);};
+  const IZ=300,DE=Math.min(70,Math.max(20,L-IZ-10)),GAP=16;const roto=L>IZ+DE+10;
+  const anch=stud+(roto?IZ+DE+lr+GAP/0.5:L+lr);const s=Math.min(0.52,215/anch);
+  const x0=22+stud*s,y=104,r=d/2*s,f=ec/2*s,xr=roto?x0+IZ*s+GAP:x0;
+  const X=p=>!roto||p<=IZ?x0+p*s:xr+(p-(L-DE))*s;
+  const F=n=>n.toFixed(2);
+  const ln=(x1,y1,x2,y2,c)=>'<line x1="'+F(x1)+'" y1="'+F(y1)+'" x2="'+F(x2)+'" y2="'+F(y2)+'"'+(c?' class="'+c+'"':'')+'/>';
+  const tx=(x,yy,t,c,an)=>'<text x="'+F(x)+'" y="'+F(yy)+'" text-anchor="'+(an||"middle")+'"'+(c?' class="'+c+'"':'')+'>'+esc(t)+'</text>';
+  const txV=(x,yy,t,c)=>'<text transform="translate('+F(x)+' '+F(yy)+') rotate(-90)" text-anchor="middle"'+(c?' class="'+c+'"':'')+'>'+esc(t)+'</text>';
+  /* cota horizontal con líneas de referencia desde la pieza */
+  const cotaH=(x1,x2,yy,t,yref)=>ln(x1,yref,x1,yy+1.2,"fino")+ln(x2,yref,x2,yy+1.2,"fino")+ln(x1,yy,x2,yy,"cota")+tx((x1+x2)/2,yy-0.9,t,"num");
+  const cotaV=(xx,y1,y2,t,xref,lado)=>ln(xref,y1,xx-(lado||1)*1.2,y1,"fino")+ln(xref,y2,xx-(lado||1)*1.2,y2,"fino")+ln(xx,y1,xx,y2,"cota")+txV(xx-0.9,(y1+y2)/2,t,"num");
   let S="";
-  /* contorno: tramos con radio r o entrecaras f */
+  /* contorno con los rebajes de las entrecaras */
   const tramos=[[0,50,r],[50,80,f],[80,250,r],[250,280,f],[280,roto?IZ:L,r]].filter(t=>t[0]<(roto?IZ:L));if(roto)tramos.push([L-DE,L,r]);
-  tramos.forEach(([a1,a2,rr],i)=>{const p1=X(a1),p2=X(Math.min(a2,roto&&a1<IZ?IZ:a2));S+=ln(p1,y-rr,p2,y-rr)+ln(p1,y+rr,p2,y+rr);
-    const prev=tramos[i-1];if(!prev||prev[1]!==a1)S+=ln(p1,y-rr,p1,y+rr);else S+=ln(p1,y-Math.max(rr,prev[2]),p1,y-Math.min(rr,prev[2]))+ln(p1,y+Math.min(rr,prev[2]),p1,y+Math.max(rr,prev[2]));
-    if(rr===f&&a2-a1===30){S+='<rect x="'+p1.toFixed(2)+'" y="'+(y-f).toFixed(2)+'" width="'+(p2-p1).toFixed(2)+'" height="'+(2*f).toFixed(2)+'" class="sin"/>'+ln(p1,y-f,p2,y+f,"fino")+ln(p1,y+f,p2,y-f,"fino");}});
-  if(roto){const b1=X(IZ),b2=xr;[b1,b2].forEach((bx,k)=>{S+='<path d="M'+bx.toFixed(2)+' '+(y-r).toFixed(2)+' C '+(bx+(k?-3:3)).toFixed(2)+' '+(y-r/2).toFixed(2)+', '+(bx+(k?3:-3)).toFixed(2)+' '+(y+r/2).toFixed(2)+', '+bx.toFixed(2)+' '+(y+r).toFixed(2)+'"/>';});}
-  const xL=X(L);S+=ln(xL,y-r,xL,y+r);
-  /* rosca de la punta */
-  const rt=(g.rd==="M16"?8:10)*s,xe=xL+lr*s;S+=ln(xL,y-rt,xe-0.8,y-rt)+ln(xL,y+rt,xe-0.8,y+rt)+ln(xe-0.8,y-rt,xe,y-rt+0.8)+ln(xe-0.8,y+rt,xe,y+rt-0.8)+ln(xe,y-rt+0.8,xe,y+rt-0.8)+ln(xL,y-rt*0.85,xe-0.8,y-rt*0.85,"fino")+ln(xL,y+rt*0.85,xe-0.8,y+rt*0.85,"fino");
+  tramos.forEach(([a1,a2,rr],i)=>{const p1=X(a1),p2=X(a2);S+=ln(p1,y-rr,p2,y-rr,"g")+ln(p1,y+rr,p2,y+rr,"g");
+    const prev=tramos[i-1];if(!prev||prev[1]!==a1)S+=(a1===0||a1===L-DE&&roto?"":"")+(a1===0?ln(p1,y-rr,p1,y+rr,"g"):"");else S+=ln(p1,y-Math.max(rr,prev[2]),p1,y-Math.min(rr,prev[2]),"g")+ln(p1,y+Math.min(rr,prev[2]),p1,y+Math.max(rr,prev[2]),"g");
+    if(rr===f&&a2-a1===30){const m=0.9;S+='<rect x="'+F(p1+m)+'" y="'+F(y-f+m)+'" width="'+F(p2-p1-2*m)+'" height="'+F(2*f-2*m)+'" class="fino"/>'+ln(p1+m,y-f+m,p2-m,y+f-m,"fino")+ln(p1+m,y+f-m,p2-m,y-f+m,"fino");}});
+  /* rotura: curva en S con media luna rayada */
+  if(roto){const lun=(bx,k)=>{const top='M'+F(bx)+' '+F(y-r)+' C '+F(bx+4*k)+' '+F(y-r*0.55)+', '+F(bx+4*k)+' '+F(y-r*0.1)+', '+F(bx)+' '+F(y)+' C '+F(bx-1.6*k)+' '+F(y-r*0.25)+', '+F(bx-1.6*k)+' '+F(y-r*0.75)+', '+F(bx)+' '+F(y-r)+' Z';
+      const bot='M'+F(bx)+' '+F(y)+' C '+F(bx-4*k)+' '+F(y+r*0.1)+', '+F(bx-4*k)+' '+F(y+r*0.55)+', '+F(bx)+' '+F(y+r)+' C '+F(bx+1.6*k)+' '+F(y+r*0.75)+', '+F(bx+1.6*k)+' '+F(y+r*0.25)+', '+F(bx)+' '+F(y)+' Z';
+      return '<path d="'+top+'" class="rayado"/><path d="'+bot+'" class="rayado"/>';};
+    S+=lun(X(IZ),1)+lun(xr,-1);}
+  const xL=X(L);S+=ln(xL,y-r,xL,y+r,"g");
+  /* rosca de la punta (M20 por defecto) */
+  const rt=(g.rd==="M16"?8:10)*s,xe=xL+lr*s,ch=0.9;S+=ln(xL,y-rt,xe-ch,y-rt,"g")+ln(xL,y+rt,xe-ch,y+rt,"g")+ln(xe-ch,y-rt,xe,y-rt+ch,"g")+ln(xe-ch,y+rt,xe,y+rt-ch,"g")+ln(xe,y-rt+ch,xe,y+rt-ch,"g")+ln(xL+0.4,y-rt*0.82,xe-ch,y-rt*0.82,"fino")+ln(xL+0.4,y+rt*0.82,xe-ch,y+rt*0.82,"fino");
+  S+=cotaV(xe+6,y-rt,y+rt,g.rd,xe+0.5);
   /* extremo izquierdo */
-  if(g.ext==="M16e"){const rs=8*s,xs=x0-140*s;S+=ln(xs,y-rs,x0,y-rs)+ln(xs,y+rs,x0,y+rs)+ln(xs,y-rs,xs,y+rs)+ln(xs,y-rs*0.85,x0,y-rs*0.85,"fino")+ln(xs,y+rs*0.85,x0,y+rs*0.85,"fino");
-    S+=ln(xs,y+r+4,x0,y+r+4,"cota")+ln(xs,y+rs,xs,y+r+5.5,"fino")+tx((xs+x0)/2,y+r+2.8,"140")+tx(xs-1.5,y+1.2,"M16",' text-anchor="end"');}
-  else{const ri=(g.ext==="M20i"?10:8)*s,pr=g.ext==="M20i"?35:30;S+=ln(x0,y-ri,x0+pr*s,y-ri,"oculta")+ln(x0,y+ri,x0+pr*s,y+ri,"oculta")+ln(x0+pr*s,y-ri,x0+pr*s,y+ri,"oculta");
-    if(g.ext==="M16i")S+=ln(x0+30*s,y-ri,x0+35*s,y,"oculta")+ln(x0+30*s,y+ri,x0+35*s,y,"oculta");
-    S+=ln(x0,y-r-10,x0+pr*s,y-r-10,"cota")+ln(x0+pr*s,y-r,x0+pr*s,y-r-11.5,"fino")+ln(x0,y-r,x0,y-r-(g.ext==="M16i"?19:11.5),"fino")+tx(x0+pr*s/2,y-r-11.2,String(pr));
-    if(g.ext==="M16i")S+=ln(x0,y-r-18,x0+35*s,y-r-18,"cota")+ln(x0+35*s,y-r,x0+35*s,y-r-19.5,"fino")+tx(x0+35*s/2,y-r-19.2,"35");
-    S+=tx(x0+1.5,y+ri+3.4,g.ext==="M20i"?"M20":"M16",' text-anchor="start" font-size="2.8"');}
-  /* eje y cotas */
-  S+=ln((g.ext==="M16e"?x0-140*s:x0)-4,y,xe+4,y,"eje");
-  S+=cota(0,50,y+r+8,"50")+cota(50,80,y+r+8,"30")+cota(0,250,y+r+17,"250")+cota(250,280,y+r+17,"30")+cota(0,L,y+r+26,L+" ±0.2")+cota(0,tot,y+r+35,String(tot));
-  S+=ln(xL,y-r,xL,y-r-10,"fino")+ln(xe,y-rt,xe,y-r-10,"fino")+ln(xL,y-r-8.5,xe,y-r-8.5,"cota")+tx((xL+xe)/2,y-r-9.7,String(lr));
-  S+=tx((xL+xe)/2,y+rt+4.2,g.rd);
-  const xd=X(160);S+=ln(xd,y-r,xd,y+r,"cota")+'<text transform="translate('+(xd-1.2).toFixed(2)+' '+y+') rotate(-90)" text-anchor="middle" font-size="2.8">Ø'+d+' ±0.25</text>';
-  /* vista de la punta */
-  const cx=277,R=Math.max(r,7);S+='<circle cx="'+cx+'" cy="'+y+'" r="'+R.toFixed(2)+'"/><circle cx="'+cx+'" cy="'+y+'" r="'+(R*0.55).toFixed(2)+'" class="fino"/>'+ln(cx-R*0.62,y-R*0.8,cx-R*0.62,y+R*0.8)+ln(cx+R*0.62,y-R*0.8,cx+R*0.62,y+R*0.8)+ln(cx-R*0.62,y-R-6,cx+R*0.62,y-R-6,"cota")+tx(cx,y-R-7.2,"e/c"+ec);
-  /* marcado */
+  if(g.ext==="M16e"){const rs=8*s,xs=x0-140*s;S+=ln(xs+ch,y-rs,x0,y-rs,"g")+ln(xs+ch,y+rs,x0,y+rs,"g")+ln(xs,y-rs+ch,xs+ch,y-rs,"g")+ln(xs,y+rs-ch,xs+ch,y+rs,"g")+ln(xs,y-rs+ch,xs,y+rs-ch,"g")+ln(xs+ch,y-rs*0.82,x0,y-rs*0.82,"fino")+ln(xs+ch,y+rs*0.82,x0,y+rs*0.82,"fino")+ln(x0,y-r,x0,y+r,"g");
+    S+=cotaV(xs-4,y-rs,y+rs,"M16",xs-0.5)+cotaH(xs,x0,y+r+12,"140",y+rs+1);
+    S+=cotaV(X(22),y-r,y+r,"Ø"+d+" ±0.25",X(22));}
+  else{const ri=(g.ext==="M20i"?10:8)*s,pr=g.ext==="M20i"?35:30;S+=ln(x0,y-ri,x0+pr*s,y-ri,"oculta")+ln(x0,y+ri,x0+pr*s,y+ri,"oculta");
+    if(g.ext==="M16i"){S+=ln(x0+30*s,y-ri,x0+35*s,y,"oculta")+ln(x0+30*s,y+ri,x0+35*s,y,"oculta")+ln(x0,y-ri*0.8,x0+30*s,y-ri*0.8,"fino")+ln(x0,y+ri*0.8,x0+30*s,y+ri*0.8,"fino");
+      S+=cotaH(x0,x0+30*s,y-r-9,"30",y-r)+cotaH(x0,x0+35*s,y-r-17,"35",y-r);}
+    else{S+=ln(x0+pr*s,y-ri,x0+pr*s,y+ri,"oculta")+cotaH(x0,x0+pr*s,y-r-10,String(pr),y-r);}
+    S+=cotaV(x0-13,y-r,y+r,"Ø"+d+" ±0.25",x0-0.5)+cotaV(x0-5,y-ri,y+ri,g.ext==="M20i"?"M20":"M16",x0-0.5);}
+  /* eje */
+  S+=ln((g.ext==="M16e"?x0-140*s:x0)-5,y,xe+3,y,"eje");
+  /* cotas de longitud, como en los planos de CIE */
+  const yb=y+r;S+=cotaH(X(0),X(50),yb+13,"50",yb+0.5)+cotaH(X(50),X(80),yb+13,"30",yb+0.5)+cotaH(X(0),X(250),yb+23,"250",yb+0.5)+cotaH(X(250),X(280),yb+23,"30",yb+0.5)
+    +cotaH(X(0),xL,yb+32,L+" ±0.2",yb+0.5)+cotaH(X(0),xe,yb+41,String(tot),yb+0.5)+cotaH(xL,xe,yb+13,String(lr),y+rt+0.5);
+  /* vista de la punta con su entrecaras */
+  const cx=276,R=Math.max(r,8.5),Ri=R*0.42;S+='<circle cx="'+cx+'" cy="'+y+'" r="'+F(R)+'" class="g"/><circle cx="'+cx+'" cy="'+y+'" r="'+F(R*0.78)+'" class="fino"/><circle cx="'+cx+'" cy="'+y+'" r="'+F(Ri)+'" class="g"/><circle cx="'+cx+'" cy="'+y+'" r="'+F(Ri*0.85)+'" class="fino"/>'
+    +ln(cx-R-3,y,cx+R+3,y,"eje")+ln(cx,y-R-3,cx,y+R+3,"eje")+cotaH(cx-R*0.75,cx+R*0.75,y-R-6,"e/c"+ec,y-R*0.66);
+  /* marcado: nube y máquinas sobre la barra */
   const maqs=(a.iny||[]).map(id=>maqN(id)).filter(z=>z&&z!=="—").map(z=>"F-"+z.replace(/^F/,""));
-  S+='<rect x="'+(X(80)+4).toFixed(2)+'" y="'+(y-r-40).toFixed(2)+'" width="112" height="13" rx="6" class="nube"/>'+tx(X(80)+60,y-r-31.5,"Marcar en todas las barras: "+(maqs.join(", ")||a.cod))+ln(X(80)+20,y-r-27,X(80)+14,y-r+0.5,"fino");
-  if(g.nota)S+=tx(18,30,g.nota,' text-anchor="start" class="nota"');
-  /* cajetín */
-  const cy=160,cxj=158,w=127;const fila=(yy,h)=>'<rect x="'+cxj+'" y="'+yy+'" width="'+w+'" height="'+h+'" class="caj"/>';
-  S+=fila(cy,10)+fila(cy+10,8)+fila(cy+18,8)+fila(cy+26,16);
-  S+=tx(cxj+2,cy+6.5,"Barra de expulsión "+(a.cod||""),' text-anchor="start" class="t2"')+tx(cxj+w-2,cy+6.5,"Material: Fe-510b",' text-anchor="end"');
-  S+=tx(cxj+2,cy+15.5,revTxt(rev.n)+" · "+fmtF(rev.f)+(rev.by?" · "+rev.by:""),' text-anchor="start"')+tx(cxj+w-2,cy+15.5,"Escala: sin escala · cotas en mm",' text-anchor="end"');
-  S+=tx(cxj+2,cy+23.5,(g.tipo||a.tipoIny||"")+(maqs.length?" · "+maqs.join(", "):""),' text-anchor="start"');
-  S+=tx(cxj+2,cy+33,"CIE Inyectametal · MAPRI",' text-anchor="start" class="t2"')+tx(cxj+w-2,cy+33,(a.cod||"")+" "+revTxt(rev.n),' text-anchor="end" class="t3"');
-  /* revisiones */
-  const H=(hist||[]).slice(-4);if(H.length){let yy=160;S+=tx(12,yy-2,"Revisiones",' text-anchor="start" class="t2"');H.forEach(h=>{yy+=6.5;S+=tx(12,yy,revTxt(h.n)+" · "+fmtF(h.f)+" · "+(h.n>1?h.cambio:"Plano inicial").slice(0,70),' text-anchor="start"');});}
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210" width="297mm" height="210mm" font-family="Arial, Helvetica, sans-serif" font-size="3.4"><style>line,path,circle,rect{stroke:#111;stroke-width:0.35;fill:none}.fino{stroke-width:0.18}.cota{stroke-width:0.18;marker-start:url(#fl);marker-end:url(#fl)}.oculta{stroke-dasharray:1.6 0.8;stroke-width:0.22}.eje{stroke-dasharray:6 1 1 1;stroke-width:0.18}.sin{stroke-width:0.25}.nube{stroke-dasharray:1.5 1;stroke-width:0.25}.caj{stroke-width:0.3}text{fill:#111;stroke:none}.t2{font-weight:bold;font-size:4}.t3{font-weight:bold;font-size:5.2;fill:#b00}.nota{font-size:4.2;font-weight:bold}</style><defs><marker id="fl" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L6 3 L0 6 z" style="fill:#111;stroke:none"/></marker></defs><rect x="0" y="0" width="297" height="210" style="fill:#fff;stroke:none"/><rect x="6" y="6" width="285" height="198" class="caj"/>'+S+'</svg>';}
+  const mtxt=maqs.join(",")||a.cod||"";const xm=X(95),cxn=Math.min(Math.max(X(160),82),200),cyn=y-r-30,wn=104,hn=17;
+  S+=nube(cxn-wn/2,cyn-hn/2,wn,hn)+tx(cxn,cyn+2.6,"Marcar en todas las barras","iso");
+  const tyM=y+(r>8?-1.2:-r-1.5);S+=ln(cxn-wn/2+22,cyn+hn/2+0.5,xm+3,tyM-5.2,"fino")+tx(xm,tyM,mtxt,"isoM","start");
+  /* nota (tornillos…) */
+  if(g.nota){const m=/^(.*?deben tener)\s+(.*)$/i.exec(g.nota);if(m){S+=tx(16,26,m[1],"isoN","start")+'<rect x="16" y="31" width="'+F(Math.max(70,m[2].length*3.15))+'" height="12" class="g"/>'+tx(19,39.5,cap(m[2]),"isoN","start");}else S+=tx(16,26,g.nota,"isoN","start");}
+  /* cajetín como el de CIE Inyectametal */
+  const cx0=164,cy0=158,W=125,c1=7,c2=60,c3=92;const H1=4.2;let C="";
+  const row=(yy,h)=>'<rect x="'+cx0+'" y="'+F(yy)+'" width="'+W+'" height="'+F(h)+'" class="c"/>';
+  C+=row(cy0,H1)+row(cy0+H1,H1);[c1,c2,c3].forEach(c=>{C+=ln(cx0+c,cy0,cx0+c,cy0+2*H1,"c");});
+  C+=tx(cx0+3.5,cy0+3.2,"1","isoC")+tx(cx0+c1+2,cy0+3.2,"Barra de expulsion","isoC","start")+tx(cx0+c2+2,cy0+3.2,"Fe-510b","isoC","start")+tx(cx0+c3+1.5,cy0+3.1,(a.cod||"")+" · "+revTxt(rev.n),"isoR","start");
+  C+=tx(cx0+3.5,cy0+H1+3.2,"N.º","isoS")+tx(cx0+c1+2,cy0+H1+3.2,"Denominación","isoS","start")+tx(cx0+c2+2,cy0+H1+3.2,"Material","isoS","start")+tx(cx0+c3+2,cy0+H1+3.2,"Observaciones","isoS","start");
+  const yB=cy0+2*H1,hB=14;C+='<rect x="'+cx0+'" y="'+F(yB)+'" width="'+W+'" height="'+hB+'" class="c"/>';
+  const g1=16,g2=27,g3=38,g4=50;C+=ln(cx0+g1,yB,cx0+g1,yB+hB,"c")+ln(cx0+g2,yB,cx0+g2,yB+hB,"c")+ln(cx0+g3,yB,cx0+g3,yB+hB,"c")+ln(cx0+g4,yB,cx0+g4,yB+hB,"c")+ln(cx0,yB+4,cx0+g4,yB+4,"c")+ln(cx0,yB+9,cx0+g4,yB+9,"c");
+  C+=tx(cx0+g1+5.5,yB+2.9,"Proyectado","isoXS")+tx(cx0+g2+5.5,yB+2.9,"Dibujado","isoXS")+tx(cx0+g3+6,yB+2.9,"Comprobado","isoXS");
+  C+=tx(cx0+1.5,yB+7.6,"Fechas","isoS","start")+tx(cx0+1.5,yB+12.6,"Firmas","isoS","start")+tx(cx0+g2+5.5,yB+7.6,(rev.by||"").slice(0,12),"isoXS")+tx(cx0+g2+5.5,yB+12.6,fmtF(rev.f),"isoXS");
+  const xr0=cx0+97;C+=ln(xr0,yB,xr0,yB+hB,"c")+ln(xr0+4,yB,xr0+4,yB+hB,"c")+ln(xr0+4,yB+hB/3,cx0+W,yB+hB/3,"c")+ln(xr0+4,yB+2*hB/3,cx0+W,yB+2*hB/3,"c")+txV(xr0+2.9,yB+hB/2,"Referencia","isoXS");
+  C+=tx(xr0+5,yB+3.6,a.cod||"","isoS","start")+tx(xr0+5,yB+8.3,revTxt(rev.n),"isoS","start")+tx(xr0+5,yB+13,(g.tipo||a.tipoIny||"").slice(0,14),"isoXS","start");
+  const lx=cx0+g4+6,ly=yB+hB/2;C+='<circle cx="'+F(lx)+'" cy="'+F(ly)+'" r="3.3" style="fill:#333;stroke:none"/><circle cx="'+F(lx+1.3)+'" cy="'+F(ly)+'" r="1.9" style="fill:#fff;stroke:none"/><rect x="'+F(lx+1.3)+'" y="'+F(ly-0.7)+'" width="2.4" height="1.4" style="fill:#fff;stroke:none"/>'+tx(lx+5,ly+1.4,"CIE Inyectametal","isoC","start");
+  const yC=yB+hB,hC=14;C+='<rect x="'+cx0+'" y="'+F(yC)+'" width="'+W+'" height="'+hC+'" class="c"/>'+ln(cx0+16,yC,cx0+16,yC+hC,"c")+ln(xr0,yC,xr0,yC+hC,"c")+ln(xr0,yC+hC/2,cx0+W,yC+hC/2,"c");
+  C+=tx(cx0+1.5,yC+3.6,"Escala:","isoS","start")+tx(cx0+8,yC+10.8,"S/E","isoT")+tx(cx0+19,yC+9.6,"Barra expulsion "+mtxt,"isoT","start");
+  C+=tx(xr0+1.5,yC+4.6,"N.º "+(a.cod||""),"isoS","start")+tx(xr0+1.5,yC+11.6,rev.antes?"Anula al "+revTxt(rev.antes):"Anula al —","isoS","start");
+  /* historial corto de revisiones encima del cajetín */
+  const H=(hist||[]).filter(h=>h.n>1).slice(-3);let Rv="";if(H.length){let yy=cy0-3-H.length*4.6;Rv+='<rect x="'+cx0+'" y="'+F(yy-3.6)+'" width="'+W+'" height="'+F(H.length*4.6+1.6)+'" class="c"/>';H.forEach((h,i)=>{Rv+=tx(cx0+1.5,yy+i*4.6,revTxt(h.n)+" · "+fmtF(h.f)+" · "+(h.cambio||"").slice(0,62),"isoS","start");});}
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210" width="297mm" height="210mm" font-family="\'Arial Narrow\', Arial, Helvetica, sans-serif" font-size="3.2"><style>line,path,circle,rect{stroke:#222;stroke-width:0.22;fill:none}.g{stroke-width:0.5;stroke:#111}.fino{stroke-width:0.17}.cota{stroke-width:0.17;marker-start:url(#fl);marker-end:url(#fl)}.oculta{stroke-dasharray:1.4 0.7;stroke-width:0.25}.eje{stroke-dasharray:7 1 1 1;stroke-width:0.16}.c{stroke-width:0.3}.rayado{fill:url(#ray);stroke-width:0.3}.nube{stroke-width:0.25}text{fill:#111;stroke:none}.num{font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:3}.iso,.isoM,.isoN,.isoC,.isoS,.isoXS,.isoT,.isoR{font-style:italic;font-family:\'Century Gothic\',\'Segoe UI\',Arial,sans-serif;font-weight:300}.iso{font-size:6.2;letter-spacing:0.4}.isoM{font-size:5.2;letter-spacing:0.2}.isoN{font-size:5.6;letter-spacing:0.3}.isoC{font-size:3.3}.isoS{font-size:2.8}.isoXS{font-size:2}.isoT{font-size:5}.isoR{font-size:3;fill:#b00;font-weight:bold}</style><defs><marker id="fl" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="4.5" markerHeight="3.4" orient="auto-start-reverse"><path d="M0 0.6 L8 3 L0 5.4 z" style="fill:#111;stroke:none"/></marker><pattern id="ray" width="1.4" height="1.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.4" style="stroke:#111;stroke-width:0.25"/></pattern></defs><rect x="0" y="0" width="297" height="210" style="fill:#fff;stroke:none"/><rect x="8" y="8" width="281" height="194" class="c"/>'+S+Rv+C+'</svg>';}
+/* nube de revisión con lóbulos, como las de AutoCAD */
+function nube(x,y,w,h){const st=6.2,P=[];const add=(x1,y1,x2,y2)=>{const Ld=Math.hypot(x2-x1,y2-y1),n=Math.max(1,Math.round(Ld/st));for(let i=0;i<n;i++)P.push([x1+(x2-x1)*i/n,y1+(y2-y1)*i/n]);};
+  add(x,y,x+w,y);add(x+w,y,x+w,y+h);add(x+w,y+h,x,y+h);add(x,y+h,x,y);let dd="M"+P[0][0].toFixed(2)+" "+P[0][1].toFixed(2);
+  for(let i=1;i<=P.length;i++){const q=P[i%P.length],p=P[i-1];const rr=Math.hypot(q[0]-p[0],q[1]-p[1])*0.62;dd+=" A "+rr.toFixed(2)+" "+rr.toFixed(2)+" 0 0 1 "+q[0].toFixed(2)+" "+q[1].toFixed(2);}
+  return '<path d="'+dd+'" class="nube"/>';}
 function blobPlano(a,rev,tipo){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=3508;c.height=2480;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):ko(new Error("no se pudo dibujar")),tipo||"image/png");};img.onerror=()=>ko(new Error("no se pudo dibujar el plano"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
-function verPlanoGen(a,rev){const w=window.open("","_blank");const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));
-  const html='<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+(a.cod||"Plano")+" "+revTxt(rev.n)+'</title><style>@page{size:A4 landscape;margin:0}body{margin:0;background:#888}svg{display:block;width:100%;height:auto;background:#fff}@media print{body{background:#fff}}</style>'+svg;
-  if(w){w.document.open();w.document.write(html);w.document.close();}else toast("Permite las ventanas emergentes para ver el plano");}
+function verPlanoGen(a,rev){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));let z=1;
+  const cont=el("div",{class:"pv-c"});cont.innerHTML=svg;const sv=cont.querySelector("svg");sv.removeAttribute("width");sv.removeAttribute("height");
+  const zoom=k=>{z=Math.max(1,Math.min(4,z*k));sv.style.width=(z*100)+"%";};zoom(1);
+  const cerrar=()=>{if(!ov.isConnected)return;ov.remove();document.removeEventListener("keydown",tec);window.removeEventListener("popstate",atras);document.body.classList.remove("pv-print");if(history.state&&history.state.pv)history.back();};
+  const atras=()=>{if(ov.isConnected){ov.remove();document.removeEventListener("keydown",tec);window.removeEventListener("popstate",atras);}};
+  const tec=e=>{if(e.key==="Escape")cerrar();};
+  const ov=el("div",{class:"pv",role:"dialog","aria-modal":"true","aria-label":"Plano "+(a.cod||"")},[
+    el("div",{class:"pv-bar"},[el("button",{type:"button",class:"pv-b pv-x",text:"✕ Cerrar",onclick:cerrar}),el("span",{class:"pv-t",text:(a.cod||"")+" · "+revTxt(rev.n)}),
+      el("button",{type:"button",class:"pv-b",text:"−","aria-label":"Alejar",onclick:()=>zoom(1/1.4)}),el("button",{type:"button",class:"pv-b",text:"+","aria-label":"Acercar",onclick:()=>zoom(1.4)}),
+      downloads?el("button",{type:"button",class:"pv-b",text:"Descargar",onclick:async()=>{try{const b=await blobPlano(a,rev,"image/png");await downloads.save({filename:(a.cod||"plano")+"_"+revTxt(rev.n).replace(". ","")+".png",data:b});toast("Plano descargado");}catch(e){toast("No se pudo descargar");}}}):null,
+      el("button",{type:"button",class:"pv-b",text:"Imprimir",onclick:()=>{document.body.classList.add("pv-print");setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("pv-print"),500);},50);}})]),cont]);
+  document.body.appendChild(ov);document.addEventListener("keydown",tec);try{history.pushState({pv:1},"");}catch(e){}window.addEventListener("popstate",atras);}
 function miniGen(a,rev){const d=el("div",{style:"width:180px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:zoom-in",onclick:()=>verPlanoGen(a,rev),title:"Abrir plano"});d.innerHTML=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));const s=d.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";return d;}
 /* formulario: cambiar medidas → nueva revisión dibujada */
 function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1];const n=v?v.n+1:1;const g=geoDef((v&&v.gen)||a.geo);const x={by:quienSoy(),cambio:"",motivo:"",tocado:false};const st=revStock(a);
