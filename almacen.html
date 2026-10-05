@@ -415,8 +415,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 <script>
 (function(){
 "use strict";
-const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["pist","Pistones"],["ejes","Ejes"],["bt","Barras"],["cat","Catálogo"]];
-const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
+const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
+const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
 const TEC=f=>f==="barra"||f==="tornillo";
 const UDS=["ud","kg","l","m","caja","rollo"];
 const DIAM=["Ø 50","Ø 60","Ø 70","Ø 70 esp","Ø 80","Ø 90","Ø 90 esp","Ø 100","Ø 100 esp"];
@@ -462,7 +462,7 @@ const maqN=id=>{const m=cat.maquinas.find(x=>x.id===id);return m?m.cod:"—";};
 const provN=id=>{const p=cat.proveedores.find(x=>x.id===id);return p?p.nom:"";};
 const artsActivos=()=>cat.articulos.filter(a=>a.activo!==false);
 function artOpts(fil){const g={};artsActivos().filter(fil||(()=>true)).forEach(a=>{(g[a.fam]=g[a.fam]||[]).push(a);});
-  return Object.keys(FAM).filter(f=>g[f]).map(f=>el("optgroup",{label:FAM[f]},g[f].sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>el("option",{value:a.id,text:a.desc+(a.cod?" · "+a.cod:"")}))));}
+  return Object.keys(FAM).filter(f=>g[f]).map(f=>el("optgroup",{label:FAM[f]},g[f].sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>el("option",{value:a.id,text:a.desc+(a.cod&&!a.desc.includes(a.cod)?" · "+a.cod:"")}))));}
 const almOpts=()=>cat.almacenes.map(a=>[a.id,a.nom]);
 const maqOpts=()=>cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>[m.id,m.cod+(m.nave?" · "+m.nave:"")]);
 const provOpts=()=>cat.proveedores.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(p=>[p.id,p.nom]);
@@ -765,7 +765,7 @@ window.INF={app:"MAPRI · Almacén",bloques:INF_ALM,base:INF_ALM_BASE,perDef:"me
     const r=await window.sbColada.functions.invoke("enviar-cierre",{body:{asunto,texto,filename:fn,excel:btoa(bin)}});let err=r.error?(r.error.message||"error"):null;if(r.error&&r.error.context&&r.error.context.json){try{const j=await r.error.context.json();err=j.error||err;}catch(e){}}if(err)throw new Error(err);return r.data&&r.data.to;}};
 /* ===== BARRAS EXPULSORAS Y TORNILLOS TOPE ===== */
 const porMaqDe=a=>+a.porMaq>0?+a.porMaq:(a.fam==="barra"?4:1);
-const BT={barra:{nom:"Barras expulsoras",uno:"barra expulsora",corto:"Barra"},tornillo:{nom:"Tornillos tope",uno:"tornillo tope",corto:"Tornillo"}};
+const BT={barra:{nom:"Barras expulsoras",uno:"barra expulsora",corto:"Barra"},tornillo:{nom:"Tornillos tope",uno:"tornillo tope",corto:"Tornillo"},horno:{nom:"Horno",uno:"pieza de horno",corto:"Pieza"}};
 const MOT_BT=["ROTURA","DESGASTE","DOBLADA","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
 const PREF_BT={barra:"BE"};
 const artsBT=f=>artsActivos().filter(a=>a.fam===f).sort((x,y)=>(x.cod||"~"+x.desc).localeCompare(y.cod||"~"+y.desc,"es",{numeric:true}));
@@ -773,6 +773,8 @@ function sigCodBT(f){const p=PREF_BT[f];if(!p)return"";const re=new RegExp("^"+p
 const nomBT=a=>{if(!a.cod)return a.desc;const d=String(a.desc||"").replace(a.cod,"").replace(/^(barra expulsora|tornillo tope)\s*/i,"").replace(/^[\s·\-]+|[\s·\-]+$/g,"");return d?a.cod+" · "+d:a.cod;};
 const cambiosBT=(f,desde)=>todosMov().filter(m=>m.tipo==="salida"&&(!desde||m.f>=desde)&&(art(m.art)||{}).fam===f).sort((a,b)=>(b.f+(b.ts||0)).localeCompare(a.f+(a.ts||0)));
 const maqsArt=a=>(a.iny||[]).map(id=>maqN(id)).filter(x=>x&&x!=="—").sort((p,q)=>p.localeCompare(q,"es",{numeric:true}));
+const GRUPOS_H=["Tubos dosificadores","Juntas de cono","Juntas de tubo dosificador","Resistencias","Conexiones estrella","Conexiones fase","Centradores","Juntas de puerta y tapa"];
+function gruposH(A){const g={};A.forEach(a=>{const k=a.grupo||"Otros";(g[k]=g[k]||[]).push(a);});return Object.keys(g).sort((x,y)=>{const i=GRUPOS_H.indexOf(x),j=GRUPOS_H.indexOf(y);return(i<0?99:i)-(j<0?99:j);}).map(k=>[k,g[k]]);}
 function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
   v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Apartado"},Object.keys(BT).map(k=>el("button",{type:"button","aria-pressed":String(f===k),text:BT[k].nom,onclick:()=>{draft.bt=k;draft.btMaq="";render(true);}}))));
   const A=artsBT(f),C30=cambiosBT(f,sumaDias(hy,-30));const PR={};try{prevTodo().arts.forEach(x=>{PR[x.a.id]=x;});}catch(e){}
@@ -785,10 +787,13 @@ function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
     el("button",{type:"button",class:"btn sec",text:"Nueva referencia",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})]));
   /* referencias */
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:N.nom+" ("+A.length+")"}),el("span",{class:"der sub",text:"stock y dónde van"})]),
-    A.length?el("div",{class:"lst"},A.map(a=>{const st=stockDe(a.id),n=nivel(a),ms=maqsArt(a),c90=cambiosBT(f,sumaDias(hy,-90)).filter(m=>m.art===a.id).reduce((t,m)=>t+(+m.cant||0),0);
+    A.length?el("div",{class:"lst"},[].concat(...(f==="horno"?gruposH(A):[[null,A]]).map(([gN,GA])=>[gN?el("div",{class:"gh",text:gN+" ("+GA.length+")"}):null].concat(GA.map(a=>{const st=stockDe(a.id),n=nivel(a),ms=maqsArt(a),c90=cambiosBT(f,sumaDias(hy,-90)).filter(m=>m.art===a.id).reduce((t,m)=>t+(+m.cant||0),0);
+      if(f==="horno")return el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc+(a.cod&&!a.desc.includes(a.cod)?" · "+a.cod:"")+(a.codProv&&a.codProv===a.cod?" (código provisional)":"")}),
+        el("div",{class:"t2",text:[a.medidas||null,ms.length?"va en "+ms.join(", "):"sin máquinas asignadas",a.pendiente||null,a.pedido?"pedida el "+fmtF(a.pedido):null,c90?"cambios en 3 meses: "+c90:null].filter(Boolean).join(" · ")})]),
+        el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:+a.min>0?"mín "+fmtN(+a.min):a.ud})])]);
       return el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:nomBT(a)}),
         el("div",{class:"t2",text:[revVig(a)?"plano "+revTxt(revVig(a).n):"sin plano",a.pedido?"pedida el "+fmtF(a.pedido)+(a.pedCant?" ("+fmtN(a.pedCant)+")":""):null,ms.length?"va en "+ms.join(", ")+" ("+porMaqDe(a)+" por máquina = "+porMaqDe(a)*ms.length+" puestas)":"sin máquinas asignadas",PR[a.id]?"gasta ~"+fmtN(Math.round(PR[a.id].mesUd*10)/10)+"/mes · mínimo sugerido "+fmtN(PR[a.id].min):null,c90?"cambios en 3 meses: "+c90:null].filter(Boolean).join(" · ")})]),
-        el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:+a.min>0?"mín "+fmtN(+a.min):a.ud})])]);})):el("div",{class:"empty"},["Todavía no hay ninguna "+N.uno+". ",el("button",{type:"button",class:"btn peq",text:"Añadir la primera",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})])]));
+        el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:+a.min>0?"mín "+fmtN(+a.min):a.ud})])]);}))))):el("div",{class:"empty"},["Todavía no hay ninguna "+N.uno+". ",el("button",{type:"button",class:"btn peq",text:"Añadir la primera",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})])]));
   /* por máquina */
   const maqs=cat.maquinas.slice().sort((p,q)=>p.cod.localeCompare(q.cod,"es",{numeric:true}));const sinAsig=maqs.filter(m=>!A.some(a=>(a.iny||[]).includes(m.id)));
   const selMq=sel("btMaq",maqOpts(),draft.btMaq||"",x=>{draft.btMaq=x;render(true);},"Elige una inyectora…");
@@ -2703,7 +2708,7 @@ const maqDe=id=>cat.maquinas.find(x=>x.id===id);
 const tipoCan=a=>a&&a.cod?(/k$/i.test(a.cod)?"K":/c$/i.test(a.cod)?"C":""):"";
 function diamDe(m){if(m.diam)return m.diam;const u=ultimoPist(m.id);return u?u.diam:"";}
 /* campos que se rellenan con datos de otras partes: ejes (modelos), pistón, barras y tornillos (artículos) */
-const AUTO={eje:"Modelos de eje: se marca qué modelos lleva",piston:"Ø de pistón habitual",barra:"Barras expulsoras del almacén",tornillo:"Tornillos tope del almacén"};
+const AUTO={eje:"Modelos de eje: se marca qué modelos lleva",piston:"Ø de pistón habitual",barra:"Barras expulsoras del almacén",tornillo:"Tornillos tope del almacén",horno:"Recambios de horno del almacén"};
 const autoTxt=(c,m)=>autoVal(c,m).map(id=>c.auto==="eje"?((cat.modelos||[]).find(x=>x.id===id)||{}).cod:c.auto==="piston"?id.replace("Ø ",""):(art(id)||{}).desc).filter(Boolean).join(", ");
 const codsIny=cs=>cs.slice().sort((a,b)=>a.localeCompare(b,"es",{numeric:true})).map((c,i)=>i?c.replace(/^F/i,""):c).join("-");
 function autoVal(c,m){if(c.auto==="eje")return(cat.modelos||[]).filter(x=>inyDe(x).includes(m.cod)).map(x=>x.id);
@@ -2743,18 +2748,19 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
   const mods=(cat.modelos||[]).filter(x=>inyDe(x).includes(m.cod));const all=todosPist().filter(p=>p.maq===m.id);const ps=all.slice(-8).reverse();
   const c3=all.filter(p=>p.f>=sumaDias(hy,-91)).reduce((s,p)=>s+(+p.cant||1),0);const u=all[all.length-1];
   const dm=diamDe(m),pa=dm?pistArt(dm):null;
-  const asign=artsActivos().filter(a=>(a.iny||[]).includes(m.id)).sort((a,b)=>a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc));
+  const asign0=artsActivos().filter(a=>(a.iny||[]).includes(m.id)).sort((a,b)=>a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc));
+  const asign=asign0.filter(a=>a.fam!=="horno"),hornoA=asign0.filter(a=>a.fam==="horno").sort((a,b)=>GRUPOS_H.indexOf(a.grupo)-GRUPOS_H.indexOf(b.grupo)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
   const d60=sumaDias(hy,-60),cons={};todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=d60&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{cons[x.art]=(cons[x.art]||0)+(+x.cant||0);});
   const lista=(arr,fn)=>el("div",{class:"card"},el("div",{class:"lst"},arr.map(fn)));
   const gh=t=>el("div",{class:"gh",style:"border-radius:6px",text:t});
   const itArt=(a,extra)=>el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();ficha(a);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:TEC(a.fam)?nomBT(a):a.desc}),
     el("div",{class:"t2",text:[FAM[a.fam],TEC(a.fam)?(revVig(a)?"plano "+revTxt(revVig(a).n):"sin plano"):(a.plano?"plano "+a.plano:null),!TEC(a.fam)&&(a.docs||[]).length?"con plano":null,extra].filter(Boolean).join(" · ")})]),
     el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])]);
-  const lf=lineasFicha(m,true);const datos=[].concat(...lf.map(l=>[el("dt",{text:l.c.nom}),el("dd",{text:l.txt})]));
+  const lf=lineasFicha(m,true).filter(l=>l.c.auto!=="horno");const datos=[].concat(...lf.map(l=>[el("dt",{text:l.c.nom}),el("dd",{text:l.txt})]));
   if(m.notas)datos.push(el("dt",{text:"Notas"}),el("dd",{text:m.notas}));
   const docs=m.docs||[];
   dlg("Inyectora "+m.cod,[
-    el("p",{class:"sub",text:[m.nave].concat(lf.slice(0,2).map(l=>l.txt)).filter(Boolean).join(" · ")||"—"}),
+    el("p",{class:"sub",text:(()=>{const t=lf.filter(l=>["c-zona","c-maq","c-horno","c-hmed"].includes(l.c.id)).map(l=>l.txt);if(!t.length)t.push(...lf.slice(0,2).map(l=>l.txt));if(m.nave&&!t.some(x=>x.startsWith(m.nave)))t.unshift(m.nave);return t.join(" · ")||"—";})()}),
     el("dl",{class:"kpis num"},[["Ø pistón",dm||"—"],["Pistones 3 meses",String(c3)],["Último cambio",u?"hace "+dias(u.f,hy)+" d":"—"],["Stock de ese Ø",pa?fmtN(stockDe(pa.id)):"—"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
     gh("Lo que monta"),datos.length?el("dl",{class:"datos"},datos):el("p",{class:"hint",text:"Sin rellenar. Pulsa «Editar ficha» y marca lo que lleva esta máquina."}),
     gh("Ejes · "+(mods.length?mods.length+" modelo"+(mods.length>1?"s":""):"ninguno")),
@@ -2764,6 +2770,9 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
       el("span",{class:"stripe "+(+x.min>0?(p<+x.min?"bad":p===+x.min?"warn":"ok"):"")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.ref}),
         el("div",{class:"t2",text:[x.cod,x.long,x.rosca?"rosca "+x.rosca:null,(x.docs||[]).length?"con plano":"sin plano",es.length-p?(es.length-p)+" fuera de planta":null].filter(Boolean).join(" · ")})]),
       el("div",{class:"cant num"},[el("b",{text:p+"/"+es.length}),el("small",{text:"en planta"})])]);}):el("p",{class:"hint",text:"Ningún modelo de eje tiene puesta esta inyectora (se pone en el modelo de eje, campo Inyectoras)."}),
+    gh("Recambios de horno ("+hornoA.length+")"),
+    hornoA.length?lista(hornoA,a=>el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();ficha(a);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc+(a.cod&&!a.desc.includes(a.cod)?" · "+a.cod:"")}),
+      el("div",{class:"t2",text:[a.grupo,a.medidas,a.pendiente].filter(Boolean).join(" · ")})]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])])):el("p",{class:"hint",text:"Nada asignado (se marca en «Editar ficha» › Recambios de horno, o en la ficha de cada pieza)."}),
     gh("Barras, tornillos y piezas ("+asign.length+")"),
     asign.length?lista(asign,a=>itArt(a,[TEC(a.fam)?"lleva "+porMaqDe(a):null,(a.iny||[]).length>1?"también en "+a.iny.filter(z=>z!==m.id).map(maqN).join(", "):null].filter(Boolean).join(" · ")||null)):el("p",{class:"hint",text:"Nada asignado todavía (se marca en la ficha de cada artículo: «Inyectoras donde va»)."}),
     Object.keys(cons).length?gh("Material gastado en esta máquina · 60 días"):null,
