@@ -972,8 +972,8 @@ function nube(x,y,w,h){const st=6.2,P=[];const add=(x1,y1,x2,y2)=>{const Ld=Math
   add(x,y,x+w,y);add(x+w,y,x+w,y+h);add(x+w,y+h,x,y+h);add(x,y+h,x,y);let dd="M"+P[0][0].toFixed(2)+" "+P[0][1].toFixed(2);
   for(let i=1;i<=P.length;i++){const q=P[i%P.length],p=P[i-1];const rr=Math.hypot(q[0]-p[0],q[1]-p[1])*0.62;dd+=" A "+rr.toFixed(2)+" "+rr.toFixed(2)+" 0 0 1 "+q[0].toFixed(2)+" "+q[1].toFixed(2);}
   return '<path d="'+dd+'" class="nube"/>';}
-function blobPlano(a,rev,tipo){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=3508;c.height=2480;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):ko(new Error("no se pudo dibujar")),tipo||"image/png");};img.onerror=()=>ko(new Error("no se pudo dibujar el plano"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
-function verPlanoGen(a,rev){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));let z=1;
+function blobPlano(a,rev,tipo){const svg=genDe(a).svg(a,rev,revsDe(a).filter(r=>r.n<=rev.n));return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=3508;c.height=2480;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):ko(new Error("no se pudo dibujar")),tipo||"image/png");};img.onerror=()=>ko(new Error("no se pudo dibujar el plano"));img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
+function verPlanoGen(a,rev){const svg=genDe(a).svg(a,rev,revsDe(a).filter(r=>r.n<=rev.n));let z=1;
   const cont=el("div",{class:"pv-c"});cont.innerHTML=svg;const sv=cont.querySelector("svg");sv.removeAttribute("width");sv.removeAttribute("height");
   const zoom=k=>{z=Math.max(1,Math.min(4,z*k));sv.style.width=(z*100)+"%";};zoom(1);
   const cerrar=()=>{if(!ov.isConnected)return;ov.remove();document.removeEventListener("keydown",tec);window.removeEventListener("popstate",atras);document.body.classList.remove("pv-print");if(history.state&&history.state.pv)history.back();};
@@ -985,29 +985,152 @@ function verPlanoGen(a,rev){const svg=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=re
       downloads?el("button",{type:"button",class:"pv-b",text:"Descargar",onclick:async()=>{try{const b=await blobPlano(a,rev,"image/png");await downloads.save({filename:(a.cod||"plano")+"_"+revTxt(rev.n).replace(". ","")+".png",data:b});toast("Plano descargado");}catch(e){toast("No se pudo descargar");}}}):null,
       el("button",{type:"button",class:"pv-b",text:"Imprimir",onclick:()=>{document.body.classList.add("pv-print");setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove("pv-print"),500);},50);}})]),cont]);
   document.body.appendChild(ov);document.addEventListener("keydown",tec);try{history.pushState({pv:1},"");}catch(e){}window.addEventListener("popstate",atras);}
-function miniGen(a,rev){const d=el("div",{style:"width:180px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:zoom-in",onclick:()=>verPlanoGen(a,rev),title:"Abrir plano"});d.innerHTML=svgBarra(a,rev,revsDe(a).filter(r=>r.n<=rev.n));const s=d.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";return d;}
-/* formulario: cambiar medidas → nueva revisión dibujada */
-function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1];const n=v?v.n+1:1;const g=geoDef((v&&v.gen)||a.geo);const x={by:quienSoy(),cambio:"",motivo:"",tocado:false};const st=revStock(a);
-  const prev=el("div",{style:"background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden"});const dif=el("p",{class:"sub"});
-  const pinta=()=>{prev.innerHTML=svgBarra(a,{n,f:hoy(),by:x.by,gen:g},R.concat([{n,f:hoy(),cambio:x.cambio||"(sin describir)"}]));const s=prev.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";
-    const ds=v&&v.gen?difGeo(v.gen,g):[];dif.textContent=ds.length?"Cambios: "+ds.join(" · "):(v?"Todavía no has cambiado ninguna medida.":"");if(!x.tocado){x.cambio=ds.join(" · ");const ci=document.getElementById("gfC");if(ci)ci.value=x.cambio;}};
-  const num=(id,lab,k)=>fld(lab,inp(id,g[k],z=>{const q=parseN(z);if(isFinite(q)&&q>0){g[k]=q;pinta();}},{inputmode:"decimal",class:"num"}));
+function miniGen(a,rev){const d=el("div",{style:"width:180px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:zoom-in",onclick:()=>verPlanoGen(a,rev),title:"Abrir plano"});d.innerHTML=genDe(a).svg(a,rev,revsDe(a).filter(r=>r.n<=rev.n));const s=d.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";return d;}
+function camposBarra(g,pinta){const num=(id,lab,k)=>fld(lab,inp(id,g[k],z=>{const q=parseN(z);if(isFinite(q)&&q>0){g[k]=q;pinta();}},{inputmode:"decimal",class:"num"}));
   const extS=sel("gfE",Object.entries(EXT_T),g.ext,z=>{g.ext=z;pinta();});
-  pinta();
-  dlg((v?"Modificar medidas · ":"Plano · ")+(a.cod||a.desc)+" · "+revTxt(n),[
-    el("div",{class:"row"},[num("gfL","Longitud importante (±0.2)","L"),num("gfD","Ø cuerpo (±0.25)","d")]),
+  return[el("div",{class:"row"},[num("gfL","Longitud importante (±0.2)","L"),num("gfD","Ø cuerpo (±0.25)","d")]),
     el("div",{class:"row"},[num("gfR","Largo rosca punta","lr"),num("gfEC","Entrecaras (e/c)","ec")]),
     el("div",{class:"row"},[fld("Extremo",extS),fld("Rosca punta",sel("gfRD",[["M20","M20"],["M16","M16"]],g.rd,z=>{g.rd=z;pinta();}))]),
-    fld("Nota en el plano (opcional)",inp("gfN",g.nota,z=>{g.nota=z;pinta();},{autocomplete:"off",placeholder:"p. ej. Tornillos DIN912 M20x120"})),
-    prev,dif,
+    fld("Nota en el plano (opcional)",inp("gfN",g.nota,z=>{g.nota=z;pinta();},{autocomplete:"off",placeholder:"p. ej. Tornillos DIN912 M20x120"}))];}
+const genDe=a=>esModelo(a)?{def:geoEjeDef,svg:svgEje,cotas:cotasEje,dif:difEje,campos:camposEje}:{def:geoDef,svg:svgBarra,cotas:cotasGeo,dif:difGeo,campos:camposBarra};
+/* formulario: cambiar medidas → nueva revisión dibujada */
+function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1];const n=v?v.n+1:1;const G=genDe(a);const g=G.def(JSON.parse(JSON.stringify((v&&v.gen)||a.geo||{})));const x={by:quienSoy(),cambio:"",motivo:"",tocado:false};const st=revStock(a);
+  const prev=el("div",{style:"background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden"});const dif=el("p",{class:"sub"});
+  const pinta=()=>{prev.innerHTML=G.svg(a,{n,f:hoy(),by:x.by,gen:g},R.concat([{n,f:hoy(),cambio:x.cambio||"(sin describir)"}]));const s=prev.querySelector("svg");s.removeAttribute("width");s.removeAttribute("height");s.style.width="100%";s.style.height="auto";
+    const ds=v&&v.gen?G.dif(v.gen,g):[];dif.textContent=ds.length?"Cambios: "+ds.join(" · "):(v?"Todavía no has cambiado ninguna medida.":"");if(!x.tocado){x.cambio=ds.join(" · ");const ci=document.getElementById("gfC");if(ci)ci.value=x.cambio;}};
+  const campos=G.campos(g,pinta);pinta();
+  dlg((v?"Modificar medidas · ":"Plano · ")+(a.cod||a.desc)+" · "+revTxt(n),[
+    ...campos,prev,dif,
     v?fld("Qué cambia (se rellena solo; puedes completarlo)",inp("gfC",x.cambio,z=>{x.cambio=z;x.tocado=true;},{autocomplete:"off"})):null,
     v?fld("Por qué (opcional)",inp("gfM","",z=>x.motivo=z,{autocomplete:"off"})):null,
     fld("Quién lo modifica",inp("gfB",x.by,z=>{x.by=z;pinta();},{autocomplete:"off"})),
     el("div",{class:"banner",style:"background:var(--surf2);color:inherit",text:"Ahora hay "+fmtN(st)+" "+revUd(a)+(v?" de la "+revTxt(v.n):"")+". Se apunta en la revisión."})],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar "+revTxt(n),fn:async()=>{const ds=v&&v.gen?difGeo(v.gen,g):["x"];if(v&&!ds.length){toast("No has cambiado ninguna medida");return false;}if(v&&!(x.cambio||"").trim()){toast("Escribe qué cambia");return false;}if(!(x.by||"").trim()){toast("Pon quién lo modifica");return false;}
-      const z=revObj(a.id);const alm={};cat.almacenes.forEach(l=>{const q=stockDe(z.id,l.id);if(q)alm[l.id]=q;});
-      z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:v?x.cambio.trim():"Plano inicial",motivo:(x.motivo||"").trim()||null,gen:Object.assign({},g),doc:null,stock:st,stockAlm:alm,antes:v?v.n:null,cotas:cotasGeo(g)}]);z.geo=Object.assign({},g);
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar "+revTxt(n),fn:async()=>{const ds=v&&v.gen?G.dif(v.gen,g):["x"];if(v&&!ds.length){toast("No has cambiado ninguna medida");return false;}if(v&&!(x.cambio||"").trim()){toast("Escribe qué cambia");return false;}if(!(x.by||"").trim()){toast("Pon quién lo modifica");return false;}
+      const z=revObj(a.id);const alm={};if(!esModelo(z))cat.almacenes.forEach(l=>{const q=stockDe(z.id,l.id);if(q)alm[l.id]=q;});
+      z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:v?x.cambio.trim():"Plano inicial",motivo:(x.motivo||"").trim()||null,gen:Object.assign({},g),doc:null,stock:st,stockAlm:alm,antes:v?v.n:null,cotas:G.cotas(g)}]);z.geo=Object.assign({},g);
       try{await saveCat();toast(revTxt(n)+" guardada");}catch(e){return false;}if(despues)despues();}}]);}
+
+/* ===== GENERADOR DE PLANOS DE EJES DE INYECCIÓN (estilo CIE Inyectametal) ===== */
+const geoEjeDef=g=>Object.assign({Dc:100,tDc:"±0.20",lc:20,tlc:"-0.05/-0.1",Ds:0,ls:0,tDs:"",db:79,tdb:"+0/-0.20",df:0,tdf:"±0.20",ec:"70",caras:2,lf:100,L:780,T:840,juntas:[125,135,150],refr:[112],rosca:"M45x4.5",tubo:855,mat:"URKO-0-F-125",nplano:"",tipo:"",nota:"",papel:[],extra:""},g||{});
+const lstN=v=>(Array.isArray(v)?v:String(v||"").split(/[,;\s]+/)).map(x=>parseFloat(String(x).replace(",","."))).filter(x=>isFinite(x)&&x>0);
+function cotasEje(g){g=geoEjeDef(g);const o=[{n:"Ø46",v:"-0.03/-0.06"},{n:"Ø cabeza",v:"Ø"+g.Dc+" "+(g.tDc||"")}];
+  if(g.Ds)o.push({n:"Ø escalón",v:"Ø"+g.Ds+" "+(g.tDs||"")});o.push({n:"Ø cuerpo",v:"Ø"+g.db+" "+(g.tdb||"")});if(g.df)o.push({n:"Ø delantero",v:"Ø"+g.df+" "+(g.tdf||"")});
+  o.push({n:"Cota importante",v:g.L+" ±0.5"});if(g.T)o.push({n:"Cota total",v:g.T+" ±0.5"});o.push({n:"Rosca",v:g.rosca});o.push({n:"Cota cabeza",v:g.lc+" "+(g.tlc||"")});
+  return o.map(c=>({n:c.n,v:c.v.trim()}));}
+function difEje(a,b){const A=geoEjeDef(a),B=geoEjeDef(b),o=[];
+  [["L","Cota importante"],["T","Cota total"],["Dc","Ø cabeza"],["tDc","Tolerancia Ø cabeza"],["lc","Cota cabeza"],["tlc","Tolerancia cota cabeza"],["Ds","Ø escalón"],["db","Ø cuerpo"],["tdb","Tolerancia Ø cuerpo"],["df","Ø delantero"],["ec","Entrecaras"],["rosca","Rosca"],["tubo","Tubo"],["mat","Material"]].forEach(([k,t])=>{if(String(A[k]==null?"":A[k])!==String(B[k]==null?"":B[k]))o.push(t+" "+(A[k]||"—")+" → "+(B[k]||"—"));});
+  if(lstN(A.juntas).join()!==lstN(B.juntas).join())o.push("Cotas de juntas "+lstN(A.juntas).join("/")+" → "+lstN(B.juntas).join("/"));
+  if(lstN(A.refr).join()!==lstN(B.refr).join())o.push("Refrigeración "+lstN(A.refr).join("/")+" → "+lstN(B.refr).join("/"));
+  if((A.nota||"")!==(B.nota||""))o.push("Nota cambiada");return o;}
+function svgEje(a,rev,hist){const g=geoEjeDef(rev.gen),esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const F=n=>(+n).toFixed(2);
+  const ln=(x1,y1,x2,y2,c)=>'<line x1="'+F(x1)+'" y1="'+F(y1)+'" x2="'+F(x2)+'" y2="'+F(y2)+'"'+(c?' class="'+c+'"':'')+'/>';
+  const tx=(x,yy,t,c,an)=>'<text x="'+F(x)+'" y="'+F(yy)+'" text-anchor="'+(an||"middle")+'"'+(c?' class="'+c+'"':'')+'>'+esc(t)+'</text>';
+  const txV=(x,yy,t,c)=>'<text transform="translate('+F(x)+' '+F(yy)+') rotate(-90)" text-anchor="middle"'+(c?' class="'+c+'"':'')+'>'+esc(t)+'</text>';
+  const cotaH=(x1,x2,yy,t,yref)=>{const w=String(t).length*1.5;return ln(x1,yref,x1,yy+(yy>yref?1.2:-1.2),"fino")+ln(x2,yref,x2,yy+(yy>yref?1.2:-1.2),"fino")+ln(x1,yy,x2,yy,"cota")+(x2-x1<w+3?tx(x2+1.2,yy+0.9,t,"num","start"):tx((x1+x2)/2,yy-0.9,t,"num"));};
+  const cotaV=(xx,y1,y2,t)=>ln(xx,y1,xx,y2,"cota")+txV(xx-0.9,(y1+y2)/2,t,"num");
+  const L=+g.L,T=+g.T||L+60,lc=+g.lc||20,Dc=+g.Dc||100,db=+g.db||80,df=+g.df||0,Ds=+g.Ds||0,ls=Ds?(+g.ls||lc+80):0,lf=df?(+g.lf||100):0;
+  const J=lstN(g.juntas),Rf=lstN(g.refr);const m36=/M36/i.test(g.rosca||"");const rt=m36?18:22.5;
+  const IZ=Math.max(lc,ls,...J,...Rf,120)+28;const R0=L-Math.max(lf,95)-15;const roto=R0>IZ+30;const GAP=12;
+  const anch=roto?IZ+(T-R0):T;const s=Math.min(0.42,(roto?178:190)/anch);
+  const x0=34,y=70,xr=x0+IZ*s+GAP;
+  const X=p=>!roto||p<=IZ?x0+p*s:xr+(p-R0)*s;
+  const segs=[[0,lc,Dc]];let p=lc;if(Ds){segs.push([p,ls,Ds]);p=ls;}
+  if(df){segs.push([p,L-lf,db]);segs.push([L-lf,L,df]);}else segs.push([p,L,db]);
+  segs.push([L,L+10,40.7],[L+10,L+22,46],[L+22,T,rt*2]);
+  /* recortar por la rotura */
+  const vis=[];segs.forEach(([a1,a2,d])=>{if(!roto){vis.push([a1,a2,d]);return;}if(a2<=IZ||a1>=R0){vis.push([a1,a2,d]);return;}if(a1<IZ)vis.push([a1,IZ,d,"cutR"]);if(a2>R0)vis.push([R0,a2,d,"cutL"]);});
+  const rb=9.5*s;let S="",H="";
+  vis.forEach(([a1,a2,d],i)=>{const r=d/2*s,p1=X(a1),p2=X(a2);S+=ln(p1,y-r,p2,y-r,"g")+ln(p1,y+r,p2,y+r,"g");
+    if(a1>=L)H+=""; else H+='<rect x="'+F(p1)+'" y="'+F(y-r)+'" width="'+F(Math.max(0,p2-p1))+'" height="'+F(Math.max(0,r-rb))+'" class="ray2"/>';
+    const pr=vis[i-1];if(!pr||pr[1]!==a1){if(a1===0)S+=ln(p1,y-r,p1,y+r,"g");}else{const r0=pr[2]/2*s;S+=ln(p1,y-Math.max(r,r0),p1,y-Math.min(r,r0),"g")+ln(p1,y+Math.min(r,r0),p1,y+Math.max(r,r0),"g");}
+    if(a2===T)S+=ln(p2-0.8,y-r,p2,y-r+0.8,"g")+ln(p2-0.8,y+r,p2,y+r-0.8,"g")+ln(p2,y-r+0.8,p2,y+r-0.8,"g");});
+  /* chaflanes 1x45 en la cabeza */
+  /* rotura en S */
+  if(roto){const lun=(bx,k,r)=>'M'+F(bx)+' '+F(y-r)+' C '+F(bx+3*k)+' '+F(y-r*0.5)+', '+F(bx-3*k)+' '+F(y+r*0.5)+', '+F(bx)+' '+F(y+r);
+    const rI=(vis.find(v=>v[3]==="cutR")||[0,0,db])[2]/2*s,rD=(vis.find(v=>v[3]==="cutL")||[0,0,db])[2]/2*s;
+    S+='<path d="'+lun(X(IZ),1,rI)+'" class="g"/><path d="'+lun(xr,1,rD)+'" class="g"/>';}
+  /* taladro central, G1/2 trasero y tubo */
+  const xIZ=roto?X(IZ):X(T);S+=ln(x0,y-10.5*s,x0+13*s,y-10.5*s,"oculta")+ln(x0,y+10.5*s,x0+13*s,y+10.5*s,"oculta")+ln(x0+13*s,y-10.5*s,x0+13*s,y+10.5*s,"oculta");
+  S+=ln(x0+13*s,y-rb,xIZ-1,y-rb,"oculta")+ln(x0+13*s,y+rb,xIZ-1,y+rb,"oculta");if(roto)S+=ln(xr+1,y-6.5*s,X(T)-0.6,y-6.5*s,"oculta")+ln(xr+1,y+6.5*s,X(T)-0.6,y+6.5*s,"oculta");
+  /* juntas tóricas (cotas desde la cara trasera) */
+  J.forEach(j=>{if(j<IZ||!roto){const xx=X(j);S+='<rect x="'+F(xx-0.6)+'" y="'+F(y-rb-0.6)+'" width="1.2" height="1.2" class="fino"/><rect x="'+F(xx-0.6)+'" y="'+F(y+rb-0.6)+'" width="1.2" height="1.2" class="fino"/>';}});
+  /* refrigeración G1/4 */
+  Rf.forEach(q=>{const xx=X(q),r=db/2*s;S+=ln(xx-4*s,y+r,xx-4*s,y+r-14*s,"oculta")+ln(xx+4*s,y+r,xx+4*s,y+r-14*s,"oculta")+ln(xx-1.5*s,y+r-14*s,xx-1.5*s,y+rb,"oculta")+ln(xx+1.5*s,y+r-14*s,xx+1.5*s,y+rb,"oculta")+tx(xx+5,y+r-1.2,"G1/4″","isoS","start");});
+  /* caras paralelas / entrecaras */
+  const fa=df?L-lf+12:L-90,fb=df?L-lf+42:L-60;if(!roto||fa>=R0){const hr=Math.min(+String(g.ec).match(/\d+(\.\d+)?/)?.[0]||db,df||db)/2*s;S+='<rect x="'+F(X(fa))+'" y="'+F(y-hr)+'" width="'+F(X(fb)-X(fa))+'" height="'+F(2*hr)+'" class="fino"/>'+ln(X(fa),y-hr,X(fb),y+hr,"fino")+ln(X(fa),y+hr,X(fb),y-hr,"fino");}
+  /* pasador Ø8 */
+  if(df){const xp=X(L-30),yp=y-(df/2*s)*0.55;S+='<circle cx="'+F(xp)+'" cy="'+F(yp)+'" r="1.6" class="rayado"/>'+tx(xp-2.4,yp+0.7,"Ø8 Pasador","isoXS","end");}
+  /* eje de simetría */
+  S+=ln(x0-5,y,X(T)+4,y,"eje");
+  /* cotas */
+  const rMax=Math.max(Dc,Ds,db,df)/2*s,yT=y-rMax,yb=y+rMax;
+  J.slice().sort((a,b)=>b-a).forEach((j,i)=>{S+=cotaH(X(0),X(j),yT-5-(J.length-1-i)*5.5,j+"±0.5",yT-0.5);});
+  S+=cotaH(X(0),X(lc),yb+7,lc+" "+(g.tlc||""),y+Dc/2*s+0.5);
+  Rf.forEach((q,i)=>{S+=cotaH(X(0),X(q),yb+13+i*6,q+"±0.5",yb+0.5);});const rowL=yb+13+Math.max(1,Rf.length)*6;
+  S+=cotaH(X(0),X(L),rowL,L+" ±0.5",yb+0.5);if(+g.T)S+=cotaH(X(0),X(T),rowL+7,T+" ±0.5",yb+0.5);
+  S+=cotaH(X(L),X(T),yb+7,String(Math.round((T-L)*10)/10),y+rt*s+0.5);
+  /* diámetros (verticales) */
+  S+=ln(x0-0.5,y-Dc/2*s,x0-14,y-Dc/2*s,"fino")+ln(x0-0.5,y+Dc/2*s,x0-14,y+Dc/2*s,"fino")+cotaV(x0-12,y-Dc/2*s,y+Dc/2*s,"Ø"+Dc+" "+(g.tDc||""));
+  S+=cotaV(x0-5,y-10.5*s,y+10.5*s,"G1/2″");
+  if(Ds){const xx=X(lc+(ls-lc)*0.5);S+=cotaV(xx,y-Ds/2*s,y+Ds/2*s,"Ø"+Ds+" "+(g.tDs||""));}
+  {const xx=X(Math.min(IZ-12,Math.max(...J,ls||0,lc)+14));S+=cotaV(xx,y-db/2*s,y+db/2*s,"Ø"+db+" "+(g.tdb||""));}
+  if(df){const xx=X(L-8);S+=cotaV(xx,y-df/2*s,y+df/2*s,"Ø"+df+" "+(g.tdf||""));}
+  const xe=X(T);S+=ln(xe+0.5,y-rt*s,xe+8,y-rt*s,"fino")+ln(xe+0.5,y+rt*s,xe+8,y+rt*s,"fino")+cotaV(xe+6,y-rt*s,y+rt*s,g.rosca);
+  S+=tx(X(L+16),y+23*s+3.2,"Ø46 -0.03/-0.06","isoXS");
+  /* texto de caras paralelas */
+  S+=tx(X(fa),y-(df||db)/2*s-2,(g.ec?String(g.ec)+" e.c. ("+(g.caras||2)+" caras paralelas)":""),"isoS","start");
+  /* vista frontal */
+  const cx=258,cy=y-4,sE=Math.min(0.4,40/Dc),R=Dc/2*sE;let V='<circle cx="'+cx+'" cy="'+F(cy)+'" r="'+F(R)+'" class="g"/><circle cx="'+cx+'" cy="'+F(cy)+'" r="'+F((df||db)/2*sE)+'" class="fino"/><circle cx="'+cx+'" cy="'+F(cy)+'" r="'+F(23*sE)+'" class="g"/><circle cx="'+cx+'" cy="'+F(cy)+'" r="'+F(19*sE)+'" class="fino"/><circle cx="'+cx+'" cy="'+F(cy)+'" r="'+F(6.5*sE)+'" class="g"/>';
+  const ecn=+String(g.ec).match(/\d+(\.\d+)?/)?.[0]||0;if(ecn){const h=ecn/2*sE,rr=(df||db)/2*sE;if(h<rr){const w=Math.sqrt(rr*rr-h*h);V+=ln(cx-h,cy-w,cx-h,cy+w,"g")+ln(cx+h,cy-w,cx+h,cy+w,"g");if(+g.caras===4)V+=ln(cx-w,cy-h,cx+w,cy-h,"g")+ln(cx-w,cy+h,cx+w,cy+h,"g");
+    V+=cotaH(cx-h,cx+h,cy-R-4,String(g.ec)+" e.c.",cy-w-0.5);}}
+  V+=ln(cx-R-3,cy,cx+R+3,cy,"eje")+ln(cx,cy-R-3,cx,cy+R+3,"eje");
+  /* tubo de latón */
+  const ty=158,tx0=22,tl=Math.min(120,(+g.tubo||800)*0.13);let Tb="";if(+g.tubo){Tb+=ln(tx0,ty-1.3,tx0+tl,ty-1.3,"g")+ln(tx0,ty+1.3,tx0+tl,ty+1.3,"g")+ln(tx0,ty-1.3,tx0,ty+1.3,"g")+ln(tx0+tl,ty-1.3,tx0+tl,ty+1.3,"g")+ln(tx0-3,ty,tx0+tl+3,ty,"eje")
+    +ln(tx0+tl*0.55,ty-3,tx0+tl*0.55-1.5,ty+3,"fino")+ln(tx0+tl*0.55+1.5,ty-3,tx0+tl*0.55,ty+3,"fino")+cotaH(tx0,tx0+tl,ty+8,String(g.tubo),ty+1.6)+tx(tx0,ty-4.5,"Tubo de latón Ø10 (extremo Ø7.5-8, 30°)","isoS","start");}
+  /* notas */
+  let N="";const wrap=(t,n)=>{const o=[];let c="";String(t).split(" ").forEach(w=>{if((c+" "+w).trim().length>n){o.push(c.trim());c=w;}else c+=" "+w;});if(c.trim())o.push(c.trim());return o;};
+  const nl=[].concat(g.nota?[[g.nota,"isoN"]]:[],...(g.extra?wrap(g.extra,95).map(t=>[[t,"isoS"]]):[]));nl.forEach(([t,c],i)=>{N+=tx(16,128+i*(c==="isoN"?6:4.2),t,c,"start");});
+  /* medidas garantizadas */
+  const cg=g.garant===false?[]:cotasEje(g),bx=226,by=96,bw=63,bh=7+cg.length*4.4;let B=!cg.length?'':'<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+F(bh)+'" class="c"/>'+tx(bx+bw/2,by+4.6,"Medidas garantizadas por el proveedor","isoS");
+  cg.forEach((c,i)=>{const t=c.n==="Ø46"?"Ø46 "+c.v:c.n.startsWith("Ø")?c.v:(c.n==="Rosca"?"Rosca ":"Cota ")+c.v;B+=tx(bx+6,by+9.6+i*4.4,t,"isoS","start");});
+  /* cajetín */
+  const maqs=inyDe(a).map(z=>"F"+z.replace(/^F/,""));const titulo="Eje de inyección "+(g.tipo||a.ref||"")+(maqs.length?" ("+maqs.join(",")+")":"");
+  const cx0=164,cy0=158,W=125,c1=7,c2=60,c3=92,H1=4.2;let C="";
+  const row=(yy,h)=>'<rect x="'+cx0+'" y="'+F(yy)+'" width="'+W+'" height="'+F(h)+'" class="c"/>';
+  C+=row(cy0,H1)+row(cy0+H1,H1);[c1,c2,c3].forEach(c=>{C+=ln(cx0+c,cy0,cx0+c,cy0+2*H1,"c");});
+  C+=tx(cx0+3.5,cy0+3.2,"1","isoC")+tx(cx0+c1+2,cy0+3.2,"Eje de inyección","isoC","start")+tx(cx0+c2+2,cy0+3.2,(g.mat||"").slice(0,18),"isoC","start")+tx(cx0+c3+1.5,cy0+3.1,(a.cod||"")+" · "+revTxt(rev.n),"isoR","start");
+  C+=tx(cx0+3.5,cy0+H1+3.2,"N.º","isoS")+tx(cx0+c1+2,cy0+H1+3.2,"Denominación","isoS","start")+tx(cx0+c2+2,cy0+H1+3.2,"Material","isoS","start")+tx(cx0+c3+2,cy0+H1+3.2,"Observaciones","isoS","start");
+  const yB=cy0+2*H1,hB=14;C+=row(yB,hB);const g1=16,g2=27,g3=38,g4=50;
+  C+=ln(cx0+g1,yB,cx0+g1,yB+hB,"c")+ln(cx0+g2,yB,cx0+g2,yB+hB,"c")+ln(cx0+g3,yB,cx0+g3,yB+hB,"c")+ln(cx0+g4,yB,cx0+g4,yB+hB,"c")+ln(cx0,yB+4,cx0+g4,yB+4,"c")+ln(cx0,yB+9,cx0+g4,yB+9,"c");
+  C+=tx(cx0+g1+5.5,yB+2.9,"Proyectado","isoXS")+tx(cx0+g2+5.5,yB+2.9,"Dibujado","isoXS")+tx(cx0+g3+6,yB+2.9,"Comprobado","isoXS");
+  C+=tx(cx0+1.5,yB+7.6,"Fechas","isoS","start")+tx(cx0+1.5,yB+12.6,"Firmas","isoS","start")+tx(cx0+g2+5.5,yB+7.6,fmtF(rev.f),"isoXS")+tx(cx0+g2+5.5,yB+12.6,(rev.by||"").slice(0,12),"isoXS");
+  const xr0=cx0+97;C+=ln(xr0,yB,xr0,yB+hB,"c")+ln(xr0+4,yB,xr0+4,yB+hB,"c")+ln(xr0+4,yB+hB/3,cx0+W,yB+hB/3,"c")+ln(xr0+4,yB+2*hB/3,cx0+W,yB+2*hB/3,"c")+txV(xr0+2.9,yB+hB/2,"Referencia","isoXS");
+  C+=tx(xr0+5,yB+3.6,a.cod||"","isoS","start")+tx(xr0+5,yB+8.3,revTxt(rev.n),"isoS","start")+tx(xr0+5,yB+13,(a.ref||"").slice(0,16),"isoXS","start");
+  const lx=cx0+g4+6,ly=yB+hB/2;C+='<circle cx="'+F(lx)+'" cy="'+F(ly)+'" r="3.3" style="fill:#333;stroke:none"/><circle cx="'+F(lx+1.3)+'" cy="'+F(ly)+'" r="1.9" style="fill:#fff;stroke:none"/><rect x="'+F(lx+1.3)+'" y="'+F(ly-0.7)+'" width="2.4" height="1.4" style="fill:#fff;stroke:none"/>'+tx(lx+5,ly+1.4,"CIE Inyectametal","isoC","start");
+  const yC=yB+hB,hC=14;C+=row(yC,hC)+ln(cx0+16,yC,cx0+16,yC+hC,"c")+ln(xr0,yC,xr0,yC+hC,"c")+ln(xr0,yC+hC/2,cx0+W,yC+hC/2,"c");
+  const tf=titulo.length>46?"isoTx":titulo.length>34?"isoTs":"isoT";C+=tx(cx0+1.5,yC+3.6,"Escala:","isoS","start")+tx(cx0+8,yC+10.8,"S/E","isoT")+tx(cx0+18.5,yC+9.4,titulo,tf,"start");
+  C+=tx(xr0+1.5,yC+4.6,"N.º "+(g.nplano||a.cod||""),"isoS","start")+tx(xr0+1.5,yC+11.6,rev.antes?"Anula al "+revTxt(rev.antes):"Anula al —","isoS","start");
+  /* tabla de modificaciones: las del papel y las de la app */
+  const filas=(g.papel||[]).map(p=>[p.n,p.t,p.f,p.by||""]).concat((hist||[]).filter(h=>h.n>1).slice(-3).map(h=>[String(h.n).padStart(2,"0"),h.cambio||"",fmtF(h.f),h.by||""]));
+  let Rv="";if(filas.length){const hF=4.4,y1=cy0-(filas.length+1)*hF;Rv+='<rect x="'+cx0+'" y="'+F(y1)+'" width="'+W+'" height="'+F((filas.length+1)*hF)+'" class="c"/>';
+    filas.concat([["Nº","Clase de modificación","Fecha","Nombre"]]).forEach((f,i)=>{const yy=y1+i*hF;if(i)Rv+=ln(cx0,yy,cx0+W,yy,"c");const cl=i===filas.length?"isoXS":"isoS";
+      Rv+=tx(cx0+3.5,yy+3.2,f[0],cl)+tx(cx0+c1+1.5,yy+3.2,String(f[1]).slice(0,58),cl,"start")+tx(cx0+101,yy+3.2,f[2],cl,"middle")+tx(cx0+115,yy+3.2,String(f[3]).slice(0,10),cl,"middle");});
+    Rv+=ln(cx0+c1,y1,cx0+c1,cy0,"c")+ln(cx0+94,y1,cx0+94,cy0,"c")+ln(cx0+108,y1,cx0+108,cy0,"c");}
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210" width="297mm" height="210mm" font-family="\'Arial Narrow\', Arial, Helvetica, sans-serif" font-size="3.2"><style>line,path,circle,rect{stroke:#222;stroke-width:0.22;fill:none}.g{stroke-width:0.5;stroke:#111}.fino{stroke-width:0.17}.cota{stroke-width:0.17;marker-start:url(#fl);marker-end:url(#fl)}.oculta{stroke-dasharray:1.4 0.7;stroke-width:0.25}.eje{stroke-dasharray:7 1 1 1;stroke-width:0.16}.c{stroke-width:0.3}.rayado{fill:url(#ray);stroke-width:0.3}.ray2{fill:url(#ray2);stroke:none}text{fill:#111;stroke:none}.num{font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:2.7}.isoN,.isoC,.isoS,.isoXS,.isoT,.isoTs,.isoTx,.isoR{font-style:italic;font-family:\'Century Gothic\',\'Segoe UI\',Arial,sans-serif;font-weight:300}.isoN{font-size:4.2;letter-spacing:0.2}.isoC{font-size:3.3}.isoS{font-size:2.6}.isoXS{font-size:2}.isoT{font-size:4.6}.isoTs{font-size:3.6}.isoTx{font-size:2.9}.isoR{font-size:3;fill:#b00;font-weight:bold}</style><defs><marker id="fl" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="4.5" markerHeight="3.4" orient="auto-start-reverse"><path d="M0 0.6 L8 3 L0 5.4 z" style="fill:#111;stroke:none"/></marker><pattern id="ray" width="1.4" height="1.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.4" style="stroke:#111;stroke-width:0.25"/></pattern><pattern id="ray2" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2.6" style="stroke:#555;stroke-width:0.16"/></pattern></defs><rect x="0" y="0" width="297" height="210" style="fill:#fff;stroke:none"/><rect x="8" y="8" width="281" height="194" class="c"/>'+H+S+V+Tb+N+B+Rv+C+'</svg>';}
+/* campos del formulario de medidas del eje */
+function camposEje(g,pinta){const num=(id,lab,k)=>fld(lab,inp(id,g[k],z=>{const q=parseN(z);if(isFinite(q)&&q>=0){g[k]=q;pinta();}},{inputmode:"decimal",class:"num"}));
+  const txt=(id,lab,k,ph)=>fld(lab,inp(id,Array.isArray(g[k])?g[k].join(", "):g[k],z=>{g[k]=Array.isArray(g[k])?lstN(z):z;pinta();},{autocomplete:"off",placeholder:ph||""}));
+  return[el("div",{class:"row"},[num("geL","Cota importante (±0.5)","L"),num("geT","Cota total (±0.5)","T")]),
+    el("div",{class:"row"},[num("geDc","Ø cabeza","Dc"),txt("getDc","Tolerancia","tDc")]),
+    el("div",{class:"row"},[num("gelc","Cota cabeza","lc"),txt("getlc","Tolerancia","tlc")]),
+    el("div",{class:"row"},[num("gedb","Ø cuerpo","db"),txt("getdb","Tolerancia","tdb")]),
+    el("div",{class:"row"},[num("gedf","Ø delantero (0 = no tiene)","df"),txt("geec","Entrecaras (e.c.)","ec")]),
+    el("div",{class:"row"},[num("geDs","Ø escalón (0 = no tiene)","Ds"),num("gels","Largo hasta fin del escalón","ls")]),
+    el("div",{class:"row"},[txt("geJ","Cotas de juntas","juntas","125, 135, 150"),txt("geRf","Refrigeración G1/4","refr","112")]),
+    el("div",{class:"row"},[txt("geR","Rosca","rosca"),num("geTb","Largo tubo latón","tubo")]),
+    el("div",{class:"row"},[txt("geM","Material","mat"),txt("geTi","Tipo (título)","tipo","STP 900")]),
+    txt("geN","Nota en el plano (opcional)","nota")];}
 /* ===== EDITOR DE PLANOS: marcar encima del plano vigente (tapar cotas, escribir, flechas, recuadros, lápiz) ===== */
 function cargarPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
   s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";ok(window.pdfjsLib);};s.onerror=()=>ko(new Error("No se pudo cargar el lector de PDF"));document.head.appendChild(s);});}
