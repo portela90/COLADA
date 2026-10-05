@@ -1541,14 +1541,14 @@ function vStock(v){
                   :el("div",{style:"margin-top:6px"},el("button",{type:"button",class:"btn sec peq",text:"Marcar pedido"+(pedir?" ("+fmtN(pedir)+" "+a.ud+")":""),onclick:()=>marcarPedido(a,hoy())}))]),
         el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud+" · "+NIV[n]})])]);}))]));}
   const f=draft.fs;
-  const buscar=inp("fsTxt",f.txt,x=>{f.txt=x;pintarLista();},{type:"search",placeholder:"Buscar artículo o código",autocomplete:"off"});
+  const buscar=inp("fsTxt",f.txt,x=>{f.txt=x;pintarLista();},{type:"search",placeholder:"Buscar artículo, código o inyectora (F54)",autocomplete:"off"});
   v.appendChild(el("div",{class:"frm",style:"gap:10px"},[buscar,
     el("div",{class:"chips"},[["","Todos"]].concat(Object.entries(FAM)).map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.fam===k),text:t,onclick:()=>{f.fam=k;render(true);}}))),
     cat.almacenes.length>1?el("div",{class:"chips"},[["","Todos los almacenes"]].concat(almOpts()).map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.alm===k),text:t,onclick:()=>{f.alm=k;render(true);}}))):null]));
   const card=el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Existencias"+(f.alm?" · "+almN(f.alm):"")})]),el("div",{class:"lst",id:"lstStock"})]);
   v.appendChild(card);pintarLista();}
-function pintarLista(){const box=$("lstStock");if(!box)return;box.textContent="";const f=draft.fs,q=f.txt.trim().toLowerCase();
-  const arr=artsActivos().filter(a=>(!f.fam||a.fam===f.fam)&&(!q||(a.desc+" "+(a.cod||"")+" "+(a.diam||"")).toLowerCase().includes(q)))
+function pintarLista(){const box=$("lstStock");if(!box)return;box.textContent="";const f=draft.fs,q=tokQ(f.txt);
+  const arr=artsActivos().filter(a=>(!f.fam||a.fam===f.fam)&&(!q.length||casa([a.desc,a.cod,a.diam,a.ubic,a.grupo,(a.iny||[]).map(maqN).join(" ")].join(" "),q)))
     .sort((a,b)=>a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
   if(!arr.length){box.appendChild(el("div",{class:"empty",text:"Ningún artículo coincide."}));return;}
   let fam="";arr.forEach(a=>{if(a.fam!==fam&&!f.fam){fam=a.fam;box.appendChild(el("div",{class:"gh",text:FAM[fam]}));}
@@ -2897,16 +2897,20 @@ async function importarMaquinas(file){try{await cargarXLSX();}catch(e){toast("No
         cat.articulos.filter(a=>a.fam===cp.auto).forEach(a=>{const tiene=(a.iny||[]).includes(m.id),quiere=S.has(a.id);if(tiene!==quiere)a.iny=quiere?(a.iny||[]).concat([m.id]):(a.iny||[]).filter(z=>z!==m.id);});});
       cat.fichaIny={campos:P};try{await saveCat();toast("Fichas importadas");}catch(e){return false;}render(true);}}]);}
 function cerrarDlgs(){document.querySelectorAll(".dlg-ov,.bus-ov").forEach(o=>o.remove());}
+/* búsqueda: «F-54», «F 54», «F054» y «F54» son lo mismo; un código de máquina busca la máquina exacta (F5 no saca F54) */
+const nfq=t=>norm(String(t||"")).replace(/\bf[\s\-]*0*(\d{1,3})\b/g,"f$1");
+const tokQ=raw=>nfq(raw).split(/\s+/).filter(Boolean);
+const casa=(hay,toks)=>{const n=nfq(hay);return toks.every(t=>/^f\d+$/.test(t)?new RegExp("\\b"+t+"\\b").test(n):n.includes(t));};
 function abrirBuscador(){cerrarDlgs();const ov=el("div",{class:"bus-ov",role:"dialog","aria-label":"Buscar"});const res=el("div",{class:"bus-res"});
   const q=el("input",{type:"search",id:"busQ",placeholder:"Artículo, eje, modelo, plano, albarán, inyectora…",autocomplete:"off",value:draft.bq||""});
   const cerrar=()=>{ov.remove();document.removeEventListener("keydown",esc);};const esc=e=>{if(e.key==="Escape")cerrar();};document.addEventListener("keydown",esc);
   const ir=fn=>()=>{cerrar();fn();};
   function marca(txt,toks){const n=el("span");let t=String(txt||"");if(!toks.length){n.textContent=t;return n;}
     const re=new RegExp("("+toks.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|")+")","gi");t.split(re).forEach((part,i)=>n.appendChild(i%2?el("mark",{text:part}):document.createTextNode(part)));return n;}
-  function pinta(){draft.bq=q.value;res.textContent="";const raw=q.value.trim();const toks=norm(raw).split(/\s+/).filter(Boolean);
+  function pinta(){draft.bq=q.value;res.textContent="";const raw=q.value.trim();const toks=tokQ(raw);
     const wrap=el("div",{class:"wrap"});res.appendChild(wrap);
     if(!toks.length){wrap.appendChild(el("p",{class:"hint",text:"Escribe lo que buscas: «manguera», «2.3.C-3», «IDRA 550», «001150A26», «F53», «Ø 80», «E3-B2»…"}));return;}
-    const ok=h=>{const n=norm(h);return toks.every(t=>n.includes(t));};
+    const ok=h=>casa(h,toks);
     const grupo=(tit,items)=>{if(!items.length)return;wrap.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:tit+" ("+items.length+")"})),el("div",{class:"lst"},items.slice(0,12))]));};
     const oTok=raw.split(/\s+/).filter(Boolean);
     grupo("Artículos",artsActivos().filter(a=>ok([a.desc,a.cod,a.ubic,FAM[a.fam],a.diam,provN(a.prov),a.plano,a.notas,(a.iny||[]).map(maqN).join(" "),(a.docs||[]).map(d=>d.nombre).join(" ")].join(" "))).map(a=>el("button",{type:"button",class:"it",onclick:ir(()=>ficha(a))},[el("div",{class:"ppal"},[el("div",{class:"t1"},marca(a.desc,oTok)),el("div",{class:"t2"},marca([a.cod,a.ubic?"📍 "+a.ubic:null,cat.almacenes.map(l=>[l.nom,stockDe(a.id,l.id)]).filter(x=>x[1]).map(x=>x[0]+" "+fmtN(x[1])).join(" · ")].filter(Boolean).join(" · "),oTok))]),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])])));
