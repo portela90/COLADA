@@ -90,6 +90,16 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .chips::-webkit-scrollbar{display:none}
 .chip{appearance:none;flex:none;font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--ink2);cursor:pointer;white-space:nowrap}
 .inc{display:grid;gap:6px}.inc-t{font-size:12px;color:var(--mut)}.inc-g{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}.inc-r{display:flex;flex-wrap:wrap;gap:6px}
+.pe{position:fixed;inset:0;z-index:3000;background:#2b302e;display:flex;flex-direction:column}
+.pe-bar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:#1f2321;align-items:center}
+.pe-b{appearance:none;border:1px solid #555d59;background:#343a37;color:#eee;font:600 13px system-ui,sans-serif;padding:8px 10px;border-radius:8px;cursor:pointer}
+.pe-b.on{background:#e8f0ea;color:#111;border-color:#e8f0ea}
+.pe-col{border-left:8px solid var(--c)}
+.pe-ok{background:#2f8f5b;border-color:#2f8f5b;color:#fff}
+.pe-sp{flex:1}
+.pe-cv{flex:1;width:100%;min-height:0;touch-action:none;display:block;cursor:crosshair}
+.pe-help{color:#cfd6d2;font:12px system-ui,sans-serif;padding:6px 10px}
+.pe-msg{color:#fff;margin:auto;font:16px system-ui,sans-serif}
 .inf-dlg{max-width:640px;display:flex;flex-direction:column;gap:8px}
 .inf-it{display:grid;gap:2px;text-align:left;appearance:none;font:inherit;color:inherit;background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;width:100%}
 .inf-it b{font-size:15px}.inf-it span{font-size:12px;color:var(--mut)}
@@ -687,7 +697,7 @@ const INF_ALM=[
  {id:"bt_bar",grupo:"Barras y tornillos",nom:"Cambios de barras expulsoras",per:true,opts:[["maq","Por máquina",true],["mot","Por motivo",true],["det","Detalle de cada cambio",false]],texto:(P,o)=>iBT("barra",P,o),hoja:P=>iBTh("barra",P)},
  {id:"bt_tor",grupo:"Barras y tornillos",nom:"Cambios de tornillos tope",per:true,opts:[["maq","Por máquina",true],["mot","Por motivo",true],["det","Detalle de cada cambio",false]],texto:(P,o)=>iBT("tornillo",P,o),hoja:P=>iBTh("tornillo",P)},
  {id:"bt_rev",grupo:"Barras y tornillos",nom:"Modificaciones de planos",per:true,
-  texto:P=>{const L=[];cat.articulos.forEach(a=>revsDe(a).filter(r=>r.n>1&&iEn(r.f,P)).forEach(r=>L.push({a,r})));L.sort((x,y)=>x.r.f.localeCompare(y.r.f));return L.length?L.map(({a,r})=>"- "+fmtF(r.f)+" · "+(a.cod||a.desc)+" "+revTxt(r.n)+": "+r.cambio+(r.motivo?" ("+r.motivo+")":"")+(r.by?" · "+r.by:"")+" · quedaban "+iN(r.stock)+" de la "+revTxt(r.antes)):["Ningún plano modificado en el periodo."];}},
+  texto:P=>{const L=[];cat.articulos.concat(cat.modelos||[]).forEach(a=>revsDe(a).filter(r=>r.n>1&&iEn(r.f,P)).forEach(r=>L.push({a,r})));L.sort((x,y)=>x.r.f.localeCompare(y.r.f));return L.length?L.map(({a,r})=>"- "+fmtF(r.f)+" · "+revNom(a)+" "+revTxt(r.n)+": "+r.cambio+(r.motivo?" ("+r.motivo+")":"")+(r.by?" · "+r.by:"")+" · quedaban "+iN(r.stock)+" de la "+revTxt(r.antes)):["Ningún plano modificado en el periodo."];}},
  {id:"bt_stk",grupo:"Barras y tornillos",nom:"Stock de barras y tornillos",per:false,opts:[["maq","Máquinas donde van",false]],
   texto:(P,o)=>{const L=[];["barra","tornillo"].forEach(f=>{const A=artsBT(f);if(!A.length)return;L.push(BT[f].nom+":");A.forEach(a=>L.push("- "+nomBT(a)+": "+iN(stockDe(a.id))+" ud"+(+a.min>0?" (mín "+iN(+a.min)+")":"")+(o.maq&&maqsArt(a).length?" · "+maqsArt(a).join(", "):"")));});return L.length?L:["No hay barras ni tornillos dados de alta."];}},
  {id:"m_cons",grupo:"Material",nom:"Consumo de material",per:true,opts:[["pist","Incluir pistones",false],["alm","Por almacén",false]],
@@ -812,41 +822,133 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
       if(!(a.iny||[]).includes(d.maq)){const x=art(a.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}
       if(d.resp.trim()&&typeof lsSet==="function")lsSet("alm.resp",d.resp.trim());
       toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
-/* ===== PLANOS CON HISTORIAL DE REVISIONES y PEDIDOS AL PROVEEDOR CON PLANO ===== */
-const revsDe=a=>(a.revs||[]).slice().sort((x,y)=>x.n-y.n);
+/* ===== PLANOS CON HISTORIAL DE REVISIONES (barras, tornillos y modelos de eje) ===== */
+const revsDe=a=>((a&&a.revs)||[]).slice().sort((x,y)=>x.n-y.n);
 const revVig=a=>{const r=revsDe(a);return r[r.length-1]||null;};
 const revTxt=n=>"Rev. "+String(n).padStart(2,"0");
 const quienSoy=()=>(window.yoNombre&&window.yoNombre())||"";
-function revBox(a){const R=revsDe(a),v=R[R.length-1],hy=hoy();const reabre=()=>{cerrarDlgs();setTimeout(()=>ficha(art(a.id)),50);};
-  const iny=(a.iny||[]).map(maqN).filter(x=>x!=="—");
+const revObj=id=>art(id)||(cat.modelos||[]).find(m=>m.id===id);
+const esModelo=o=>!o.fam;
+const revNom=o=>esModelo(o)?o.cod+" · "+o.ref:(o.cod||o.desc);
+const revUd=o=>esModelo(o)?"ejes":o.ud;
+const revStock=o=>esModelo(o)?ejes.filter(e=>e.mod===o.cod&&e.estado!=="baja").length:stockDe(o.id);
+const reabreRev=o=>{cerrarDlgs();setTimeout(()=>{const z=revObj(o.id);if(!z)return;esModelo(z)?fichaModelo(z):ficha(z);},60);};
+const cotasTxt=cs=>(cs||[]).filter(c=>c.n).map(c=>c.n+(c.v?" "+c.v:"")).join(" · ");
+function revBox(a){const R=revsDe(a),v=R[R.length-1],hy=hoy();
+  const iny=esModelo(a)?inyDe(a):(a.iny||[]).map(maqN).filter(x=>x!=="—");
   const reciente=v&&v.n>1&&dias(v.f,hy)<=30;
   return el("div",{style:"display:flex;flex-direction:column;gap:8px"},[
     el("div",{class:"gh",style:"border-radius:6px",text:"Plano"+(v?" · "+revTxt(v.n)+" vigente":" · sin subir")+(a.plano?" · nº "+a.plano:"")}),
-    iny.length?el("p",{class:"sub",text:"Va en: "+iny.join(", ")}):null,a.notas?el("p",{class:"sub",text:a.notas}):null,
+    !esModelo(a)&&iny.length?el("p",{class:"sub",text:"Va en: "+iny.join(", ")}):null,!esModelo(a)&&a.notas?el("p",{class:"sub",text:a.notas}):null,
     reciente?el("div",{class:"banner",text:"Modificado hace "+dias(v.f,hy)+" días ("+fmtF(v.f)+"): "+v.cambio}):null,
     v?el("div",{style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[v.doc?docThumb(v.doc):null,el("div",{class:"sub",text:revTxt(v.n)+" · "+fmtF(v.f)+(v.by?" · "+v.by:"")+(v.n>1?" · "+v.cambio:"")})]):el("p",{class:"hint",text:"Todavía no hay plano. Súbelo como Rev. 01."}),
-    el("div",{class:"acciones"},[assets?el("button",{type:"button",class:"btn sec peq",text:v?"Modificar plano (nueva revisión)":"Subir plano (Rev. 01)",onclick:()=>{cerrarDlgs();formRev(a,reabre);}}):null,
+    v&&(v.cotas||[]).length?el("p",{class:"sub",text:"Cotas críticas: "+cotasTxt(v.cotas)}):null,
+    el("div",{class:"acciones"},[assets?el("button",{type:"button",class:"btn sec peq",text:v?"Modificar plano (nueva revisión)":"Subir plano (Rev. 01)",onclick:()=>{cerrarDlgs();formRev(a,()=>reabreRev(a));}}):null,
       R.length>1?el("button",{type:"button",class:"btn sec peq",text:"Historial ("+R.length+")",onclick:()=>{cerrarDlgs();histRev(a);}}):null])]);}
-function formRev(a0,despues){const a=art(a0.id);const R=revsDe(a),v=R[R.length-1],n=v?v.n+1:1;const st=stockDe(a.id);
-  const x={doc:null,cambio:v?"":"Plano inicial",motivo:"",by:quienSoy()};const sube=subirDoc(async d=>{x.doc=d;estado.textContent="✓ "+d.nombre+" subido";},v?"Plano nuevo (PDF o foto)":"Plano (PDF o foto)");
-  const estado=el("p",{class:"sub",text:"Todavía no has subido el archivo."});
-  dlg((v?"Modificar plano · ":"Plano · ")+(a.cod||a.desc)+" · "+revTxt(n),[
+function formRev(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.length-1],n=v?v.n+1:1;const st=revStock(a);
+  const x={doc:null,cambio:v?"":"Plano inicial",motivo:"",by:quienSoy(),cotas:JSON.parse(JSON.stringify((v&&v.cotas)||[]))};
+  const estado=el("p",{class:"sub",text:v?"Elige cómo hacer la nueva revisión:":"Todavía no has subido el archivo."});
+  const sube=subirDoc(async d=>{x.doc=d;estado.textContent="✓ "+d.nombre+" subido";},v?"…o sube un plano nuevo (PDF o foto)":"Plano (PDF o foto)");
+  const marcar=v&&v.doc?el("button",{type:"button",class:"btn",text:"✎ Modificar sobre el plano actual",onclick:async e=>{const b=e.currentTarget;b.disabled=true;
+      const blob=await editarPlano(v.doc,()=>[revTxt(n)+" · "+fmtF(hoy())+" · "+(x.by||"").trim(),(x.cambio||"").trim()].filter(Boolean));b.disabled=false;if(!blob)return;
+      estado.textContent="Subiendo el plano modificado…";try{const r=await assets.upload(blob);x.doc={id:r.id,nombre:(a.cod||"plano")+"_"+revTxt(n).replace(". ","")+".jpg",tipo:"image/jpeg",fecha:hoy()};estado.textContent="✓ Plano modificado listo ("+revTxt(n)+")";}
+      catch(er){estado.textContent="No se pudo subir: "+((er&&er.message)||"error");}}}):null;
+  const cot=el("div",{style:"display:grid;gap:6px"});
+  const pintaCot=()=>{cot.textContent="";const ant=(v&&v.cotas)||[];x.cotas.forEach((c,i)=>{const prev=ant.find(z=>z.n===c.n);const cambia=v&&(!prev||prev.v!==c.v);
+    cot.appendChild(el("div",{style:"display:flex;gap:6px;align-items:center"},[inp("ctN"+i,c.n,z=>{c.n=z;},{placeholder:"Cota (p. ej. Ø46)",autocomplete:"off",style:"flex:1;min-width:0"}),
+      inp("ctV"+i,c.v,z=>{c.v=z;},{placeholder:"Valor (p. ej. -0.03/-0.06)",autocomplete:"off",style:"flex:1.3;min-width:0"+(cambia?";border-color:var(--warn)":"")}),
+      el("button",{type:"button",class:"btn txt peq",text:"✕","aria-label":"Quitar cota",onclick:()=>{x.cotas.splice(i,1);pintaCot();}})]));});
+    cot.appendChild(el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:"＋ Cota crítica",onclick:()=>{x.cotas.push({n:"",v:""});pintaCot();}}));};pintaCot();
+  dlg((v?"Modificar plano · ":"Plano · ")+revNom(a)+" · "+revTxt(n),[
     v?el("p",{class:"sub",text:"Ahora está vigente la "+revTxt(v.n)+" ("+fmtF(v.f)+"). La nueva será la "+revTxt(n)+"; la anterior queda en el historial."}):null,
-    sube,estado,
-    v?fld("Qué cambia",inp("rvC","",z=>x.cambio=z,{autocomplete:"off",placeholder:"p. ej. largo 500 → 505 mm"})):null,
-    v?fld("Por qué (opcional)",inp("rvM","",z=>x.motivo=z,{autocomplete:"off",placeholder:"p. ej. se doblaban en la F53"})):null,
+    v?fld("Qué cambia",inp("rvC","",z=>x.cambio=z,{autocomplete:"off",placeholder:"p. ej. cota 790 → 795 ±0.5"})):null,
+    v?fld("Por qué (opcional)",inp("rvM","",z=>x.motivo=z,{autocomplete:"off",placeholder:"p. ej. se agarrotaba el pistón"})):null,
     fld("Quién lo modifica",inp("rvB",x.by,z=>x.by=z,{autocomplete:"off"})),
-    el("div",{class:"banner",style:"background:var(--surf2);color:inherit",text:"En stock ahora: "+fmtN(st)+" "+a.ud+(v?" de la "+revTxt(v.n):"")+". Se apunta en la revisión para que conste cuántas quedaban antes del cambio."})],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar "+revTxt(n),fn:async()=>{if(!x.doc){toast("Sube el archivo del plano");return false;}if(v&&!x.cambio.trim()){toast("Escribe qué cambia");return false;}if(!x.by.trim()){toast("Pon quién lo modifica");return false;}
-      const z=art(a.id);const alm={};cat.almacenes.forEach(l=>{const q=stockDe(a.id,l.id);if(q)alm[l.id]=q;});
-      z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:x.cambio.trim(),motivo:(x.motivo||"").trim()||null,doc:x.doc,stock:st,stockAlm:alm,antes:v?v.n:null}]);
+    estado,marcar,sube,
+    el("div",{class:"gh",style:"border-radius:6px",text:"Cotas críticas (las que garantiza el proveedor)"}),cot,
+    el("div",{class:"banner",style:"background:var(--surf2);color:inherit",text:"Ahora hay "+fmtN(st)+" "+revUd(a)+(v?" de la "+revTxt(v.n):"")+". Se apunta en la revisión para que conste cuántas había antes del cambio."})],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar "+revTxt(n),fn:async()=>{if(!x.doc){toast(v?"Modifica el plano o sube uno nuevo":"Sube el archivo del plano");return false;}if(v&&!x.cambio.trim()){toast("Escribe qué cambia");return false;}if(!x.by.trim()){toast("Pon quién lo modifica");return false;}
+      const z=revObj(a.id);const alm={};if(!esModelo(z))cat.almacenes.forEach(l=>{const q=stockDe(z.id,l.id);if(q)alm[l.id]=q;});
+      const cotas=x.cotas.filter(c=>(c.n||"").trim()).map(c=>({n:c.n.trim(),v:(c.v||"").trim()}));
+      z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:x.cambio.trim(),motivo:(x.motivo||"").trim()||null,doc:x.doc,stock:st,stockAlm:alm,antes:v?v.n:null,cotas}]);
       try{await saveCat();toast(revTxt(n)+" guardada");}catch(e){return false;}if(despues)despues();}}]);}
-function histRev(a){const R=revsDe(art(a.id)).reverse();
-  dlg("Historial del plano · "+(a.cod||a.desc),[el("div",{class:"lst"},R.map((r,i)=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap;align-items:flex-start"},[el("span",{class:"stripe "+(i===0?"ok":"")}),
+function difCotas(a,b){const o=[];(b||[]).forEach(c=>{const p=(a||[]).find(z=>z.n===c.n);if(!p)o.push(c.n+": nueva "+c.v);else if(p.v!==c.v)o.push(c.n+": "+p.v+" → "+c.v);});(a||[]).forEach(c=>{if(!(b||[]).some(z=>z.n===c.n))o.push(c.n+": quitada");});return o;}
+function histRev(a0){const a=revObj(a0.id);const A=revsDe(a);const R=A.slice().reverse();
+  dlg("Historial del plano · "+revNom(a),[el("div",{class:"lst"},R.map((r,i)=>{const prev=A.find(z=>z.n===r.antes);const dc=prev?difCotas(prev.cotas,r.cotas):[];
+    return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap;align-items:flex-start"},[el("span",{class:"stripe "+(i===0?"ok":"")}),
     el("div",{class:"ppal"},[el("div",{class:"t1",text:revTxt(r.n)+(i===0?" · vigente":" · obsoleta")+" · "+fmtF(r.f)}),
-      el("div",{class:"t2",text:[r.by?"por "+r.by:null,r.n>1?"Cambio: "+r.cambio:"Plano inicial",r.motivo?"Motivo: "+r.motivo:null,r.antes!=null?"Quedaban "+fmtN(r.stock)+" "+a.ud+" de la "+revTxt(r.antes):"Stock al subirlo: "+fmtN(r.stock)+" "+a.ud].filter(Boolean).join(" · ")})]),
-    r.doc?el("button",{type:"button",class:"btn sec peq",text:"Ver plano",onclick:()=>abrirDoc(r.doc)}):null]))),
+      el("div",{class:"t2",text:[r.by?"por "+r.by:null,r.n>1?"Cambio: "+r.cambio:"Plano inicial",r.motivo?"Motivo: "+r.motivo:null,dc.length?"Cotas: "+dc.join("; "):null,r.antes!=null?"Había "+fmtN(r.stock)+" "+revUd(a)+" de la "+revTxt(r.antes):"Al subirlo había "+fmtN(r.stock)+" "+revUd(a)].filter(Boolean).join(" · ")})]),
+    r.doc?el("button",{type:"button",class:"btn sec peq",text:"Ver plano",onclick:()=>abrirDoc(r.doc)}):null]);})),
     el("p",{class:"hint",text:"Las revisiones no se borran: así siempre se puede consultar qué plano había y cuándo cambió."})],[{t:"Cerrar",cls:"sec"}]);}
+/* ===== EDITOR DE PLANOS: marcar encima del plano vigente (tapar cotas, escribir, flechas, recuadros, lápiz) ===== */
+function cargarPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";ok(window.pdfjsLib);};s.onerror=()=>ko(new Error("No se pudo cargar el lector de PDF"));document.head.appendChild(s);});}
+async function baseDePlano(doc){const u=await (window.urlFirmada?window.urlFirmada(doc.id):fotoUrl(doc.id));if(!u)throw new Error("No se pudo abrir el plano");
+  const bl=await (await fetch(u)).blob();
+  if(/pdf/i.test(bl.type||doc.tipo||"")||/\.pdf$/i.test(doc.nombre||"")){const L=await cargarPdfJs();const pdf=await L.getDocument({data:await bl.arrayBuffer()}).promise;const pg=await pdf.getPage(1);
+    const v0=pg.getViewport({scale:1});const sc=Math.min(3,3000/Math.max(v0.width,v0.height));const vp=pg.getViewport({scale:sc});const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+    const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:cx,viewport:vp}).promise;return c;}
+  return await createImageBitmap(bl);}
+/* abre el editor; sello(): líneas del cajetín de revisión que se añaden al guardar; devuelve un Blob JPEG o null */
+function editarPlano(doc,sello){return new Promise(async res=>{
+  const ov=el("div",{class:"pe",role:"dialog","aria-modal":"true","aria-label":"Modificar plano"});const cargando=el("div",{class:"pe-msg",text:"Abriendo el plano…"});ov.appendChild(cargando);document.body.appendChild(ov);
+  let base;try{base=await baseDePlano(doc);}catch(e){cargando.textContent=(e&&e.message)||"No se pudo abrir el plano";setTimeout(()=>{ov.remove();res(null);},2200);return;}
+  cargando.remove();const W=base.width,H=base.height,U=Math.max(W,H)/600;
+  const st={tool:"tapa",col:"#d00000",tam:2,shapes:[],cur:null,s:1,ox:0,oy:0};
+  const cv=el("canvas",{class:"pe-cv"}),cx=cv.getContext("2d");
+  const btn=(t,fn,on,tit)=>el("button",{type:"button",class:"pe-b"+(on?" on":""),text:t,title:tit||t,onclick:fn});
+  const bar=el("div",{class:"pe-bar"}),bar2=el("div",{class:"pe-bar"});
+  const TOOLS=[["mover","✋ Mover"],["tapa","⬜ Tapar"],["texto","T Texto"],["flecha","↗ Flecha"],["rect","▭ Recuadro"],["lapiz","✎ Lápiz"]];
+  function pintaBar(){bar.textContent="";TOOLS.forEach(([k,t])=>bar.appendChild(btn(t,()=>{st.tool=k;pintaBar();},st.tool===k)));
+    bar2.textContent="";[["#d00000","Rojo"],["#0b4ea2","Azul"],["#000000","Negro"]].forEach(([c,t])=>bar2.appendChild(el("button",{type:"button",class:"pe-b pe-col"+(st.col===c?" on":""),style:"--c:"+c,text:t,onclick:()=>{st.col=c;pintaBar();}})));
+    [[1,"Fino"],[2,"Medio"],[3,"Grueso"]].forEach(([k,t])=>bar2.appendChild(btn(t,()=>{st.tam=k;pintaBar();},st.tam===k)));
+    bar2.appendChild(btn("↶ Deshacer",()=>{st.shapes.pop();draw();},false));
+    bar2.appendChild(el("span",{class:"pe-sp"}));
+    bar2.appendChild(btn("Cancelar",()=>{if(st.shapes.length&&!confirm("¿Salir sin guardar las marcas?"))return;fin(null);},false));
+    bar2.appendChild(el("button",{type:"button",class:"pe-b pe-ok",text:"Guardar",onclick:guardar}));}
+  const ayuda=el("div",{class:"pe-help",text:"Tapar: arrastra sobre la cota vieja. Texto: toca donde escribir. Con dos dedos (o la rueda del ratón) acercas y alejas; con «Mover» desplazas."});
+  ov.appendChild(bar);ov.appendChild(bar2);ov.appendChild(cv);ov.appendChild(ayuda);pintaBar();
+  function ajustar(){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);}
+  function encajar(){ajustar();st.s=Math.min(cv.width/W,cv.height/H);st.ox=(cv.width-W*st.s)/2;st.oy=(cv.height-H*st.s)/2;draw();}
+  const lw=()=>Math.max(1.5,U*(st.tam===1?0.6:st.tam===2?1.2:2.2));
+  function pintaForma(c,f){c.save();c.strokeStyle=c.fillStyle=f.c||"#000";c.lineWidth=f.lw||2;c.lineCap=c.lineJoin="round";
+    if(f.t==="tapa"){c.fillStyle="#ffffff";c.fillRect(f.x,f.y,f.w,f.h);}
+    else if(f.t==="rect"){c.strokeRect(f.x,f.y,f.w,f.h);}
+    else if(f.t==="flecha"){c.beginPath();c.moveTo(f.x1,f.y1);c.lineTo(f.x2,f.y2);c.stroke();const a=Math.atan2(f.y2-f.y1,f.x2-f.x1),L=f.lw*5;c.beginPath();c.moveTo(f.x2,f.y2);c.lineTo(f.x2-L*Math.cos(a-0.45),f.y2-L*Math.sin(a-0.45));c.lineTo(f.x2-L*Math.cos(a+0.45),f.y2-L*Math.sin(a+0.45));c.closePath();c.fill();}
+    else if(f.t==="lapiz"){c.beginPath();f.p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.stroke();}
+    else if(f.t==="texto"){c.font="bold "+f.s+"px Arial, sans-serif";c.textBaseline="top";String(f.txt).split("\n").forEach((l,i)=>c.fillText(l,f.x,f.y+i*f.s*1.15));}
+    c.restore();}
+  function draw(){cx.setTransform(1,0,0,1,0,0);cx.fillStyle="#9aa3a0";cx.fillRect(0,0,cv.width,cv.height);cx.setTransform(st.s,0,0,st.s,st.ox,st.oy);cx.drawImage(base,0,0);
+    st.shapes.forEach(f=>pintaForma(cx,f));if(st.cur)pintaForma(cx,st.cur);}
+  const aImg=e=>{const r=cv.getBoundingClientRect(),d=cv.width/r.width;return[((e.clientX-r.left)*d-st.ox)/st.s,((e.clientY-r.top)*d-st.oy)/st.s];};
+  const P=new Map();let pin=null,ini=null;
+  function zoomEn(px,py,k){const ns=Math.max(0.05,Math.min(20,st.s*k));st.ox=px-(px-st.ox)*(ns/st.s);st.oy=py-(py-st.oy)*(ns/st.s);st.s=ns;draw();}
+  cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),d=cv.width/r.width;zoomEn((e.clientX-r.left)*d,(e.clientY-r.top)*d,e.deltaY<0?1.15:1/1.15);},{passive:false});
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);
+    if(P.size===2){st.cur=null;const[a,b]=[...P.values()];pin={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]};return;}
+    const[x,y]=aImg(e);ini={x,y,cx:e.clientX,cy:e.clientY,ox:st.ox,oy:st.oy};
+    if(st.tool==="texto"){const t=prompt("Texto a escribir (p. ej. 505±0.5)");if(t&&t.trim())st.shapes.push({t:"texto",x,y,s:Math.round(U*(st.tam===1?9:st.tam===2?13:19)),txt:t.trim(),c:st.col});ini=null;P.delete(e.pointerId);draw();return;}
+    if(st.tool==="lapiz")st.cur={t:"lapiz",p:[[x,y]],c:st.col,lw:lw()};});
+  cv.addEventListener("pointermove",e=>{if(!P.has(e.pointerId))return;P.set(e.pointerId,[e.clientX,e.clientY]);
+    if(P.size===2&&pin){const[a,b]=[...P.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];const r=cv.getBoundingClientRect(),k=cv.width/r.width;
+      st.ox+=(m[0]-pin.m[0])*k;st.oy+=(m[1]-pin.m[1])*k;zoomEn((m[0]-r.left)*k,(m[1]-r.top)*k,d/pin.d);pin={d,m};return;}
+    if(!ini)return;const[x,y]=aImg(e);
+    if(st.tool==="mover"){const r=cv.getBoundingClientRect(),k=cv.width/r.width;st.ox=ini.ox+(e.clientX-ini.cx)*k;st.oy=ini.oy+(e.clientY-ini.cy)*k;draw();return;}
+    if(st.tool==="tapa"||st.tool==="rect")st.cur={t:st.tool,x:Math.min(ini.x,x),y:Math.min(ini.y,y),w:Math.abs(x-ini.x),h:Math.abs(y-ini.y),c:st.col,lw:lw()};
+    else if(st.tool==="flecha")st.cur={t:"flecha",x1:ini.x,y1:ini.y,x2:x,y2:y,c:st.col,lw:lw()};
+    else if(st.tool==="lapiz"&&st.cur)st.cur.p.push([x,y]);
+    draw();});
+  const suelta=e=>{P.delete(e.pointerId);if(P.size<2)pin=null;if(P.size)return;
+    if(st.cur){const f=st.cur;const ok=(f.t==="tapa"||f.t==="rect")?f.w>2&&f.h>2:f.t==="flecha"?Math.hypot(f.x2-f.x1,f.y2-f.y1)>4:f.t==="lapiz"?f.p.length>1:true;if(ok)st.shapes.push(f);st.cur=null;}ini=null;draw();};
+  cv.addEventListener("pointerup",suelta);cv.addEventListener("pointercancel",suelta);
+  const rz=()=>{const s0=st.s;ajustar();draw();};window.addEventListener("resize",rz);
+  function fin(v){window.removeEventListener("resize",rz);ov.remove();res(v);}
+  async function guardar(){if(!st.shapes.length&&!confirm("No has marcado nada. ¿Guardar el plano igual, solo con el sello de la revisión?"))return;
+    const c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,W,H);g.drawImage(base,0,0);st.shapes.forEach(f=>pintaForma(g,f));
+    const L=(sello&&sello())||[];if(L.length){const fs=Math.round(U*8),pad=fs*0.6;g.font="bold "+fs+"px Arial, sans-serif";const w=Math.max(...L.map(l=>g.measureText(l).width))+pad*2,h=L.length*fs*1.3+pad*2;
+      const x=U*6,y=U*6;g.fillStyle="rgba(255,255,255,0.95)";g.fillRect(x,y,w,h);g.strokeStyle="#d00000";g.lineWidth=Math.max(2,U*0.8);g.strokeRect(x,y,w,h);g.fillStyle="#d00000";g.textBaseline="top";L.forEach((l,i)=>g.fillText(l,x+pad,y+pad+i*fs*1.3));}
+    c.toBlob(b=>fin(b),"image/jpeg",0.92);}
+  requestAnimationFrame(encajar);});}
 /* --- pedido al proveedor con el plano vigente --- */
 const pedidosBT=()=>cat.pedidosBT||[];
 async function urlLarga(id){try{const r=await window.sbColada.storage.from("albaranes").createSignedUrl(id,3600*24*30);return r.data&&r.data.signedUrl;}catch(e){return window.urlFirmada?await window.urlFirmada(id):null;}}
@@ -856,7 +958,7 @@ function pedidoBT(f){const A=artsBT(f);if(!A.length){toast("No hay referencias")
   A.forEach(a=>{const c=cantPedir(a);if(c>0)st.q[a.id]=String(c);});
   const ta=el("textarea",{readonly:true,style:"min-height:170px;font-size:13px"}),lst=el("div",{class:"lst"}),emI=inp("pbE",st.email,z=>{st.email=z.trim();},{type:"email",inputmode:"email",autocomplete:"off",placeholder:"correo del proveedor"});
   const lineas=()=>A.filter(a=>parseN(st.q[a.id])>0).map(a=>({a,cant:parseN(st.q[a.id]),rev:revVig(a)}));
-  const texto=()=>{const L=lineas();return["Hola,","","Os hacemos el siguiente pedido de "+BT[f].nom.toLowerCase()+":",""].concat(L.map(l=>"- "+(l.a.cod||l.a.desc)+": "+fmtN(l.cant)+" ud"+(l.rev?" · según plano "+revTxt(l.rev.n)+(l.rev.n>1?" (actualizado el "+fmtF(l.rev.f)+")":""):" · SIN PLANO"))).concat(["","Os adjuntamos los planos vigentes. Por favor, fabricad según la revisión indicada.","","Un saludo,",quienSoy()||"MAPRI"]).join("\n");};
+  const texto=()=>{const L=lineas();return["Hola,","","Os hacemos el siguiente pedido de "+BT[f].nom.toLowerCase()+":",""].concat(L.map(l=>"- "+(l.a.cod||l.a.desc)+": "+fmtN(l.cant)+" ud"+(l.rev?" · según plano "+revTxt(l.rev.n)+(l.rev.n>1?" (actualizado el "+fmtF(l.rev.f)+")":"")+((l.rev.cotas||[]).length?" · cotas críticas: "+cotasTxt(l.rev.cotas):""):" · SIN PLANO"))).concat(["","Os adjuntamos los planos vigentes. Por favor, fabricad según la revisión indicada.","","Un saludo,",quienSoy()||"MAPRI"]).join("\n");};
   const pinta=()=>{ta.value=texto();};
   A.forEach(a=>{const v=revVig(a);lst.appendChild(el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:nomBT(a)}),el("div",{class:"t2",text:["hay "+fmtN(stockDe(a.id)),v?revTxt(v.n):"sin plano",a.pedido?"ya pedida el "+fmtF(a.pedido):null].filter(Boolean).join(" · ")})]),
     inp("pbQ"+a.id,st.q[a.id]||"",z=>{st.q[a.id]=z;pinta();},{inputmode:"numeric",class:"num",placeholder:"0",style:"width:64px;padding:7px 6px;font-size:16px","aria-label":"Cantidad "+(a.cod||a.desc)})]));});
@@ -1928,11 +2030,11 @@ function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id)||m0;con
   const dato=(k,v)=>v?[el("dt",{text:k}),el("dd",{text:String(v)})]:[];
   const docBox=el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"});
   docs.forEach(d=>docBox.appendChild(docThumb(d,async()=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaModelo(m);})));
-  if(!docs.length)docBox.appendChild(el("p",{class:"hint",text:"Todavía no hay plano. Súbelo en PDF o como foto."}));
-  const up=subirDoc(async d=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Plano guardado");cerrarDlgs();fichaModelo(m);});
+  if(!docs.length)docBox.appendChild(el("p",{class:"hint",text:"Sin otros documentos (fotos, manuales…)."}));
+  const up=subirDoc(async d=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Documento guardado");cerrarDlgs();fichaModelo(m);},"Subir otro documento (PDF o imagen)");
   dlg(m.ref+" · "+m.cod,[
     el("dl",{class:"kpis num"},[["En planta",c("planta")+" / "+es.length],["En reparación",c("reparacion")+c("devuelto")],["Preparados",c("preparado")],["Mínimo",+m.min||0]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
-    el("div",{class:"gh",style:"border-radius:6px",text:"Plano y documentos"}),docBox,up,
+    revBox(m),el("div",{class:"gh",style:"border-radius:6px",text:"Otros documentos"}),docBox,up,
     el("div",{class:"gh",style:"border-radius:6px",text:"Datos del modelo"}),
     el("dl",{class:"datos"},[].concat(dato("Código",m.cod),dato("Referencia",m.ref),dato("Longitud",m.long),dato("Rosca",m.rosca),dato("Ø pistón",m.diamP),dato("Nº plano / rev.",m.plano),dato("Inyectoras",inyTxt),dato("Notas",m.notas))),
     el("div",{class:"gh",style:"border-radius:6px",text:"Reparaciones del modelo"}),
