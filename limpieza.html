@@ -74,6 +74,12 @@ ol.hist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}ol.hist s
 .avisos-on{display:flex;gap:10px;align-items:center;background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--acc2);border-radius:var(--r);padding:10px 12px;margin:0 0 12px}
 .avisos-on .ic{font-size:24px}.avisos-on small{display:block;color:var(--mut);font-size:13px}.avisos-on .col{display:grid;gap:6px}
 ol.pasos{padding-left:20px;display:grid;gap:6px;margin:0}
+.mihor{margin:-4px 0 12px;text-align:center;font-weight:600;color:var(--acc)}
+details.plant summary{list-style:none;cursor:pointer}details.plant summary::-webkit-details-marker{display:none}details.plant[open] .mas{transform:rotate(180deg)}
+.linea.tach span:first-child{text-decoration:line-through;color:var(--mut)}
+.hor{display:grid;gap:8px}.hrow{display:grid;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}.hrow b{color:var(--ink)}
+.tramos{display:flex;flex-wrap:wrap;gap:8px}.tramo{display:flex;gap:4px;align-items:center;color:var(--ink)}
+.tramo input{font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surf2);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -88,7 +94,7 @@ const CHECK_FIN=["Espátulas","Palas","Martillo","Aspiradora","Hidrolimpiadora",
 const DIAS=[["lunes","L"],["martes","M"],["miercoles","X"],["jueves","J"],["viernes","V"],["sabado","S"],["domingo","D"]];
 const TURNOS_S=["Partido","Tarde","Refuerzo"],TURNOS_F=["Mañana finde"];
 const EST={pendiente:["Pendiente","warn"],en_curso:["En curso","info"],hecha:["Hecha","ok"],no_hecha:["No hecha","bad"]};
-const ERR={SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez"};
+const ERR={SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x==="html")e.innerHTML=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -148,7 +154,8 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.ro
   return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
     el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
-      sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
+      sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,
+      admin&&S.plant&&o.fecha===S.fecha?(o.nombres||[]).filter(n=>S.plant[n]&&!S.plant[n].length&&!(o.cubre||[]).some(c=>c.ausente===n&&c.sustituto)).map(n=>el("span",{class:"pill bad",text:n.split(" ")[0]+" libra hoy"})):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
       o.lugar?el("span",{text:"📍 "+o.lugar}):null,o.turno?el("span",{text:"🕑 "+o.turno}):null,quien?el("span",{text:"👤 "+quien}):null,
       o.origen==="rapida"&&o.creado_por_n?el("span",{text:"Abierta por "+o.creado_por_n.split(" ")[0]+" a las "+hora(o.creado)}):null,
       o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,
@@ -199,11 +206,19 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
   box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];
+  S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
+  if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"🕑 Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
     if(R.espacio!=null&&R.espacio>=80)box.appendChild(el("div",{class:"aviso"},["La base de datos está al "+R.espacio+" %",el("small",{text:"Haz una copia en Resumen y libera espacio."})]));
     box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Por hacer",n("pendiente")],["En curso",n("en_curso")],["Hechas",n("hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
     box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"＋ Horas extra",onclick:()=>formExtra(f,re)})]));
     box.appendChild(el("button",{class:"btn wa",style:"width:100%;margin:0 0 12px",text:"📲 Enviar los trabajos por WhatsApp",onclick:()=>enviarDiaWA(D,f)}));
+    if(R.plantilla){const fal=new Set(AU.filter(x=>x.motivo!=="Horas extra").map(x=>x.ausente)),ex=R.extras.map(x=>x.trabajador);
+      const tr=R.plantilla.filter(x=>(x.tramos&&x.tramos.length)||ex.includes(x.id)),li=R.plantilla.filter(x=>x.tramos&&!x.tramos.length&&!ex.includes(x.id)),sh=R.plantilla.filter(x=>x.tramos==null&&!ex.includes(x.id));
+      box.appendChild(el("details",{class:"card plant"},[el("summary",{class:"hd"},[el("h2",{text:"Quién trabaja ("+tr.filter(x=>!fal.has(x.id)).length+")"}),el("span",{class:"mas",text:"▾"})]),el("div",{class:"bd"},[
+        tr.map(x=>el("div",{class:"linea"+(fal.has(x.id)?" tach":"")},[el("span",{style:"flex:1",text:x.nombre}),el("span",{class:"pill "+(fal.has(x.id)?"bad":ex.includes(x.id)?"warn":"info"),text:fal.has(x.id)?"Falta":(x.tramos&&x.tramos.length?horTxt(x.tramos):"")+(ex.includes(x.id)?(x.tramos&&x.tramos.length?" + ":"")+"horas extra":"")})])),
+        li.length?el("p",{class:"hint",text:"Libran: "+li.map(x=>x.nombre.split(" ")[0]).join(", ")}):null,
+        sh.length?el("p",{class:"hint",text:"Sin horario puesto: "+sh.map(x=>x.nombre.split(" ")[0]).join(", ")+" (ponlo en Equipo)"}):null])]));}
     if(AU.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones"})),el("div",{class:"bd"},AU.map(x=>el("button",{class:"linea",onclick:()=>formSust(x,re)},[
       el("span",{style:"flex:1",text:x.motivo==="Horas extra"?"👤 "+x.sustituto_n+" hace los trabajos de "+x.ausente_n:"🚫 "+x.ausente_n+" · "+(x.motivo||"Falta")+(x.hasta!==x.desde?" hasta "+fCorta(x.hasta):"")}),
       x.motivo==="Horas extra"?null:el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"lo cubre "+x.sustituto_n.split(" ")[0]:"sin cubrir"})])))]));
@@ -289,6 +304,25 @@ async function enviarOTWA(o){const L=await trabajadores();const P=repartoDia([o]
   if(!ids.length){abrirWA("",txt({nombre:""}).replace("Hola , t","T"));return;}
   if(ids.length===1){const w=L.find(x=>x.id===ids[0]);abrirWA(w.telefono,txt(w));return;}
   dlg("¿A quién?",el("div",null,ids.map(id=>{const w=L.find(x=>x.id===id);return el("div",{class:"linea"},[el("b",{style:"flex:1",text:w.nombre}),el("button",{class:"btn wa peq",text:"WhatsApp",onclick:()=>abrirWA(w.telefono,txt(w))})]);})));}
+/* ---------- horarios ---------- */
+const DIAS_C={lunes:"L",martes:"M",miercoles:"X",jueves:"J",viernes:"V",sabado:"S",domingo:"D"};
+const DIAS_N={lunes:"Lunes",martes:"Martes",miercoles:"Miércoles",jueves:"Jueves",viernes:"Viernes",sabado:"Sábado",domingo:"Domingo"};
+const diaClave=f=>["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][new Date(f+"T12:00:00").getDay()];
+const hh=t=>String(t||"").replace(/^0(\d)/,"$1");
+const tramoTxt=r=>hh(r[0])+"–"+hh(r[1]);
+function horTxt(tr){if(tr==null)return"";if(!tr.length)return"Libra";return tr.map(tramoTxt).join(" y ");}
+/* resumen semanal: «L, X, V 8:00–14:00 · S, D libra» */
+function horSemana(h){h=h||{};const g=[];Object.keys(DIAS_C).forEach(d=>{if(!(d in h))return;const t=horTxt(h[d]);const x=g.find(y=>y.t===t);if(x)x.d.push(DIAS_C[d]);else g.push({t,d:[DIAS_C[d]]});});
+  return g.map(x=>x.d.join(", ")+" "+(x.t==="Libra"?"libra":x.t)).join(" · ");}
+function editorHorario(h0){const h=JSON.parse(JSON.stringify(h0||{}));const box=el("div",{class:"hor"});
+  const fila=d=>{const tr=h[d];const modo=tr==null?"":!tr.length?"libre":tr.length>1?"partido":"uno";
+    const set=m=>{if(m==="")delete h[d];else if(m==="libre")h[d]=[];else if(m==="uno")h[d]=[(h[d]&&h[d][0])||["08:00","14:00"]];else h[d]=[(h[d]&&h[d][0])||["08:00","13:00"],(h[d]&&h[d][1])||["15:00","18:00"]];pin();};
+    const t=(i,j)=>{const x=el("input",{type:"time",value:h[d][i][j],"aria-label":DIAS_N[d]+(j?" hasta":" desde")});x.onchange=()=>{h[d][i][j]=x.value;};return x;};
+    return el("div",{class:"hrow"},[el("b",{text:DIAS_N[d]}),el("div",{class:"chips"},[["","Sin poner"],["libre","Libra"],["uno","Trabaja"],["partido","Partido"]].map(([k,txt])=>el("button",{type:"button",class:"chip","aria-pressed":String(modo===k),text:txt,onclick:()=>set(k)}))),
+      modo==="uno"||modo==="partido"?el("div",{class:"tramos"},h[d].map((r,i)=>el("span",{class:"tramo"},[t(i,0),"–",t(i,1)]))):null]);};
+  const pin=()=>{box.textContent="";Object.keys(DIAS_C).forEach(d=>box.appendChild(fila(d)));
+    box.appendChild(el("div",{class:"row",style:"margin-top:6px"},[el("button",{type:"button",class:"btn sec peq",text:"Copiar el lunes de martes a viernes",onclick:()=>{if(!("lunes" in h)){toast("Pon primero el lunes");return;}["martes","miercoles","jueves","viernes"].forEach(d=>h[d]=JSON.parse(JSON.stringify(h.lunes)));pin();}})]));};
+  pin();box.val=()=>{for(const d in h)for(const r of h[d]){if(!r[0]||!r[1]||r[0]>=r[1])throw new Error(DIAS_N[d]+": la hora de salida tiene que ser después de la de entrada");}return h;};return box;}
 /* ---------- administrador ---------- */
 /* faltas, bajas y sustituciones */
 const MOTIVOS=["Baja","Vacaciones","Permiso","Otro"];
@@ -386,16 +420,17 @@ async function vEquipo(v){const box=el("div",null,el("div",{class:"empty",text:"
       el("div",{class:"meta"},[el("span",{text:"📅 "+(x.desde===x.hasta?fCorta(x.desde):fCorta(x.desde)+" → "+fCorta(x.hasta))}),x.desde<=hoy?el("span",{class:"pill warn",text:"Falta hoy"}):el("span",{class:"pill",text:"Próximamente"}),
         el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"Lo cubre "+x.sustituto_n:"Sin cubrir"}),x.nota?el("span",{text:"📝 "+x.nota}):null])])):el("div",{class:"empty",text:"Nadie falta. Si alguien está de baja o de vacaciones, pulsa «＋ Alguien falta» y elige quién le cubre."})]));
     const faltaHoy=new Set(SU.filter(x=>x.desde<=hoy&&x.hasta>=hoy&&x.motivo!=="Horas extra").map(x=>x.ausente));box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Compañeros"})),L.map(w=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTrab(w,()=>pinta())},[el("div",{class:"t",text:w.nombre+(w.rol==="admin"?" · administrador":"")+(w.activo?"":" (ya no trabaja)")}),
-    el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"}),w.activo?el("span",{class:"pill "+(w.avisos?"ok":""),text:w.avisos?"🔔 Avisos":"🔕 Sin avisos"}):null,w.telefono?el("span",{text:"📱 "+w.telefono}):null])]))]));}
+    el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"}),w.activo?el("span",{class:"pill "+(w.avisos?"ok":""),text:w.avisos?"🔔 Avisos":"🔕 Sin avisos"}):null,w.telefono?el("span",{text:"📱 "+w.telefono}):null,w.activo&&w.rol!=="admin"?el("span",{class:Object.keys(w.horario||{}).length?"":"pill warn",text:Object.keys(w.horario||{}).length?"🕑 "+horSemana(w.horario):"Sin horario"}):null])]))]));}
   catch(e){box.textContent=e.message;}}
-function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;
+function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;const ed=editorHorario(w.horario);
   const eqb=el("div",{class:"chips"});const pe=()=>{eqb.textContent="";["Semana","Finde"].forEach(k=>eqb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(w.equipos.includes(k)),text:k,onclick:()=>{w.equipos=w.equipos.includes(k)?w.equipos.filter(x=>x!==k):w.equipos.concat([k]);if(!w.equipos.length)w.equipos=[k];pe();}})));};pe();
   dlg(w.id?w.nombre:"Nuevo compañero",el("div",null,[fld("Nombre",inp(w.nombre,v=>w.nombre=v)),fld("Teléfono (para WhatsApp)",inp(w.telefono,v=>w.telefono=v,{type:"tel",inputmode:"tel",placeholder:"612 345 678"})),fld("Equipos",eqb),
     el("div",{class:"row"},[fld("Turno entre semana",sel([["","—"]].concat(TURNOS_S.map(x=>[x,x])),w.turno_semana,v=>w.turno_semana=v)),fld("Turno finde",sel([["","—"]].concat(TURNOS_F.map(x=>[x,x])),w.turno_finde,v=>w.turno_finde=v))]),
+    fld("Horario de cada día",ed),
     fld("Papel",sel([["operario","Operario"],["admin","Administrador"]],w.rol,v=>w.rol=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 8px"},[el("input",{type:"checkbox",checked:w.activo,onchange:e=>w.activo=e.target.checked}),"En activo"]),
     w.id&&w.tiene_pin?el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",onchange:e=>reset=e.target.checked}),"Ha olvidado el PIN: borrarlo para que ponga uno nuevo"]):null]),
-   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("trabajador_guardar",{p_tok:S.tok,p:{id:w.id||null,nombre:w.nombre,equipos:w.equipos,turno_semana:w.turno_semana,turno_finde:w.turno_finde,rol:w.rol,activo:w.activo,telefono:w.telefono||null,reset_pin:reset}});toast("Guardado");TRAB=null;re();}}]);}
+   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("trabajador_guardar",{p_tok:S.tok,p:{id:w.id||null,nombre:w.nombre,equipos:w.equipos,turno_semana:w.turno_semana,turno_finde:w.turno_finde,rol:w.rol,activo:w.activo,telefono:w.telefono||null,horario:ed.val(),reset_pin:reset}});toast("Guardado");TRAB=null;re();}}]);}
 async function vAvisos(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("button",{class:"btn",style:"width:100%;margin:0 0 12px",text:"＋ Nuevo aviso",onclick:()=>formAviso({},()=>pinta())}));v.appendChild(box);
   try{const A=await rpc("avisos_todos",{p_tok:S.tok});box.textContent="";box.appendChild(el("div",{class:"card"},A.length?A.map(a=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formAviso(a,()=>pinta())},[el("div",{class:"t",text:a.titulo}),a.descripcion?el("div",{class:"d",text:a.descripcion}):null,el("div",{class:"meta"},[el("span",{text:"📅 "+fCorta(a.fecha)}),el("span",{class:"pill "+(a.activo?"ok":""),text:a.activo?"Visible":"Oculto"})])])):el("div",{class:"empty",text:"Sin avisos. Los avisos salen arriba en la pantalla de todos."})));}catch(e){box.textContent=e.message;}}
 function formAviso(a0,re){const a=Object.assign({fecha:hoyISO(),activo:true},a0);const bot=[{t:"Cancelar",cls:"sec"}];
