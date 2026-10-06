@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
 <meta name="theme-color" content="#1F4E79">
+<link rel="manifest" href="limpieza.webmanifest"><link rel="icon" href="limp-192.png"><link rel="apple-touch-icon" href="limp-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Limpieza">
 <style>
 :root{--bg:#EEF2F6;--surf:#fff;--surf2:#F5F8FB;--ink:#16212C;--mut:#5C6B7A;--line:#D6DEE6;--acc:#1F4E79;--acc2:#2E6DA4;--ok:#1E7A46;--okbg:#E3F3EA;--warn:#A86400;--warnbg:#FFF2DB;--bad:#B3261E;--badbg:#FDE7E5;--r:12px}
@@ -69,6 +70,10 @@ ol.hist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}ol.hist s
 .seg.sel button[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
 .bar.llena i{background:var(--bad)}
 .ot .tit:focus-visible,.linea:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.btn.wa{background:#1DA851}
+.avisos-on{display:flex;gap:10px;align-items:center;background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--acc2);border-radius:var(--r);padding:10px 12px;margin:0 0 12px}
+.avisos-on .ic{font-size:24px}.avisos-on small{display:block;color:var(--mut);font-size:13px}.avisos-on .col{display:grid;gap:6px}
+ol.pasos{padding-left:20px;display:grid;gap:6px;margin:0}
 </style>
 </head>
 <body>
@@ -100,7 +105,7 @@ const fCorta=f=>new Date(f+"T12:00:00").toLocaleDateString("es-ES",{weekday:"sho
 const hora=ts=>ts?new Date(ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const finde=f=>{const d=new Date(f+"T12:00:00").getDay();return d===0||d===6;};
 let S={tok:ls.get("limp.tok"),yo:JSON.parse(ls.get("limp.yo")||"null"),tab:"hoy",fecha:hoyISO()};
-function salir(sinAviso){if(S.tok)rpc("salir",{p_tok:S.tok}).catch(()=>{});S.tok=null;S.yo=null;ls.set("limp.tok",null);ls.set("limp.yo",null);if(!sinAviso)toast("Sesión cerrada");pinta();}
+function salir(sinAviso){const tk=S.tok;if(tk&&!sinAviso)(async()=>{try{const s=await subActual();if(s)await rpc("push_baja",{p_tok:tk,p_endpoint:s.endpoint});}catch(e){}rpc("salir",{p_tok:tk}).catch(()=>{});})();else if(tk)rpc("salir",{p_tok:tk}).catch(()=>{});S.tok=null;S.yo=null;ls.set("limp.tok",null);ls.set("limp.yo",null);if(!sinAviso)toast("Sesión cerrada");pinta();}
 $("bsalir").onclick=()=>salir();
 function dlg(titulo,cuerpo,botones){const ov=el("div",{class:"ov"});const cerrar=()=>ov.remove();
   const bs=(botones||[{t:"Cerrar",cls:"sec"}]).map(b=>el("button",{class:"btn "+(b.cls||""),text:b.t,onclick:async e=>{if(!b.fn){cerrar();return;}e.target.disabled=true;try{const r=await b.fn();if(r!==false)cerrar();}catch(er){toast(er.message);}e.target.disabled=false;}}));
@@ -120,7 +125,7 @@ function pinPad(w){let pin="",pin1=null;const nuevo=!w.tiene_pin;const msg=el("p
   const pintaDots=()=>{dots.textContent="";for(let i=0;i<Math.max(4,pin.length);i++)dots.appendChild(el("span",{class:i<pin.length?"on":""}));msg.textContent=nuevo?(pin1==null?"Es tu primera vez: inventa un PIN de 4 números":"Repite el PIN para confirmarlo"):"Pon tu PIN";};
   const pad=el("div",{class:"pad"});let cerrar;
   const listo=async()=>{if(pin.length<4)return;if(nuevo&&pin1==null){pin1=pin;pin="";pintaDots();return;}if(nuevo&&pin!==pin1){toast("No coinciden, vuelve a empezar");pin1=null;pin="";pintaDots();return;}
-    try{const r=await rpc("entrar",{p_id:w.id,p_pin:pin});S.tok=r.token;S.yo=r.yo;ls.set("limp.tok",r.token);ls.set("limp.yo",JSON.stringify(r.yo));cerrar();S.tab="hoy";S.fecha=hoyISO();pinta();}
+    try{const r=await rpc("entrar",{p_id:w.id,p_pin:pin});S.tok=r.token;S.yo=r.yo;ls.set("limp.tok",r.token);ls.set("limp.yo",JSON.stringify(r.yo));cerrar();S.tab="hoy";S.fecha=hoyISO();pinta();pushSync();}
     catch(e){toast(e.message);pin="";pintaDots();}};
   ["1","2","3","4","5","6","7","8","9","⌫","0","✓"].forEach(k=>pad.appendChild(el("button",{text:k,"aria-label":k==="⌫"?"Borrar":k==="✓"?"Entrar":k,onclick:()=>{if(k==="⌫")pin=pin.slice(0,-1);else if(k==="✓"){listo();return;}else if(pin.length<8)pin+=k;pintaDots();if(pin.length===4&&!nuevo)listo();}})));
   pintaDots();cerrar=dlg(w.nombre,el("div",null,[msg,dots,pad]),[{t:"Cancelar",cls:"sec"}]);}
@@ -162,7 +167,7 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
     el("table",{class:"det"},el("tbody",null,[fila("Día",fLarga(o.fecha)),fila("Dónde",o.lugar),fila("Quién",quienTxt(o)||(sinAsignar(o)?"Sin asignar":"")),fila("Estado",(EST[o.estado]||[o.estado])[0]),
       fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota)])),
     ck.length?el("div",null,[el("h4",{text:"Checklist"}),el("div",{class:"chips"},ck.map(([k,v])=>el("span",{class:"pill "+(v==="OK"?"ok":v==="NO-OK"?"bad":""),text:k+": "+v})))]):null,
-    el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]));
+    el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),S.yo.rol==="admin"&&o.estado!=="hecha"?[{t:"📲 WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}},{t:"Cerrar",cls:"sec"}]:null);
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(x.data?el("a",{href:x.data,target:"_blank"},el("img",{src:x.data,alt:"foto"})):el("span",{class:"pill",text:"📦 guardada en la copia"})))).catch(()=>{});
   else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
@@ -189,6 +194,7 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:(f===hoyISO()?"Hoy · ":"")+fLarga(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
   const re=()=>pinta();
   v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
+  const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
@@ -197,6 +203,7 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
     if(R.espacio!=null&&R.espacio>=80)box.appendChild(el("div",{class:"aviso"},["La base de datos está al "+R.espacio+" %",el("small",{text:"Haz una copia en Resumen y libera espacio."})]));
     box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Por hacer",n("pendiente")],["En curso",n("en_curso")],["Hechas",n("hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
     box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"＋ Horas extra",onclick:()=>formExtra(f,re)})]));
+    box.appendChild(el("button",{class:"btn wa",style:"width:100%;margin:0 0 12px",text:"📲 Enviar los trabajos por WhatsApp",onclick:()=>enviarDiaWA(D,f)}));
     if(AU.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones"})),el("div",{class:"bd"},AU.map(x=>el("button",{class:"linea",onclick:()=>formSust(x,re)},[
       el("span",{style:"flex:1",text:x.motivo==="Horas extra"?"👤 "+x.sustituto_n+" hace los trabajos de "+x.ausente_n:"🚫 "+x.ausente_n+" · "+(x.motivo||"Falta")+(x.hasta!==x.desde?" hasta "+fCorta(x.hasta):"")}),
       x.motivo==="Horas extra"?null:el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"lo cubre "+x.sustituto_n.split(" ")[0]:"sin cubrir"})])))]));
@@ -230,6 +237,58 @@ async function abrirOT(re){const admin=S.yo.rol==="admin";const o={titulo:"",lug
       const r=await rpc("ot_abrir",{p_tok:S.tok,p:o});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
       toast(o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();}}]);
   setTimeout(()=>tit.focus(),50);}
+/* ---------- avisos en el móvil (Web Push) ---------- */
+const esIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const instalada=()=>window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const pushPosible=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+let REG=null;
+async function regSW(){if(!("serviceWorker" in navigator))return null;if(REG)return REG;try{REG=await navigator.serviceWorker.register("sw-limpieza.js",{scope:"./limpieza.html"});await navigator.serviceWorker.ready;}catch(e){REG=null;}return REG;}
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.tipo==="recargar"&&S.tok&&!document.querySelector(".ov"))pinta();});
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0));};
+async function subActual(){const r=await regSW();return r&&r.pushManager?r.pushManager.getSubscription():null;}
+/* al entrar: si ya tiene avisos en este móvil, se apuntan a quien ha entrado */
+async function pushSync(){try{if(!pushPosible()||Notification.permission!=="granted")return;const s=await subActual();if(s)await rpc("push_alta",{p_tok:S.tok,p:s.toJSON()});}catch(e){}}
+async function activarAvisos(){
+  if(esIOS&&!instalada()){dlg("Avisos en iPhone",el("div",null,[el("p",{text:"En iPhone los avisos solo funcionan con la app en la pantalla de inicio:"}),
+    el("ol",{class:"pasos"},[el("li",{text:"Abre esta página en Safari."}),el("li",{text:"Toca el botón Compartir (el cuadrado con la flecha hacia arriba)."}),el("li",{text:"Elige «Añadir a pantalla de inicio»."}),el("li",{text:"Abre la app desde el icono nuevo y pulsa otra vez «Activar avisos»."})])]));return;}
+  if(!pushPosible()){toast("Este móvil o navegador no admite avisos. Prueba con Chrome.");return;}
+  try{const per=await Notification.requestPermission();if(per!=="granted"){toast(per==="denied"?"Los avisos están bloqueados. Actívalos en los ajustes del navegador para esta web.":"No has dado permiso");pinta();return;}
+    const r=await regSW();if(!r)throw new Error("No se pudo preparar el móvil");
+    const clave=await rpc("push_clave");if(!clave)throw new Error("Los avisos aún no están listos");
+    let s=await r.pushManager.getSubscription();if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(clave)});
+    await rpc("push_alta",{p_tok:S.tok,p:s.toJSON()});ls.set("limp.avisos","1");toast("Avisos activados ✔");pinta();}
+  catch(e){toast(e.message||"No se pudieron activar los avisos");}}
+async function bloqueAvisos(v){if(ls.get("limp.avisos.no")===hoyISO())return;
+  let falta=false;try{falta=!pushPosible()?esIOS&&!instalada():(Notification.permission!=="granted"||!(await subActual()));}catch(e){}
+  if(!falta)return;
+  v.appendChild(el("div",{class:"avisos-on"},[el("span",{class:"ic",text:"🔔"}),el("div",{style:"flex:1"},[el("b",{text:"Activa los avisos"}),el("small",{text:"Te llegará un aviso al móvil cuando te pongan un trabajo nuevo o te quede algo por hacer."})]),
+    el("div",{class:"col"},[el("button",{class:"btn peq",text:"Activar",onclick:activarAvisos}),el("button",{class:"btn sec peq",text:"Ahora no",onclick:()=>{ls.set("limp.avisos.no",hoyISO());pinta();}})])]));}
+/* ---------- WhatsApp: el mensaje sale escrito, tú solo pulsas enviar ---------- */
+const APP_URL="https://portela90.github.io/COLADA/limpieza.html";
+function telWA(t){let d=String(t||"").replace(/[^0-9+]/g,"");if(!d)return"";if(d.startsWith("+"))d=d.slice(1);else if(d.startsWith("00"))d=d.slice(2);else if(d.length===9)d="34"+d;return d;}
+const waLink=(tel,txt)=>"https://wa.me/"+(tel?telWA(tel):"")+"?text="+encodeURIComponent(txt);
+const abrirWA=(tel,txt)=>window.open(waLink(tel,txt),"_blank");
+const lineaOT=o=>"• "+o.titulo+(o.lugar?" ("+o.lugar+")":"")+(o.turno?" · "+o.turno:"")+(o.prioridad==="alta"?" ⚠ URGENTE":"");
+/* quién tiene que hacer cada trabajo ese día (contando sustituciones y «todo el equipo») */
+function repartoDia(D,L){const P={};const add=(id,o)=>{(P[id]=P[id]||[]).push(o);};
+  D.filter(o=>o.estado==="pendiente"||o.estado==="en_curso").forEach(o=>{
+    if(o.todo_equipo){L.filter(w=>w.activo&&w.rol!=="admin"&&(w.equipos||[]).includes(o.equipo)).forEach(w=>add(w.id,o));return;}
+    (o.nombres||[]).forEach(n=>{const w=L.find(x=>x.nombre===n);const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);const s=c&&L.find(x=>x.nombre===c.sustituto);const t=s||w;if(t)add(t.id,o);});});
+  return P;}
+async function enviarDiaWA(D,f){const L=await trabajadores();const P=repartoDia(D,L);const dia=(f===hoyISO()?"de hoy ":"del ")+fLarga(f);
+  const txtDe=w=>"Hola "+w.nombre.split(" ")[0]+", tus trabajos "+dia+":\n"+P[w.id].map(lineaOT).join("\n")+"\n\nMárcalos en la app: "+APP_URL;
+  const gente=L.filter(w=>P[w.id]);
+  const grupo="Trabajos "+dia+":\n\n"+gente.map(w=>"*"+w.nombre+"*\n"+P[w.id].map(lineaOT).join("\n")).join("\n\n")+"\n\nApp: "+APP_URL;
+  dlg("Enviar por WhatsApp",el("div",null,[el("p",{class:"hint",text:"Se abre WhatsApp con el mensaje ya escrito. Solo tienes que pulsar enviar."}),
+    gente.length?el("div",{class:"lst-wa"},gente.map(w=>el("div",{class:"linea"},[el("span",{style:"flex:1"},[el("b",{text:w.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:P[w.id].length+" trabajo"+(P[w.id].length>1?"s":"")+(w.telefono?"":" · sin teléfono: elegirás el chat")})]),
+      el("button",{class:"btn wa peq",text:"WhatsApp",onclick:()=>abrirWA(w.telefono,txtDe(w))})]))):el("p",{class:"empty",text:"No hay trabajos pendientes este día."}),
+    gente.length?el("button",{class:"btn sec",style:"width:100%;margin-top:10px",text:"Enviar la lista entera a un grupo",onclick:()=>abrirWA("",grupo)}):null,
+    L.some(w=>w.activo&&!w.telefono)?el("p",{class:"hint",text:"Pon los teléfonos en Equipo para que se abra directo el chat de cada uno."}):null]));}
+async function enviarOTWA(o){const L=await trabajadores();const P=repartoDia([o],L);const ids=Object.keys(P);
+  const txt=w=>"Hola "+w.nombre.split(" ")[0]+", tienes este trabajo"+(o.fecha===hoyISO()?" hoy":" el "+fLarga(o.fecha))+":\n"+lineaOT(Object.assign({},o,{estado:"pendiente"}))+(o.descripcion?"\n"+o.descripcion:"")+"\n\nMárcalo en la app: "+APP_URL;
+  if(!ids.length){abrirWA("",txt({nombre:""}).replace("Hola , t","T"));return;}
+  if(ids.length===1){const w=L.find(x=>x.id===ids[0]);abrirWA(w.telefono,txt(w));return;}
+  dlg("¿A quién?",el("div",null,ids.map(id=>{const w=L.find(x=>x.id===id);return el("div",{class:"linea"},[el("b",{style:"flex:1",text:w.nombre}),el("button",{class:"btn wa peq",text:"WhatsApp",onclick:()=>abrirWA(w.telefono,txt(w))})]);})));}
 /* ---------- administrador ---------- */
 /* faltas, bajas y sustituciones */
 const MOTIVOS=["Baja","Vacaciones","Permiso","Otro"];
@@ -327,16 +386,16 @@ async function vEquipo(v){const box=el("div",null,el("div",{class:"empty",text:"
       el("div",{class:"meta"},[el("span",{text:"📅 "+(x.desde===x.hasta?fCorta(x.desde):fCorta(x.desde)+" → "+fCorta(x.hasta))}),x.desde<=hoy?el("span",{class:"pill warn",text:"Falta hoy"}):el("span",{class:"pill",text:"Próximamente"}),
         el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"Lo cubre "+x.sustituto_n:"Sin cubrir"}),x.nota?el("span",{text:"📝 "+x.nota}):null])])):el("div",{class:"empty",text:"Nadie falta. Si alguien está de baja o de vacaciones, pulsa «＋ Alguien falta» y elige quién le cubre."})]));
     const faltaHoy=new Set(SU.filter(x=>x.desde<=hoy&&x.hasta>=hoy&&x.motivo!=="Horas extra").map(x=>x.ausente));box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Compañeros"})),L.map(w=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTrab(w,()=>pinta())},[el("div",{class:"t",text:w.nombre+(w.rol==="admin"?" · administrador":"")+(w.activo?"":" (ya no trabaja)")}),
-    el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"})])]))]));}
+    el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"}),w.activo?el("span",{class:"pill "+(w.avisos?"ok":""),text:w.avisos?"🔔 Avisos":"🔕 Sin avisos"}):null,w.telefono?el("span",{text:"📱 "+w.telefono}):null])]))]));}
   catch(e){box.textContent=e.message;}}
 function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;
   const eqb=el("div",{class:"chips"});const pe=()=>{eqb.textContent="";["Semana","Finde"].forEach(k=>eqb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(w.equipos.includes(k)),text:k,onclick:()=>{w.equipos=w.equipos.includes(k)?w.equipos.filter(x=>x!==k):w.equipos.concat([k]);if(!w.equipos.length)w.equipos=[k];pe();}})));};pe();
-  dlg(w.id?w.nombre:"Nuevo compañero",el("div",null,[fld("Nombre",inp(w.nombre,v=>w.nombre=v)),fld("Equipos",eqb),
+  dlg(w.id?w.nombre:"Nuevo compañero",el("div",null,[fld("Nombre",inp(w.nombre,v=>w.nombre=v)),fld("Teléfono (para WhatsApp)",inp(w.telefono,v=>w.telefono=v,{type:"tel",inputmode:"tel",placeholder:"612 345 678"})),fld("Equipos",eqb),
     el("div",{class:"row"},[fld("Turno entre semana",sel([["","—"]].concat(TURNOS_S.map(x=>[x,x])),w.turno_semana,v=>w.turno_semana=v)),fld("Turno finde",sel([["","—"]].concat(TURNOS_F.map(x=>[x,x])),w.turno_finde,v=>w.turno_finde=v))]),
     fld("Papel",sel([["operario","Operario"],["admin","Administrador"]],w.rol,v=>w.rol=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 8px"},[el("input",{type:"checkbox",checked:w.activo,onchange:e=>w.activo=e.target.checked}),"En activo"]),
     w.id&&w.tiene_pin?el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",onchange:e=>reset=e.target.checked}),"Ha olvidado el PIN: borrarlo para que ponga uno nuevo"]):null]),
-   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("trabajador_guardar",{p_tok:S.tok,p:{id:w.id||null,nombre:w.nombre,equipos:w.equipos,turno_semana:w.turno_semana,turno_finde:w.turno_finde,rol:w.rol,activo:w.activo,reset_pin:reset}});toast("Guardado");TRAB=null;re();}}]);}
+   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("trabajador_guardar",{p_tok:S.tok,p:{id:w.id||null,nombre:w.nombre,equipos:w.equipos,turno_semana:w.turno_semana,turno_finde:w.turno_finde,rol:w.rol,activo:w.activo,telefono:w.telefono||null,reset_pin:reset}});toast("Guardado");TRAB=null;re();}}]);}
 async function vAvisos(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("button",{class:"btn",style:"width:100%;margin:0 0 12px",text:"＋ Nuevo aviso",onclick:()=>formAviso({},()=>pinta())}));v.appendChild(box);
   try{const A=await rpc("avisos_todos",{p_tok:S.tok});box.textContent="";box.appendChild(el("div",{class:"card"},A.length?A.map(a=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formAviso(a,()=>pinta())},[el("div",{class:"t",text:a.titulo}),a.descripcion?el("div",{class:"d",text:a.descripcion}):null,el("div",{class:"meta"},[el("span",{text:"📅 "+fCorta(a.fecha)}),el("span",{class:"pill "+(a.activo?"ok":""),text:a.activo?"Visible":"Oculto"})])])):el("div",{class:"empty",text:"Sin avisos. Los avisos salen arriba en la pantalla de todos."})));}catch(e){box.textContent=e.message;}}
 function formAviso(a0,re){const a=Object.assign({fecha:hoyISO(),activo:true},a0);const bot=[{t:"Cancelar",cls:"sec"}];
@@ -370,7 +429,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   else{nav.hidden=true;S.tab="hoy";}
   ({hoy:vHoy,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
-pinta();
+pinta();if(S.tok)pushSync();else regSW();
 })();
 </script>
 </body>
