@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261007180546">
+<meta name="build" content="20261007183042">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -585,7 +585,7 @@ function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")
   if(d>e.frecuencia_dias)return{k:"bad",d,t:"Atrasado "+(d-e.frecuencia_dias)+" día"+(d-e.frecuencia_dias>1?"s":"")};
   if(d===e.frecuencia_dias)return{k:"warn",d,t:"Toca hoy"};
   return{k:"ok",d,t:d===0?"Limpiado hoy":"Al día · toca en "+(e.frecuencia_dias-d)+" d"};}
-let ELS=null;async function elementosL(force){if(!ELS||force)ELS=await rpc("elementos",{p_tok:S.tok});return ELS;}
+let ELS=null;const ordEl=(a,b)=>a.tipo.localeCompare(b.tipo)||a.codigo.localeCompare(b.codigo,"es",{numeric:true});async function elementosL(force){if(!ELS||force)ELS=(await rpc("elementos",{p_tok:S.tok})).sort(ordEl);return ELS;}
 async function listaElementos(re){let L;try{L=await elementosL(true);}catch(e){toast(e.message);return;}
   if(!L.length){dlg("Moldes, hornos y contenedores",el("p",{class:"empty",text:S.yo.rol==="admin"?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
   let q="",tp="";const box=el("div",{class:"lst-el"});const ORD={bad:0,warn:1,sin:2,ok:3};
@@ -736,7 +736,7 @@ async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=fin
      if(c)await rpc("sust_guardar",{p_tok:S.tok,p:{ausente:c,sustituto:w,desde:f,hasta:f,motivo:"Horas extra"}});toast("Apuntado");re();}}]);}
 async function vTareas(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("p",{class:"hint",text:"Tareas fijas: se convierten solas en trabajos cada día que les toca («Todos» = de lunes a viernes en Semana, sábado y domingo en Finde). Tareas habituales: no tienen día; salen como botón al abrir una OT."}));
   v.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Nueva tarea fija",onclick:()=>formTarea({},()=>pinta())}),el("button",{class:"btn sec",text:"＋ Nueva tarea habitual",onclick:()=>formHabitual({},()=>pinta())})]));v.appendChild(box);
-  v.appendChild(await bloqueElementos(()=>pinta()));
+  v.insertBefore(await bloqueElementos(()=>pinta()),box);
   try{const [T,H]=await Promise.all([rpc("tareas",{p_tok:S.tok}),habituales(true)]);box.textContent="";
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Tareas habituales ("+H.length+")"}),el("span",{class:"der sub",text:"sin día fijo"})]),H.length?H.map(h=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formHabitual(h,()=>pinta())},[el("div",{class:"t",text:h.titulo+(h.activo?"":" (no activa)")}),h.descripcion?el("div",{class:"d",text:h.descripcion}):null,
       el("div",{class:"meta"},[h.minutos_est?el("span",{class:"pill info",text:"⏳ "+durTxt(h.minutos_est)}):el("span",{class:"pill warn",text:"Sin tiempo estimado"}),h.lugar?el("span",{text:"📍 "+h.lugar}):null,el("span",{text:h.veces?"Hecha "+h.veces+" "+(h.veces>1?"veces":"vez")+" en 3 meses":"Aún no se ha usado"})])])):el("div",{class:"empty",text:"Pon aquí las tareas que se hacen a menudo pero sin día fijo (vaciar un contenedor, limpiar un derrame…). Salen como botón al abrir una OT y llevan su tiempo."})]));["Semana","Finde"].forEach(eq=>{const X=T.filter(t=>t.equipo===eq);
