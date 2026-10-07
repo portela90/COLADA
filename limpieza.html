@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261007125818">
+<meta name="build" content="20261007175353">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -92,6 +92,8 @@ small.carga{display:block;color:var(--mut)}small.carga.mucha{color:var(--bad);fo
 .finfo{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--mut)}.finfo span{flex:1}
 .aviso-t{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:14px;font-weight:600;margin:0 0 10px}
 .chips.hab .chip{font-size:14px}
+.tpreg{background:var(--surf2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px}.tpreg b{font-size:16px}
+.chips.tmp .chip{min-width:64px;text-align:center;padding:10px 12px;font-size:15px}.chips.tmp .otro{width:84px;font-size:15px;padding:9px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surf);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -156,7 +158,7 @@ function verFoto(src,pie){const ov=el("div",{class:"visor",role:"dialog","aria-m
   ov.appendChild(el("div",{class:"vimg",onclick:e=>{if(e.target===e.currentTarget)cerrar();}},el("img",{src,alt:pie||"foto"})));document.body.appendChild(ov);}
 const miniFoto=(x,pie)=>x.data?el("button",{class:"mini",type:"button","aria-label":"Ver foto",onclick:()=>verFoto(x.data,pie)},el("img",{src:x.data,alt:"foto"})):el("span",{class:"pill",text:"📦 guardada en la copia"});
 /* ---------- tarjeta de OT ---------- */
-const durTxt=m=>m==null?"":m<60?Math.max(0,Math.round(m))+" min":Math.floor(m/60)+" h "+String(Math.round(m%60)).padStart(2,"0")+" min";
+const durTxt=m=>{if(m==null)return"";m=Math.max(0,Math.round(m));if(m<60)return m+" min";const r=m%60;return Math.floor(m/60)+" h"+(r?" "+String(r).padStart(2,"0")+" min":"");};
 const desde=ts=>(Date.now()-new Date(ts).getTime())/60000;
 const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
@@ -180,7 +182,7 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.ro
       o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,
       o.estado==="pendiente"&&o.minutos_est?el("span",{text:"⏳ ~"+durTxt(o.minutos_est)}):null,
       o.estado==="en_curso"&&o.inicio?el("span",{class:"pill "+(o.minutos_est&&desde(o.inicio)>o.minutos_est?"warn":"info")},["⏱ Empezó "+hora(o.inicio)+(o.hecho_por_n?" ("+o.hecho_por_n.split(" ")[0]+")":"")+" · lleva ",el("b",{class:"vivo","data-ini":o.inicio,"data-est":o.minutos_est||"",text:durTxt(desde(o.inicio))}),o.minutos_est?" de ~"+durTxt(o.minutos_est):""]):null,
-      o.estado==="hecha"&&o.minutos!=null?(o.tiempo_auto?el("span",{class:"pill",title:"No pulsó «Empezar»: se ha puesto el tiempo estimado",text:"⏱ "+durTxt(o.minutos)+" (tiempo estimado)"}):el("span",{class:"pill "+(o.minutos_est&&o.minutos>o.minutos_est*1.25?"warn":"ok"),text:"⏱ "+durTxt(o.minutos)+(o.minutos_est?" (estimado "+durTxt(o.minutos_est)+")":"")})):null,
+      o.estado==="hecha"&&o.minutos!=null?(o.tiempo_auto?el("span",{class:"pill",title:"No pulsó «Empezar»: se ha puesto el tiempo estimado",text:"⏱ "+durTxt(o.minutos)+" (tiempo estimado)"}):o.tiempo_decl?el("span",{class:"pill "+(o.minutos_est&&o.minutos>o.minutos_est*1.25?"warn":"ok"),title:"Tiempo indicado por el trabajador al terminar",text:"⏱ "+durTxt(o.minutos)+" (lo indicó "+((o.hecho_por_n||"").split(" ")[0]||"él")+")"}):el("span",{class:"pill "+(o.minutos_est&&o.minutos>o.minutos_est*1.25?"warn":"ok"),text:"⏱ "+durTxt(o.minutos)+(o.minutos_est?" (estimado "+durTxt(o.minutos_est)+")":"")})):null,
       o.hecho_por_n&&(o.estado==="hecha"||o.estado==="no_hecha")?el("span",{text:"Por "+o.hecho_por_n+(o.fin?" a las "+hora(o.fin):"")}):null,o.nota?el("span",{text:"📝 "+o.nota}):null]),
     el("div",{class:"row acc"},acc)]);}
 setInterval(()=>document.querySelectorAll(".vivo").forEach(x=>x.textContent=durTxt(desde(x.dataset.ini))),30000);
@@ -192,7 +194,7 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   const ck=Object.entries(o.checklist||{}).concat(Object.entries(o.checklist_final||{}));
   dlg(o.titulo,el("div",null,[o.descripcion?el("p",{style:"margin:0 0 10px",text:o.descripcion}):null,
     el("table",{class:"det"},el("tbody",null,[fila("Día",fLarga(o.fecha)),fila("Dónde",o.lugar),fila("Quién",quienTxt(o)||(sinAsignar(o)?"Sin asignar":"")),fila("Estado",(EST[o.estado]||[o.estado])[0]),
-      fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos)+(o.tiempo_auto?" (estimado: no pulsó Empezar)":""):""),fila("Estimado",o.minutos_est?durTxt(o.minutos_est):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota)])),
+      fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos)+(o.tiempo_auto?" (estimado: no pulsó Empezar)":o.tiempo_decl?" (indicado por el trabajador)":""):""),fila("Estimado",o.minutos_est?durTxt(o.minutos_est):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota)])),
     ck.length?el("div",null,[el("h4",{text:"Checklist"}),el("div",{class:"chips"},ck.map(([k,v])=>el("span",{class:"pill "+(v==="OK"?"ok":v==="NO-OK"?"bad":""),text:k+": "+v})))]):null,
     el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),S.yo.rol==="admin"&&o.estado!=="hecha"?[{t:"📲 WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}},{t:"Cerrar",cls:"sec"}]:null);
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
@@ -201,16 +203,25 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
 function noHecha(o,re){let n="";dlg("No se pudo hacer",el("div",null,[fld("¿Por qué?",area("",x=>n=x))]),[{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"bad",fn:async()=>{if(!n.trim()){toast("Explica el motivo");return false;}await cambia(o,"no_hecha",re,n.trim());}}]);}
 function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map(([k,c])=>el("button",{type:"button",class:c,"aria-pressed":String(v===k),text:k,onclick:()=>{on(k);b.forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===k)));}}));return el("div",{class:"seg"},b);}
 const CHECKLIST_ACTIVA=false; /* desactivada hasta definir la checklist de inyectoras de fin de semana */
-function terminar(o,re){const usaCk=CHECKLIST_ACTIVA;const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
+/* ¿hay un tiempo medido de verdad? (pulsó «Empezar» hace al menos 2 minutos) */
+const medido=o=>!!(o.inicio&&!o.tiempo_auto&&desde(o.inicio)>=2);
+function preguntaTiempo(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,30,45,60,90,120];if(val&&!OPC.includes(val)){OPC.push(val);OPC.sort((a,b)=>a-b);}
+  const box=el("div",{class:"chips tmp"});const otro=el("input",{type:"number",inputmode:"numeric",min:"1",max:"720",placeholder:"otro",class:"otro","aria-label":"Otros minutos"});
+  const pin=()=>{box.textContent="";OPC.forEach(m=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(val===m),text:durTxt(m)+(m===o.minutos_est?" ★":""),onclick:()=>{val=m;otro.value="";pin();}})));box.appendChild(otro);};
+  otro.oninput=()=>{const n=parseInt(otro.value,10);val=n>0?n:null;box.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));};pin();
+  const w=el("div",{class:"tpreg"},[el("b",{text:"¿Cuánto has tardado?"}),el("p",{class:"hint",style:"margin:2px 0 8px",text:(o.inicio&&!o.tiempo_auto?"Has pulsado «Empezar» y «Terminar» casi a la vez.":"No pulsaste «Empezar».")+(o.minutos_est?" Viene marcado el tiempo normal de esta tarea (★); cámbialo si has tardado más o menos.":" Toca el tiempo que más se parezca.")}),box]);
+  w.val=()=>val;return w;}
+function terminar(o,re){const usaCk=CHECKLIST_ACTIVA;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
   const fbox=el("div",{class:"fotos"});
-  const body=el("div",null,[!o.inicio?el("p",{class:"aviso-t",text:o.minutos_est?"No pulsaste «Empezar»: se apuntará el tiempo estimado de esta tarea ("+durTxt(o.minutos_est)+").":"No pulsaste «Empezar», así que no quedará el tiempo que has tardado. La próxima vez pulsa «▶ Empezar» al ponerte."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)]))):null,
+  const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)]))):null,
     conFin?el("div",null,[el("b",{text:"Material al terminar"}),el("div",{class:"chk"},CHECK_FIN.map(k=>el("div",{class:"it"},[el("span",{text:k}),segOK(fin[k],v=>fin[k]=v)])))]):null,
     fld("Nota (opcional)",area("",x=>nota=x)),
     el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;const d=await comprime(f);fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]);
-  dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{const falta=usaCk?CHECK.filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
+  dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{if(preg&&!preg.val()){toast("Marca cuánto has tardado");return false;}const falta=usaCk?CHECK.filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
     if(conFin&&CHECK_FIN.some(k=>!fin[k])){toast("Falta marcar el material");return false;}
     if(usaCk)await rpc("checklist_ot",{p_tok:S.tok,p_ot:o.id,p_check:ck,p_final:conFin?fin:null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
-    await cambia(o,"hecha",re,nota.trim());}}]);}
+    if(preg){try{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:preg.val(),p_nota:nota.trim()||null});toast("Hecha · "+durTxt(preg.val()));re();}catch(er){toast(er.message);}}
+    else await cambia(o,"hecha",re,nota.trim());}}]);}
 function comprime(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const M=1280,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);let q=.7,d=c.toDataURL("image/jpeg",q);while(d.length>650000&&q>.3){q-=.1;d=c.toDataURL("image/jpeg",q);}ok(d);};im.onerror=ko;im.src=r.result;};r.onerror=ko;r.readAsDataURL(f);});}
 async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class:"empty",text:"Cargando…"}));
   const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
