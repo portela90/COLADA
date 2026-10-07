@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261007183042">
+<meta name="build" content="20261007185132">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -265,7 +265,7 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:(f===hoyISO()?"Hoy · ":"")+fLarga(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
   const re=()=>pinta();
   v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
-  v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"🔥 Moldes, hornos y contenedores",onclick:()=>listaElementos(re)}));
+  v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"🔥 Moldes y hornos mantenedores",onclick:()=>listaElementos(re)}));
   const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
@@ -575,8 +575,8 @@ function editarOT(o,re){if(S.yo.rol==="admin"){formOT(o,re);return;}const x={tit
 function corregirTiempo(o,re){const w=preguntaTiempo(Object.assign({},o,{minutos_est:o.minutos||o.minutos_est,inicio:null}));
   w.querySelector("b").textContent="¿Cuánto se tardó de verdad?";w.querySelector("p").textContent="Ahora pone "+(o.minutos!=null?durTxt(o.minutos):"sin tiempo")+". Elige el tiempo correcto.";
   dlg("Corregir tiempo · "+o.titulo,w,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!w.val()){toast("Elige el tiempo");return false;}await rpc("tiempo_corregir",{p_tok:S.tok,p_ot:o.id,p_minutos:w.val()});toast("Tiempo corregido: "+durTxt(w.val()));re();}}]);}
-/* ---------- moldes, hornos y contenedores con código QR ---------- */
-const TIPOS_EL=[["molde","Molde","🧩"],["horno","Horno","🔥"],["contenedor","Contenedor","🛢"],["otro","Otro","🔧"]];
+/* ---------- moldes y hornos mantenedores con código QR ---------- */
+const TIPOS_EL=[["molde","Molde","🧩","Moldes"],["horno","Horno mantenedor","🔥","Hornos mantenedores"],["otro","Otro","🔧","Otros"]];
 const tipoEl=k=>TIPOS_EL.find(x=>x[0]===k)||TIPOS_EL[3];
 const urlEl=c=>APP_URL+"?el="+encodeURIComponent(c);
 function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")-new Date(diaDe(e.ultima)+"T12:00:00"))/864e5):null;
@@ -587,17 +587,17 @@ function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")
   return{k:"ok",d,t:d===0?"Limpiado hoy":"Al día · toca en "+(e.frecuencia_dias-d)+" d"};}
 let ELS=null;const ordEl=(a,b)=>a.tipo.localeCompare(b.tipo)||a.codigo.localeCompare(b.codigo,"es",{numeric:true});async function elementosL(force){if(!ELS||force)ELS=(await rpc("elementos",{p_tok:S.tok})).sort(ordEl);return ELS;}
 async function listaElementos(re){let L;try{L=await elementosL(true);}catch(e){toast(e.message);return;}
-  if(!L.length){dlg("Moldes, hornos y contenedores",el("p",{class:"empty",text:S.yo.rol==="admin"?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
+  if(!L.length){dlg("Moldes y hornos mantenedores",el("p",{class:"empty",text:S.yo.rol==="admin"?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
   let q="",tp="";const box=el("div",{class:"lst-el"});const ORD={bad:0,warn:1,sin:2,ok:3};
   const pin=()=>{box.textContent="";const F=L.filter(e=>e.activo&&(!tp||e.tipo===tp)&&(!q||(e.codigo+" "+e.nombre+" "+(e.lugar||"")).toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>ORD[estadoEl(a).k]-ORD[estadoEl(b).k]||a.codigo.localeCompare(b.codigo,"es",{numeric:true}));
     if(!F.length)box.appendChild(el("p",{class:"empty",text:"Nada con esa búsqueda."}));
     F.forEach(e=>{const s=estadoEl(e);box.appendChild(el("button",{class:"linea elx",onclick:()=>{cerrarTodo();fichaElemento(e.codigo,re);}},[el("span",{class:"ico",text:tipoEl(e.tipo)[2]}),
       el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.ultima_por?" · último: "+e.ultima_por.split(" ")[0]:"")})]),el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t})]));});};
-  const tps=el("div",{class:"chips",style:"margin:8px 0"});const pt=()=>{tps.textContent="";[["","Todos"]].concat(TIPOS_EL.filter(t=>L.some(e=>e.tipo===t[0])).map(t=>[t[0],t[2]+" "+t[1]+"s"])).forEach(([k,t])=>tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(tp===k),text:t,onclick:()=>{tp=k;pt();pin();}})));};pt();
+  const tps=el("div",{class:"chips",style:"margin:8px 0"});const pt=()=>{tps.textContent="";[["","Todos"]].concat(TIPOS_EL.filter(t=>L.some(e=>e.tipo===t[0])).map(t=>[t[0],t[2]+" "+t[3]])).forEach(([k,t])=>tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(tp===k),text:t,onclick:()=>{tp=k;pt();pin();}})));};pt();
   const bus=el("input",{type:"search",placeholder:"Buscar por código o nombre",class:"bus","aria-label":"Buscar"});bus.oninput=()=>{q=bus.value;pin();};
-  dlg("Moldes, hornos y contenedores",el("div",null,[escanerBtn(re),bus,tps,box]));pin();}
+  dlg("Moldes y hornos mantenedores",el("div",null,[escanerBtn(re),bus,tps,box]));pin();}
 function escanerBtn(re){const ok="BarcodeDetector" in window&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia;
-  return ok?el("button",{class:"btn grande",style:"background:var(--acc)",text:"📷 Escanear código QR",onclick:()=>{cerrarTodo();escanear(re);}}):el("p",{class:"hint",text:"Para escanear: abre la cámara del móvil y apunta al código QR del molde, horno o contenedor. Se abre la app solo. O búscalo aquí abajo."});}
+  return ok?el("button",{class:"btn grande",style:"background:var(--acc)",text:"📷 Escanear código QR",onclick:()=>{cerrarTodo();escanear(re);}}):el("p",{class:"hint",text:"Para escanear: abre la cámara del móvil y apunta al código QR del molde u horno. Se abre la app solo. O búscalo aquí abajo."});}
 async function escanear(re){let stream;const v=el("video",{playsinline:true,muted:true,autoplay:true,class:"cam"});const msg=el("p",{class:"hint",style:"text-align:center",text:"Apunta al código QR"});let vivo=true;
   const cerrar=dlg("Escanear",el("div",null,[v,msg]),[{t:"Cancelar",cls:"sec",fn:()=>{vivo=false;}}]);
   const fin=()=>{vivo=false;if(stream)stream.getTracks().forEach(t=>t.stop());};
@@ -635,11 +635,11 @@ function formElemento(e0,re){const e=Object.assign({tipo:"horno",activo:true},JS
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(e.id)bot.unshift({t:"🗑 Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar "+e.nombre+"? Su historial de limpiezas se conserva."))return false;await rpc("elemento_borrar",{p_tok:S.tok,p_id:e.id});ELS=null;toast("Borrado");re();}});
   bot.push({t:"Guardar",fn:async()=>{if(!(e.nombre||"").trim()){toast("Pon el nombre");return false;}const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{id:e.id||null,tipo:e.tipo,codigo:e.codigo,nombre:e.nombre,lugar:e.lugar,frecuencia_dias:e.frecuencia_dias||null,minutos_est:e.minutos_est||null,activo:e.activo}});ELS=null;toast("Guardado · código "+r.codigo);re();}});
-  dlg(e.id?"Editar "+e.nombre:"Nuevo molde, horno o contenedor",el("div",null,[fld("Tipo",tb),el("div",{class:"row"},[fld("Código (va en el QR)",cod),fld("Nombre",inp(e.nombre,v=>e.nombre=v,{placeholder:"p. ej. Horno F28"}))]),
+  dlg(e.id?"Editar "+e.nombre:"Nuevo molde u horno mantenedor",el("div",null,[fld("Tipo",tb),el("div",{class:"row"},[fld("Código (va en el QR)",cod),fld("Nombre",inp(e.nombre,v=>e.nombre=v,{placeholder:"p. ej. Horno mantenedor F28"}))]),
     fld("Dónde está (opcional)",inp(e.lugar,v=>e.lugar=v,{placeholder:"p. ej. Nave 2"})),fld("Cada cuánto hay que limpiarlo",fb),fld("Tiempo que lleva limpiarlo",campoTiempo(e.minutos_est,v=>e.minutos_est=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:e.activo,onchange:ev=>e.activo=ev.target.checked}),"Activo"])]),bot);}
 function variosElementos(re){let tipo="horno",txt="";const tb=el("div",{class:"seg sel"});const pt=()=>{tb.textContent="";TIPOS_EL.forEach(([k,t,i])=>tb.appendChild(el("button",{type:"button","aria-pressed":String(tipo===k),text:i+" "+t,onclick:()=>{tipo=k;pt();}})));};pt();
-  dlg("Añadir varios de golpe",el("div",null,[fld("Tipo",tb),fld("Uno por línea",area("",v=>txt=v)),el("p",{class:"hint",text:"Escribe solo el nombre (p. ej. «Horno F28») y el código se pone solo. Si quieres un código concreto, ponlo delante con punto y coma: «M-120; Molde tapa 120»."})]),
+  dlg("Añadir varios de golpe",el("div",null,[fld("Tipo",tb),fld("Uno por línea",area("",v=>txt=v)),el("p",{class:"hint",text:"Escribe solo el nombre (p. ej. «Horno mantenedor F28») y el código se pone solo. Si quieres un código concreto, ponlo delante con punto y coma: «M-120; Molde tapa 120»."})]),
     [{t:"Cancelar",cls:"sec"},{t:"Añadir",fn:async()=>{const ls=txt.split("\n").map(x=>x.trim()).filter(Boolean);if(!ls.length){toast("Escribe al menos uno");return false;}let n=0;const L=await elementosL(true);
       for(const l of ls){const [a,b]=l.includes(";")?l.split(";").map(x=>x.trim()):[null,l];const c=a||sigCodigo(tipo,L);try{const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{tipo,codigo:c,nombre:b}});L.push(r);n++;}catch(e){toast(l+": "+e.message);}}
       ELS=null;toast(n+" añadidos");re();}}]);}
@@ -648,11 +648,11 @@ async function imprimirQR(lista){try{await cargaLib(["https://cdnjs.cloudflare.c
     area.appendChild(el("div",{class:"etq"},[el("div",{class:"qr",html:q.createSvgTag({cellSize:4,margin:0,scalable:true})}),el("b",{text:e.nombre}),el("span",{text:T[1]+" · "+e.codigo}),el("small",{text:"Escanéame cuando lo limpies"})]));});
   const ov=el("div",{class:"ov printov"},el("div",{class:"dlg",style:"max-width:900px"},[el("div",{class:"row noprint",style:"margin:0 0 10px"},[el("button",{class:"btn",text:"🖨 Imprimir",onclick:()=>window.print()}),el("button",{class:"btn sec",text:"Cerrar",onclick:()=>ov.remove()})]),
     el("p",{class:"hint noprint",text:"Imprime en papel adhesivo o plastifica la hoja. Cada etiqueta lleva su código QR: al escanearlo con el móvil se abre la ficha para apuntar la limpieza."}),area]));document.body.appendChild(ov);}
-async function bloqueElementos(re){const box=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Moldes, hornos y contenedores"})),el("div",{class:"empty",text:"Cargando…"})]);
+async function bloqueElementos(re){const box=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Moldes y hornos mantenedores"})),el("div",{class:"empty",text:"Cargando…"})]);
   elementosL(true).then(L=>{box.lastChild.remove();box.appendChild(el("div",{class:"bd"},[el("div",{class:"row",style:"margin:0 0 10px"},[el("button",{class:"btn peq",text:"＋ Nuevo",onclick:()=>formElemento({},re)}),el("button",{class:"btn sec peq",text:"＋ Varios",onclick:()=>variosElementos(re)}),
       L.length?el("button",{class:"btn sec peq",text:"🖨 Imprimir QR",onclick:()=>imprimirQR(L.filter(e=>e.activo))}):null]),
     L.length?el("div",null,L.map(e=>{const s=estadoEl(e);return el("button",{class:"linea elx",onclick:()=>formElemento(e,re)},[el("span",{class:"ico",text:tipoEl(e.tipo)[2]}),el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre+(e.activo?"":" (no activo)")}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.frecuencia_dias?" · cada "+e.frecuencia_dias+" d":"")+(e.n90?" · "+e.n90+" limpiezas en 3 meses":"")})]),el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t})]);}))
-      :el("p",{class:"hint",text:"Da de alta cada molde, horno o contenedor que se limpia. Luego imprime los códigos QR y pégalos en cada uno: el trabajador lo escanea al limpiarlo y queda apuntado quién, cuándo y cuánto tardó."})]));}).catch(e=>{box.lastChild.textContent=e.message;});
+      :el("p",{class:"hint",text:"Da de alta cada molde u horno mantenedor que se limpia. Luego imprime los códigos QR y pégalos en cada uno: el trabajador lo escanea al limpiarlo y queda apuntado quién, cuándo y cuánto tardó."})]));}).catch(e=>{box.lastChild.textContent=e.message;});
   return box;}
 /* ---------- administrador ---------- */
 function campoTiempo(v,on){let val=v||"";const i=el("input",{type:"number",inputmode:"numeric",min:"1",max:"1440",placeholder:"minutos",value:val});
