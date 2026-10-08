@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008190736">
+<meta name="build" content="20261008191718">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -325,7 +325,7 @@ function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder
     el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
       el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…",list:"lugares-dl"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
@@ -343,17 +343,20 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});const
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);lug.focus();lug.classList.add("falta");return false;}
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
-    const auto=!!admin&&o.yo===false;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
-    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
-    toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"OT abierta y asignada al del relevo y nave":"OT abierta: no hay nadie en ese relevo y nave, queda sin asignar"):o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
+    const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
+    if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
+    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:o.elegir&&!hecha?chQ.val():null})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
+    toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"OT abierta y asignada al del relevo y nave":"OT abierta: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"OT abierta y asignada":o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
   const zsel=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lug.value=z;pl();marcaLug();});lug.addEventListener("input",()=>{zsel.value=(ZONAS||[]).some(z=>z.nombre===lug.value)?lug.value:"";});
   const fZ=fld("Zona (elige de la lista)",zsel);
+  const chQ=chipsTrab(TRAB?TRAB.filter(w=>w.activo):[],[],true),quienBox=fld("¿Quién lo hace?",chQ);quienBox.hidden=true;
+  const relRow=admin?el("div",{class:"row"},[fld("Relevo",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),"",v=>o.turno=v)),fld("Nave",sel([["","—"],["Nave 1","Nave 1"],["Nave 2","Nave 2"]],"",v=>o.nave=v))]):null;if(relRow)relRow.hidden=true;
   dlg("Abrir OT",el("div",null,[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,dl,lchips,
     fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
-    fld("¿Quién lo hace?",seg(admin?[[true,"Lo hago yo"],[false,"Que lo haga el del relevo y nave"]]:[[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
-    admin?el("div",{class:"row"},[fld("Relevo",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),"",v=>o.turno=v)),fld("Nave",sel([["","—"],["Nave 1","Nave 1"],["Nave 2","Nave 2"]],"",v=>o.nave=v))]):null,
+    fld("¿Quién lo hace?",seg(admin?[[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]]:[[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
+    relRow,
     fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
     el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
     [{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
