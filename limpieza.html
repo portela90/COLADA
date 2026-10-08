@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008200914">
+<meta name="build" content="20261008202146">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -312,7 +312,7 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
 /* abrir OT: pensado para el móvil, 3 toques. Con las tareas habituales arriba para no escribir */
 /* ---------- zonas (lista desplegable de «Dónde») ---------- */
 let ZONAS=null;async function zonasL(force){if(!ZONAS||force){try{ZONAS=await rpc("zonas",{p_tok:S.tok});}catch(e){ZONAS=ZONAS||[];}}return ZONAS;}
-const GRUPOS_Z=[["Inyectoras","Inyectoras"],["Moldes","Moldes"],["Otras","Otras zonas"]];
+const GRUPOS_Z=[["Inyectoras","Inyectoras"],["Moldes","Centros de mecanizado"],["Otras","Otras zonas"]];
 function selZona(v,on){const s=el("select",{class:"zsel"});s.appendChild(el("option",{value:"",text:"— Elige una zona —"}));
   GRUPOS_Z.forEach(([g,t])=>{const L=(ZONAS||[]).filter(z=>z.grupo===g);if(!L.length)return;const og=el("optgroup",{label:t});L.forEach(z=>og.appendChild(el("option",{value:z.nombre,text:z.nombre})));s.appendChild(og);});
   s.value=(ZONAS||[]).some(z=>z.nombre===v)?v:"";s.onchange=()=>on(s.value);return s;}
