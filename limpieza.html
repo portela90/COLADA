@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008163505">
+<meta name="build" content="20261008190736">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -248,7 +248,7 @@ function preguntaTiempo(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,30,
 function puntosEd(pts,ck){const box=el("div",{class:"chk"});const dib=()=>{box.textContent="";pts.forEach((k,i)=>box.appendChild(el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v),el("button",{type:"button",class:"btn sec peq",text:"✕",onclick:()=>{delete ck[k];pts.splice(i,1);dib();}})])));};dib();
   const add=el("input",{type:"text",placeholder:"Añadir un punto…"});
   return el("div",null,[box,el("div",{class:"row"},[add,el("button",{type:"button",class:"btn sec peq",text:"＋ Añadir",onclick:()=>{const v=add.value.trim();if(!v||pts.includes(v))return;pts.push(v);add.value="";dib();}})])]);}
-function terminar(o,re){const pts=(o.puntos&&o.puntos.length)?o.puntos.slice():null;const usaCk=CHECKLIST_ACTIVA||!!pts;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
+function terminar(o,re){if(o.elemento_id&&!ELS){elementosL().then(()=>terminar(o,re));return;}const eo=o.elemento_id&&ELS?ELS.find(x=>x.id===o.elemento_id):null;const P1=(o.puntos&&o.puntos.length)?o.puntos:((eo&&eo.puntos)||[]);const pts=P1.length?P1.slice():null;const usaCk=CHECKLIST_ACTIVA||!!pts;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
   const fbox=el("div",{class:"fotos"});
   const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?(pts?puntosEd(pts,ck):el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)])))):null,
     conFin?el("div",null,[el("b",{text:"Material al terminar"}),el("div",{class:"chk"},CHECK_FIN.map(k=>el("div",{class:"it"},[el("span",{text:k}),segOK(fin[k],v=>fin[k]=v)])))]):null,
@@ -325,29 +325,32 @@ function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder
     el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
       el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){await zonasL();const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…",list:"lugares-dl"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
   const pl=()=>{lchips.textContent="";LUG.slice(0,8).forEach(x=>lchips.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(o.lugar===x),text:x,onclick:()=>{o.lugar=x;lug.value=x;pl();}})));};
   rpc("lugares",{p_tok:S.tok}).then(L=>{LUG=L;L.forEach(x=>dl.appendChild(el("option",{value:x})));pl();}).catch(()=>{});
+  const selH=el("select",null,[el("option",{value:"",text:"— Elige el horno —"})].concat((ELS||[]).filter(x=>x.tipo==="horno"&&x.activo&&!x.borrado).sort(ordEl).map(x=>el("option",{value:x.id,text:x.codigo+" · "+x.nombre}))));
+  selH.onchange=()=>{o.elemento_id=selH.value||null;};const hornoWrap=fld("¿Qué horno se limpia?",selH);hornoWrap.hidden=true;
   const hbox=el("div",{class:"chips hab"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=el("div",{class:"f",hidden:true},[el("span",{text:"Tareas habituales (toca una y no tienes que escribir)"}),hbox,hinfo]);
   const ph=()=>{hbox.textContent="";(HAB||[]).filter(h=>h.activo).forEach(h=>hbox.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(!!hSel&&hSel.id===h.id),text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):""),
       onclick:()=>{if(hSel&&hSel.id===h.id){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}}ph();}})));
-    hinfo.textContent=hSel?(hSel.minutos_est?"⏳ Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «✔ Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";};
+    hinfo.textContent=hSel?(hSel.minutos_est?"⏳ Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «✔ Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));};
   habituales().then(H=>{hwrap.hidden=!H.some(h=>h.activo);ph();});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);lug.focus();lug.classList.add("falta");return false;}
+    const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
-    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
+    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"OT abierta y asignada al del relevo y nave":"OT abierta: no hay nadie en ese relevo y nave, queda sin asignar"):o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
   const zsel=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lug.value=z;pl();marcaLug();});lug.addEventListener("input",()=>{zsel.value=(ZONAS||[]).some(z=>z.nombre===lug.value)?lug.value:"";});
   const fZ=fld("Zona (elige de la lista)",zsel);
-  dlg("Abrir OT",el("div",null,[hwrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,dl,lchips,
+  dlg("Abrir OT",el("div",null,[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,dl,lchips,
     fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
     fld("¿Quién lo hace?",seg(admin?[[true,"Lo hago yo"],[false,"Que lo haga el del relevo y nave"]]:[[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
     admin?el("div",{class:"row"},[fld("Relevo",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),"",v=>o.turno=v)),fld("Nave",sel([["","—"],["Nave 1","Nave 1"],["Nave 2","Nave 2"]],"",v=>o.nave=v))]):null,
