@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008063455">
+<meta name="build" content="20261008065700">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -425,26 +425,27 @@ function editorHorario(h0){const h=JSON.parse(JSON.stringify(h0||{}));const box=
     box.appendChild(el("div",{class:"row",style:"margin-top:6px"},[el("button",{type:"button",class:"btn sec peq",text:"Copiar el lunes de martes a viernes",onclick:()=>{if(!("lunes" in h)){toast("Pon primero el lunes");return;}["martes","miercoles","jueves","viernes"].forEach(d=>h[d]=JSON.parse(JSON.stringify(h.lunes)));pin();}})]));};
   pin();box.val=()=>{for(const d in h)for(const r of h[d]){if(!r[0]||!r[1]||r[0]>=r[1])throw new Error(DIAS_N[d]+": la hora de salida tiene que ser después de la de entrada");}return h;};return box;}
 /* ---------- problemas que se repiten (OT que abren los trabajadores) ---------- */
-const TEMAS=[["Agua / filtraciones",/(agua|filtrac|lluvia|gotera|goteo|charco|humedad|inund|mojad)/],["Aceite",/(aceite|hidraulic|taladrin|grasa)/],["Derrames",/derram/],
-  ["Basura / cubos / sacas",/(basura|cubo|saca|papelera|contenedor|residuo)/],["Viruta / aluminio",/(viruta|aluminio|rebaba|escoria)/],["Fugas",/(fuga|pierde|perdida)/],
-  ["Suciedad / polvo",/(polvo|sucio|sucied|barro|mancha)/],["Roturas / averías",/(roto|rota|rotura|averia|averiad|estropead)/]];
+/* solo cuentan los problemas (cosas que no deberían pasar); el trabajo normal (basuras, fregar, viruta…) no sale aunque lo abran como OT */
+const TEMAS=[["Aceite",/(aceite|hidraulic|taladrin)/],["Derrames",/derram/],["Fugas",/(fuga|pierde|perdida|gotea|goteo)/],
+  ["Agua / filtraciones",/(filtrac|lluvia|gotera|charco|inund|humedad)/],["Roturas / averías",/(roto|rota|rotura|averia|averiad|estropead|no funciona)/]];
 const sinAcento=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const VACIAS=new Set("de la el los las del en por con para y o a al un una se que hay muy mas zona nave".split(" "));
 function temasDe(o){const t=sinAcento(o.titulo+" "+(o.descripcion||""));const r=TEMAS.filter(([,re])=>re.test(t)).map(([n])=>n);
-  if(!r.length){const w=sinAcento(o.titulo).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(x=>x.length>3&&!VACIAS.has(x));if(w.length)r.push(w.slice(0,2).join(" ").replace(/^./,c=>c.toUpperCase()));}
   return r;}
 function problemasRepetidos(O,min){const G={};
   O.filter(o=>o.origen==="rapida"&&!o.habitual_id&&!o.elemento_id).forEach(o=>temasDe(o).forEach(t=>{const g=G[t]=G[t]||{tema:t,n:0,lug:{},ult:"",ots:[],quien:{}};g.n++;g.ots.push(o);
     const l=(o.lugar||"").trim();if(l)g.lug[l]=(g.lug[l]||0)+1;if(o.fecha>g.ult)g.ult=o.fecha;if(o.creado_por_n)g.quien[o.creado_por_n]=1;}));
-  return Object.values(G).filter(g=>g.n>=(min||2)).sort((a,b)=>b.n-a.n||b.ult.localeCompare(a.ult));}
+  return Object.values(G).filter(g=>g.n>=(min||2)).map(g=>Object.assign(g,{zmax:Math.max(0,...Object.values(g.lug))})).sort((a,b)=>b.zmax-a.zmax||b.n-a.n||b.ult.localeCompare(a.ult));}
 const lugTxt=g=>Object.entries(g.lug).sort((a,b)=>b[1]-a[1]).map(([l,n])=>l+(n>1?" ×"+n:"")).join(", ");
+const zonaRep=g=>{const z=Object.entries(g.lug).sort((a,b)=>b[1]-a[1])[0];return z&&z[1]>=2?z:null;};
 function bloqueRepetidos(O,dias){const L=problemasRepetidos(O);
   return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Problemas que se repiten ("+L.length+")"}),el("span",{class:"der sub",text:"OT abiertas por los trabajadores"})]),
     L.length?el("div",null,L.map(g=>el("button",{class:"ot",style:"cursor:pointer;text-align:left;width:100%;border:0;border-bottom:1px solid var(--line);background:none",onclick:()=>listaOTs(g.tema+" · "+g.n+" veces",g.ots,()=>pinta())},[
       el("div",{style:"display:flex;gap:8px;align-items:center"},[el("span",{class:"t",style:"flex:1",text:g.tema}),el("span",{class:"pill "+(g.n>=4?"bad":"warn"),text:g.n+" veces"})]),
+      zonaRep(g)?el("div",{class:"aviso-t",style:"margin:0",text:"⚠ Se repite en el mismo sitio: "+zonaRep(g)[0]+" ("+zonaRep(g)[1]+" veces)"}):null,
       el("div",{class:"meta"},[lugTxt(g)?el("span",{text:"📍 "+lugTxt(g)}):el("span",{text:"Sin sitio apuntado"}),el("span",{text:"Última: "+fCorta(g.ult)}),el("span",{text:"Avisado por "+Object.keys(g.quien).map(n=>n.split(" ")[0]).join(", ")})])]))):
-      el("div",{class:"empty",text:"Nada repetido en estos "+dias+" días."}),
-    L.length?el("p",{class:"hint",style:"padding:6px 14px 10px",text:"Agrupa las OT que abren los trabajadores por tema (agua, aceite, derrames…). Toca uno para ver cada aviso. Útil para pasárselo a mantenimiento."}):null]);}
+      el("div",{class:"empty",text:"Ningún problema repetido en estos "+dias+" días."}),
+    L.length?el("p",{class:"hint",style:"padding:6px 14px 10px",text:"Solo salen los problemas que avisan los trabajadores (aceite, derrames, fugas, agua, roturas), no el trabajo normal como las basuras. Lo más importante: lo que se repite en el mismo sitio. Toca uno para ver cada aviso."}):null]);}
 /* ---------- informe semanal para el jefe: PDF + Excel ---------- */
 async function cargaLib(urls,listo,nom){if(listo())return;for(const u of urls){try{await new Promise((ok,ko)=>{const s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});if(listo())return;}catch(e){}}throw new Error("No se pudo cargar "+nom+". Revisa internet.");}
 const libPDF=async()=>{await cargaLib(["https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"],()=>!!window.jspdf,"el PDF");
@@ -483,7 +484,7 @@ async function hacerPDF(O,X,desde,hasta,pr){await libPDF();const {jsPDF}=window.
   titulo("Por día");tabla(["Día","Trabajos","Hechos","Cumplimiento"],Object.keys(X.D).sort().map(f=>{const d=X.D[f];return[fCorta(f),d.t,d.h,(d.t?Math.round(d.h*100/d.t):0)+" %"];}));
   if(Object.keys(X.T).length){titulo("Tareas fijas");tabla(["Tarea","Veces","Hechas","Tiempo estimado","Tiempo medio real"],Object.keys(X.T).sort().map(k=>{const t=X.T[k];return[k,t.n,t.h,t.est?durTxt(t.est):"-",t.nm?durTxt(t.s/t.nm):"-"];}));}
   if(X.noh.length||X.sin.length){titulo("No se pudieron hacer / quedaron sin hacer");tabla(["Día","Trabajo","Quién","Estado","Motivo / nota"],X.noh.concat(X.sin).sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(o=>[fCorta(o.fecha),o.titulo,quienDe(o).join(", "),(EST[o.estado]||[o.estado])[0],o.nota||""]),{columnStyles:{4:{cellWidth:60}}});}
-  const RP=problemasRepetidos(O);if(RP.length){titulo("Problemas que se repiten");tabla(["Problema","Veces","Dónde","Última vez","Avisado por"],RP.map(g=>[g.tema,g.n,lugTxt(g)||"-",fCorta(g.ult),Object.keys(g.quien).join(", ")]),{columnStyles:{2:{cellWidth:50}}});}
+  const RP=problemasRepetidos(O);if(RP.length){titulo("Problemas que se repiten");tabla(["Problema","Veces","Dónde","Última vez","Avisado por"],RP.map(g=>[g.tema,g.n,(zonaRep(g)?"MISMO SITIO: ":"")+(lugTxt(g)||"-"),fCorta(g.ult),Object.keys(g.quien).join(", ")]),{columnStyles:{2:{cellWidth:50}}});}
   // incidencias con fotos
   titulo("Incidencias abiertas por los trabajadores ("+X.inc.length+")");
   if(!X.inc.length){doc.setFontSize(9);doc.setTextColor(...GR);doc.text("No se abrió ninguna esta semana.",M,y);doc.setTextColor(0);y+=8;}
