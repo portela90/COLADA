@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008204908">
+<meta name="build" content="20261008205929">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -559,7 +559,14 @@ async function hacerXLSX(O,X,desde,hasta){await libXLSX();const wb=XLSX.utils.bo
   {const RP=problemasRepetidos(O);const ws=XLSX.utils.json_to_sheet(RP.length?RP.map(g=>({"Problema":g.tema,"Veces":g.n,"Dónde":lugTxt(g),"Última vez":g.ult,"Avisado por":Object.keys(g.quien).join(", "),"Avisos":g.ots.map(o=>o.fecha+" "+o.titulo).join(" | ")})):[{"Problema":"Nada repetido"}]);
    ws["!cols"]=[{wch:24},{wch:7},{wch:30},{wch:12},{wch:30},{wch:80}];XLSX.utils.book_append_sheet(wb,ws,"Repetidos");}
   return new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});}
-function bajar(blob,nombre){const a=el("a",{href:URL.createObjectURL(blob),download:nombre});document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),60000);}
+function bajar(blob,nombre){
+  /* 1) menú de compartir del móvil (en iPhone: "Guardar en Archivos"); 2) abrir en pestaña nueva; 3) descarga clásica */
+  const f=blob instanceof File?blob:new File([blob],nombre,{type:blob.type});
+  try{if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:nombre}).catch(e=>{if(e.name!=="AbortError")abrirNueva();});return;}}catch(e){}
+  abrirNueva();
+  function abrirNueva(){const u=URL.createObjectURL(f);const w=window.open(u,"_blank");
+    if(!w){const a=el("a",{href:u,download:nombre});document.body.appendChild(a);a.click();a.remove();}
+    setTimeout(()=>URL.revokeObjectURL(u),120000);}}
 async function informe(desde,que){const hasta=sumaD(desde,6);const msg=el("p",{class:"hint",style:"font-size:15px",text:"Leyendo los trabajos…"});const bar=el("div",{class:"bar"},el("i",{style:"width:3%"}));
   const cerrar=dlg("Preparando el informe",el("div",null,[msg,bar]),[]);const pr=(t,p)=>{msg.textContent=t;bar.firstChild.style.width=Math.round(p)+"%";};
   try{const O=await rpc("ots_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta});const X=datosInforme(O);const base="informe-limpieza-semana-"+numSemana(desde)+"-"+desde;
@@ -571,7 +578,7 @@ async function informe(desde,que){const hasta=sumaD(desde,6);const msg=el("p",{c
     if(que==="compartir"){if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:"Informe de limpieza semana "+numSemana(desde),text:"Informe de limpieza del "+fDMA(desde)+" al "+fDMA(hasta)});}catch(e){if(e.name!=="AbortError")toast("No se pudo compartir");}return;}
       toast("Este móvil no deja compartir archivos: se descargan");}
     /* en el móvil la descarga automática después de cargar no siempre funciona: cada archivo se guarda con un toque */
-    dlg("Informe listo",el("div",null,[el("p",{class:"hint",text:"Toca cada archivo para guardarlo en el móvil."})]),
+    dlg("Informe listo",el("div",null,[el("p",{class:"hint",text:"Toca cada archivo: en el móvil se abre el menú para guardarlo (en el iPhone: «Guardar en Archivos»)."})]),
       files.map(f=>({t:"⬇ "+f.name,cls:"ok",fn:()=>{bajar(f,f.name);return false;}})).concat([{t:"Cerrar",cls:"sec"}]));}
   catch(e){cerrar();toast(e.message);}}
 function bloqueInforme(){S.semInf=S.semInf||sumaD(lunesDe(hoyISO()),-7);const lun=S.semInf;const actual=lunesDe(hoyISO());
