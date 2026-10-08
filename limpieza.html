@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008192120">
+<meta name="build" content="20261008193933">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -201,6 +201,7 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.ro
   if(o.estado==="hecha"||o.estado==="no_hecha")acc.push(el("button",{class:"btn sec peq",text:"Reabrir",onclick:()=>{if(confirm("¿Reabrir este trabajo? Se borran la hora de inicio y de fin."))cambia(o,"pendiente",re);}}));
   acc.push(el("button",{class:"btn sec peq",text:"📷"+(o.nfotos?" "+o.nfotos:""),"aria-label":"Fotos",onclick:()=>verFotos(o,re)}));
   if(admin)acc.push(el("button",{class:"btn sec peq",text:sinAsignar(o)?"Asignar":"Editar",onclick:()=>formOT(o,re)}));
+  if(admin&&o.estado!=="hecha")acc.push(el("button",{class:"btn bad peq",text:"🗑 Quitar",onclick:async()=>{if(!confirm("¿Quitar «"+o.titulo+"»? Deja de salir en la lista."))return;try{await rpc("ot_borrar",{p_tok:S.tok,p_ot:o.id});toast("Quitada");re();}catch(e){toast(e.message);}}}));
   else if(puedoEditar(o))acc.push(el("button",{class:"btn sec peq",text:"✏","aria-label":"Corregir o borrar",onclick:()=>editarOT(o,re)}));
   if(puedoTiempo(o))acc.push(el("button",{class:"btn sec peq",text:"⏱","aria-label":"Corregir el tiempo",onclick:()=>corregirTiempo(o,re)}));
   return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
