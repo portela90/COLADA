@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008065700">
+<meta name="build" content="20261008065959">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -122,6 +122,7 @@ video.cam{width:100%;border-radius:12px;background:#000;max-height:60vh}
 .etq .qr{width:120px;height:120px}.etq .qr svg{width:100%;height:100%}.etq b{font-size:14px}.etq span{font-size:12px}.etq small{font-size:10px;color:#555}
 @media print{body>*:not(.printov){display:none!important}.printov{position:static!important;background:none!important;display:block!important}.printov .dlg{max-height:none!important;overflow:visible!important;box-shadow:none;padding:0;border-radius:0}
   .noprint{display:none!important}#printArea{grid-template-columns:repeat(3,1fr);gap:6mm}.etq{border:1px dashed #999}}
+.f input.falta{border-color:var(--bad);box-shadow:0 0 0 2px var(--badbg)}
 </style>
 </head>
 <body>
@@ -318,9 +319,12 @@ async function abrirOT(re){const admin=S.yo.rol==="admin";const o={titulo:"",lug
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
+    if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);lug.focus();lug.classList.add("falta");return false;}
     const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
-  dlg("Abrir OT",el("div",null,[hwrap,fld("¿Qué hay que hacer?",tit),fld("¿Dónde?",lug),dl,lchips,
+  const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
+  tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
+  dlg("Abrir OT",el("div",null,[hwrap,fld("¿Qué hay que hacer?",tit),fLug,dl,lchips,
     fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
     admin?null:fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
     fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
@@ -436,6 +440,8 @@ function problemasRepetidos(O,min){const G={};
   O.filter(o=>o.origen==="rapida"&&!o.habitual_id&&!o.elemento_id).forEach(o=>temasDe(o).forEach(t=>{const g=G[t]=G[t]||{tema:t,n:0,lug:{},ult:"",ots:[],quien:{}};g.n++;g.ots.push(o);
     const l=(o.lugar||"").trim();if(l)g.lug[l]=(g.lug[l]||0)+1;if(o.fecha>g.ult)g.ult=o.fecha;if(o.creado_por_n)g.quien[o.creado_por_n]=1;}));
   return Object.values(G).filter(g=>g.n>=(min||2)).map(g=>Object.assign(g,{zmax:Math.max(0,...Object.values(g.lug))})).sort((a,b)=>b.zmax-a.zmax||b.n-a.n||b.ult.localeCompare(a.ult));}
+const esProblema=(t,d)=>temasDe({titulo:t||"",descripcion:d||""}).length>0;
+const MSG_LUG="Es un problema (aceite, derrame, fuga, agua o rotura): pon dónde es, por ejemplo F30 o Nave 1.";
 const lugTxt=g=>Object.entries(g.lug).sort((a,b)=>b[1]-a[1]).map(([l,n])=>l+(n>1?" ×"+n:"")).join(", ");
 const zonaRep=g=>{const z=Object.entries(g.lug).sort((a,b)=>b[1]-a[1])[0];return z&&z[1]>=2?z:null;};
 function bloqueRepetidos(O,dias){const L=problemasRepetidos(O);
@@ -596,7 +602,7 @@ function editarOT(o,re){if(S.yo.rol==="admin"){formOT(o,re);return;}const x={tit
   dlg("Corregir la OT",el("div",null,[fld("¿Qué hay que hacer?",inp(x.titulo,v=>x.titulo=v)),fld("¿Dónde?",inp(x.lugar,v=>x.lugar=v)),fld("Detalles",area(x.descripcion,v=>x.descripcion=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:x.urgente,onchange:e=>x.urgente=e.target.checked}),"Urgente"])]),
     [{t:"🗑 Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar esta OT? Se quita de la lista."))return false;await rpc("ot_mia_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}},
-     {t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("ot_mia_editar",{p_tok:S.tok,p_ot:o.id,p:x});toast("Corregida");re();}}]);}
+     {t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(esProblema(x.titulo,x.descripcion)&&!(x.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_mia_editar",{p_tok:S.tok,p_ot:o.id,p:x});toast("Corregida");re();}}]);}
 function corregirTiempo(o,re){const w=preguntaTiempo(Object.assign({},o,{minutos_est:o.minutos||o.minutos_est,inicio:null}));
   w.querySelector("b").textContent="¿Cuánto se tardó de verdad?";w.querySelector("p").textContent="Ahora pone "+(o.minutos!=null?durTxt(o.minutos):"sin tiempo")+". Elige el tiempo correcto.";
   dlg("Corregir tiempo · "+o.titulo,w,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!w.val()){toast("Elige el tiempo");return false;}await rpc("tiempo_corregir",{p_tok:S.tok,p_ot:o.id,p_minutos:w.val()});toast("Tiempo corregido: "+durTxt(w.val()));re();}}]);}
@@ -750,7 +756,7 @@ async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habit
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(o.id)bot.push({t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar este trabajo?"))return false;await rpc("ot_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}});
   bot.push({t:"Guardar",fn:async()=>{const p={id:o.id||null,habitual_id:o.habitual_id||null,titulo:o.titulo,lugar:o.lugar,minutos_est:o.minutos_est||null,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
-    if(!p.asignados.length&&!p.todo_equipo){toast("Elige quién lo hace");return false;}await rpc("ot_guardar",{p_tok:S.tok,p});toast("Guardada");re();}});
+    if(!p.asignados.length&&!p.todo_equipo){toast("Elige quién lo hace");return false;}if(!o.id&&esProblema(p.titulo,p.descripcion)&&!(p.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_guardar",{p_tok:S.tok,p});toast("Guardada");re();}});
   cerrarF=dlg(o.id?(sinAsignar(o)?"Asignar trabajo":"Editar trabajo"):"Nuevo trabajo",cuerpo,bot);}
 async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=finde(f)?"Finde":"Semana";const ch=chipsTrab(L,[],false),chC=chipsTrab(L,[],false);
   dlg("Horas extra · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:"Ese día esa persona ve los trabajos de «todo el equipo» que elijas. Si además marcas a quién sustituye, ve también los trabajos de esa persona. Y siempre puedes darle trabajos sueltos con «＋ Darle trabajo»."}),
