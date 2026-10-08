@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008205929">
+<meta name="build" content="20261008212014">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -570,7 +570,7 @@ function bajar(blob,nombre){
 async function informe(desde,que){const hasta=sumaD(desde,6);const msg=el("p",{class:"hint",style:"font-size:15px",text:"Leyendo los trabajos…"});const bar=el("div",{class:"bar"},el("i",{style:"width:3%"}));
   const cerrar=dlg("Preparando el informe",el("div",null,[msg,bar]),[]);const pr=(t,p)=>{msg.textContent=t;bar.firstChild.style.width=Math.round(p)+"%";};
   try{const O=await rpc("ots_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta});const X=datosInforme(O);const base="informe-limpieza-semana-"+numSemana(desde)+"-"+desde;
-    if(!O.length){cerrar();toast("No hay trabajos esa semana");return;}
+    if(!O.length){cerrar();dlg("Sin trabajos esa semana",el("p",{class:"hint",style:"font-size:15px",text:"Esa semana no tiene trabajos. Usa las flechas ◀ ▶ del informe para elegir otra semana. Los datos empiezan el 05/10."}),[{t:"Cerrar",cls:"sec"}]);return;}
     const files=[];
     if(que!=="xlsx"){pr("Montando el PDF…",15);files.push(new File([await hacerPDF(O,X,desde,hasta,pr)],base+".pdf",{type:"application/pdf"}));}
     if(que!=="pdf"){pr("Montando el Excel…",90);files.push(new File([await hacerXLSX(O,X,desde,hasta)],base+".xlsx",{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));}
@@ -580,7 +580,7 @@ async function informe(desde,que){const hasta=sumaD(desde,6);const msg=el("p",{c
     /* en el móvil la descarga automática después de cargar no siempre funciona: cada archivo se guarda con un toque */
     dlg("Informe listo",el("div",null,[el("p",{class:"hint",text:"Toca cada archivo: en el móvil se abre el menú para guardarlo (en el iPhone: «Guardar en Archivos»)."})]),
       files.map(f=>({t:"⬇ "+f.name,cls:"ok",fn:()=>{bajar(f,f.name);return false;}})).concat([{t:"Cerrar",cls:"sec"}]));}
-  catch(e){cerrar();toast(e.message);}}
+  catch(e){cerrar();dlg("No se pudo hacer el informe",el("p",{class:"hint",style:"font-size:15px",text:String(e.message||e)}),[{t:"Cerrar",cls:"sec"}]);}}
 function bloqueInforme(){S.semInf=S.semInf||sumaD(lunesDe(hoyISO()),-7);const lun=S.semInf;const actual=lunesDe(hoyISO());
   const comp=!!(navigator.canShare&&window.File&&(()=>{try{return navigator.canShare({files:[new File(["x"],"x.pdf",{type:"application/pdf"})]});}catch(e){return false;}})());
   return el("div",{class:"card",id:"informe"},[el("div",{class:"hd"},el("h2",{text:"Informe semanal para el jefe"})),el("div",{class:"bd"},[
