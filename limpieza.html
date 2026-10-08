@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008065959">
+<meta name="build" content="20261008073525">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -304,8 +304,24 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:admin&&hayFiltro()?"Nada con este filtro.":D.length?"Nada pendiente 👍":"No hay trabajos para este día."})]));
   if(hechas.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Terminadas ("+hechas.length+")"})),hechas.map(o=>tarjeta(o,re))]));}
 /* abrir OT: pensado para el móvil, 3 toques. Con las tareas habituales arriba para no escribir */
+/* ---------- zonas (lista desplegable de «Dónde») ---------- */
+let ZONAS=null;async function zonasL(force){if(!ZONAS||force){try{ZONAS=await rpc("zonas",{p_tok:S.tok});}catch(e){ZONAS=ZONAS||[];}}return ZONAS;}
+const GRUPOS_Z=[["Inyectoras","Inyectoras"],["Moldes","Moldes"],["Otras","Otras zonas"]];
+function selZona(v,on){const s=el("select",{class:"zsel"});s.appendChild(el("option",{value:"",text:"— Elige una zona —"}));
+  GRUPOS_Z.forEach(([g,t])=>{const L=(ZONAS||[]).filter(z=>z.grupo===g);if(!L.length)return;const og=el("optgroup",{label:t});L.forEach(z=>og.appendChild(el("option",{value:z.nombre,text:z.nombre})));s.appendChild(og);});
+  s.value=(ZONAS||[]).some(z=>z.nombre===v)?v:"";s.onchange=()=>on(s.value);return s;}
+function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder:"p. ej. F68 o M12",enterkeyhint:"done"});const lista=el("div");
+  const pintaL=()=>{lista.textContent="";if(!(ZONAS||[]).length){lista.appendChild(el("p",{class:"hint",text:"Aún no hay zonas."}));return;}
+    GRUPOS_Z.forEach(([g,t])=>{const L=ZONAS.filter(z=>z.grupo===g);if(!L.length)return;lista.appendChild(el("div",{class:"hint",style:"margin:8px 0 2px;font-weight:600",text:t+" ("+L.length+")"}));
+      L.forEach(z=>lista.appendChild(el("div",{class:"linea"},[el("span",{style:"flex:1",text:z.nombre}),el("button",{class:"btn sec peq",text:"Quitar",onclick:async()=>{if(!confirm("¿Quitar «"+z.nombre+"» de la lista?"))return;try{await rpc("zona_borrar",{p_tok:S.tok,p_id:z.id});await zonasL(true);pintaL();toast("Quitada");}catch(e){toast(e.message);}}})])));});};
+  pintaL();
+  const add=async()=>{const n=nom.value.trim();if(!n){toast("Escribe el nombre de la zona");nom.focus();return;}
+    try{await rpc("zona_guardar",{p_tok:S.tok,p:{nombre:n,grupo:G}});nom.value="";await zonasL(true);pintaL();toast("Añadida");}catch(e){toast(e.message);}};
+  return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Zonas (salen en «Dónde»)"}),el("span",{class:"der sub",text:(ZONAS||[]).length+" zonas"})]),
+    el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
+      el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+async function abrirOT(re){await zonasL();const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…",list:"lugares-dl"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
@@ -324,7 +340,9 @@ async function abrirOT(re){const admin=S.yo.rol==="admin";const o={titulo:"",lug
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
-  dlg("Abrir OT",el("div",null,[hwrap,fld("¿Qué hay que hacer?",tit),fLug,dl,lchips,
+  const zsel=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lug.value=z;pl();marcaLug();});lug.addEventListener("input",()=>{zsel.value=(ZONAS||[]).some(z=>z.nombre===lug.value)?lug.value:"";});
+  const fZ=fld("Zona (elige de la lista)",zsel);
+  dlg("Abrir OT",el("div",null,[hwrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,dl,lchips,
     fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
     admin?null:fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
     fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
@@ -745,11 +763,13 @@ function bloqueCopia(){const box=el("div",{class:"card"},[el("div",{class:"hd"},
 
 let TRAB=null;async function trabajadores(force){if(!TRAB||force)TRAB=await rpc("trabajadores_admin",{p_tok:S.tok});return TRAB;}
 function chipsTrab(L,sel0,multi){const s=new Set(sel0||[]);const box=el("div",{class:"chips"});const pint=()=>{box.textContent="";L.filter(w=>w.activo).forEach(w=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(s.has(w.id)),text:w.nombre,onclick:()=>{if(s.has(w.id))s.delete(w.id);else{if(!multi)s.clear();s.add(w.id);}pint();}})));};pint();box.val=()=>Array.from(s);return box;}
-async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habituales()]);const o=Object.assign({fecha:hoyISO(),equipo:"Semana",prioridad:"normal",asignados:[],todo_equipo:false},o0);
+async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habituales(),zonasL()]);const o=Object.assign({fecha:hoyISO(),equipo:"Semana",prioridad:"normal",asignados:[],todo_equipo:false},o0);
   const ch=chipsTrab(L,o.asignados,true);
   let cerrarF=()=>{};const hab=!o.id&&H.some(h=>h.activo)?fld("Rellenar con una tarea habitual",el("div",{class:"chips hab"},H.filter(h=>h.activo).map(h=>el("button",{type:"button",class:"chip","aria-pressed":String(o.habitual_id===h.id),text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):""),
     onclick:()=>{cerrarF();formOT(Object.assign({},o,{titulo:h.titulo,lugar:h.lugar||o.lugar,descripcion:h.descripcion||o.descripcion,minutos_est:h.minutos_est,habitual_id:h.id,asignados:ch.val()}),re);}})))):null;
-  const cuerpo=el("div",null,[hab,fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Dónde",inp(o.lugar,v=>o.lugar=v,{placeholder:"p. ej. F28, pasillo Nave 2…"})),fld("Tiempo estimado (opcional)",campoTiempo(o.minutos_est,v=>o.minutos_est=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
+  const lugF=inp(o.lugar,v=>{o.lugar=v;zsF.value=(ZONAS||[]).some(z=>z.nombre===v)?v:"";},{placeholder:"p. ej. F28, pasillo Nave 2…"});
+  const zsF=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lugF.value=z;});
+  const cuerpo=el("div",null,[hab,fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Zona (elige de la lista)",zsF),fld("Dónde (o escríbelo)",lugF),fld("Tiempo estimado (opcional)",campoTiempo(o.minutos_est,v=>o.minutos_est=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
     el("div",{class:"row"},[fld("Fecha",inp(o.fecha,v=>o.fecha=v,{type:"date"})),fld("Equipo",sel([["Semana","Semana"],["Finde","Finde"]],o.equipo,v=>o.equipo=v))]),
     el("div",{class:"row"},[fld("Turno",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),o.turno,v=>o.turno=v)),fld("Prioridad",sel([["normal","Normal"],["alta","Urgente"]],o.prioridad,v=>o.prioridad=v))]),
     fld("Quién lo hace",ch),el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 10px"},[el("input",{type:"checkbox",checked:o.todo_equipo,onchange:e=>o.todo_equipo=e.target.checked}),"Lo ve todo el equipo"])]);
@@ -768,7 +788,7 @@ async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=fin
 async function vTareas(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("p",{class:"hint",text:"Tareas fijas: se convierten solas en trabajos cada día que les toca («Todos» = de lunes a viernes en Semana, sábado y domingo en Finde). Tareas habituales: no tienen día; salen como botón al abrir una OT."}));
   v.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Nueva tarea fija",onclick:()=>formTarea({},()=>pinta())}),el("button",{class:"btn sec",text:"＋ Nueva tarea habitual",onclick:()=>formHabitual({},()=>pinta())})]));v.appendChild(box);
   v.insertBefore(await bloqueElementos(()=>pinta()),box);
-  try{const [T,H]=await Promise.all([rpc("tareas",{p_tok:S.tok}),habituales(true)]);box.textContent="";
+  try{const [T,H]=await Promise.all([rpc("tareas",{p_tok:S.tok}),habituales(true),zonasL(true)]);box.textContent="";box.appendChild(zonasCard());
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Tareas habituales ("+H.length+")"}),el("span",{class:"der sub",text:"sin día fijo"})]),H.length?H.map(h=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formHabitual(h,()=>pinta())},[el("div",{class:"t",text:h.titulo+(h.activo?"":" (no activa)")}),h.descripcion?el("div",{class:"d",text:h.descripcion}):null,
       el("div",{class:"meta"},[h.minutos_est?el("span",{class:"pill info",text:"⏳ "+durTxt(h.minutos_est)}):el("span",{class:"pill warn",text:"Sin tiempo estimado"}),h.lugar?el("span",{text:"📍 "+h.lugar}):null,el("span",{text:h.veces?"Hecha "+h.veces+" "+(h.veces>1?"veces":"vez")+" en 3 meses":"Aún no se ha usado"})])])):el("div",{class:"empty",text:"Pon aquí las tareas que se hacen a menudo pero sin día fijo (vaciar un contenedor, limpiar un derrame…). Salen como botón al abrir una OT y llevan su tiempo."})]));["Semana","Finde"].forEach(eq=>{const X=T.filter(t=>t.equipo===eq);
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:eq+" ("+X.length+")"})),X.length?X.map(t=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTarea(t,()=>pinta())},[el("div",{class:"t",text:t.titulo+(t.activo?"":" (pausada)")}),t.descripcion?el("div",{class:"d",text:t.descripcion}):null,
