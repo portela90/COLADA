@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008073525">
+<meta name="build" content="20261008083023">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -249,7 +249,7 @@ function terminar(o,re){const usaCk=CHECKLIST_ACTIVA;const preg=medido(o)?null:p
   const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)]))):null,
     conFin?el("div",null,[el("b",{text:"Material al terminar"}),el("div",{class:"chk"},CHECK_FIN.map(k=>el("div",{class:"it"},[el("span",{text:k}),segOK(fin[k],v=>fin[k]=v)])))]):null,
     fld("Nota (opcional)",area("",x=>nota=x)),
-    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;const d=await comprime(f);fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]);
+    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]);
   dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{if(preg&&!preg.val()){toast("Marca cuánto has tardado");return false;}const falta=usaCk?CHECK.filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
     if(conFin&&CHECK_FIN.some(k=>!fin[k])){toast("Falta marcar el material");return false;}
     if(usaCk)await rpc("checklist_ot",{p_tok:S.tok,p_ot:o.id,p_check:ck,p_final:conFin?fin:null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
@@ -257,7 +257,7 @@ function terminar(o,re){const usaCk=CHECKLIST_ACTIVA;const preg=medido(o)?null:p
     else await cambia(o,"hecha",re,nota.trim());}}]);}
 function comprime(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const M=1100,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);/* ~150 KB por foto: se ve bien en el móvil y la base dura unas 3 veces más */let q=.62,d=c.toDataURL("image/jpeg",q);while(d.length>220000&&q>.32){q-=.08;d=c.toDataURL("image/jpeg",q);}if(d.length>220000){const c2=document.createElement("canvas");c2.width=Math.round(c.width*.75);c2.height=Math.round(c.height*.75);c2.getContext("2d").drawImage(c,0,0,c2.width,c2.height);d=c2.toDataURL("image/jpeg",.55);}ok(d);};im.onerror=ko;im.src=r.result;};r.onerror=ko;r.readAsDataURL(f);});}
 async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class:"empty",text:"Cargando…"}));
-  const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
+  const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
   const carga=async()=>{try{const L=await rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id});box.textContent="";if(!L.length)box.appendChild(el("p",{class:"hint",text:"Sin fotos todavía."}));L.forEach(x=>box.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))));}catch(e){box.textContent=e.message;}};
   dlg("Fotos · "+o.titulo,el("div",null,[box,add]));carga();}
 
@@ -346,7 +346,7 @@ async function abrirOT(re){await zonasL();const admin=S.yo.rol==="admin";const o
     fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
     admin?null:fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>o.yo=x)),
     fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
-    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;const d=await comprime(f);fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
+    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
     [{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
 /* tareas habituales: no tienen día fijo, pero se hacen a menudo */
@@ -671,7 +671,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
 function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
   let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});
   dlg("Limpio: "+e.nombre,el("div",null,[w,fld("Nota (opcional)",area("",x=>nota=x)),
-    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async ev=>{const f=ev.target.files[0];if(!f)return;const d=await comprime(f);fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
+    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async ev=>{const f=ev.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
     [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}
       const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
