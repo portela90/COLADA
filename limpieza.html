@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008092310">
+<meta name="build" content="20261008163505">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -244,13 +244,17 @@ function preguntaTiempo(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,30,
   otro.oninput=()=>{const n=parseInt(otro.value,10);val=n>0?n:null;box.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));};pin();
   const w=el("div",{class:"tpreg"},[el("b",{text:"¿Cuánto has tardado?"}),el("p",{class:"hint",style:"margin:2px 0 8px",text:(o.inicio&&!o.tiempo_auto?"Has pulsado «Empezar» y «Terminar» casi a la vez.":"No pulsaste «Empezar».")+(o.minutos_est?" Viene marcado el tiempo normal de esta tarea (★); cámbialo si has tardado más o menos.":" Toca el tiempo que más se parezca.")}),box]);
   w.val=()=>val;return w;}
-function terminar(o,re){const usaCk=CHECKLIST_ACTIVA;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
+/* checklist editable (hornos mantenedores): se pueden quitar o añadir puntos en cada limpieza */
+function puntosEd(pts,ck){const box=el("div",{class:"chk"});const dib=()=>{box.textContent="";pts.forEach((k,i)=>box.appendChild(el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v),el("button",{type:"button",class:"btn sec peq",text:"✕",onclick:()=>{delete ck[k];pts.splice(i,1);dib();}})])));};dib();
+  const add=el("input",{type:"text",placeholder:"Añadir un punto…"});
+  return el("div",null,[box,el("div",{class:"row"},[add,el("button",{type:"button",class:"btn sec peq",text:"＋ Añadir",onclick:()=>{const v=add.value.trim();if(!v||pts.includes(v))return;pts.push(v);add.value="";dib();}})])]);}
+function terminar(o,re){const pts=(o.puntos&&o.puntos.length)?o.puntos.slice():null;const usaCk=CHECKLIST_ACTIVA||!!pts;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
   const fbox=el("div",{class:"fotos"});
-  const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)]))):null,
+  const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?(pts?puntosEd(pts,ck):el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)])))):null,
     conFin?el("div",null,[el("b",{text:"Material al terminar"}),el("div",{class:"chk"},CHECK_FIN.map(k=>el("div",{class:"it"},[el("span",{text:k}),segOK(fin[k],v=>fin[k]=v)])))]):null,
     fld("Nota (opcional)",area("",x=>nota=x)),
     el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]);
-  dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{if(preg&&!preg.val()){toast("Marca cuánto has tardado");return false;}const falta=usaCk?CHECK.filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
+  dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{if(preg&&!preg.val()){toast("Marca cuánto has tardado");return false;}const falta=usaCk?(pts||CHECK).filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
     if(conFin&&CHECK_FIN.some(k=>!fin[k])){toast("Falta marcar el material");return false;}
     if(usaCk)await rpc("checklist_ot",{p_tok:S.tok,p_ot:o.id,p_check:ck,p_final:conFin?fin:null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
     if(preg){try{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:preg.val(),p_nota:nota.trim()||null});toast("Hecha · "+durTxt(preg.val()));re();}catch(er){toast(er.message);}}
@@ -661,7 +665,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
   const hist=(e.historial||[]).length?el("ol",{class:"hist"},e.historial.map(h=>el("li",null,[el("b",{text:fCorta(diaDe(h.fin))+" "+hora(h.fin)}),
     " · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
   const bots=[];
-  if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(e.abierta,()=>{fichaElemento(e.codigo,re);re();}),0);}});
+  if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
   else{bots.push({t:"▶ Empezar",fn:async()=>{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false});toast("Empezado: cuando acabes, vuelve a escanear y pulsa «Terminar»");re();}});
     bots.push({t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
   if(S.yo.rol==="admin")bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
@@ -671,11 +675,12 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     e.abierta?el("div",{class:"aviso"},["Limpieza empezada a las "+hora(e.abierta.inicio),el("small",{text:"Cuando acabes pulsa «✔ Terminar limpieza»."})]):null,
     el("h4",{text:"Últimas limpiezas"}),hist]),bots);}
 function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
-  let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});
-  dlg("Limpio: "+e.nombre,el("div",null,[w,fld("Nota (opcional)",area("",x=>nota=x)),
+  let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});const pts=(e.puntos&&e.puntos.length)?e.puntos.slice():null;const ck={};
+  dlg("Limpio: "+e.nombre,el("div",null,[w,pts?el("div",null,[el("b",{text:"Puntos de la limpieza (quita o añade los que hagan falta)"}),puntosEd(pts,ck)]):null,fld("Nota (opcional)",area("",x=>nota=x)),
     el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async ev=>{const f=ev.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
     [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}
-      const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
+      if(pts&&pts.some(k=>!ck[k])){toast("Falta marcar: "+pts.find(k=>!ck[k]));return false;}
+      const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null,p_checks:pts?Object.fromEntries(pts.map(k=>[k,ck[k]])):null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
 /* administración */
 function sigCodigo(tipo,L){const pre={molde:"M",horno:"H",contenedor:"C",otro:"X"}[tipo]+"-";let n=1;const usados=new Set((L||[]).map(e=>e.codigo));while(usados.has(pre+n))n++;return pre+n;}
@@ -685,9 +690,9 @@ function formElemento(e0,re){const e=Object.assign({tipo:"horno",activo:true},JS
   const fb=el("div",{class:"chips"});const pf=()=>{fb.textContent="";[[null,"Sin fijar"],[1,"Cada día"],[7,"Semanal"],[14,"Cada 2 semanas"],[30,"Mensual"]].forEach(([k,t])=>fb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String((e.frecuencia_dias||null)===k),text:t,onclick:()=>{e.frecuencia_dias=k;pf();}})));};pf();
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(e.id)bot.unshift({t:"🗑 Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar "+e.nombre+"? Su historial de limpiezas se conserva."))return false;await rpc("elemento_borrar",{p_tok:S.tok,p_id:e.id});ELS=null;toast("Borrado");re();}});
-  bot.push({t:"Guardar",fn:async()=>{if(!(e.nombre||"").trim()){toast("Pon el nombre");return false;}const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{id:e.id||null,tipo:e.tipo,codigo:e.codigo,nombre:e.nombre,lugar:e.lugar,frecuencia_dias:e.frecuencia_dias||null,minutos_est:e.minutos_est||null,activo:e.activo}});ELS=null;toast("Guardado · código "+r.codigo);re();}});
+  bot.push({t:"Guardar",fn:async()=>{if(!(e.nombre||"").trim()){toast("Pon el nombre");return false;}const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{id:e.id||null,tipo:e.tipo,codigo:e.codigo,nombre:e.nombre,lugar:e.lugar,frecuencia_dias:e.frecuencia_dias||null,minutos_est:e.minutos_est||null,activo:e.activo,puntos:e.puntos||[]}});ELS=null;toast("Guardado · código "+r.codigo);re();}});
   dlg(e.id?"Editar "+e.nombre:"Nuevo molde u horno mantenedor",el("div",null,[fld("Tipo",tb),el("div",{class:"row"},[fld("Código (va en el QR)",cod),fld("Nombre",inp(e.nombre,v=>e.nombre=v,{placeholder:"p. ej. Horno mantenedor F28"}))]),
-    fld("Dónde está (opcional)",inp(e.lugar,v=>e.lugar=v,{placeholder:"p. ej. Nave 2"})),fld("Cada cuánto hay que limpiarlo",fb),fld("Tiempo que lleva limpiarlo",campoTiempo(e.minutos_est,v=>e.minutos_est=v)),
+    fld("Dónde está (opcional)",inp(e.lugar,v=>e.lugar=v,{placeholder:"p. ej. Nave 2"})),fld("Cada cuánto hay que limpiarlo",fb),fld("Tiempo que lleva limpiarlo",campoTiempo(e.minutos_est,v=>e.minutos_est=v)),fld("Puntos de la checklist (uno por línea; los puedes cambiar al limpiar)",area((e.puntos||[]).join("\n"),v=>e.puntos=v.split("\n").map(x=>x.trim()).filter(Boolean))),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:e.activo,onchange:ev=>e.activo=ev.target.checked}),"Activo"])]),bot);}
 function variosElementos(re){let tipo="horno",txt="";const tb=el("div",{class:"seg sel"});const pt=()=>{tb.textContent="";TIPOS_EL.forEach(([k,t,i])=>tb.appendChild(el("button",{type:"button","aria-pressed":String(tipo===k),text:i+" "+t,onclick:()=>{tipo=k;pt();}})));};pt();
   dlg("Añadir varios de golpe",el("div",null,[fld("Tipo",tb),fld("Uno por línea",area("",v=>txt=v)),el("p",{class:"hint",text:"Escribe solo el nombre (p. ej. «Horno mantenedor F28») y el código se pone solo. Si quieres un código concreto, ponlo delante con punto y coma: «M-120; Molde tapa 120»."})]),
