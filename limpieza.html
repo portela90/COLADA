@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008202146">
+<meta name="build" content="20261008204908">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -570,7 +570,9 @@ async function informe(desde,que){const hasta=sumaD(desde,6);const msg=el("p",{c
     cerrar();
     if(que==="compartir"){if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:"Informe de limpieza semana "+numSemana(desde),text:"Informe de limpieza del "+fDMA(desde)+" al "+fDMA(hasta)});}catch(e){if(e.name!=="AbortError")toast("No se pudo compartir");}return;}
       toast("Este móvil no deja compartir archivos: se descargan");}
-    files.forEach((f,i)=>setTimeout(()=>bajar(f,f.name),i*700));toast(files.length>1?"Descargando PDF y Excel":"Descargando");}
+    /* en el móvil la descarga automática después de cargar no siempre funciona: cada archivo se guarda con un toque */
+    dlg("Informe listo",el("div",null,[el("p",{class:"hint",text:"Toca cada archivo para guardarlo en el móvil."})]),
+      files.map(f=>({t:"⬇ "+f.name,cls:"ok",fn:()=>{bajar(f,f.name);return false;}})).concat([{t:"Cerrar",cls:"sec"}]));}
   catch(e){cerrar();toast(e.message);}}
 function bloqueInforme(){S.semInf=S.semInf||sumaD(lunesDe(hoyISO()),-7);const lun=S.semInf;const actual=lunesDe(hoyISO());
   const comp=!!(navigator.canShare&&window.File&&(()=>{try{return navigator.canShare({files:[new File(["x"],"x.pdf",{type:"application/pdf"})]});}catch(e){return false;}})());
