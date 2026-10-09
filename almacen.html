@@ -1973,6 +1973,40 @@ async function excelInforme(desde,hasta){try{await cargarXLSX();const X=window.X
   await downloads.save({filename:"Consumo_pistones_"+desde+(desde!==hasta?"_a_"+hasta:"")+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");
 }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}}
 
+/* ===== INFORMES DE CONSUMO POR PERSONA (aceites, taladrinas y consumibles; los pistones tienen su informe) ===== */
+const PERS_INF=[{k:"marta",nom:"Marta"},{k:"beatriz",nom:"Beatriz"}];
+const persInf=k=>PERS_INF.find(p=>p.k===k)||{k,nom:k};
+const artsDe=k=>artsActivos().filter(a=>a.inf===k&&a.fam!=="piston");
+function formInfArts(){const cont=el("div",{class:"lst"});
+  const pinta=()=>{cont.textContent="";
+    cat.articulos.filter(a=>a.activo!==false&&a.fam!=="piston").sort((a,b)=>a.desc.localeCompare(b.desc,"es",{numeric:true})).forEach(a=>cont.appendChild(el("div",{class:"it",style:"display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap"},[
+      el("span",{style:"flex:1;min-width:160px",text:a.desc}),
+      el("div",{style:"display:flex;gap:6px"},PERS_INF.map(p=>el("button",{type:"button",class:"chip","aria-pressed":String(a.inf===p.k),text:p.nom,onclick:async()=>{a.inf=a.inf===p.k?"":p.k;try{await saveCat();}catch(e){toast("No se pudo guardar");}pinta();}})))])));};
+  pinta();
+  dlg("Qué lleva cada persona",[el("p",{class:"hint",text:"Toca el nombre para marcar el producto; si lo tocas otra vez se quita. Los pistones van en su informe de pistones."}),cont],[{t:"Cerrar",cls:"sec"}]);}
+function textoInfPers(k,desde,hasta){const set=new Set(artsDe(k).map(a=>a.id));const en=f=>f>=desde&&f<=hasta;
+  const movs=todosMov().filter(m=>m.tipo==="salida"&&en(m.f)&&set.has(m.art)).sort((a,b)=>(a.f+"|"+a.ts).localeCompare(b.f+"|"+b.ts));
+  if(!movs.length)return "Sin consumos en este periodo.";
+  const nomA=id=>{const a=cat.articulos.find(x=>x.id===id);return a?a.desc:id;};const udA=id=>{const a=cat.articulos.find(x=>x.id===id);return a&&a.ud||"";};
+  const tot={};movs.forEach(m=>{tot[m.art]=(tot[m.art]||0)+(+m.cant||0);});
+  const L=["RESUMEN"];Object.keys(tot).forEach(id=>L.push("- "+nomA(id)+": "+fmtN(tot[id])+" "+udA(id)));
+  L.push("","DETALLE");movs.forEach(m=>L.push(fmtF(m.f)+" · "+nomA(m.art)+" · "+fmtN(+m.cant||0)+" "+udA(m.art)+(m.nota?" · "+m.nota:"")));
+  return L.join("\n");}
+function informePersona(k){const P=persInf(k),aj=cat.ajustes||{};const ult=(aj.ultInfPers||{})[k]||"";const hy=hoy();
+  const f={desde:ult&&ult<hy?sumaDias(ult,1):hy,hasta:hy};
+  const ta=el("textarea",{readonly:true,style:"min-height:260px;font-family:'IBM Plex Mono',monospace;font-size:12.5px"});
+  const mail=el("a",{class:"btn",target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por correo a "+P.nom});
+  const pinta=()=>{if(f.desde>f.hasta)f.desde=f.hasta;const t=textoInfPers(k,f.desde,f.hasta);ta.value=t;
+    const per=f.desde===f.hasta?fmtF(f.desde):fmtF(f.desde)+" al "+fmtF(f.hasta);
+    mail.href="mailto:?subject="+encodeURIComponent("Consumo de materiales MAPRI · "+per)+"&body="+encodeURIComponent("Hola "+P.nom+",\n\nTe paso el consumo de "+per+".\n\n"+t+"\n\nUn saludo.");};
+  pinta();
+  const acts=[{t:"Copiar",cls:"sec",fn:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Informe copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}return false;}},
+    {t:"Marcar como enviado",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{ultInfPers:Object.assign({},(cat.ajustes||{}).ultInfPers||{},{[k]:f.hasta})});try{await saveCat();toast("Informado hasta el "+fmtF(f.hasta));}catch(e){return false;}render(true);}},
+    {t:"Cerrar",cls:"sec"}];
+  dlg("Informe para "+P.nom,[el("p",{class:"hint",text:ult?"Último informe enviado: hasta el "+fmtF(ult)+". Por defecto empieza el día siguiente para no dejar huecos ni repetir.":"Es el primer informe: elige desde qué día."}),
+    el("div",{class:"row"},[fld("Desde",inp("ipPD",f.desde,v=>{f.desde=v;pinta();},{type:"date"})),fld("Hasta",inp("ipPH",f.hasta,v=>{f.hasta=v;pinta();},{type:"date"}))]),
+    ta,mail,el("p",{class:"hint",text:"«Enviar por correo» abre tu correo con el informe escrito; pon tú la dirección de "+P.nom+"."})],acts);}
+
 /* ===== INVENTARIO ===== */
 function formInventario(pre){const f=Object.assign({f:hoy(),alm:(cat.almacenes[0]||{}).id||"",fam:"",c:{}},pre||{});const tb=el("tbody");const res=el("p",{class:"hint"});
   const lista=()=>artsActivos().filter(a=>(!f.fam||a.fam===f.fam)&&(f.todo||almsDe(a).some(l=>l.id===f.alm))).sort((a,b)=>(a.ubic||"~").localeCompare(b.ubic||"~","es",{numeric:true})||a.desc.localeCompare(b.desc,"es",{numeric:true}));
@@ -2654,6 +2688,8 @@ function vCat(v){
     el("div",{class:"bd"},el("dl",{class:"kpis"},[el("div",{},[el("dt",{text:"Responsable de pedidos"}),el("dd",{style:"font-size:15px",text:aj.resp||"—"})]),el("div",{},[el("dt",{text:"Correo"}),el("dd",{style:"font-size:15px;overflow-wrap:anywhere",text:aj.email||"—"})])]))]));
   {const D=destPist();v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Informe de pistones"}),el("button",{type:"button",class:"btn sec peq der",text:"Editar",onclick:()=>formDestPist()})]),
     el("div",{class:"bd"},el("dl",{class:"kpis"},[el("div",{},[el("dt",{text:"Se envía a"}),el("dd",{style:"font-size:15px",text:D.nom})]),el("div",{},[el("dt",{text:"Correo"}),el("dd",{style:"font-size:15px;overflow-wrap:anywhere",text:D.email||"—"})])]))]));}
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Informes de consumo por persona"}),el("button",{type:"button",class:"btn sec peq der",text:"Qué lleva cada uno",onclick:formInfArts})]),
+    el("div",{class:"bd"},[el("p",{class:"hint",text:PERS_INF.map(p=>p.nom+": "+artsDe(p.k).length+" productos").join(" · ")+". Los pistones van en su informe de pistones."}),el("div",{class:"acciones"},PERS_INF.map(p=>el("button",{type:"button",class:"btn sec",text:"Informe para "+p.nom,onclick:()=>informePersona(p.k)})))])]));
   const sec=(tit,items,add)=>el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:tit+" ("+items.length+")"}),el("button",{type:"button",class:"btn sec peq der",text:"Añadir",onclick:add})]),
     items.length?el("div",{class:"lst"},items):el("div",{class:"empty",text:"Vacío."})]);
   const arts=cat.articulos.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)||a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
