@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009125712">
+<meta name="build" content="20261009130301">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -249,7 +249,15 @@ function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map
 const CHECKLIST_ACTIVA=false; /* desactivada hasta definir la checklist de inyectoras de fin de semana */
 /* ¿hay un tiempo medido de verdad? (pulsó «Empezar» hace al menos 2 minutos) */
 const medido=o=>!!(o.inicio&&!o.tiempo_auto&&desde(o.inicio)>=2);
-function preguntaTiempo(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,30,45,60,90,120];if(val&&!OPC.includes(val)){OPC.push(val);OPC.sort((a,b)=>a-b);}
+/* al terminar: si la tarea tiene tiempo normal, primero solo se pregunta «¿Sí o no?»; las opciones de minutos salen solo si dicen que no */
+function preguntaTiempo(o){const av=preguntaTiempoAv(o);if(!o.minutos_est)return av;
+  let modo=null;const marca=(a,b)=>{a.setAttribute("aria-pressed","true");b.setAttribute("aria-pressed","false");};
+  const si=el("button",{type:"button",class:"btn ok",text:"✔ Sí, "+durTxt(o.minutos_est),"aria-pressed":"false",onclick:()=>{modo="si";av.hidden=true;marca(si,no);}});
+  const no=el("button",{type:"button",class:"btn sec",text:"✏ No, he tardado distinto","aria-pressed":"false",onclick:()=>{modo="no";av.hidden=false;marca(no,si);}});
+  av.hidden=true;av.firstChild.hidden=true;/* sin el título repetido */
+  const w=el("div",{class:"tpreg"},[el("b",{text:"¿Cuánto has tardado?"}),el("p",{class:"hint",style:"margin:2px 0 8px",text:"Esta tarea suele tardar "+durTxt(o.minutos_est)+". ¿Has tardado eso?"}),el("div",{class:"row"},[si,no]),av]);
+  w.val=()=>modo==="si"?o.minutos_est:(modo==="no"?av.val():null);return w;}
+function preguntaTiempoAv(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,30,45,60,90,120];if(val&&!OPC.includes(val)){OPC.push(val);OPC.sort((a,b)=>a-b);}
   const box=el("div",{class:"chips tmp"});const otro=el("input",{type:"number",inputmode:"numeric",min:"1",max:"720",placeholder:"otro",class:"otro","aria-label":"Otros minutos"});
   const pin=()=>{box.textContent="";OPC.forEach(m=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(val===m),text:durTxt(m)+(m===o.minutos_est?" ★":""),onclick:()=>{val=m;otro.value="";pin();}})));box.appendChild(otro);};
   otro.oninput=()=>{const n=parseInt(otro.value,10);val=n>0?n:null;box.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));};pin();
