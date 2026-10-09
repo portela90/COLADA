@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009120156">
+<meta name="build" content="20261009122259">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -341,10 +341,13 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   rpc("lugares",{p_tok:S.tok}).then(L=>{LUG=L;L.forEach(x=>dl.appendChild(el("option",{value:x})));pl();}).catch(()=>{});
   const selH=el("select",null,[el("option",{value:"",text:"— Elige el horno —"})].concat((ELS||[]).filter(x=>x.tipo==="horno"&&x.activo&&!x.borrado).sort(ordEl).map(x=>el("option",{value:x.id,text:x.codigo+" · "+x.nombre}))));
   selH.onchange=()=>{o.elemento_id=selH.value||null;};const hornoWrap=fld("¿Qué horno se limpia?",selH);hornoWrap.hidden=true;
-  const hbox=el("div",{class:"chips hab"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=el("div",{class:"f",hidden:true},[el("span",{text:"Tareas habituales (toca una y no tienes que escribir)"}),hbox,hinfo]);
-  const ph=()=>{hbox.textContent="";(HAB||[]).filter(h=>h.activo).forEach(h=>hbox.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(!!hSel&&hSel.id===h.id),text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):""),
-      onclick:()=>{if(hSel&&hSel.id===h.id){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}}ph();}})));
+  /* tareas habituales: una lista desplegable (solo las que puede hacer esta persona) */
+  const hsel=el("select",{"aria-label":"Tarea habitual"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=fld("¿Es una tarea habitual?",el("div",null,[hsel,hinfo]));hwrap.hidden=true;
+  const ph=()=>{hsel.textContent="";hsel.appendChild(el("option",{value:"",text:"— No, la escribo yo —"}));
+    (HAB||[]).filter(h=>h.activo).forEach(h=>hsel.appendChild(el("option",{value:h.id,text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):"")})));
+    hsel.value=hSel?hSel.id:"";
     hinfo.textContent=hSel?(hSel.minutos_est?"⏳ Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «✔ Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));};
+  hsel.onchange=()=>{const h=(HAB||[]).find(x=>x.id===hsel.value);if(!h){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}}ph();};
   habituales().then(H=>{hwrap.hidden=!H.some(h=>h.activo);ph();});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
@@ -373,13 +376,15 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
 /* tareas habituales: no tienen día fijo, pero se hacen a menudo */
-function formHabitual(h0,re){const h=Object.assign({activo:true},JSON.parse(JSON.stringify(h0)));const bot=[{t:"Cancelar",cls:"sec"}];
+async function formHabitual(h0,re){await trabajadores().catch(()=>{});const h=Object.assign({activo:true},JSON.parse(JSON.stringify(h0)));const bot=[{t:"Cancelar",cls:"sec"}];
+  const quien=chipsTrab((TRAB||[]).filter(w=>w.activo),h.solo_para||[],true);
   if(h.id)bot.push({t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar esta tarea habitual? Los trabajos ya hechos se conservan."))return false;await rpc("habitual_borrar",{p_tok:S.tok,p_id:h.id});HAB=null;toast("Borrada");re();}});
   bot.push({t:"Guardar",fn:async()=>{if(!(h.titulo||"").trim()){toast("Pon el nombre de la tarea");return false;}
-    await rpc("habitual_guardar",{p_tok:S.tok,p:{id:h.id||null,titulo:h.titulo,lugar:h.lugar,descripcion:h.descripcion,minutos_est:h.minutos_est||null,activo:h.activo}});HAB=null;toast("Guardada");re();}});
+    await rpc("habitual_guardar",{p_tok:S.tok,p:{id:h.id||null,titulo:h.titulo,lugar:h.lugar,descripcion:h.descripcion,minutos_est:h.minutos_est||null,activo:h.activo,solo_para:quien.val()}});HAB=null;toast("Guardada");re();}});
   dlg(h.id?"Editar tarea habitual":"Nueva tarea habitual",el("div",null,[el("p",{class:"hint",text:"Sale como botón al abrir una OT. Al marcarla como hecha se apunta este tiempo aunque no hayan pulsado «Empezar»."}),
     fld("Nombre",inp(h.titulo,v=>h.titulo=v,{placeholder:"p. ej. Vaciar contenedor de viruta"})),fld("Tiempo que lleva hacerla",campoTiempo(h.minutos_est,v=>h.minutos_est=v)),
     fld("Dónde (opcional)",inp(h.lugar,v=>h.lugar=v)),fld("Descripción (opcional)",area(h.descripcion,v=>h.descripcion=v)),
+    fld("¿Quién la hace? (si no marcas a nadie, la ve todo el mundo)",quien),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:h.activo,onchange:e=>h.activo=e.target.checked}),"Activa (si la quitas, deja de salir)"])]),bot);}
 /* filtros del panel del jefe */
 const ESTF=[["","Todos los estados"],["pendiente","Por hacer"],["en_curso","En curso"],["hecha","Hechas"],["no_hecha","No se pudieron"]];
