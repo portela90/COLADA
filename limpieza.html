@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009115451">
+<meta name="build" content="20261009120156">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -349,7 +349,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
-    if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);lug.focus();lug.classList.add("falta");return false;}
+    if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
@@ -361,13 +361,16 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const fZ=fld("Zona (elige de la lista)",zsel);
   const chQ=chipsTrab(TRAB?TRAB.filter(w=>w.activo):[],[],true),quienBox=fld("¿Quién lo hace?",chQ);quienBox.hidden=true;
   const relRow=admin?el("div",{class:"row"},[fld("Relevo",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),"",v=>o.turno=v)),fld("Nave",sel([["","—"],["Nave 1","Nave 1"],["Nave 2","Nave 2"]],"",v=>o.nave=v))]):null;if(relRow)relRow.hidden=true;
-  dlg("Abrir OT",el("div",null,[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,
-    fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x)),
-    fld("¿Quién lo hace?",seg(admin?[[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]]:[[true,"Lo hago yo"],[false,"Que lo asigne el jefe"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
-    relRow,
-    fld("Detalles (opcional)",area("",x=>o.descripcion=x)),
-    el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]),fbox]),
-    [{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
+  /* operarios: pantalla sencilla (sin «quién lo hace», sin «dónde» aparte: la zona es el sitio; detalles y foto plegados) */
+  const sim=!admin;
+  const fotoBtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]);
+  const urgente=fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x));
+  if(sim)fZ.firstChild.textContent="¿Dónde?";
+  const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",area("",x=>o.descripcion=x)),fotoBtn,fbox]);
+  const cuerpo=sim?[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
+    :[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
+      relRow,fld("Detalles (opcional)",area("",x=>o.descripcion=x)),fotoBtn,fbox];
+  dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
 /* tareas habituales: no tienen día fijo, pero se hacen a menudo */
 function formHabitual(h0,re){const h=Object.assign({activo:true},JSON.parse(JSON.stringify(h0)));const bot=[{t:"Cancelar",cls:"sec"}];
