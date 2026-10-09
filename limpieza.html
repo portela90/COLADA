@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009130301">
+<meta name="build" content="20261009131532">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -212,6 +212,15 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm()
   if(admin&&o.estado!=="hecha")acc.push(el("button",{class:"btn bad peq",text:"🗑 Quitar",onclick:async()=>{if(!confirm("¿Quitar «"+o.titulo+"»? Deja de salir en la lista."))return;try{await rpc("ot_borrar",{p_tok:S.tok,p_ot:o.id});toast("Quitada");re();}catch(e){toast(e.message);}}}));
   else if(puedoEditar(o))acc.push(el("button",{class:"btn sec peq",text:"✏","aria-label":"Corregir o borrar",onclick:()=>editarOT(o,re)}));
   if(puedoTiempo(o))acc.push(el("button",{class:"btn sec peq",text:"⏱","aria-label":"Corregir el tiempo",onclick:()=>corregirTiempo(o,re)}));
+  if(!admin){const T=t=>acc.find(b=>b.textContent.indexOf(t)===0);
+    const emp=T("▶ Empezar"),ter=T("✔ Terminar"),pau=acc.find(b=>/Pausar|Seguir/.test(b.textContent)),noS=T("No se pudo"),fot=T("📷"),rea=T("Reabrir");
+    const fin=[];
+    if(emp){emp.className="btn grande";fin.push(emp);}
+    else if(ter){ter.className="btn grande ok";fin.push(ter);}
+    if(emp&&ter){ter.textContent="✔ Ya lo hice";ter.className="btn sec peq";fin.push(ter);}
+    [pau,noS,rea,fot].forEach(b=>{if(b)fin.push(b);});
+    acc.filter(b=>!fin.includes(b)).forEach(b=>fin.push(b));
+    acc.length=0;acc.push(...fin);}
   return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
     el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
@@ -244,7 +253,9 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))))).catch(()=>{});
   else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
-function noHecha(o,re){let n="";dlg("No se pudo hacer",el("div",null,[fld("¿Por qué?",area("",x=>n=x))]),[{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"bad",fn:async()=>{if(!n.trim()){toast("Explica el motivo");return false;}await cambia(o,"no_hecha",re,n.trim());}}]);}
+/* «No se pudo»: cuatro motivos fijos, sin escribir */
+function noHecha(o,re){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Suspendió el trabajo"];let cerrar=()=>{};
+  cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
 function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map(([k,c])=>el("button",{type:"button",class:c,"aria-pressed":String(v===k),text:k,onclick:()=>{on(k);b.forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===k)));}}));return el("div",{class:"seg"},b);}
 const CHECKLIST_ACTIVA=false; /* desactivada hasta definir la checklist de inyectoras de fin de semana */
 /* ¿hay un tiempo medido de verdad? (pulsó «Empezar» hace al menos 2 minutos) */
