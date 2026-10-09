@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009122259">
+<meta name="build" content="20261009123552">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -333,7 +333,7 @@ function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder
     el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
       el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
