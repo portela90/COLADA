@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261008212458">
+<meta name="build" content="20261009115451">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -190,6 +190,8 @@ const miniFoto=(x,pie)=>x.data?el("button",{class:"mini",type:"button","aria-lab
 /* ---------- tarjeta de OT ---------- */
 const durTxt=m=>{if(m==null)return"";m=Math.max(0,Math.round(m));if(m<60)return m+" min";const r=m%60;return Math.floor(m/60)+" h"+(r?" "+String(r).padStart(2,"0")+" min":"");};
 const desde=ts=>(Date.now()-new Date(ts).getTime())/60000;
+/* minutos trabajados de una OT descontando las pausas (pausado_min + la pausa actual si la hay) */
+const trabajadoMin=(ini,pm,pa)=>desde(ini)-(pm||0)-(pa?desde(pa):0);
 const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
   const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
@@ -197,6 +199,8 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.ro
   const quien=quienTxt(o);const sinCubrir=(o.cubre||[]).some(c=>!c.sustituto);
   const acc=[];
   if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"▶ Empezar",onclick:()=>cambia(o,"en_curso",re)}));
+  if(o.estado==="en_curso"&&!o.pausa_desde)acc.push(el("button",{class:"btn sec peq",text:"⏸ Pausar",title:"Para el tiempo (por ejemplo, si hay una urgencia)",onclick:()=>pausar(o,re,true)}));
+  if(o.estado==="en_curso"&&o.pausa_desde)acc.push(el("button",{class:"btn peq",text:"▶ Seguir",onclick:()=>pausar(o,re,false)}));
   if(o.estado==="en_curso"||o.estado==="pendiente")acc.push(el("button",{class:"btn ok peq",text:"✔ Terminar",onclick:()=>terminar(o,re)}));
   if(o.estado==="pendiente"||o.estado==="en_curso")acc.push(el("button",{class:"btn sec peq",text:"No se pudo",onclick:()=>noHecha(o,re)}));
   if(o.estado==="hecha"||o.estado==="no_hecha")acc.push(el("button",{class:"btn sec peq",text:"Reabrir",onclick:()=>{if(confirm("¿Reabrir este trabajo? Se borran la hora de inicio y de fin."))cambia(o,"pendiente",re);}}));
@@ -214,11 +218,13 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.ro
       o.origen==="rapida"&&o.creado_por_n?el("span",{text:"Abierta por "+o.creado_por_n.split(" ")[0]+" a las "+hora(o.creado)}):null,
       o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,
       o.estado==="pendiente"&&o.minutos_est?el("span",{text:"⏳ ~"+durTxt(o.minutos_est)}):null,
-      o.estado==="en_curso"&&o.inicio?el("span",{class:"pill "+(o.minutos_est&&desde(o.inicio)>o.minutos_est?"warn":"info")},["⏱ Empezó "+hora(o.inicio)+(o.hecho_por_n?" ("+o.hecho_por_n.split(" ")[0]+")":"")+" · lleva ",el("b",{class:"vivo","data-ini":o.inicio,"data-est":o.minutos_est||"",text:durTxt(desde(o.inicio))}),o.minutos_est?" de ~"+durTxt(o.minutos_est):""]):null,
+      o.estado==="en_curso"&&o.pausa_desde?el("span",{class:"pill warn",text:"⏸ En pausa desde las "+hora(o.pausa_desde)+" (no cuenta el tiempo)"}):null,
+      o.estado==="en_curso"&&o.inicio?el("span",{class:"pill "+(o.minutos_est&&trabajadoMin(o.inicio,o.pausado_min,o.pausa_desde)>o.minutos_est?"warn":"info")},["⏱ Empezó "+hora(o.inicio)+(o.hecho_por_n?" ("+o.hecho_por_n.split(" ")[0]+")":"")+" · lleva ",el("b",{class:"vivo","data-ini":o.inicio,"data-pm":o.pausado_min||0,"data-pa":o.pausa_desde||"",text:durTxt(trabajadoMin(o.inicio,o.pausado_min,o.pausa_desde))}),o.minutos_est?" de ~"+durTxt(o.minutos_est):""]):null,
       o.estado==="hecha"&&o.minutos!=null?(o.tiempo_auto?el("span",{class:"pill",title:"No pulsó «Empezar»: se ha puesto el tiempo estimado",text:"⏱ "+durTxt(o.minutos)+" (tiempo estimado)"}):o.tiempo_decl?el("span",{class:"pill "+(o.minutos_est&&o.minutos>o.minutos_est*1.25?"warn":"ok"),title:"Tiempo indicado por el trabajador al terminar",text:"⏱ "+durTxt(o.minutos)+" (lo indicó "+((o.hecho_por_n||"").split(" ")[0]||"él")+")"}):el("span",{class:"pill "+(o.minutos_est&&o.minutos>o.minutos_est*1.25?"warn":"ok"),text:"⏱ "+durTxt(o.minutos)+(o.minutos_est?" (estimado "+durTxt(o.minutos_est)+")":"")})):null,
       o.hecho_por_n&&(o.estado==="hecha"||o.estado==="no_hecha")?el("span",{text:"Por "+o.hecho_por_n+(o.fin?" a las "+hora(o.fin):"")}):null,o.nota?el("span",{text:"📝 "+o.nota}):null]),
     el("div",{class:"row acc"},acc)]);}
-setInterval(()=>document.querySelectorAll(".vivo").forEach(x=>x.textContent=durTxt(desde(x.dataset.ini))),30000);
+setInterval(()=>document.querySelectorAll(".vivo").forEach(x=>x.textContent=durTxt(trabajadoMin(x.dataset.ini,+x.dataset.pm||0,x.dataset.pa))),30000);
+async function pausar(o,re,pausar){try{await rpc("ot_pausa",{p_tok:S.tok,p_ot:o.id,p_pausar:pausar});toast(pausar?"En pausa: el tiempo deja de contar":"Seguimos: el tiempo vuelve a contar");re();}catch(er){toast(er.message);}}
 async function cambia(o,e,re,nota){try{await rpc("estado_ot",{p_tok:S.tok,p_ot:o.id,p_estado:e,p_nota:nota||null});toast(e==="en_curso"?"Empezado: el tiempo cuenta desde ahora":EST[e][0]);re();}catch(er){toast(er.message);}}
 const ACC={creada:"Creada",en_curso:"Empezada",hecha:"Terminada",no_hecha:"No se pudo",pendiente:"Reabierta",reasignada:"Asignada a",editada:"Editada",checklist:"Checklist",borrada:"Borrada",foto:"Foto añadida"};
 const diaDe=ts=>{const d=new Date(ts);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
