@@ -538,16 +538,27 @@ function irA(t){if(!TABS.some(x=>x[0]===t)){try{localStorage.setItem("almacen.ta
 function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id),text:t,onclick:()=>irA(id)})));const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
 
 /* ===== RESUMEN: todo de un vistazo para decidir rápido ===== */
+/* Ajustes de la lista «Bajar a planta» de HOY: cantidad cambiada o artículo quitado. Se borran solos al día siguiente. */
+function ajBajarHoy(){const B=cat.bajarAj;return(B&&B.dia===hoy()&&B.m)?B.m:{};}
+function guardaBajar(k,val){const hy=hoy();const cur=cat.bajarAj&&cat.bajarAj.dia===hy?cat.bajarAj.m:{};cat.bajarAj={dia:hy,m:Object.assign({},cur,{[k]:val})};return saveCat();}
+function cambiarBajar(f){const campo=el("input",{type:"text",inputmode:"numeric",value:String(f.falta),"aria-label":"Cantidad a reponer"});
+  dlg("Cantidad a reponer",el("div",null,[el("p",{class:"hint",text:f.a.desc+" · "+corto(f.l)}),campo]),[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const n=parseInt(campo.value,10);if(!(n>=0)){toast("Pon un número (0 o más)");return false;}await guardaBajar(f.k,{cant:n});render(true);toast("Cantidad guardada");}}]);}
+function quitarBajar(f){confirmar("Quitar de la lista",f.a.desc+" sale de «Bajar a planta» solo por hoy. Mañana vuelve si sigue bajo.","Quitar",async()=>{await guardaBajar(f.k,{quitar:true});render(true);toast("Quitado de la lista de hoy");});}
+function bajarEditor(L){return el("div",{class:"lst",style:"margin-top:8px"},L.map(f=>el("div",{class:"sub",style:"display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:4px 0"},[
+  el("span",{text:f.a.desc+" · "+corto(f.l)+" · reponer "+f.falta}),
+  el("span",{style:"display:flex;gap:6px"},[el("button",{type:"button",class:"btn peq sec",text:"✏️ Cantidad",onclick:()=>cambiarBajar(f)}),el("button",{type:"button",class:"btn peq sec",text:"🗑 Quitar",onclick:()=>quitarBajar(f)})])])));}
 function vRes(v){v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"📄 Generar informe",onclick:()=>generarInforme()})]));const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);if(fn)setTimeout(fn,0);};
   /* --- qué hacer hoy --- */
-  const tareas=[];const T=(niv,txt,det,btn,fn)=>tareas.push({niv,txt,det,btn,fn});
+  const tareas=[];const T=(niv,txt,det,btn,fn,extra)=>tareas.push({niv,txt,det,btn,fn,extra});
   const crit=artsActivos().filter(a=>!a.pedido&&nivel(a)==="bad"),pedir=artsActivos().filter(a=>!a.pedido&&nivel(a)==="warn");
   if(crit.length)T("bad",crit.length+" artículos por debajo del mínimo",crit.slice(0,4).map(a=>a.desc).join(", ")+(crit.length>4?"…":""),"Lista de pedido",listaPedido);
   if(pedir.length)T("warn",pedir.length+" artículos para pedir",pedir.slice(0,4).map(a=>a.desc).join(", ")+(pedir.length>4?"…":""),"Lista de pedido",listaPedido);
   const retr=artsActivos().filter(a=>a.pedido&&a.prevista&&a.prevista<hy);
   if(retr.length)T("bad",retr.length+" pedidos retrasados",retr.map(a=>a.desc+" ("+dias(a.prevista,hy)+" d)").slice(0,4).join(", "),"Ver pedidos",ir("stock"));
-  const bajar=[];lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)bajar.push(Object.assign({l},f));}));
-  if(bajar.length)T("warn","Bajar "+bajar.length+" artículos a planta","A "+[...new Set(bajar.map(f=>corto(f.l)))].join(", "),"Reponer",ir("repo",()=>{draft.rv="hoy";render(true);}));
+  const AJ=ajBajarHoy();const bajar=[];
+  lineas().forEach(l=>faltas(l.id).forEach(f=>{if(!(f.falta>0&&f.org))return;const k=l.id+"|"+f.a.id,x=AJ[k]||{};if(x.quitar)return;
+    const cant=x.cant!=null?x.cant:f.falta;if(cant>0)bajar.push(Object.assign({l,k},f,{falta:cant}));}));
+  if(bajar.length)T("warn","Bajar "+bajar.length+" artículos a planta","A "+[...new Set(bajar.map(f=>corto(f.l)))].join(", "),"Reponer",ir("repo",()=>{draft.rv="hoy";render(true);}),bajarEditor(bajar));
   const pend=ejePend();if(pend.length)T("bad",pend.length+(pend.length===1?" eje quitado":" ejes quitados")+" sin número",pend.map(p=>p.maq).join(", "),"Poner número",ir("ejes"));
   const prep=ejes.filter(e=>e.estado==="preparado");if(prep.length)T("warn",prep.length+(prep.length===1?" eje preparado":" ejes preparados")+" sin enviar",prep.map(e=>e.cod).slice(0,6).join(", "),"Enviar",()=>{irA("ejes");setTimeout(envioMultiple,0);});
   const ejP=R.E.L.filter(x=>x.pedir>0||x.faltan>0);if(ejP.length)T(ejP.some(x=>x.faltan)?"bad":"warn","Pedir "+ejP.reduce((t,x)=>t+x.pedir,0)+" ejes al taller",ejP.map(x=>x.m.cod+(x.pedir?" ×"+x.pedir:"")+(x.faltan?" (faltan "+x.faltan+")":"")).join(", "),"Ver previsión",ir("repo",()=>{draft.rv="prev";render(true);}));
@@ -555,7 +566,7 @@ function vRes(v){v.appendChild(el("div",{class:"acciones"},[el("button",{type:"b
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
   v.appendChild(el("section",{class:"card"+(tareas.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
-    tareas.length?el("div",{class:"lst"},tareas.map(t=>el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe "+(t.niv==="info"?"":t.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),
+    tareas.length?el("div",{class:"lst"},tareas.map(t=>el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe "+(t.niv==="info"?"":t.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null,t.extra||null]),
       el("button",{type:"button",class:"btn peq"+(t.niv==="info"?" sec":""),text:t.btn,onclick:t.fn})]))):el("div",{class:"empty",text:"Todo en orden. No hay nada urgente."})]));
   /* --- cifras clave --- */
   const mes=hy.slice(0,7),mesAnt=sumaDias(mes+"-01",-1).slice(0,7),dmes=+hy.slice(8,10);
@@ -3117,7 +3128,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");if(c.bajarAj)cat.bajarAj=JSON.parse(JSON.stringify(c.bajarAj));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("mlog").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});mlogAnos=m;if(ready)render();},()=>{});
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
