@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009124748">
+<meta name="build" content="20261009125123">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -155,7 +155,9 @@ const fCorta=f=>new Date(f+"T12:00:00").toLocaleDateString("es-ES",{weekday:"sho
 const hora=ts=>ts?new Date(ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";
 const finde=f=>{const d=new Date(f+"T12:00:00").getDay();return d===0||d===6;};
 let S={tok:ls.get("limp.tok"),yo:JSON.parse(ls.get("limp.yo")||"null"),tab:"hoy",fecha:hoyISO()};
-try{const ir=new URLSearchParams(location.search).get("ir");if(ir&&S.yo&&S.yo.rol==="admin"&&["resumen","equipo","tareas","avisos","semana"].includes(ir))S.tab=ir;}catch(e){}
+/* el jefe puede probar la app como un operario (solo en pantalla; el servidor sigue tratándolo como jefe) */
+const esAdm=()=>!!(S.yo&&S.yo.rol==="admin"&&!S.verOp);
+try{const ir=new URLSearchParams(location.search).get("ir");if(ir&&S.yo&&esAdm()&&["resumen","equipo","tareas","avisos","semana"].includes(ir))S.tab=ir;}catch(e){}
 function salir(sinAviso){const tk=S.tok;if(tk&&!sinAviso)(async()=>{try{const s=await subActual();if(s)await rpc("push_baja",{p_tok:tk,p_endpoint:s.endpoint});}catch(e){}rpc("salir",{p_tok:tk}).catch(()=>{});})();else if(tk)rpc("salir",{p_tok:tk}).catch(()=>{});S.tok=null;S.yo=null;ls.set("limp.tok",null);ls.set("limp.yo",null);if(!sinAviso)toast("Sesión cerrada");pinta();}
 $("bsalir").onclick=()=>salir();
 function dlg(titulo,cuerpo,botones){const ov=el("div",{class:"ov"});const cerrar=()=>ov.remove();
@@ -195,7 +197,7 @@ const trabajadoMin=(ini,pm,pa)=>desde(ini)-(pm||0)-(pa?desde(pa):0);
 const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
   const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
-function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=S.yo.rol==="admin";
+function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm();
   const quien=quienTxt(o);const sinCubrir=(o.cubre||[]).some(c=>!c.sustituto);
   const acc=[];
   if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"▶ Empezar",onclick:()=>cambia(o,"en_curso",re)}));
@@ -235,7 +237,7 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
     el("table",{class:"det"},el("tbody",null,[fila("Día",fLarga(o.fecha)),fila("Dónde",o.lugar),fila("Quién",quienTxt(o)||(sinAsignar(o)?"Sin asignar":"")),fila("Estado",(EST[o.estado]||[o.estado])[0]),
       fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos)+(o.tiempo_auto?" (estimado: no pulsó Empezar)":o.tiempo_decl?" (indicado por el trabajador)":""):""),fila("Estimado",o.minutos_est?durTxt(o.minutos_est):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota)])),
     ck.length?el("div",null,[el("h4",{text:"Checklist"}),el("div",{class:"chips"},ck.map(([k,v])=>el("span",{class:"pill "+(v==="OK"?"ok":v==="NO-OK"?"bad":""),text:k+": "+v})))]):null,
-    el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),[S.yo.rol==="admin"&&o.estado!=="hecha"?{t:"📲 WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}}:null,
+    el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),[esAdm()&&o.estado!=="hecha"?{t:"📲 WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}}:null,
       puedoEditar(o)?{t:"✏ Corregir",cls:"sec",fn:()=>{setTimeout(()=>editarOT(o,()=>pinta()),0);}}:null,
       puedoTiempo(o)?{t:"⏱ Tiempo",cls:"sec",fn:()=>{setTimeout(()=>corregirTiempo(o,()=>pinta()),0);}}:null,{t:"Cerrar",cls:"sec"}].filter(Boolean));
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
@@ -274,7 +276,7 @@ async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class
   dlg("Fotos · "+o.titulo,el("div",null,[box,add]));carga();}
 
 /* ---------- vista del día (operario y admin) ---------- */
-async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
+async function vHoy(v){const admin=esAdm();const f=S.fecha;
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:(f===hoyISO()?"Hoy · ":"")+fLarga(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
   const re=()=>pinta();
   if(admin)v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
@@ -338,7 +340,7 @@ function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder
     el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
       el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=S.yo.rol==="admin";const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
@@ -655,10 +657,10 @@ function diaPersona(w,f,c,re){const L=c.ots;
       o.estado==="hecha"?null:el("button",{class:"btn sec peq",text:"Pasar a otro",onclick:()=>{document.querySelectorAll(".ov").forEach(x=>x.remove());formOT(o,re);}})]))):el("p",{class:"empty",text:"No tiene trabajos asignados."})]),
     [{t:"＋ Darle trabajo",fn:()=>{setTimeout(()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana",asignados:[w.id]},re),0);}},{t:"Ver el día",cls:"sec",fn:()=>{S.fecha=f;S.tab="hoy";S.fil={quien:w.nombre};pinta();}},{t:"Cerrar",cls:"sec"}]);}
 /* ---------- corregir y borrar ---------- */
-const puedoEditar=o=>S.yo.rol==="admin"||(o.creado_por===S.yo.id&&o.fecha>=sumaD(hoyISO(),-1)&&o.estado!=="hecha");
-const puedoTiempo=o=>o.estado==="hecha"&&(S.yo.rol==="admin"||o.hecho_por===S.yo.id);
+const puedoEditar=o=>esAdm()||(o.creado_por===S.yo.id&&o.fecha>=sumaD(hoyISO(),-1)&&o.estado!=="hecha");
+const puedoTiempo=o=>o.estado==="hecha"&&(esAdm()||o.hecho_por===S.yo.id);
 function cerrarTodo(){document.querySelectorAll(".ov").forEach(x=>x.remove());}
-function editarOT(o,re){if(S.yo.rol==="admin"){formOT(o,re);return;}const x={titulo:o.titulo,lugar:o.lugar||"",descripcion:o.descripcion||"",urgente:o.prioridad==="alta"};
+function editarOT(o,re){if(esAdm()){formOT(o,re);return;}const x={titulo:o.titulo,lugar:o.lugar||"",descripcion:o.descripcion||"",urgente:o.prioridad==="alta"};
   dlg("Corregir la OT",el("div",null,[fld("¿Qué hay que hacer?",inp(x.titulo,v=>x.titulo=v)),fld("¿Dónde?",inp(x.lugar,v=>x.lugar=v)),fld("Detalles",area(x.descripcion,v=>x.descripcion=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:x.urgente,onchange:e=>x.urgente=e.target.checked}),"Urgente"])]),
     [{t:"🗑 Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar esta OT? Se quita de la lista."))return false;await rpc("ot_mia_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}},
@@ -678,7 +680,7 @@ function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")
   return{k:"ok",d,t:d===0?"Limpiado hoy":"Al día · toca en "+(e.frecuencia_dias-d)+" d"};}
 let ELS=null;const ordEl=(a,b)=>a.tipo.localeCompare(b.tipo)||a.codigo.localeCompare(b.codigo,"es",{numeric:true});async function elementosL(force){if(!ELS||force)ELS=(await rpc("elementos",{p_tok:S.tok})).sort(ordEl);return ELS;}
 async function listaElementos(re){let L;try{L=await elementosL(true);}catch(e){toast(e.message);return;}
-  if(!L.length){dlg("Moldes y hornos mantenedores",el("p",{class:"empty",text:S.yo.rol==="admin"?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
+  if(!L.length){dlg("Moldes y hornos mantenedores",el("p",{class:"empty",text:esAdm()?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
   let q="",tp="";const box=el("div",{class:"lst-el"});const ORD={bad:0,warn:1,sin:2,ok:3};
   const pin=()=>{box.textContent="";const F=L.filter(e=>e.activo&&(!tp||e.tipo===tp)&&(!q||(e.codigo+" "+e.nombre+" "+(e.lugar||"")).toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>ORD[estadoEl(a).k]-ORD[estadoEl(b).k]||a.codigo.localeCompare(b.codigo,"es",{numeric:true}));
     if(!F.length)box.appendChild(el("p",{class:"empty",text:"Nada con esa búsqueda."}));
@@ -704,7 +706,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
   if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
   else{bots.push({t:"▶ Empezar",fn:async()=>{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false});toast("Empezado: cuando acabes, vuelve a escanear y pulsa «Terminar»");re();}});
     bots.push({t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
-  if(S.yo.rol==="admin")bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
+  if(esAdm())bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
   bots.push({t:"Cerrar",cls:"sec"});
   dlg(T[2]+" "+e.nombre,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill info",text:T[1]+" · "+e.codigo}),e.lugar?el("span",{text:"📍 "+e.lugar}):null,el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),
       e.frecuencia_dias?el("span",{text:"Cada "+e.frecuencia_dias+" día"+(e.frecuencia_dias>1?"s":"")}):null,e.minutos_est?el("span",{text:"⏳ "+durTxt(e.minutos_est)}):null]),
@@ -895,8 +897,11 @@ async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=
 const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"]];
 function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   if(!S.tok||!S.yo){$("who").textContent="";$("bsalir").hidden=true;nav.hidden=true;vEntrar(v);return;}
-  $("who").textContent=S.yo.nombre.split(" ")[0];$("bsalir").hidden=false;
-  if(S.yo.rol==="admin"){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));}
+  $("who").textContent=S.yo.nombre.split(" ")[0]+(S.verOp?" (prueba: operario)":"");$("bsalir").hidden=false;
+  if(S.yo.rol==="admin"){let bp=$("bprueba");if(!bp){bp=el("button",{id:"bprueba",class:"sec",type:"button"});$("bsalir").parentNode.insertBefore(bp,$("bsalir"));}
+    bp.hidden=false;bp.textContent=S.verOp?"↩ Volver a jefe":"👷 Probar como operario";bp.onclick=()=>{S.verOp=!S.verOp;S.tab="hoy";pinta();window.scrollTo(0,0);};}
+  else{const bp=$("bprueba");if(bp)bp.hidden=true;}
+  if(esAdm()){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));}
   else{nav.hidden=true;S.tab="hoy";}
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
