@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009131532">
+<meta name="build" content="20261009132938">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -254,7 +254,7 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))))).catch(()=>{});
   else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
 /* «No se pudo»: cuatro motivos fijos, sin escribir */
-function noHecha(o,re){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Suspendió el trabajo"];let cerrar=()=>{};
+function noHecha(o,re){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Se suspendió el trabajo"];let cerrar=()=>{};
   cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
 function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map(([k,c])=>el("button",{type:"button",class:c,"aria-pressed":String(v===k),text:k,onclick:()=>{on(k);b.forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===k)));}}));return el("div",{class:"seg"},b);}
 const CHECKLIST_ACTIVA=false; /* desactivada hasta definir la checklist de inyectoras de fin de semana */
