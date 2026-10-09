@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009123552">
+<meta name="build" content="20261009124748">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -277,13 +277,18 @@ async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class
 async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:(f===hoyISO()?"Hoy · ":"")+fLarga(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
   const re=()=>pinta();
-  v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
+  if(admin)v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
+  else{/* operario: dos botones grandes: abrir un trabajo, y ver solo los suyos o todos */
+    const soloM=S.soloMios!==false;
+    v.appendChild(el("div",{class:"row",style:"margin-bottom:10px"},[el("button",{class:"btn grande",text:"＋ Abrir trabajo",onclick:()=>abrirOT(re)}),
+      el("button",{class:"btn grande sec",text:soloM?"👥 Ver todos":"📋 Solo mis trabajos",onclick:()=>{S.soloMios=!soloM;pinta();}})]));}
   v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"🔥 Moldes y hornos mantenedores",onclick:()=>listaElementos(re)}));
   const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
-  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const Df=admin?D.filter(pasaFiltro):D,Af=admin?A.filter(pasaFiltro):A;
+  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre);
+  const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"🕑 Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
@@ -310,7 +315,7 @@ async function vHoy(v){const admin=S.yo.rol==="admin";const f=S.fecha;
   else{if(R.extras.length)box.appendChild(el("div",{class:"aviso",text:"Hoy vienes de horas extra con el equipo "+R.extras[0].equipo}));
     AU.filter(x=>x.sustituto===S.yo.id).forEach(x=>box.appendChild(el("div",{class:"aviso"},["Hoy haces también los trabajos de "+x.ausente_n,el("small",{text:x.motivo&&x.motivo!=="Horas extra"?"Motivo: "+x.motivo:"Te salen abajo con su nombre."})])));}
   if(Af.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Atrasadas ("+Af.length+")"})]),Af.map(o=>tarjeta(o,re))]));
-  const vis=admin?Df.filter(o=>!sinAsignar(o)):D;
+  const vis=admin?Df.filter(o=>!sinAsignar(o)):Df;
   const cur=vis.filter(o=>o.estado==="en_curso"),pend=vis.filter(o=>o.estado==="pendiente"),hechas=vis.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
   if(cur.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"En curso ("+cur.length+")"})),cur.map(o=>tarjeta(o,re))]));
   box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:admin&&hayFiltro()?"Nada con este filtro.":D.length?"Nada pendiente 👍":"No hay trabajos para este día."})]));
