@@ -1,0 +1,19 @@
+-- Consumo automático del almacén desde limpieza (aplicado en las dos bases).
+--
+-- 1) Base colada-mapri (whemhkcrgwyjucpaswrm):
+--    - tabla secretos_int (RLS sin políticas: nadie la lee por API)
+--    - función alm_consumo_limpieza(p_secreto, p_art, p_cant, p_nota, p_id)
+--      comprueba el secreto y añade una salida en alm_mov del mes (idempotente por p_id)
+-- 2) Base limpieza-cie (uddejncrjcyyaxjocbpj):
+--    - tareas_habituales.alm_art / alm_cant (artículo del almacén y cantidad por acción)
+--    - ots.consumo_enviado (evita enviar dos veces)
+--    - config_int con el mismo secreto (el valor NO está en el repositorio)
+--    - disparador ots_consumo_almacen: al pasar una OT habitual a 'hecha' llama por pg_net
+--      a alm_consumo_limpieza. Si falla la llamada no se bloquea el cierre de la OT.
+--
+-- Mapeo (bidón = 200 kg, GRG = 900 kg, saca = 1 ud):
+--   bidones 200 kg: chem-trend, Metal Flow, Bonderite, Cinclean, Burgarola 353, FUCHS
+--   GRG 900 kg: 220 (ACEITE OSO 220), Oso 46, térmico (ACEITE TÉRMICO BESTERM)
+--   saca blanca: Sacar blancas (ud)
+--
+-- Deshacer: borrar el movimiento "Limpieza: ..." en Almacén > Movimientos.
