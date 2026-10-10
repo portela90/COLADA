@@ -395,10 +395,13 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const sim=!admin;
   const fotoBtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]);
   const urgente=fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x));
+  /* incidencias frecuentes: un toque rellena qué ha pasado y la urgencia */
+  const INC_FREC=[["Derrame de aceite",true],["Derrame de taladrina",true],["Filtración de agua",true],["Desbordamiento de depósito",true],["Manguera rota (agua o aceite)",true],["Contenedor de basura lleno",false],["Suelo resbaladizo",false]];
+  const incBox=el("div",{class:"chips",style:"margin:-4px 0 10px"},INC_FREC.map(([t,u])=>el("button",{type:"button",class:"chip",text:t+(u?" ⚠":""),onclick:()=>{hSel=null;o.habitual_id=null;ph();o.titulo=t;tit.value=t;o.urgente=u;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===(u?1:0))));marcaLug();}})));
   if(sim)fZ.firstChild.textContent="¿Dónde?";
   const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",area("",x=>o.descripcion=x)),fotoBtn,fbox]);
-  const cuerpo=sim?[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
-    :[hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
+  const cuerpo=sim?[fld("Lo más frecuente",incBox),hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
+    :[fld("Lo más frecuente",incBox),hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
       relRow,fld("Detalles (opcional)",area("",x=>o.descripcion=x)),fotoBtn,fbox];
   dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
