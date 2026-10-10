@@ -733,7 +733,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
   dlg(T[2]+" "+e.nombre,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill info",text:T[1]+" · "+e.codigo}),e.lugar?el("span",{text:"📍 "+e.lugar}):null,el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),
       e.frecuencia_dias?el("span",{text:"Cada "+e.frecuencia_dias+" día"+(e.frecuencia_dias>1?"s":"")}):null,e.minutos_est?el("span",{text:"⏳ "+durTxt(e.minutos_est)}):null]),
     e.abierta?el("div",{class:"aviso"},["Limpieza empezada a las "+hora(e.abierta.inicio),el("small",{text:"Cuando acabes pulsa «✔ Terminar limpieza»."})]):null,
-    e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","🧽 Limpieza"),linUltHorno(e.ult,"vaciado","🫗 Vaciado"),linUltHorno(e.ult,"cambio_tolva","🔁 Cambio de tolva"),linUltHorno(e.ult,"cambio_tolva_cono","🔁 Tolva y cono")])]):null,
+    e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","🧽 Limpieza"),linUltHorno(e.ult,"vaciado","🫗 Vaciado"),linUltHorno(e.ult,"cambio_tolva","🔁 Cambio de tolva"),linUltHorno(e.ult,"cambio_cono","🔁 Cambio de cono"),linUltHorno(e.ult,"cambio_tolva_cono","🔁 Tolva y cono")])]):null,
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
   let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});const pts=(e.puntos&&e.puntos.length)?e.puntos.slice():null;const ck={};
@@ -744,11 +744,11 @@ function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio
       const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null,p_checks:pts?Object.fromEntries(pts.map(k=>[k,ck[k]])):null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
 /* hornos mantenedores: qué se ha hecho (limpieza con checklist; vaciado y cambios de tolva sin checklist) */
-const ACC_HORNO={limpieza:"Limpieza",vaciado:"Vaciado",cambio_tolva:"Cambio de tolva",cambio_tolva_cono:"Cambio de tolva y cono"};
+const ACC_HORNO={limpieza:"Limpieza",vaciado:"Vaciado",cambio_tolva:"Cambio de tolva",cambio_cono:"Cambio de cono",cambio_tolva_cono:"Cambio de tolva y cono"};
 const MOT_TOLVA=["Tolva atascada","Desbordamiento de material","Cambio preventivo"];
 function elegirTipoOT(e,re){const op=(t,acc)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>formAbrirOTHorno(e,acc,re),0);}});
-  dlg("Abrir OT de "+e.nombre,el("div",null,[op("🧽 Limpieza de horno","limpieza"),op("🫗 Vaciado de horno","vaciado"),op("🔁 Cambio de tolva","cambio_tolva"),op("🔁 Cambio de tolva y cono","cambio_tolva_cono")]),[{t:"Cancelar",cls:"sec"}]);}
-function formAbrirOTHorno(e,acc,re){const f={motivo:"",nota:""};const tol=acc.indexOf("cambio_tolva")===0;const mots=el("div",{class:"seg sel"});
+  dlg("Abrir OT de "+e.nombre,el("div",null,[op("🧽 Limpieza de horno","limpieza"),op("🫗 Vaciado de horno","vaciado"),op("🔁 Cambio de tolva","cambio_tolva"),op("🔁 Cambio de cono","cambio_cono"),op("🔁 Cambio de tolva y cono","cambio_tolva_cono")]),[{t:"Cancelar",cls:"sec"}]);}
+function formAbrirOTHorno(e,acc,re){const f={motivo:"",nota:""};const tol=acc.indexOf("cambio")===0;const mots=el("div",{class:"seg sel"});
   const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tol)pm();
   dlg(ACC_HORNO[acc]+" · "+e.nombre,el("div",null,[tol?fld("¿Por qué se cambia la tolva?",mots):null,fld("Nota (opcional)",area("",x=>f.nota=x))]),
     [{t:"Cancelar",cls:"sec"},{t:"✔ Abrir OT",cls:"ok",fn:async()=>{if(tol&&!f.motivo){toast("Elige el motivo");return false;}
@@ -759,6 +759,7 @@ function elegirAccionHorno(e,re){const op=(t,k)=>el("button",{type:"button",clas
     op("🧽 Limpieza ya hecha",()=>yaLimpio(e,re)),
     op("🫗 Vaciado de horno",()=>formHornoAccion(e,"vaciado",re)),
     op("🔁 Cambio de tolva",()=>formHornoAccion(e,"cambio_tolva",re)),
+    op("🔁 Cambio de cono",()=>formHornoAccion(e,"cambio_cono",re)),
     op("🔁 Cambio de tolva y cono",()=>formHornoAccion(e,"cambio_tolva_cono",re))]),[{t:"Cancelar",cls:"sec"}]);}
 function formHornoAccion(e,acc,re){const f={fecha:hoyISO(),motivo:"",nota:""};const tol=acc!=="vaciado";const mots=el("div",{class:"seg sel"});const w=preguntaTiempo({minutos_est:null,inicio:null});
   const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tol)pm();
