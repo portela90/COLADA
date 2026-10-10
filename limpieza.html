@@ -316,10 +316,10 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
     if(R.espacio!=null&&R.espacio>=80)box.appendChild(el("div",{class:"aviso"},["La base de datos está al "+R.espacio+" %",el("small",{text:"Haz una copia en Resumen y libera espacio."})]));
     box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Por hacer",n("pendiente")],["En curso",n("en_curso")],["Hechas",n("hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
-    box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"＋ Horas extra",onclick:()=>formExtra(f,re)})]));
+    box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Nueva OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"🕑 Horas del día",onclick:()=>formHorasDia(f,re)})]));
     box.appendChild(el("button",{class:"btn wa",style:"width:100%;margin:0 0 12px",text:"📲 Enviar los trabajos por WhatsApp",onclick:()=>enviarDiaWA(D,f)}));
     box.appendChild(barraFiltros(D,A,re));
-    if(R.plantilla){const fal=new Set(AU.filter(x=>x.motivo!=="Horas extra").map(x=>x.ausente)),ex=R.extras.map(x=>x.trabajador);
+    if(R.plantilla){const fal=new Set(AU.filter(x=>x.motivo!=="Horas extra").map(x=>x.ausente)),ex=[];
       const carga={};D.forEach(o=>{if(!o.minutos_est||o.todo_equipo)return;(o.nombres||[]).forEach(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);const k=c?c.sustituto:n;carga[k]=(carga[k]||0)+o.minutos_est;});});
       const jornada=tr=>(tr||[]).reduce((t,r)=>{const[a,b]=r.map(x=>{const[h,m]=x.split(":");return +h*60+ +m;});return t+(b-a);},0);
       const tr=R.plantilla.filter(x=>(x.tramos&&x.tramos.length)||ex.includes(x.id)),li=R.plantilla.filter(x=>x.tramos&&!x.tramos.length&&!ex.includes(x.id)),sh=R.plantilla.filter(x=>x.tramos==null&&!ex.includes(x.id));
@@ -330,11 +330,8 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
     if(AU.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones"})),el("div",{class:"bd"},AU.map(x=>el("button",{class:"linea",onclick:()=>formSust(x,re)},[
       el("span",{style:"flex:1",text:x.motivo==="Horas extra"?"👤 "+x.sustituto_n+" hace los trabajos de "+x.ausente_n:"🚫 "+x.ausente_n+" · "+(x.motivo||"Falta")+(x.hasta!==x.desde?" hasta "+fCorta(x.hasta):"")}),
       x.motivo==="Horas extra"?null:el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"lo cubre "+x.sustituto_n.split(" ")[0]:"sin cubrir"})])))]));
-    if(R.extras.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas extra este día"})),el("div",{class:"bd"},R.extras.map(x=>el("div",{class:"linea"},[el("span",{style:"flex:1",text:"👤 "+x.nombre+" · con "+x.equipo+(x.horas?" · "+x.horas+" h":"")+(x.nota?" · "+x.nota:"")}),
-      el("button",{class:"btn sec peq",text:"＋ Darle trabajo",onclick:()=>formOT({fecha:f,equipo:x.equipo,asignados:[x.trabajador]},re)}),
-      el("button",{class:"btn sec peq",text:"Quitar",onclick:async()=>{try{await rpc("extra_quitar",{p_tok:S.tok,p_id:x.id});re();}catch(e){toast(e.message);}}})])))]));
     const SA=Df.filter(sinAsignar);if(SA.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Sin asignar ("+SA.length+")"})),SA.map(o=>tarjeta(o,re))]));}
-  else{if(R.extras.length)box.appendChild(el("div",{class:"aviso",text:"Hoy vienes de horas extra con el equipo "+R.extras[0].equipo}));
+  else{
     AU.filter(x=>x.sustituto===S.yo.id).forEach(x=>box.appendChild(el("div",{class:"aviso"},["Hoy haces también los trabajos de "+x.ausente_n,el("small",{text:x.motivo&&x.motivo!=="Horas extra"?"Motivo: "+x.motivo:"Te salen abajo con su nombre."})])));}
   if(Af.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Atrasadas ("+Af.length+")"})]),Af.map(o=>tarjeta(o,re))]));
   const vis=admin?Df.filter(o=>!sinAsignar(o)):Df;
@@ -877,13 +874,52 @@ async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habit
   bot.push({t:"Guardar",fn:async()=>{const p={id:o.id||null,habitual_id:o.habitual_id||null,titulo:o.titulo,lugar:o.lugar,minutos_est:o.minutos_est||null,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
     if(!p.asignados.length&&!p.todo_equipo){toast("Elige quién lo hace");return false;}if(!o.id&&esProblema(p.titulo,p.descripcion)&&!(p.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_guardar",{p_tok:S.tok,p});toast("Guardada");re();}});
   cerrarF=dlg(o.id?(sinAsignar(o)?"Asignar trabajo":"Editar trabajo"):"Nuevo trabajo",cuerpo,bot);}
-async function formExtra(f,re){const L=await trabajadores();let h="",n="",eq=finde(f)?"Finde":"Semana";const ch=chipsTrab(L,[],false),chC=chipsTrab(L,[],false);
-  dlg("Horas extra · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:"Ese día esa persona ve los trabajos de «todo el equipo» que elijas. Si además marcas a quién sustituye, ve también los trabajos de esa persona. Y siempre puedes darle trabajos sueltos con «＋ Darle trabajo»."}),
-    fld("¿Quién viene?",ch),el("div",{class:"row"},[fld("Con el equipo",sel([["Finde","Finde"],["Semana","Semana"]],eq,v=>eq=v)),fld("Horas (opcional)",inp("",v=>h=v,{inputmode:"decimal"}))]),
-    fld("¿Hace los trabajos de alguien? (opcional)",chC),fld("Nota (opcional)",inp("",v=>n=v))]),
-   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const w=ch.val()[0],c=chC.val()[0];if(!w){toast("Elige a la persona");return false;}if(w===c){toast("No puede sustituirse a sí mismo");return false;}const hh=parseFloat(String(h).replace(",","."));
-     await rpc("extra_poner",{p_tok:S.tok,p_fecha:f,p_trab:w,p_horas:isFinite(hh)?hh:null,p_nota:n,p_equipo:eq});
-     if(c)await rpc("sust_guardar",{p_tok:S.tok,p:{ausente:c,sustituto:w,desde:f,hasta:f,motivo:"Horas extra"}});toast("Apuntado");re();}}]);}
+/* ---------- horas del día y del mes (solo administrador) ---------- */
+const HM=t=>{const p=String(t).split(":");return +p[0]*60+ +(p[1]||0);};
+const horasTramos=tr=>(tr||[]).reduce((t,r)=>t+(HM(r[1])-HM(r[0]))/60,0);
+const FALTAS_H=[["","Ninguna"],["baja","Baja"],["vacaciones","Vacaciones"],["permiso","Permiso"],["otro","Otra falta"]];
+const numH=s=>{const n=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(n)?n:null;};
+/* Una fila por persona: lo guardado, o su horario normal si no hay nada guardado */
+async function formHorasDia(f,re){let L;try{L=await rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f});}catch(e){toast(e.message);return;}
+  const filas=L.map(x=>{const hor=x.horario||[];const def=horasTramos(hor);
+    return{id:x.id,nombre:x.nombre,hor:hor.length?horTxt(hor):"Libra",cambio:x.trabajadas!=null,
+      tra:String(x.trabajadas!=null?x.trabajadas:def),fu:String(x.fuera||0),fa:x.falta||""};});
+  const fila=r=>el("div",{class:"ot"},[el("div",{class:"t",text:r.nombre}),el("div",{class:"d",text:"Horario: "+r.hor}),
+    el("div",{class:"row"},[fld("Horas trabajadas",inp(r.tra,v=>{r.tra=v;r.cambio=true;},{inputmode:"decimal"})),fld("De ellas, fuera de presupuesto",inp(r.fu,v=>r.fu=v,{inputmode:"decimal"}))]),
+    fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
+  const cuerpo=el("div",null,[el("p",{class:"hint",text:"Aparecen sus horas de horario. Cambia solo a quien no haya hecho ese horario. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
+  dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
+    for(const r of filas){let tra=numH(r.tra);const fu=numH(r.fu)||0;const fa=r.fa||null;
+      if(fa&&tra==null)tra=0;
+      if((tra!=null&&(tra<0||tra>24))||fu<0||fu>24){toast("Revisa las horas de "+r.nombre);return false;}
+      if(tra!=null&&fu>tra){toast("Lo de fuera de presupuesto no puede ser más que lo trabajado ("+r.nombre+")");return false;}
+      items.push({id:r.id,trabajadas:(r.cambio||fa)?tra:null,fuera:fu,falta:fa,nota:null});}
+    try{await rpc("horas_dia_guardar",{p_tok:S.tok,p_fecha:f,p_items:items});}catch(e){toast(e.message);return false;}
+    toast("Guardado");re();}}]);}
+const csvCel=v=>{const s=v==null?"":String(v);return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+const dec=n=>(Math.round(n*100)/100).toString().replace(".",",");
+/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo;
+   se cuentan desde la primera hora de la semana hasta pasar de su jornada (35 h completa, 16 h parcial). */
+async function horasMesExcel(mes){let W,R;try{[W,R]=await Promise.all([trabajadores(true),rpc("horas_mes",{p_tok:S.tok,p_mes:mes})]);}catch(e){toast(e.message);return;}
+  const[y,m]=mes.slice(0,7).split("-").map(Number);const nd=new Date(y,m,0).getDate();
+  const dias=[];for(let d=1;d<=nd;d++)dias.push(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"));
+  const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
+  const filas=[["Nombre","Jornada","Horas de contrato","Horas normales","Extra entre semana","Extra sábado","Extra domingo","Fuera de presupuesto (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
+  W.filter(w=>w.activo&&w.rol!=="admin").forEach(w=>{
+    const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
+    const t={nor:0,ew:0,sa:0,do:0,fu:0,baja:0,vac:0,per:0,otro:0};let cum=0;
+    dias.forEach(f=>{const dow=new Date(f+"T12:00:00").getDay();if(dow===1)cum=0;
+      const x=RH[w.id+"|"+f];const def=horasTramos((w.horario||{})[diaClave(f)]||[]);
+      const fa=x?x.falta:null;
+      const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
+      const nor=thr==null?h:Math.min(h,Math.max(0,thr-cum));const ext=h-nor;cum+=h;
+      t.nor+=nor;if(ext>0){if(dow===0)t.do+=ext;else if(dow===6)t.sa+=ext;else t.ew+=ext;}
+      if(x)t.fu+=+x.fuera||0;
+      if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;});
+    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",thr==null?"":thr,dec(t.nor),dec(t.ew),dec(t.sa),dec(t.do),dec(t.fu),t.baja,t.vac,t.per,t.otro]);});
+  const txt="﻿"+filas.map(r=>r.map(csvCel).join(";")).join("\r\n");
+  const a=el("a",{href:URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"})),download:"horas_"+mes.slice(0,7)+".csv"});
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
 async function vTareas(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("p",{class:"hint",text:"Tareas fijas: se convierten solas en trabajos cada día que les toca («Todos» = de lunes a viernes en Semana, sábado y domingo en Finde). Tareas habituales: no tienen día; salen como botón al abrir una OT."}));
   v.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Nueva tarea fija",onclick:()=>formTarea({},()=>pinta())}),el("button",{class:"btn sec",text:"＋ Nueva tarea habitual",onclick:()=>formHabitual({},()=>pinta())})]));v.appendChild(box);
   v.insertBefore(await bloqueElementos(()=>pinta()),box);
@@ -935,13 +971,13 @@ function formAviso(a0,re){const a=Object.assign({fecha:hoyISO(),activo:true},a0)
 async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=hoyISO();v.appendChild(bloqueInforme());
   v.appendChild(el("div",{class:"chips",style:"margin:0 0 12px"},[[7,"7 días"],[30,"30 días"]].map(([k,t])=>el("button",{class:"chip","aria-pressed":String(S.rs===k),text:t,onclick:()=>{S.rs=k;pinta();}}))));
   const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);v.appendChild(bloqueCopia());
-  try{const [O,X]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:des,p_hasta:has}),rpc("extras_mes",{p_tok:S.tok,p_mes:has})]);box.textContent="";
+  try{const [O,X]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:des,p_hasta:has}),Promise.resolve(null)]);box.textContent="";
     const P={};O.forEach(o=>{const ns=(o.estado==="hecha"||o.estado==="no_hecha")&&o.hecho_por_n?[o.hecho_por_n]:o.todo_equipo?["Equipo "+(o.equipo||"")]:(o.nombres&&o.nombres.length?o.nombres.map(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);return c?c.sustituto:n;}):["Sin asignar"]);ns.forEach(n=>{const p=P[n]=P[n]||{t:0,h:0,no:0,mal:0,min:0,nm:0};p.t++;if(o.estado==="hecha"){p.h++;if(o.minutos!=null){p.min+=o.minutos;if(!o.tiempo_auto)p.nm++;}}if(o.estado==="no_hecha")p.no++;if(o.resultado==="NO-OK")p.mal++;});});
     const tot=O.length,hech=O.filter(o=>o.estado==="hecha").length;
     box.appendChild(el("div",{class:"kpis"},[["Trabajos",tot],["Hechos",hech],["% hecho",tot?Math.round(hech*100/tot)+"%":"—"],["Checklist NO-OK",O.filter(o=>o.resultado==="NO-OK").length]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Por persona"})),el("table",null,[el("thead",null,el("tr",null,["Persona","Hechos","No hechos","NO-OK","Tiempo medio",""].map(h=>el("th",{text:h})))),
       el("tbody",null,Object.keys(P).sort().map(n=>{const p=P[n];return el("tr",null,[el("td",{text:n}),el("td",{text:p.h+"/"+p.t}),el("td",{text:String(p.no)}),el("td",{text:String(p.mal)}),el("td",{text:p.nm?durTxt(p.min/p.nm):"—"}),el("td",{style:"width:22%"},el("div",{class:"bar"},el("i",{style:"width:"+(p.t?Math.round(p.h*100/p.t):0)+"%"})))]);}))])]));
-    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas extra este mes"})),X.length?el("table",null,el("tbody",null,X.map(x=>el("tr",null,[el("td",{text:x.nombre}),el("td",{text:x.dias+" día"+(x.dias>1?"s":"")}),el("td",{text:x.horas!=null?x.horas+" h":"—"}),el("td",{text:x.fechas.map(f=>fCorta(f.fecha)).join(", ")})])))):el("div",{class:"empty",text:"Nadie este mes."})]));
+    box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Horas del mes"})),el("p",{class:"hint",text:"Horas normales, extras (entre semana, sábado y domingo) y fuera de presupuesto de cada persona. Se descarga un archivo para abrir con Excel."}),el("button",{class:"btn",text:"📥 Descargar horas del mes",onclick:()=>horasMesExcel(has)})]));
     const TT={};O.filter(o=>o.estado==="hecha"&&o.minutos!=null&&!o.tiempo_auto).forEach(o=>{const t=TT[o.titulo]=TT[o.titulo]||{n:0,s:0,mn:1e9,mx:0,est:null};if(o.minutos_est)t.est=o.minutos_est;t.n++;t.s+=o.minutos;t.mn=Math.min(t.mn,o.minutos);t.mx=Math.max(t.mx,o.minutos);});
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Cuánto tarda cada trabajo"})),Object.keys(TT).length?el("table",null,[el("thead",null,el("tr",null,["Trabajo","Estimado","Media real","Veces","Mín – Máx"].map(h=>el("th",{text:h})))),
       el("tbody",null,Object.keys(TT).sort((a,b)=>TT[b].s/TT[b].n-TT[a].s/TT[a].n).map(k=>{const t=TT[k];return el("tr",null,[el("td",{text:k}),el("td",{text:t.est?durTxt(t.est):"—"}),el("td",{class:t.est&&t.s/t.n>t.est*1.25?"tarde":"",text:durTxt(t.s/t.n)}),el("td",{text:String(t.n)}),el("td",{text:durTxt(t.mn)+" – "+durTxt(t.mx)})]);}))]):el("div",{class:"empty",text:"Todavía no hay tiempos. Salen cuando los trabajos se empiezan con «▶ Empezar» y se terminan con «✔ Terminar»."})]));
