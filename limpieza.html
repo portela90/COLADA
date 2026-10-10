@@ -724,8 +724,10 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     (h.accion&&h.accion!=="limpieza"?" · "+ACC_HORNO[h.accion]:"")+" · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.motivo?" · motivo: "+h.motivo:"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
   const bots=[];
   if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
+  else if(e.tipo==="horno"){bots.push({t:"＋ Abrir OT",cls:"ok",fn:async()=>{try{await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:"Limpieza horno · "+e.nombre,lugar:e.lugar||null,descripcion:null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,hecha:false,auto:false,asignados:null}});toast("OT abierta: empiézala cuando empieces");re();}catch(er){toast(er.message);return false;}}});
+    bots.push({t:"🔧 Registrar en el horno",fn:()=>{setTimeout(()=>elegirAccionHorno(e,re),0);}});}
   else{bots.push({t:"▶ Empezar",fn:async()=>{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false,p_minutos:null,p_nota:null,p_checks:null});toast("Empezado: cuando acabes, vuelve a escanear y pulsa «Terminar»");re();}});
-    bots.push(e.tipo==="horno"?{t:"🔧 Registrar en el horno",cls:"ok",fn:()=>{setTimeout(()=>elegirAccionHorno(e,re),0);}}:{t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
+    bots.push({t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
   if(esAdm())bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
   bots.push({t:"Cerrar",cls:"sec"});
   dlg(T[2]+" "+e.nombre,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill info",text:T[1]+" · "+e.codigo}),e.lugar?el("span",{text:"📍 "+e.lugar}):null,el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),
@@ -747,7 +749,6 @@ const MOT_TOLVA=["Desgaste","Avería","Cambio de material","Relevo","Otro"];
 function linUltHorno(U,k,t){const u=(U||{})[k];return el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · 📝 "+u.nota:""):"Nunca"})]);}
 function elegirAccionHorno(e,re){const op=(t,k)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>k(),0);}});
   dlg("¿Qué se ha hecho en "+e.nombre+"?",el("div",null,[
-    op("🧽 Limpieza: empezar ahora",async()=>{try{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false,p_minutos:null,p_nota:null,p_checks:null});toast("Empezada: cuando acabes, pulsa «Terminar»");re();}catch(er){toast(er.message);}}),
     op("🧽 Limpieza ya hecha",()=>yaLimpio(e,re)),
     op("🫗 Vaciado de horno",()=>formHornoAccion(e,"vaciado",re)),
     op("🔁 Cambio de tolva",()=>formHornoAccion(e,"cambio_tolva",re)),
