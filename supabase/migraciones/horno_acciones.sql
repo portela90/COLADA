@@ -1,0 +1,8 @@
+-- Hornos mantenedores: vaciado, cambio de tolva y cambio de tolva y cono (aplicado en limpieza-cie).
+--
+-- 1) ots: columnas accion_horno (null = limpieza, para las OT anteriores) y motivo (solo cambios de tolva).
+-- 2) _eljson: "última limpieza" y "cada X días" cuentan solo las acciones de limpieza.
+-- 3) elemento_ficha: el historial trae acción y motivo; devuelve "ult" con el último registro de cada acción.
+-- 4) horno_registrar(p_tok, p_el, p_accion, p_fecha, p_motivo, p_nota): apunta un vaciado o un cambio
+--    de tolva como OT hecha, sin checklist. Los cambios de tolva exigen motivo.
+-- La limpieza sigue usando limpieza_abrir (con checklist de los puntos del horno).

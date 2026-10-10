@@ -721,9 +721,10 @@ async function escanear(re){let stream;const v=el("video",{playsinline:true,mute
 async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc("elemento_ficha",{p_tok:S.tok,p_cod:cod});}catch(er){toast(er.message);return;}
   const s=estadoEl(e),T=tipoEl(e.tipo);
   const hist=(e.historial||[]).length?el("ol",{class:"hist"},e.historial.map(h=>el("li",null,[el("b",{text:fCorta(diaDe(h.fin))+" "+hora(h.fin)}),
-    " · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
+    (h.accion&&h.accion!=="limpieza"?" · "+ACC_HORNO[h.accion]:"")+" · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.motivo?" · motivo: "+h.motivo:"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
   const bots=[];
   if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
+  else if(e.tipo==="horno")bots.push({t:"🔧 Registrar en el horno",cls:"ok",fn:()=>{setTimeout(()=>elegirAccionHorno(e,re),0);}});
   else{bots.push({t:"▶ Empezar",fn:async()=>{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false});toast("Empezado: cuando acabes, vuelve a escanear y pulsa «Terminar»");re();}});
     bots.push({t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
   if(esAdm())bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
@@ -731,7 +732,8 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
   dlg(T[2]+" "+e.nombre,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill info",text:T[1]+" · "+e.codigo}),e.lugar?el("span",{text:"📍 "+e.lugar}):null,el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),
       e.frecuencia_dias?el("span",{text:"Cada "+e.frecuencia_dias+" día"+(e.frecuencia_dias>1?"s":"")}):null,e.minutos_est?el("span",{text:"⏳ "+durTxt(e.minutos_est)}):null]),
     e.abierta?el("div",{class:"aviso"},["Limpieza empezada a las "+hora(e.abierta.inicio),el("small",{text:"Cuando acabes pulsa «✔ Terminar limpieza»."})]):null,
-    el("h4",{text:"Últimas limpiezas"}),hist]),bots);}
+    e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","🧽 Limpieza"),linUltHorno(e.ult,"vaciado","🫗 Vaciado"),linUltHorno(e.ult,"cambio_tolva","🔁 Cambio de tolva"),linUltHorno(e.ult,"cambio_tolva_cono","🔁 Tolva y cono")])]):null,
+    el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
   let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});const pts=(e.puntos&&e.puntos.length)?e.puntos.slice():null;const ck={};
   dlg("Limpio: "+e.nombre,el("div",null,[w,pts?el("div",null,[el("b",{text:"Puntos de la limpieza (quita o añade los que hagan falta)"}),puntosEd(pts,ck)]):null,fld("Nota (opcional)",area("",x=>nota=x)),
@@ -740,6 +742,25 @@ function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio
       if(pts&&pts.some(k=>!ck[k])){toast("Falta marcar: "+pts.find(k=>!ck[k]));return false;}
       const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null,p_checks:pts?Object.fromEntries(pts.map(k=>[k,ck[k]])):null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
+/* hornos mantenedores: qué se ha hecho (limpieza con checklist; vaciado y cambios de tolva sin checklist) */
+const ACC_HORNO={limpieza:"Limpieza",vaciado:"Vaciado",cambio_tolva:"Cambio de tolva",cambio_tolva_cono:"Cambio de tolva y cono"};
+const MOT_TOLVA=["Desgaste","Avería","Cambio de material","Relevo","Otro"];
+function linUltHorno(U,k,t){const u=(U||{})[k];return el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · 📝 "+u.nota:""):"Nunca"})]);}
+function elegirAccionHorno(e,re){const op=(t,k)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>k(),0);}});
+  dlg("¿Qué se ha hecho en "+e.nombre+"?",el("div",null,[
+    op("🧽 Limpieza de horno",()=>yaLimpio(e,re)),
+    op("🫗 Vaciado de horno",()=>formHornoAccion(e,"vaciado",re)),
+    op("🔁 Cambio de tolva",()=>formHornoAccion(e,"cambio_tolva",re)),
+    op("🔁 Cambio de tolva y cono",()=>formHornoAccion(e,"cambio_tolva_cono",re))]),[{t:"Cancelar",cls:"sec"}]);}
+function formHornoAccion(e,acc,re){const f={fecha:hoyISO(),motivo:"",nota:""};const tol=acc!=="vaciado";const mots=el("div",{class:"seg sel"});
+  const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tol)pm();
+  dlg(ACC_HORNO[acc]+" · "+e.nombre,el("div",null,[
+    fld("¿Qué día se hizo?",inp("hoFecha",f.fecha,v=>f.fecha=v,{type:"date",max:hoyISO()})),
+    tol?fld("¿Por qué se cambió?",mots):null,
+    fld("Nota (opcional)",area("",x=>f.nota=x))]),
+    [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(tol&&!f.motivo){toast("Elige el motivo");return false;}
+      try{await rpc("horno_registrar",{p_tok:S.tok,p_el:e.id,p_accion:acc,p_fecha:f.fecha||null,p_motivo:tol?f.motivo:null,p_nota:f.nota.trim()||null});toast(ACC_HORNO[acc]+" apuntado en "+e.nombre);re();}catch(er){toast(er.message);return false;}}}]);}
+
 /* administración */
 function sigCodigo(tipo,L){const pre={molde:"M",horno:"H",contenedor:"C",otro:"X"}[tipo]+"-";let n=1;const usados=new Set((L||[]).map(e=>e.codigo));while(usados.has(pre+n))n++;return pre+n;}
 function formElemento(e0,re){const e=Object.assign({tipo:"horno",activo:true},JSON.parse(JSON.stringify(e0||{})));if(!e.codigo)e.codigo=sigCodigo(e.tipo,ELS);
