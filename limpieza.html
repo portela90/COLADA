@@ -278,7 +278,7 @@ function preguntaTiempoAv(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,3
 function puntosEd(pts,ck){const box=el("div",{class:"chk"});const dib=()=>{box.textContent="";pts.forEach((k,i)=>box.appendChild(el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v),el("button",{type:"button",class:"btn sec peq",text:"✕",onclick:()=>{delete ck[k];pts.splice(i,1);dib();}})])));};dib();
   const add=el("input",{type:"text",placeholder:"Añadir un punto…"});
   return el("div",null,[box,el("div",{class:"row"},[add,el("button",{type:"button",class:"btn sec peq",text:"＋ Añadir",onclick:()=>{const v=add.value.trim();if(!v||pts.includes(v))return;pts.push(v);add.value="";dib();}})])]);}
-function terminar(o,re){if(o.elemento_id&&!ELS){elementosL().then(()=>terminar(o,re));return;}const eo=o.elemento_id&&ELS?ELS.find(x=>x.id===o.elemento_id):null;const P1=(o.puntos&&o.puntos.length)?o.puntos:((eo&&eo.puntos)||[]);const pts=P1.length?P1.slice():null;const usaCk=CHECKLIST_ACTIVA||!!pts;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
+function terminar(o,re){if(o.elemento_id&&!ELS){elementosL().then(()=>terminar(o,re));return;}const eo=o.elemento_id&&ELS?ELS.find(x=>x.id===o.elemento_id):null;const esLim=!o.accion_horno||o.accion_horno==="limpieza";const P1=!esLim?[]:(o.puntos&&o.puntos.length)?o.puntos:((eo&&eo.puntos)||[]);const pts=P1.length?P1.slice():null;const usaCk=CHECKLIST_ACTIVA||!!pts;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
   const fbox=el("div",{class:"fotos"});
   const body=el("div",null,[preg,medido(o)?el("p",{class:"hint",text:"Tiempo: "+durTxt(desde(o.inicio))+" desde que pulsaste «Empezar»."}):null,usaCk?el("p",{class:"hint",text:"Marca cómo ha quedado cada punto."}):el("p",{class:"hint",text:"Si quieres, añade una nota o una foto de cómo ha quedado."}),usaCk?(pts?puntosEd(pts,ck):el("div",{class:"chk"},CHECK.map(k=>el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v)])))):null,
     conFin?el("div",null,[el("b",{text:"Material al terminar"}),el("div",{class:"chk"},CHECK_FIN.map(k=>el("div",{class:"it"},[el("span",{text:k}),segOK(fin[k],v=>fin[k]=v)])))]):null,
@@ -724,7 +724,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     (h.accion&&h.accion!=="limpieza"?" · "+ACC_HORNO[h.accion]:"")+" · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.motivo?" · motivo: "+h.motivo:"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
   const bots=[];
   if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
-  else if(e.tipo==="horno"){bots.push({t:"＋ Abrir OT",cls:"ok",fn:async()=>{try{await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:"Limpieza horno · "+e.nombre,lugar:e.lugar||null,descripcion:null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,hecha:false,auto:false,asignados:null}});toast("OT abierta: empiézala cuando empieces");re();}catch(er){toast(er.message);return false;}}});
+  else if(e.tipo==="horno"){bots.push({t:"＋ Abrir OT",cls:"ok",fn:()=>{setTimeout(()=>elegirTipoOT(e,re),0);}});
     bots.push({t:"🔧 Registrar en el horno",fn:()=>{setTimeout(()=>elegirAccionHorno(e,re),0);}});}
   else{bots.push({t:"▶ Empezar",fn:async()=>{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false,p_minutos:null,p_nota:null,p_checks:null});toast("Empezado: cuando acabes, vuelve a escanear y pulsa «Terminar»");re();}});
     bots.push({t:"✔ Ya está limpio",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}});}
@@ -745,7 +745,14 @@ function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
 /* hornos mantenedores: qué se ha hecho (limpieza con checklist; vaciado y cambios de tolva sin checklist) */
 const ACC_HORNO={limpieza:"Limpieza",vaciado:"Vaciado",cambio_tolva:"Cambio de tolva",cambio_tolva_cono:"Cambio de tolva y cono"};
-const MOT_TOLVA=["Desgaste","Avería","Cambio de material","Relevo","Otro"];
+const MOT_TOLVA=["Tolva atascada","Desbordamiento de material","Cambio preventivo"];
+function elegirTipoOT(e,re){const op=(t,acc)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>formAbrirOTHorno(e,acc,re),0);}});
+  dlg("Abrir OT de "+e.nombre,el("div",null,[op("🧽 Limpieza de horno","limpieza"),op("🫗 Vaciado de horno","vaciado"),op("🔁 Cambio de tolva","cambio_tolva"),op("🔁 Cambio de tolva y cono","cambio_tolva_cono")]),[{t:"Cancelar",cls:"sec"}]);}
+function formAbrirOTHorno(e,acc,re){const f={motivo:"",nota:""};const tol=acc.indexOf("cambio_tolva")===0;const mots=el("div",{class:"seg sel"});
+  const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tol)pm();
+  dlg(ACC_HORNO[acc]+" · "+e.nombre,el("div",null,[tol?fld("¿Por qué se cambia la tolva?",mots):null,fld("Nota (opcional)",area("",x=>f.nota=x))]),
+    [{t:"Cancelar",cls:"sec"},{t:"✔ Abrir OT",cls:"ok",fn:async()=>{if(tol&&!f.motivo){toast("Elige el motivo");return false;}
+      try{await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:ACC_HORNO[acc]+" · "+e.nombre,lugar:e.lugar||null,descripcion:f.nota.trim()||null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,accion_horno:acc,motivo:tol?f.motivo:null,hecha:false,auto:false,asignados:null}});toast("OT abierta: empiézala cuando empieces");re();}catch(er){toast(er.message);return false;}}}]);}
 function linUltHorno(U,k,t){const u=(U||{})[k];return el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · 📝 "+u.nota:""):"Nunca"})]);}
 function elegirAccionHorno(e,re){const op=(t,k)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>k(),0);}});
   dlg("¿Qué se ha hecho en "+e.nombre+"?",el("div",null,[
