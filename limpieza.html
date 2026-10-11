@@ -888,7 +888,7 @@ async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("ho
   const fila=r=>el("div",{class:"ot"},[el("div",{class:"t",text:r.nombre}),el("div",{class:"d",text:"Horario: "+r.hor}),
     el("div",{class:"row"},[fld("Horas trabajadas",inp(r.tra,v=>{r.tra=v;r.cambio=true;},{inputmode:"decimal"})),fld("De ellas, fuera de presupuesto",inp(r.fu,v=>r.fu=v,{inputmode:"decimal"}))]),
     fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
-  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo trabajado cuenta como extra. ":"")+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
+  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo trabajado en jornada completa cuenta como extra festivo. ":"")+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
   dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
     for(const r of filas){let tra=numH(r.tra);const fu=numH(r.fu)||0;const fa=r.fa||null;
       if(fa&&tra==null)tra=0;
@@ -899,7 +899,7 @@ async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("ho
     toast("Guardado");re();}}]);}
 const csvCel=v=>{const s=v==null?"":String(v);return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
 const dec=n=>(Math.round(n*100)/100).toString().replace(".",",");
-/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo; lo trabajado en festivo es siempre extra;
+/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo; el festivo y el domingo de jornada completa son extra festivo;
    se cuentan desde la primera hora de la semana hasta pasar de su jornada (35 h completa, 16 h parcial). */
 async function horasMesExcel(mes){let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_mes",{p_tok:S.tok,p_mes:mes}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
   const FES=new Set(FE.map(x=>x.fecha));
@@ -916,8 +916,8 @@ async function horasMesExcel(mes){let W,R,FE;try{[W,R,FE]=await Promise.all([tra
       const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
       if(x)t.fu+=+x.fuera||0;
       if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;
-      /* Festivo: todo lo trabajado es extra y no gasta las horas normales de la semana */
-      if(esF){t.fes+=h;return;}
+      /* Festivo, o domingo con jornada completa: todo lo trabajado es extra festivo y no gasta las horas normales de la semana */
+      if(esF||(dow===0&&w.jornada==="completa")){t.fes+=h;return;}
       const nor=thr==null?h:Math.min(h,Math.max(0,thr-cum));const ext=h-nor;cum+=h;
       t.nor+=nor;if(ext>0){if(dow===0)t.do+=ext;else if(dow===6)t.sa+=ext;else t.ew+=ext;}});
     filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",thr==null?"":thr,dec(t.nor),dec(t.ew),dec(t.sa),dec(t.do),dec(t.fes),dec(t.fu),t.baja,t.vac,t.per,t.otro]);});
