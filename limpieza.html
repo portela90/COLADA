@@ -880,14 +880,15 @@ const horasTramos=tr=>(tr||[]).reduce((t,r)=>t+(HM(r[1])-HM(r[0]))/60,0);
 const FALTAS_H=[["","Ninguna"],["baja","Baja"],["vacaciones","Vacaciones"],["permiso","Permiso"],["otro","Otra falta"]];
 const numH=s=>{const n=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(n)?n:null;};
 /* Una fila por persona: lo guardado, o su horario normal si no hay nada guardado */
-async function formHorasDia(f,re){let L;try{L=await rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f});}catch(e){toast(e.message);return;}
-  const filas=L.map(x=>{const hor=x.horario||[];const def=horasTramos(hor);
+async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
+  const esFes=FE.some(x=>x.fecha===f);
+  const filas=L.map(x=>{const hor=x.horario||[];const def=esFes?0:horasTramos(hor);
     return{id:x.id,nombre:x.nombre,hor:hor.length?horTxt(hor):"Libra",cambio:x.trabajadas!=null,
       tra:String(x.trabajadas!=null?x.trabajadas:def),fu:String(x.fuera||0),fa:x.falta||""};});
   const fila=r=>el("div",{class:"ot"},[el("div",{class:"t",text:r.nombre}),el("div",{class:"d",text:"Horario: "+r.hor}),
     el("div",{class:"row"},[fld("Horas trabajadas",inp(r.tra,v=>{r.tra=v;r.cambio=true;},{inputmode:"decimal"})),fld("De ellas, fuera de presupuesto",inp(r.fu,v=>r.fu=v,{inputmode:"decimal"}))]),
     fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
-  const cuerpo=el("div",null,[el("p",{class:"hint",text:"Aparecen sus horas de horario. Cambia solo a quien no haya hecho ese horario. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
+  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo trabajado cuenta como extra. ":"")+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
   dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
     for(const r of filas){let tra=numH(r.tra);const fu=numH(r.fu)||0;const fa=r.fa||null;
       if(fa&&tra==null)tra=0;
@@ -898,25 +899,28 @@ async function formHorasDia(f,re){let L;try{L=await rpc("horas_dia_leer",{p_tok:
     toast("Guardado");re();}}]);}
 const csvCel=v=>{const s=v==null?"":String(v);return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
 const dec=n=>(Math.round(n*100)/100).toString().replace(".",",");
-/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo;
+/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo; lo trabajado en festivo es siempre extra;
    se cuentan desde la primera hora de la semana hasta pasar de su jornada (35 h completa, 16 h parcial). */
-async function horasMesExcel(mes){let W,R;try{[W,R]=await Promise.all([trabajadores(true),rpc("horas_mes",{p_tok:S.tok,p_mes:mes})]);}catch(e){toast(e.message);return;}
+async function horasMesExcel(mes){let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_mes",{p_tok:S.tok,p_mes:mes}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
+  const FES=new Set(FE.map(x=>x.fecha));
   const[y,m]=mes.slice(0,7).split("-").map(Number);const nd=new Date(y,m,0).getDate();
   const dias=[];for(let d=1;d<=nd;d++)dias.push(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"));
   const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
-  const filas=[["Nombre","Jornada","Horas de contrato","Horas normales","Extra entre semana","Extra sábado","Extra domingo","Fuera de presupuesto (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
+  const filas=[["Nombre","Jornada","Horas de contrato","Horas normales","Extra entre semana","Extra sábado","Extra domingo","Extra festivo","Fuera de presupuesto (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
   W.filter(w=>w.activo&&w.rol!=="admin").forEach(w=>{
     const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
-    const t={nor:0,ew:0,sa:0,do:0,fu:0,baja:0,vac:0,per:0,otro:0};let cum=0;
+    const t={nor:0,ew:0,sa:0,do:0,fes:0,fu:0,baja:0,vac:0,per:0,otro:0};let cum=0;
     dias.forEach(f=>{const dow=new Date(f+"T12:00:00").getDay();if(dow===1)cum=0;
-      const x=RH[w.id+"|"+f];const def=horasTramos((w.horario||{})[diaClave(f)]||[]);
+      const x=RH[w.id+"|"+f];const esF=FES.has(f);const def=esF?0:horasTramos((w.horario||{})[diaClave(f)]||[]);
       const fa=x?x.falta:null;
       const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
-      const nor=thr==null?h:Math.min(h,Math.max(0,thr-cum));const ext=h-nor;cum+=h;
-      t.nor+=nor;if(ext>0){if(dow===0)t.do+=ext;else if(dow===6)t.sa+=ext;else t.ew+=ext;}
       if(x)t.fu+=+x.fuera||0;
-      if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;});
-    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",thr==null?"":thr,dec(t.nor),dec(t.ew),dec(t.sa),dec(t.do),dec(t.fu),t.baja,t.vac,t.per,t.otro]);});
+      if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;
+      /* Festivo: todo lo trabajado es extra y no gasta las horas normales de la semana */
+      if(esF){t.fes+=h;return;}
+      const nor=thr==null?h:Math.min(h,Math.max(0,thr-cum));const ext=h-nor;cum+=h;
+      t.nor+=nor;if(ext>0){if(dow===0)t.do+=ext;else if(dow===6)t.sa+=ext;else t.ew+=ext;}});
+    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",thr==null?"":thr,dec(t.nor),dec(t.ew),dec(t.sa),dec(t.do),dec(t.fes),dec(t.fu),t.baja,t.vac,t.per,t.otro]);});
   const txt="﻿"+filas.map(r=>r.map(csvCel).join(";")).join("\r\n");
   const a=el("a",{href:URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"})),download:"horas_"+mes.slice(0,7)+".csv"});
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
