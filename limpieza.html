@@ -916,7 +916,7 @@ async function horasMesExcel(mes){let W,R,FE;try{[W,R,FE]=await Promise.all([tra
       const fa=x?x.falta:null;
       const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
       const em=x&&x.extra_mano!=null?Math.min(h,+x.extra_mano):0;   /* extra a mano: es extra aunque la semana no llegue a 35 h */
-      const bc=x&&x.banco!=null?Math.min(h,+x.banco):0;             /* banco: horas que no son extra aunque pasen de 35 h */
+      const bc=x&&x.banco!=null?+x.banco:0;                          /* banco: horas que no son extra (también en día libre) */
       if(x)t.fu+=+x.fuera||0;
       if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;
       const resto=h-em;
