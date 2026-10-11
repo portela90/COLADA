@@ -887,49 +887,54 @@ async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("ho
       tra:String(x.trabajadas!=null?x.trabajadas:def),fu:String(x.fuera||0),fa:x.falta||"",em:x.extra_mano!=null?String(x.extra_mano):"",bc:x.banco!=null?String(x.banco):""};});
   const fila=r=>el("div",{class:"ot"},[el("div",{class:"t",text:r.nombre}),el("div",{class:"d",text:"Horario: "+r.hor}),
     el("div",{class:"row"},[fld("Horas trabajadas",inp(r.tra,v=>{r.tra=v;r.cambio=true;},{inputmode:"decimal"})),fld("De ellas, fuera de presupuesto",inp(r.fu,v=>r.fu=v,{inputmode:"decimal"}))]),
-    el("div",{class:"row"},[fld("Extra a mano (opcional)",inp(r.em,v=>r.em=v,{inputmode:"decimal"})),fld("Horas de banco (opcional)",inp(r.bc,v=>r.bc=v,{inputmode:"decimal"}))]),
+    fld("Extra a mano (opcional)",inp(r.em,v=>r.em=v,{inputmode:"decimal"})),
     fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
-  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo que pase de sus horas normales cuenta como extra festivo. ":"")+"«Extra a mano» la cuenta como extra aunque la semana no llegue a sus horas. «Horas de banco» son horas que no cuentan como extra. "+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
+  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo que pase de sus horas normales cuenta como extra festivo. ":"")+"«Extra a mano»: horas que se pagan como extra. Lo que pase de 35 h a la semana va a la bolsa sola, y un día libre sin baja ni vacaciones resta de la bolsa. "+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
   dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
     for(const r of filas){let tra=numH(r.tra);const fu=numH(r.fu)||0;const fa=r.fa||null;
       if(fa&&tra==null)tra=0;
       if((tra!=null&&(tra<0||tra>24))||fu<0||fu>24){toast("Revisa las horas de "+r.nombre);return false;}
       if(tra!=null&&fu>tra){toast("Lo de fuera de presupuesto no puede ser más que lo trabajado ("+r.nombre+")");return false;}
-      items.push({id:r.id,trabajadas:(r.cambio||fa)?tra:null,fuera:fu,falta:fa,nota:null,extra_mano:numH(r.em),banco:numH(r.bc)});}
+      items.push({id:r.id,trabajadas:(r.cambio||fa)?tra:null,fuera:fu,falta:fa,nota:null,extra_mano:numH(r.em),banco:null});}
     try{await rpc("horas_dia_guardar",{p_tok:S.tok,p_fecha:f,p_items:items});}catch(e){toast(e.message);return false;}
     toast("Guardado");re();}}]);}
 const csvCel=v=>{const s=v==null?"":String(v);return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
 const dec=n=>(Math.round(n*100)/100).toString().replace(".",",");
-/* Excel para tu jefa (CSV con ; que abre Excel). Horas extra: la semana va de lunes a domingo, y lo que pasa de 35 h (o de 16 h si es parcial) es extra; el festivo y el domingo de jornada completa son extra festivo;
-   se cuentan desde la primera hora de la semana hasta pasar de su jornada (35 h completa, 16 h parcial). */
-async function horasMesExcel(mes){let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_mes",{p_tok:S.tok,p_mes:mes}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
-  const FES=new Set(FE.map(x=>x.fecha));
-  const[y,m]=mes.slice(0,7).split("-").map(Number);const nd=new Date(y,m,0).getDate();
-  const dias=[];for(let d=1;d<=nd;d++)dias.push(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"));
-  const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
-  const filas=[["Nombre","Jornada","Horas de contrato","Horas normales","Extra entre semana","Extra sábado","Extra domingo","Extra festivo","Fuera de presupuesto (h)","Horas de banco (no extra)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
-  W.filter(w=>w.activo&&w.rol!=="admin").forEach(w=>{
+/* Excel mensual. Jornada completa: bolsa de horas. Cada semana (lunes a domingo) se compara lo trabajado, menos lo pagado como extra a mano,
+   con sus 35 h (menos las bajas y vacaciones de ese periodo). Lo que sobra va a la bolsa y lo que falta resta. Saldo inicial 0 el 5/10/2026.
+   Una semana se cuenta en el mes de su domingo. Jornada parcial: de momento sin bolsa ni extras. */
+const BOLSA_DESDE="2026-10-05";
+async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Number);const ym=y+"-"+String(m).padStart(2,"0");
+  const nd=new Date(y,m,0).getDate();const ini=ym+"-01",fin=ym+"-"+String(nd).padStart(2,"0");
+  let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:ini<BOLSA_DESDE?ini:BOLSA_DESDE,p_hasta:fin}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
+  const FES=new Set(FE.map(x=>x.fecha));const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
+  const addDia=(f,n)=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+  const dd=(w,f)=>{const x=RH[w.id+"|"+f];const esF=FES.has(f);const def=esF?0:horasTramos((w.horario||{})[diaClave(f)]||[]);const fa=x?x.falta:null;
+    const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);const em=x&&x.extra_mano!=null?Math.min(h,+x.extra_mano):0;
+    return{esF,def,fa,h,em,fu:x?(+x.fuera||0):0,dow:new Date(f+"T12:00:00").getDay()};};
+  const diasDesde=[];for(let f=BOLSA_DESDE;f<=fin;f=addDia(f,1))diasDesde.push(f);
+  const filas=[["Nombre","Jornada","Horas de contrato","Horas trabajadas","Horas normales","Extra a mano entre semana","Extra a mano sábado","Extra a mano festivo y domingo","Fuera de presupuesto (h)","Bolsa al inicio del mes (h)","Variación de la bolsa (h)","Bolsa al final del mes (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
+  W.filter(w=>w.activo&&w.rol!=="admin").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
-    const t={nor:0,ew:0,sa:0,do:0,fes:0,fu:0,bc:0,baja:0,vac:0,per:0,otro:0};let cum=0;
-    dias.forEach(f=>{const dow=new Date(f+"T12:00:00").getDay();if(dow===1)cum=0;
-      const x=RH[w.id+"|"+f];const esF=FES.has(f);const def=esF?0:horasTramos((w.horario||{})[diaClave(f)]||[]);
-      const fa=x?x.falta:null;
-      const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
-      const em=x&&x.extra_mano!=null?Math.min(h,+x.extra_mano):0;   /* extra a mano: es extra aunque la semana no llegue a 35 h */
-      const bc=x&&x.banco!=null?+x.banco:0;                          /* banco: horas que no son extra (también en día libre) */
-      if(x)t.fu+=+x.fuera||0;
-      if(fa==="baja")t.baja++;else if(fa==="vacaciones")t.vac++;else if(fa==="permiso")t.per++;else if(fa==="otro")t.otro++;
-      const resto=h-em;
-      const nor=thr==null?resto:Math.min(resto,Math.max(0,thr-cum));
-      cum+=resto;
-      let ext=em+(resto-nor);
-      ext=Math.max(0,ext-bc);
-      t.nor+=nor;t.bc+=bc;
-      if(ext>0){if(esF||(dow===0&&w.jornada==="completa"))t.fes+=ext;else if(dow===0)t.do+=ext;else if(dow===6)t.sa+=ext;else t.ew+=ext;}});
-    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",thr==null?"":thr,dec(t.nor),dec(t.ew),dec(t.sa),dec(t.do),dec(t.fes),dec(t.fu),dec(t.bc),t.baja,t.vac,t.per,t.otro]);});
+    if(w.jornada!=="completa"){let Wp=0,fu=0,bj=0,vc=0,pm=0,ot=0;
+      for(let f=ini;f<=fin;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
+      filas.push([w.nombre,"Parcial",thr==null?"":thr,dec(Wp),dec(Wp),"—","—","—",dec(fu),"—","—","—",bj,vc,pm,ot]);return;}
+    const c=thr==null?35:thr;let bolsa=0;const M={W:0,nor:0,ew:0,sa:0,fes:0,fu:0,dl:0,ini:null,bj:0,vc:0,pm:0,ot:0};let wk=null;
+    const cierra=f=>{const neto=wk.W-wk.paid;const dl=neto-(c-wk.exc);const antes=bolsa;bolsa+=dl;
+      if(f.slice(0,7)===ym){M.W+=wk.W;M.nor+=Math.min(neto,c-wk.exc);M.ew+=wk.ew;M.sa+=wk.sa;M.fes+=wk.fes;M.fu+=wk.fu;M.dl+=dl;M.bj+=wk.b;M.vc+=wk.v;M.pm+=wk.p;M.ot+=wk.o;if(M.ini===null)M.ini=antes;}
+      wk=null;};
+    diasDesde.forEach(f=>{const d=dd(w,f);
+      if(!wk)wk={W:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,o:0};
+      if(d.fa==="baja"||d.fa==="vacaciones")wk.exc+=d.def;
+      if(d.fa==="baja")wk.b++;else if(d.fa==="vacaciones")wk.v++;else if(d.fa==="permiso")wk.p++;else if(d.fa==="otro")wk.o++;
+      wk.W+=d.h;wk.paid+=d.em;wk.fu+=d.fu;
+      if(d.em>0){if(d.esF||d.dow===0)wk.fes+=d.em;else if(d.dow===6)wk.sa+=d.em;else wk.ew+=d.em;}
+      if(d.dow===0)cierra(f);});
+    filas.push([w.nombre,"Completa",c,dec(M.W),dec(M.nor),dec(M.ew),dec(M.sa),dec(M.fes),dec(M.fu),dec(M.ini==null?bolsa:M.ini),dec(M.dl),dec(bolsa),M.bj,M.vc,M.pm,M.ot]);});
   const txt="﻿"+filas.map(r=>r.map(csvCel).join(";")).join("\r\n");
-  const a=el("a",{href:URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"})),download:"horas_"+mes.slice(0,7)+".csv"});
+  const a=el("a",{href:URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"})),download:"horas_"+ym+".csv"});
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
+
 async function vTareas(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("p",{class:"hint",text:"Tareas fijas: se convierten solas en trabajos cada día que les toca («Todos» = de lunes a viernes en Semana, sábado y domingo en Finde). Tareas habituales: no tienen día; salen como botón al abrir una OT."}));
   v.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"＋ Nueva tarea fija",onclick:()=>formTarea({},()=>pinta())}),el("button",{class:"btn sec",text:"＋ Nueva tarea habitual",onclick:()=>formHabitual({},()=>pinta())})]));v.appendChild(box);
   v.insertBefore(await bloqueElementos(()=>pinta()),box);
