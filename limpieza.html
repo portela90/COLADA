@@ -911,13 +911,14 @@ async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Numbe
   const addDia=(f,n)=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
   const dd=(w,f)=>{const x=RH[w.id+"|"+f];const esF=FES.has(f);const def=esF?0:horasTramos((w.horario||{})[diaClave(f)]||[]);const fa=x?x.falta:null;
     const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);const em=x&&x.extra_mano!=null?Math.min(h,+x.extra_mano):0;
-    return{esF,def,fa,h,em,fu:x?(+x.fuera||0):0,dow:new Date(f+"T12:00:00").getDay()};};
-  const diasDesde=[];for(let f=BOLSA_DESDE;f<=fin;f=addDia(f,1))diasDesde.push(f);
+    return{x,esF,def,esp:horasTramos((w.horario||{})[diaClave(f)]||[]),fa,h,em,fu:x?(+x.fuera||0):0,dow:new Date(f+"T12:00:00").getDay()};};
+  const lim=fin<hoyISO()?fin:hoyISO();/* solo días ya pasados: no se cuentan los que faltan por llegar */
+  const diasDesde=[];for(let f=BOLSA_DESDE;f<=lim;f=addDia(f,1))diasDesde.push(f);
   const filas=[["Nombre","Jornada","Horas de contrato","Horas trabajadas","Horas normales","Extra a mano entre semana","Extra a mano sábado","Extra a mano festivo y domingo","Fuera de presupuesto (h)","Bolsa al inicio del mes (h)","Variación de la bolsa (h)","Bolsa al final del mes (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
   W.filter(w=>w.activo&&w.rol!=="admin").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
     if(w.jornada!=="completa"){let Wp=0,fu=0,bj=0,vc=0,pm=0,ot=0;
-      for(let f=ini;f<=fin;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
+      for(let f=ini;f<=lim;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
       filas.push([w.nombre,"Parcial",thr==null?"":thr,dec(Wp),dec(Wp),"—","—","—",dec(fu),"—","—","—",bj,vc,pm,ot]);return;}
     const c=thr==null?35:thr;let bolsa=0;const M={W:0,nor:0,ew:0,sa:0,fes:0,fu:0,dl:0,ini:null,bj:0,vc:0,pm:0,ot:0};let wk=null;
     const cierra=f=>{const neto=wk.W-wk.paid;const dl=neto-(c-wk.exc);const antes=bolsa;bolsa+=dl;
@@ -925,7 +926,7 @@ async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Numbe
       wk=null;};
     diasDesde.forEach(f=>{const d=dd(w,f);
       if(!wk)wk={W:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,o:0};
-      if(d.fa==="baja"||d.fa==="vacaciones")wk.exc+=d.def;
+      if(d.fa==="baja"||d.fa==="vacaciones"||(d.esF&&d.h===0))wk.exc+=d.esp;/* bajas, vacaciones y festivo sin trabajar no restan */
       if(d.fa==="baja")wk.b++;else if(d.fa==="vacaciones")wk.v++;else if(d.fa==="permiso")wk.p++;else if(d.fa==="otro")wk.o++;
       wk.W+=d.h;wk.paid+=d.em;wk.fu+=d.fu;
       if(d.em>0){if(d.esF||d.dow===0)wk.fes+=d.em;else if(d.dow===6)wk.sa+=d.em;else wk.ew+=d.em;}
