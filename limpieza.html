@@ -549,7 +549,7 @@ function achica(src,M,q){return new Promise(ok=>{const im=new Image();im.onload=
 async function horasSemana(desde,hasta,O){
   let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){return null;}
   const FES=new Set(FE.map(x=>x.fecha));const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
-  const dias=[];for(let f=desde;f<=hasta;f=sumaD(f,1))dias.push(f);
+  const dias=[];for(let f=desde<BOLSA_DESDE?BOLSA_DESDE:desde;f<=hasta;f=sumaD(f,1))dias.push(f);
   const cerrada=hasta<=hoyISO();const filas=[],fueraL=[];
   W.filter(w=>w.activo&&w.rol!=="admin").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const c=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:35;
@@ -561,7 +561,7 @@ async function horasSemana(desde,hasta,O){
       Wt+=h;paid+=em;fu+=fz;
       if(fz>0||em>0){const tr=O.filter(o=>o.fecha===f&&o.estado==="hecha"&&o.hecho_por_n===w.nombre).map(o=>o.titulo+(o.minutos!=null?" ("+durTxt(o.minutos)+")":"")).join(" · ");
         fueraL.push([fCorta(f),w.nombre,dec(fz),dec(em),(x&&x.nota)||"",tr||"—"]);}});
-    const dl=(w.jornada==="completa"&&cerrada)?dec(Wt-paid-(c-exc)):"—";
+    const dl=(w.jornada==="completa"&&cerrada&&dias.length)?dec(Wt-paid-(c*dias.length/7-exc)):"—";
     filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",dec(Wt),dec(paid),dec(fu),dl]);});
   return{filas,fueraL};}
 async function hacerPDF(O,X,desde,hasta,pr){await libPDF();const H=await horasSemana(desde,hasta,O);const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14;let y=0;
@@ -941,7 +941,7 @@ async function horasDetalleCSV(mes){const[y,m]=mes.slice(0,7).split("-").map(Num
 /* Excel mensual. Jornada completa: bolsa de horas. Cada semana (lunes a domingo) se compara lo trabajado, menos lo pagado como extra a mano,
    con sus 35 h (menos las bajas y vacaciones de ese periodo). Lo que sobra va a la bolsa y lo que falta resta. Saldo inicial 0 el 5/10/2026.
    Una semana se cuenta en el mes de su domingo. Jornada parcial: de momento sin bolsa ni extras. */
-const BOLSA_DESDE="2026-10-05";
+const BOLSA_DESDE="2026-10-01";
 async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Number);const ym=y+"-"+String(m).padStart(2,"0");
   const nd=new Date(y,m,0).getDate();const ini=ym+"-01",fin=ym+"-"+String(nd).padStart(2,"0");
   let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:ini<BOLSA_DESDE?ini:BOLSA_DESDE,p_hasta:fin}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
@@ -959,11 +959,11 @@ async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Numbe
       for(let f=ini;f<=lim;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
       filas.push([w.nombre,"Parcial",thr==null?"":thr,dec(Wp),dec(Wp),"—","—","—",dec(fu),"—","—","—",bj,vc,pm,ot]);return;}
     const c=thr==null?35:thr;let bolsa=0;const M={W:0,nor:0,ew:0,sa:0,fes:0,fu:0,dl:0,ini:null,bj:0,vc:0,pm:0,ot:0};let wk=null;
-    const cierra=f=>{const neto=wk.W-wk.paid;const dl=neto-(c-wk.exc);const antes=bolsa;bolsa+=dl;
-      if(f.slice(0,7)===ym){M.W+=wk.W;M.nor+=Math.min(neto,c-wk.exc);M.ew+=wk.ew;M.sa+=wk.sa;M.fes+=wk.fes;M.fu+=wk.fu;M.dl+=dl;M.bj+=wk.b;M.vc+=wk.v;M.pm+=wk.p;M.ot+=wk.o;if(M.ini===null)M.ini=antes;}
+    const cierra=f=>{const cap=c*wk.n/7-wk.exc;const neto=wk.W-wk.paid;const dl=neto-cap;const antes=bolsa;bolsa+=dl;
+      if(f.slice(0,7)===ym){M.W+=wk.W;M.nor+=Math.min(neto,cap);M.ew+=wk.ew;M.sa+=wk.sa;M.fes+=wk.fes;M.fu+=wk.fu;M.dl+=dl;M.bj+=wk.b;M.vc+=wk.v;M.pm+=wk.p;M.ot+=wk.o;if(M.ini===null)M.ini=antes;}
       wk=null;};
     diasDesde.forEach(f=>{const d=dd(w,f);
-      if(!wk)wk={W:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,o:0};
+      if(!wk)wk={W:0,n:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,o:0};wk.n++;
       if(d.fa==="baja"||d.fa==="vacaciones"||(d.esF&&d.h===0))wk.exc+=d.esp;/* bajas, vacaciones y festivo sin trabajar no restan */
       if(d.fa==="baja")wk.b++;else if(d.fa==="vacaciones")wk.v++;else if(d.fa==="permiso")wk.p++;else if(d.fa==="otro")wk.o++;
       wk.W+=d.h;wk.paid+=d.em;wk.fu+=d.fu;
