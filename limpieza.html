@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261013153222">
+<meta name="build" content="20261013154801">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -369,16 +369,19 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   selH.onchange=()=>{o.elemento_id=selH.value||null;};const hornoWrap=fld("¿Qué horno se limpia?",selH);hornoWrap.hidden=true;
   /* tareas habituales: una lista desplegable (solo las que puede hacer esta persona) */
   const hsel=el("select",{"aria-label":"Tarea habitual"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=fld("¿Es una tarea habitual?",el("div",null,[hsel,hinfo]));hwrap.hidden=true;
+  const navWrap=el("div");const pnav=()=>{navWrap.textContent="";navWrap.hidden=!(hSel&&hSel.alm_art);if(navWrap.hidden)return;
+    navWrap.appendChild(fld("¿En qué nave? (obligatorio: el coste se carga ahí)",seg([["Nave 1","Nave 1"],["Nave 2","Nave 2"]],o.nave,x=>{o.nave=x;})));};
   const ph=()=>{hsel.textContent="";hsel.appendChild(el("option",{value:"",text:"— No, la escribo yo —"}));
     (HAB||[]).filter(h=>h.activo).forEach(h=>hsel.appendChild(el("option",{value:h.id,text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):"")})));
     hsel.value=hSel?hSel.id:"";
-    hinfo.textContent=hSel?(hSel.minutos_est?"⏳ Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «✔ Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));};
-  hsel.onchange=()=>{const h=(HAB||[]).find(x=>x.id===hsel.value);if(!h){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}}ph();};
+    hinfo.textContent=hSel?(hSel.minutos_est?"⏳ Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «✔ Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));pnav();};
+  hsel.onchange=()=>{const h=(HAB||[]).find(x=>x.id===hsel.value);if(!h){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}if(h.alm_art){const l=String(h.lugar||"");o.nave=/nave\s*1\b/i.test(l)&&!/nave\s*2\b|\by\s*2\b/i.test(l)?"Nave 1":/nave\s*2\b/i.test(l)&&!/nave\s*1\b/i.test(l)?"Nave 2":"";}}ph();};
   habituales().then(H=>{hwrap.hidden=!H.some(h=>h.activo);ph();});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
+    if(hSel&&hSel.alm_art&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
@@ -399,8 +402,8 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const incBox=el("div",{class:"chips",style:"margin:-4px 0 10px"},INC_FREC.map(([t,u])=>el("button",{type:"button",class:"chip",text:t+(u?" ⚠":""),onclick:()=>{hSel=null;o.habitual_id=null;ph();o.titulo=t;tit.value=t;o.urgente=u;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===(u?1:0))));marcaLug();}})));
   if(sim)fZ.firstChild.textContent="¿Dónde?";
   const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",area("",x=>o.descripcion=x)),fotoBtn,fbox]);
-  const cuerpo=sim?[fld("Lo más frecuente",incBox),hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
-    :[fld("Lo más frecuente",incBox),hwrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
+  const cuerpo=sim?[fld("Lo más frecuente",incBox),hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
+    :[fld("Lo más frecuente",incBox),hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
       relRow,fld("Detalles (opcional)",area("",x=>o.descripcion=x)),fotoBtn,fbox];
   dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
@@ -1052,13 +1055,15 @@ async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=
    (servidor). Aquí solo se lee: el informe no cambia el stock. */
 const kgTxt=n=>(Math.round((+n||0)*100)/100).toLocaleString("es-ES",{maximumFractionDigits:2});
 const ENVIO={enviado:["Enviado al Almacén","ok"],pendiente:["Enviando…","info"],fallo:["Sin enviar al Almacén","bad"],sin_enviar:["Sin enviar al Almacén","bad"]};
+const porNave=R=>{const g={};R.forEach(r=>{(g[r.nave||""]=g[r.nave||""]||[]).push(r);});return Object.keys(g).sort((a,b)=>(a||"z").localeCompare(b||"z")).map(k=>[k,g[k]]);};
 function textoConsumos(C){const f=C.fecha,L=C.lineas||[],R=C.resumen||[];const tot=R.reduce((s,r)=>s+(+r.total||0),0);
   const T=["CONSUMOS DE ACEITES Y TALADRINAS · LIMPIEZA","Día: "+fLarga(f)+" de "+f.slice(0,4),""];
   if(!L.length){T.push("Hoy no se ha registrado ningún consumo.");return T.join("\n");}
-  T.push("RESUMEN ("+L.length+" cambio"+(L.length===1?"":"s")+" · "+kgTxt(tot)+" kg):");
-  R.forEach(r=>T.push("- "+r.articulo+": "+kgTxt(r.total)+" "+r.ud+" ("+r.tareas+" cambio"+(r.tareas==1?"":"s")+")"));
+  T.push("TOTAL: "+L.length+" cambio"+(L.length===1?"":"s")+" · "+kgTxt(tot)+" kg");
+  porNave(R).forEach(([n,rs])=>{T.push("",(n||"SIN NAVE").toUpperCase()+" ("+kgTxt(rs.reduce((a,r)=>a+(+r.total||0),0))+" kg):");
+    rs.forEach(r=>T.push("- "+r.articulo+": "+kgTxt(r.total)+" "+r.ud+" ("+r.tareas+" cambio"+(r.tareas==1?"":"s")+")"));});
   T.push("","DETALLE:");
-  L.forEach((x,i)=>{T.push((i+1)+". "+hora(x.cuando)+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
+  L.forEach((x,i)=>{T.push((i+1)+". "+hora(x.cuando)+" · "+(x.nave||"SIN NAVE")+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
   return T.join("\n");}
 async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14,AZ=[31,78,121];const f=C.fecha,L=C.lineas||[],R=C.resumen||[];
   doc.setFillColor(...AZ);doc.rect(0,0,W,24,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfTxt("Consumos de aceites y taladrinas"),M,11);
@@ -1067,8 +1072,10 @@ async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const do
     doc.autoTable(Object.assign({startY:y,head:[head],body:body.map(r=>r.map(pdfTxt)),margin:{left:M,right:M},styles:{fontSize:9,cellPadding:1.8,overflow:"linebreak"},headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,248,251]}},opt||{}));y=doc.lastAutoTable.finalY+9;};
   if(!L.length){doc.setFontSize(11);doc.text(pdfTxt("Hoy no se ha registrado ningún consumo."),M,y);}
   else{const tot=R.reduce((s,r)=>s+(+r.total||0),0);
-    tabla("Resumen",["Artículo","Total","Cambios"],R.map(r=>[r.articulo,kgTxt(r.total)+" "+r.ud,String(r.tareas)]).concat([["TOTAL",kgTxt(tot)+" kg",String(L.length)]]),{columnStyles:{1:{halign:"right"},2:{halign:"right"}},didParseCell:d=>{if(d.section==="body"&&d.row.index===R.length)d.cell.styles.fontStyle="bold";}});
-    tabla("Detalle de cada cambio",["Hora","Tarea","Artículo","Cantidad","Responsable"],L.map(x=>[hora(x.cuando),x.ot||x.tarea,x.articulo,x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—",x.quien||"—"]),{columnStyles:{0:{cellWidth:14},3:{halign:"right",cellWidth:22}}});}
+    const filas=[];porNave(R).forEach(([n,rs])=>{rs.forEach(r=>filas.push([n||"Sin nave",r.articulo,kgTxt(r.total)+" "+r.ud,String(r.tareas)]));filas.push(["Total "+(n||"sin nave"),"",kgTxt(rs.reduce((a,r)=>a+(+r.total||0),0))+" kg",String(rs.reduce((a,r)=>a+(+r.tareas||0),0))]);});
+    filas.push(["TOTAL","",kgTxt(tot)+" kg",String(L.length)]);
+    tabla("Resumen por nave",["Nave","Artículo","Total","Cambios"],filas,{columnStyles:{0:{cellWidth:24},2:{halign:"right"},3:{halign:"right"}},didParseCell:d=>{if(d.section==="body"&&/^Total|^TOTAL/.test(String(d.row.raw[0])))d.cell.styles.fontStyle="bold";}});
+    tabla("Detalle de cada cambio",["Hora","Nave","Tarea","Artículo","Cantidad","Responsable"],L.map(x=>[hora(x.cuando),x.nave||"—",x.ot||x.tarea,x.articulo,x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—",x.quien||"—"]),{columnStyles:{0:{cellWidth:13},1:{cellWidth:16},4:{halign:"right",cellWidth:20}}});}
   return doc.output("blob");}
 function formDestConsumos(d,re){const x=Object.assign({nom:"",email:"",tel:""},d||{});
   dlg("¿A quién va el informe?",el("div",null,[fld("Nombre",inp(x.nom,v=>x.nom=v)),fld("Correo",inp(x.email,v=>x.email=v,{type:"email",autocomplete:"off"})),fld("Teléfono (WhatsApp)",inp(x.tel,v=>x.tel=v,{type:"tel",autocomplete:"off"}))]),
@@ -1090,12 +1097,14 @@ async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
   box.textContent="";const L=C.lineas||[],R=C.resumen||[],hoy=f===hoyISO();
   const tot=R.reduce((s,r)=>s+(+r.total||0),0),mal=L.filter(x=>x.envio==="fallo"||x.envio==="sin_enviar");
   const fila=x=>{const[e,c]=ENVIO[x.envio]||["",""];return el("div",{class:"linea",style:"border-top:1px solid var(--line);padding:8px 0"},[
-    el("span",{style:"flex:1;min-width:60%"},[el("b",{text:hora(x.cuando)+" · "+(x.ot||x.tarea)}),el("br"),el("small",{class:"hint",text:x.articulo+" · "+(x.quien||"sin indicar")})]),
-    el("b",{text:x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—"}),x.envio!=="enviado"?el("span",{class:"pill "+c,text:e}):null]);};
+    el("span",{style:"flex:1;min-width:60%"},[el("b",{text:hora(x.cuando)+" · "+(x.ot||x.tarea)}),el("br"),el("small",{class:"hint",text:[x.nave,x.articulo,x.quien||"sin indicar"].filter(Boolean).join(" · ")})]),
+    el("b",{text:x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—"}),x.envio!=="enviado"?el("span",{class:"pill "+c,text:e}):null,
+    x.nave?null:el("div",{style:"display:flex;gap:6px;align-items:center;width:100%"},[el("span",{class:"pill warn",text:"¿Qué nave?"}),
+      ...["Nave 1","Nave 2"].map(n=>el("button",{class:"btn sec peq",text:n,onclick:async e=>{e.target.disabled=true;try{await rpc("consumo_nave",{p_tok:S.tok,p_ot:x.ot_id,p_nave:n});toast("Cargado a "+n);re();}catch(er){toast(er.message);e.target.disabled=false;}}}))])]);};
   if(L.some(x=>x.envio==="pendiente")&&!box._t)box._t=setTimeout(()=>{box._t=null;if(box.isConnected)re();},5000);
   const cuerpo=el("div",{class:"bd",style:"padding:0 14px 12px"},[
-    L.length?el("table",null,[el("thead",null,el("tr",null,["Artículo","Total","Cambios"].map(h=>el("th",{text:h})))),
-      el("tbody",null,R.map(r=>el("tr",null,[el("td",{text:r.articulo}),el("td",{text:kgTxt(r.total)+" "+r.ud}),el("td",{text:String(r.tareas)})])))]):el("p",{class:"hint",text:hoy?"Todavía no se ha cambiado ningún bidón ni GRG hoy.":"Ese día no se registró ningún consumo."}),
+    L.length?el("table",null,[el("thead",null,el("tr",null,["Nave","Artículo","Total","Cambios"].map(h=>el("th",{text:h})))),
+      el("tbody",null,R.map(r=>el("tr",null,[el("td",{text:r.nave||"¿?"}),el("td",{text:r.articulo}),el("td",{text:kgTxt(r.total)+" "+r.ud}),el("td",{text:String(r.tareas)})])))]):el("p",{class:"hint",text:hoy?"Todavía no se ha cambiado ningún bidón ni GRG hoy.":"Ese día no se registró ningún consumo."}),
     L.length?el("div",{style:"margin-top:8px"},L.filter(x=>!mal.includes(x)).map(fila)):null,
     mal.length?el("div",{style:"margin-top:10px"},[el("div",{class:"aviso"},[(mal.length===1?"1 consumo no ha llegado":mal.length+" consumos no han llegado")+" al Almacén",el("small",{text:"Están en el registro y salen en el informe, pero no han descontado stock."})]),
       mal.map(fila),hoy?el("button",{class:"btn sec peq",style:"margin-top:8px",text:"↻ Reintentar envío al Almacén",onclick:async e=>{e.target.disabled=true;try{const n=await rpc("consumos_reenviar",{p_tok:S.tok});toast(n?"Reenviados "+n:"Nada que reenviar");setTimeout(re,2500);}catch(er){toast(er.message);e.target.disabled=false;}}}):el("p",{class:"hint",text:"Solo se pueden reenviar los de hoy. Los de otros días, apúntalos a mano en el Almacén si hace falta."})]):null,
@@ -1104,6 +1113,7 @@ async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
   const det=el("details",{class:"card",open:S.consAb?true:null,ontoggle:e=>{S.consAb=e.target.open;}},[
     el("summary",{class:"hd",style:"cursor:pointer;list-style:none"},[el("h2",{text:"🛢 Aceites y taladrinas"}),
       mal.length?el("span",{class:"pill bad",text:mal.length+" sin enviar"}):null,
+      L.some(x=>!x.nave)?el("span",{class:"pill warn",text:L.filter(x=>!x.nave).length+" sin nave"}):null,
       el("span",{class:"pill"+(L.length?" ok":""),text:L.length?kgTxt(tot)+" kg · "+L.length:"0"})]),cuerpo]);
   box.appendChild(det);}
 /* ---------- pintar ---------- */

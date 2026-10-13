@@ -232,3 +232,10 @@ select o.id, (coalesce(o.fin, o.creado) at time zone 'Europe/Madrid')::date, coa
   left join public.trabajadores w on w.id = coalesce(o.hecho_por, o.creado_por)
  where o.estado = 'hecha' and not o.borrado and h.alm_art is not null
 on conflict (ot_id) do nothing;
+
+-- 2026-10-13 (2): nave de cada consumo, para cargar el coste a Nave 1 o Nave 2.
+--   consumos_registro.nave ('Nave 1' | 'Nave 2' | null) se toma de ots.nave o, si no, del lugar
+--   (función _nave_de). Al abrir una OT habitual con artículo de almacén, la app obliga a elegir nave.
+--   Si falta, el jefe la pone desde la tarjeta con consumo_nave(p_tok, p_ot, p_nave) (no toca el stock).
+--   consumos_dia devuelve la nave en cada línea y el resumen agrupado por nave y artículo.
+--   (Aplicado como migración «registro_consumos_nave».)
