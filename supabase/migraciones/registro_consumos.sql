@@ -158,13 +158,15 @@ begin
            'quien', r.hecho_por_n, 'envio', r.envio, 'envio_info', r.envio_info) order by r.cuando), '[]'::jsonb)
     into L
     from consumos_registro r left join articulos_alm a on a.alm_art = r.alm_art
-   where r.fecha = f and coalesce(a.en_informe, true);
+   where r.fecha = f and coalesce(a.en_informe, true)
+     and not exists (select 1 from ots o where o.id = r.ot_id and o.borrado);  -- las OTs quitadas no cuentan
   select coalesce(jsonb_agg(x order by x->>'articulo'), '[]'::jsonb) into R from (
     select jsonb_build_object('alm_art', r.alm_art, 'articulo', coalesce(a.nombre, min(r.tarea)), 'ud', coalesce(a.ud, 'kg'),
              'total', sum(coalesce(r.cant, 0)), 'tareas', count(*),
              'sin_enviar', count(*) filter (where r.envio in ('fallo', 'sin_enviar'))) x
       from consumos_registro r left join articulos_alm a on a.alm_art = r.alm_art
      where r.fecha = f and coalesce(a.en_informe, true)
+       and not exists (select 1 from ots o where o.id = r.ot_id and o.borrado)
      group by r.alm_art, a.nombre, a.ud) q;
   select v::jsonb into d from app_config where k = 'informe_consumos_dest';
   return jsonb_build_object('fecha', f, 'lineas', L, 'resumen', R, 'dest', coalesce(d, '{}'::jsonb));

@@ -17,3 +17,7 @@
 --   saca blanca: Sacar blancas (ud)
 --
 -- Deshacer: borrar el movimiento "Limpieza: ..." en Almacén > Movimientos.
+--
+-- 2026-10-13: alm_consumo_limpieza descuenta los aceites, taladrinas y jabones (los 9 códigos de
+--   articulos_alm con en_informe) de «Baldas aceites y taladrinas» (murbt2pa0rbc0), que es donde se
+--   cuentan; el resto (p. ej. sacas blancas) sigue saliendo de Consumibles N1 (cn1).
