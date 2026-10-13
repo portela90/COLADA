@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261013151540">
+<meta name="build" content="20261013153222">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -1088,14 +1088,15 @@ function informeConsumos(C){const d=C.dest||{};const txt=textoConsumos(C);const 
 async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
   try{C=await rpc("consumos_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";return;}
   box.textContent="";const L=C.lineas||[],R=C.resumen||[],hoy=f===hoyISO();
-  const tot=R.reduce((s,r)=>s+(+r.total||0),0),mal=L.filter(x=>x.envio!=="enviado");
+  const tot=R.reduce((s,r)=>s+(+r.total||0),0),mal=L.filter(x=>x.envio==="fallo"||x.envio==="sin_enviar");
   const fila=x=>{const[e,c]=ENVIO[x.envio]||["",""];return el("div",{class:"linea",style:"border-top:1px solid var(--line);padding:8px 0"},[
     el("span",{style:"flex:1;min-width:60%"},[el("b",{text:hora(x.cuando)+" · "+(x.ot||x.tarea)}),el("br"),el("small",{class:"hint",text:x.articulo+" · "+(x.quien||"sin indicar")})]),
     el("b",{text:x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—"}),x.envio!=="enviado"?el("span",{class:"pill "+c,text:e}):null]);};
+  if(L.some(x=>x.envio==="pendiente")&&!box._t)box._t=setTimeout(()=>{box._t=null;if(box.isConnected)re();},5000);
   const cuerpo=el("div",{class:"bd",style:"padding:0 14px 12px"},[
     L.length?el("table",null,[el("thead",null,el("tr",null,["Artículo","Total","Cambios"].map(h=>el("th",{text:h})))),
       el("tbody",null,R.map(r=>el("tr",null,[el("td",{text:r.articulo}),el("td",{text:kgTxt(r.total)+" "+r.ud}),el("td",{text:String(r.tareas)})])))]):el("p",{class:"hint",text:hoy?"Todavía no se ha cambiado ningún bidón ni GRG hoy.":"Ese día no se registró ningún consumo."}),
-    L.length?el("div",{style:"margin-top:8px"},L.filter(x=>x.envio==="enviado").map(fila)):null,
+    L.length?el("div",{style:"margin-top:8px"},L.filter(x=>!mal.includes(x)).map(fila)):null,
     mal.length?el("div",{style:"margin-top:10px"},[el("div",{class:"aviso"},[(mal.length===1?"1 consumo no ha llegado":mal.length+" consumos no han llegado")+" al Almacén",el("small",{text:"Están en el registro y salen en el informe, pero no han descontado stock."})]),
       mal.map(fila),hoy?el("button",{class:"btn sec peq",style:"margin-top:8px",text:"↻ Reintentar envío al Almacén",onclick:async e=>{e.target.disabled=true;try{const n=await rpc("consumos_reenviar",{p_tok:S.tok});toast(n?"Reenviados "+n:"Nada que reenviar");setTimeout(re,2500);}catch(er){toast(er.message);e.target.disabled=false;}}}):el("p",{class:"hint",text:"Solo se pueden reenviar los de hoy. Los de otros días, apúntalos a mano en el Almacén si hace falta."})]):null,
     el("div",{class:"row",style:"margin-top:12px"},[hoy?el("button",{class:"btn",text:"📝 Generar informe del día",onclick:()=>informeConsumos(C)}):null,

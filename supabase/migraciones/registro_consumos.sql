@@ -162,7 +162,7 @@ begin
   select coalesce(jsonb_agg(x order by x->>'articulo'), '[]'::jsonb) into R from (
     select jsonb_build_object('alm_art', r.alm_art, 'articulo', coalesce(a.nombre, min(r.tarea)), 'ud', coalesce(a.ud, 'kg'),
              'total', sum(coalesce(r.cant, 0)), 'tareas', count(*),
-             'sin_enviar', count(*) filter (where r.envio <> 'enviado')) x
+             'sin_enviar', count(*) filter (where r.envio in ('fallo', 'sin_enviar'))) x
       from consumos_registro r left join articulos_alm a on a.alm_art = r.alm_art
      where r.fecha = f and coalesce(a.en_informe, true)
      group by r.alm_art, a.nombre, a.ud) q;
