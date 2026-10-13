@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261009133635">
+<meta name="build" content="20261013151540">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -36,6 +36,7 @@ nav button[aria-selected=true]{color:var(--acc);border-top-color:var(--acc)}
 .pill.ok{background:var(--okbg);color:var(--ok);border-color:transparent}.pill.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}.pill.bad{background:var(--badbg);color:var(--bad);border-color:transparent}.pill.info{background:#E3EEF9;color:var(--acc);border-color:transparent}
 @media (prefers-color-scheme:dark){.pill.info{background:#16324D}}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--mut)}
+details.card>summary::-webkit-details-marker{display:none}
 .aviso{background:var(--warnbg);color:var(--warn);border-radius:var(--r);padding:10px 14px;margin:0 0 12px;font-weight:600}
 .aviso small{display:block;font-weight:400;color:var(--ink)}
 .names{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
@@ -306,6 +307,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
       el("button",{class:"btn grande sec",text:soloM?"👥 Ver todos":"📋 Solo mis trabajos",onclick:()=>{S.soloMios=!soloM;pinta();}})]));}
   v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"🔥 Moldes y hornos mantenedores",onclick:()=>listaElementos(re)}));
   const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
+  if(admin){const cb=el("div");v.appendChild(cb);bloqueConsumos(cb,f);}
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
@@ -1045,6 +1047,64 @@ async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=
     if(noh.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Problemas ("+noh.length+")"})),noh.map(o=>el("div",{class:"ot"},[el("div",{class:"t",text:fCorta(o.fecha)+" · "+o.titulo}),el("div",{class:"d",text:[o.estado==="no_hecha"?"No hecha":"Checklist NO-OK",o.nota,o.hecho_por_n].filter(Boolean).join(" · ")})]))]));}
   catch(e){box.textContent=e.message;}}
 
+/* ---------- consumos de aceites y taladrinas: registro del día e informe para Beatriz ----------
+   Cada OT habitual con artículo de almacén que pasa a «hecha» deja una línea en el registro
+   (servidor). Aquí solo se lee: el informe no cambia el stock. */
+const kgTxt=n=>(Math.round((+n||0)*100)/100).toLocaleString("es-ES",{maximumFractionDigits:2});
+const ENVIO={enviado:["Enviado al Almacén","ok"],pendiente:["Enviando…","info"],fallo:["Sin enviar al Almacén","bad"],sin_enviar:["Sin enviar al Almacén","bad"]};
+function textoConsumos(C){const f=C.fecha,L=C.lineas||[],R=C.resumen||[];const tot=R.reduce((s,r)=>s+(+r.total||0),0);
+  const T=["CONSUMOS DE ACEITES Y TALADRINAS · LIMPIEZA","Día: "+fLarga(f)+" de "+f.slice(0,4),""];
+  if(!L.length){T.push("Hoy no se ha registrado ningún consumo.");return T.join("\n");}
+  T.push("RESUMEN ("+L.length+" cambio"+(L.length===1?"":"s")+" · "+kgTxt(tot)+" kg):");
+  R.forEach(r=>T.push("- "+r.articulo+": "+kgTxt(r.total)+" "+r.ud+" ("+r.tareas+" cambio"+(r.tareas==1?"":"s")+")"));
+  T.push("","DETALLE:");
+  L.forEach((x,i)=>{T.push((i+1)+". "+hora(x.cuando)+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
+  return T.join("\n");}
+async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14,AZ=[31,78,121];const f=C.fecha,L=C.lineas||[],R=C.resumen||[];
+  doc.setFillColor(...AZ);doc.rect(0,0,W,24,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfTxt("Consumos de aceites y taladrinas"),M,11);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfTxt("Limpieza CIE  ·  "+fLarga(f)+" de "+f.slice(0,4)),M,18);doc.setTextColor(0);let y=32;
+  const tabla=(t,head,body,opt)=>{doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(...AZ);doc.text(pdfTxt(t),M,y);doc.setTextColor(0);y+=4;
+    doc.autoTable(Object.assign({startY:y,head:[head],body:body.map(r=>r.map(pdfTxt)),margin:{left:M,right:M},styles:{fontSize:9,cellPadding:1.8,overflow:"linebreak"},headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,248,251]}},opt||{}));y=doc.lastAutoTable.finalY+9;};
+  if(!L.length){doc.setFontSize(11);doc.text(pdfTxt("Hoy no se ha registrado ningún consumo."),M,y);}
+  else{const tot=R.reduce((s,r)=>s+(+r.total||0),0);
+    tabla("Resumen",["Artículo","Total","Cambios"],R.map(r=>[r.articulo,kgTxt(r.total)+" "+r.ud,String(r.tareas)]).concat([["TOTAL",kgTxt(tot)+" kg",String(L.length)]]),{columnStyles:{1:{halign:"right"},2:{halign:"right"}},didParseCell:d=>{if(d.section==="body"&&d.row.index===R.length)d.cell.styles.fontStyle="bold";}});
+    tabla("Detalle de cada cambio",["Hora","Tarea","Artículo","Cantidad","Responsable"],L.map(x=>[hora(x.cuando),x.ot||x.tarea,x.articulo,x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—",x.quien||"—"]),{columnStyles:{0:{cellWidth:14},3:{halign:"right",cellWidth:22}}});}
+  return doc.output("blob");}
+function formDestConsumos(d,re){const x=Object.assign({nom:"",email:"",tel:""},d||{});
+  dlg("¿A quién va el informe?",el("div",null,[fld("Nombre",inp(x.nom,v=>x.nom=v)),fld("Correo",inp(x.email,v=>x.email=v,{type:"email",autocomplete:"off"})),fld("Teléfono (WhatsApp)",inp(x.tel,v=>x.tel=v,{type:"tel",autocomplete:"off"}))]),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("consumos_dest_guardar",{p_tok:S.tok,p:x});toast("Guardado");re();}}]);}
+function informeConsumos(C){const d=C.dest||{};const txt=textoConsumos(C);const asunto="Consumos de aceites y taladrinas · "+fDMA(C.fecha);
+  const ta=el("textarea",{rows:12,style:"width:100%;font:13px/1.4 ui-monospace,Menlo,monospace"});ta.value=txt;
+  const tel=String(d.tel||"").replace(/\D/g,"");const telWa=tel?(tel.length===9?"34"+tel:tel):"";
+  const copiar=async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Informe copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}};
+  const pdf=async()=>{try{const b=await pdfConsumos(C);bajar(b,"consumos-aceites-"+C.fecha+".pdf");}catch(e){toast(e.message);}};
+  dlg("Informe del día · "+fDM(C.fecha),el("div",null,[
+    el("p",{class:"hint",text:"Para "+(d.nom||"(sin destinatario)")+". Solo lleva los consumos de hoy y no cambia el stock."}),ta,
+    el("div",{class:"row",style:"margin-top:10px"},[
+      el("button",{class:"btn",text:"✉ Correo",onclick:()=>{location.href="mailto:"+encodeURIComponent(d.email||"")+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(ta.value);}}),
+      el("button",{class:"btn",text:"WhatsApp",onclick:()=>{window.open("https://wa.me/"+telWa+"?text="+encodeURIComponent(ta.value),"_blank","noopener");}})]),
+    el("div",{class:"row",style:"margin-top:8px"},[el("button",{class:"btn sec",text:"Copiar texto",onclick:copiar}),el("button",{class:"btn sec",text:"📄 PDF",onclick:pdf})]),
+    el("p",{class:"hint",style:"margin-top:8px",text:"Si cambias el texto aquí, usa «Copiar texto» y pégalo donde quieras."})]),[{t:"Cerrar",cls:"sec"}]);}
+async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
+  try{C=await rpc("consumos_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";return;}
+  box.textContent="";const L=C.lineas||[],R=C.resumen||[],hoy=f===hoyISO();
+  const tot=R.reduce((s,r)=>s+(+r.total||0),0),mal=L.filter(x=>x.envio!=="enviado");
+  const fila=x=>{const[e,c]=ENVIO[x.envio]||["",""];return el("div",{class:"linea",style:"border-top:1px solid var(--line);padding:8px 0"},[
+    el("span",{style:"flex:1;min-width:60%"},[el("b",{text:hora(x.cuando)+" · "+(x.ot||x.tarea)}),el("br"),el("small",{class:"hint",text:x.articulo+" · "+(x.quien||"sin indicar")})]),
+    el("b",{text:x.cant!=null?kgTxt(x.cant)+" "+x.ud:"—"}),x.envio!=="enviado"?el("span",{class:"pill "+c,text:e}):null]);};
+  const cuerpo=el("div",{class:"bd",style:"padding:0 14px 12px"},[
+    L.length?el("table",null,[el("thead",null,el("tr",null,["Artículo","Total","Cambios"].map(h=>el("th",{text:h})))),
+      el("tbody",null,R.map(r=>el("tr",null,[el("td",{text:r.articulo}),el("td",{text:kgTxt(r.total)+" "+r.ud}),el("td",{text:String(r.tareas)})])))]):el("p",{class:"hint",text:hoy?"Todavía no se ha cambiado ningún bidón ni GRG hoy.":"Ese día no se registró ningún consumo."}),
+    L.length?el("div",{style:"margin-top:8px"},L.filter(x=>x.envio==="enviado").map(fila)):null,
+    mal.length?el("div",{style:"margin-top:10px"},[el("div",{class:"aviso"},[(mal.length===1?"1 consumo no ha llegado":mal.length+" consumos no han llegado")+" al Almacén",el("small",{text:"Están en el registro y salen en el informe, pero no han descontado stock."})]),
+      mal.map(fila),hoy?el("button",{class:"btn sec peq",style:"margin-top:8px",text:"↻ Reintentar envío al Almacén",onclick:async e=>{e.target.disabled=true;try{const n=await rpc("consumos_reenviar",{p_tok:S.tok});toast(n?"Reenviados "+n:"Nada que reenviar");setTimeout(re,2500);}catch(er){toast(er.message);e.target.disabled=false;}}}):el("p",{class:"hint",text:"Solo se pueden reenviar los de hoy. Los de otros días, apúntalos a mano en el Almacén si hace falta."})]):null,
+    el("div",{class:"row",style:"margin-top:12px"},[hoy?el("button",{class:"btn",text:"📝 Generar informe del día",onclick:()=>informeConsumos(C)}):null,
+      el("button",{class:"btn sec peq",text:"Para: "+((C.dest&&C.dest.nom)||"elegir"),onclick:()=>formDestConsumos(C.dest,re)})])]);
+  const det=el("details",{class:"card",open:S.consAb?true:null,ontoggle:e=>{S.consAb=e.target.open;}},[
+    el("summary",{class:"hd",style:"cursor:pointer;list-style:none"},[el("h2",{text:"🛢 Aceites y taladrinas"}),
+      mal.length?el("span",{class:"pill bad",text:mal.length+" sin enviar"}):null,
+      el("span",{class:"pill"+(L.length?" ok":""),text:L.length?kgTxt(tot)+" kg · "+L.length:"0"})]),cuerpo]);
+  box.appendChild(det);}
 /* ---------- pintar ---------- */
 const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"]];
 function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
