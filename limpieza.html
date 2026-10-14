@@ -1116,6 +1116,74 @@ async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
       L.some(x=>!x.nave)?el("span",{class:"pill warn",text:L.filter(x=>!x.nave).length+" sin nave"}):null,
       el("span",{class:"pill"+(L.length?" ok":""),text:L.length?kgTxt(tot)+" kg · "+L.length:"0"})]),cuerpo]);
   box.appendChild(det);}
+/* ---------- modo sencillo (operario con dificultades para leer) ---------- */
+// Solo para este operario. Lo que sale aquí es una lista cerrada por id de catálogo.
+// nave = pregunta nave · fijo = lugar ya establecido · incidencia = foto + nave + lugar
+const SENCILLO_ID="761f78ab-1009-4566-87ee-51f48152dba2";
+const SENCILLO_CAT=[
+  ["8c1786a2-0221-42c1-8647-9a161d565352","nave"],        // Chem-Trend SU-124
+  ["6d64b9b8-eee6-4e8e-ba79-8dff17ac7c29","nave"],        // Cimclean PC240
+  ["c4666913-2e8f-4d09-9d02-3150b3f0145d","nave"],        // Ecocool MS 831
+  ["6111caaf-e08b-4d41-bcf3-905860ae370c","nave"],        // Servol 353
+  ["7d0851cf-6805-4528-9ff2-ce01357e948d","nave"],        // Bonderite C-AK
+  ["922ae214-9516-466f-ac78-b2a446ad2035","nave"],        // Saca blanca
+  ["8ee7a1a1-1c8f-42bc-ac75-911aafedbb29","fijo"],        // GRG Metalform V 106
+  ["a18205a7-be51-4e01-802e-48013655bc04","fijo"],        // GRG Avilub HLP-M 46
+  ["dc0efc54-17ec-46ce-ae7f-9932a30509fe","fijo"],        // GRG Besterm HT
+  ["e581059f-19d1-4c0c-a95a-9a215477ed3f","fijo"],        // GRG Avilub Gear 220
+  ["87c44988-d7c1-40fd-95da-3eb3170a95a6","fijo"],        // Vaciar retenedores
+  ["711a970a-e0a0-4af3-b94d-6185ae6615d0","fijo"],        // Limpiar pasillos Nave 1
+  ["e9090bee-5862-4220-9221-cd2fd7a42179","incidencia"],  // Derrame de aceite
+  ["ad73e5b4-94c1-4248-a9c5-d036a007e57b","incidencia"],  // Derrame de taladrina
+  ["c1d9c4cf-0182-4763-a434-f63e8545fc13","incidencia"],  // Filtración de agua
+  ["d97512fc-3793-4e86-836e-d30eafefe560","incidencia"]   // Depósito desbordado
+];
+function esSencillo(){return !!S.yo&&S.yo.id===SENCILLO_ID&&!S.verOp;}
+async function vSencillo(v){
+  const f=hoyISO();
+  v.appendChild(el("h1",{style:"font-size:26px;margin:4px 0 2px",text:"Hola, "+S.yo.nombre.split(" ")[0]}));
+  v.appendChild(el("p",{class:"sub",text:fLarga(f)}));
+  v.appendChild(el("p",{class:"hint",text:"Modo sencillo en prueba: todavía no se guarda nada."}));
+  const fb=el("div"),hb=el("div");
+  v.appendChild(el("h2",{style:"font-size:20px",text:"Tareas de hoy"}));v.appendChild(fb);
+  v.appendChild(el("button",{class:"btn grande",style:"width:100%;margin:14px 0",text:"+ Trabajo que he hecho",onclick:()=>catalogoSencillo()}));
+  v.appendChild(el("h2",{style:"font-size:20px",text:"Lo que llevo hecho hoy"}));v.appendChild(hb);
+  let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){fb.appendChild(el("div",{class:"empty",text:e.message}));return;}
+  const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre));
+  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),[{t:"Volver",cls:"sec"}])},
+    [el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})]);
+  const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
+  fb.appendChild(pend.length?el("div",{class:"card"},pend.map(linea)):el("div",{class:"empty",text:"Hoy no tienes tareas pendientes."}));
+  hb.appendChild(hech.length?el("div",{class:"card"},hech.map(linea)):el("div",{class:"empty",text:"Todavía no has hecho nada hoy."}));
+}
+async function catalogoSencillo(){
+  const H=(await habituales(true).catch(()=>[]))||[];
+  const items=SENCILLO_CAT.map(([id,m])=>({m,h:H.find(x=>x.id===id)})).filter(x=>x.h);
+  const grid=el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:10px"},items.map(x=>el("button",{class:"btn grande sec",style:"text-align:left;white-space:normal;min-height:88px;font-size:17px",text:x.h.titulo,onclick:()=>{cerrarTodo();setTimeout(()=>pasoSencillo(x,{}),0);}})));
+  dlg("¿Qué has hecho?",el("div",null,[grid]),[{t:"Cerrar",cls:"sec"}]);
+}
+async function pasoSencillo(x,st){
+  const m=x.m,h=x.h,cont=el("div");
+  const Z=m==="incidencia"?((await zonasL().catch(()=>[]))||[]):[];
+  const botonNave=n=>el("button",{class:"btn grande"+(st.nave===n?"":" sec"),style:"width:100%;margin:4px 0",text:n,onclick:()=>{cerrarTodo();pasoSencillo(x,Object.assign({},st,{nave:n}));}});
+  if(h.minutos_est)cont.appendChild(el("p",{class:"hint",text:durTxt(h.minutos_est)}));
+  if(m==="fijo")cont.appendChild(el("p",{text:"Lugar: "+(h.lugar||"")}));
+  if(m==="nave"||m==="incidencia"){cont.appendChild(el("p",{class:"hint",text:(m==="incidencia"?"2. ":"")+"¿En qué nave?"}));cont.appendChild(el("div",null,[botonNave("Nave 1"),botonNave("Nave 2")]));}
+  if(m==="incidencia"){
+    cont.appendChild(el("p",{class:"hint",text:"1. Foto (obligatoria)"}));
+    cont.appendChild(el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer"},[st.foto?"Foto hecha ✓":"📷 Hacer foto",
+      el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:e=>{if(e.target.files[0]){cerrarTodo();pasoSencillo(x,Object.assign({},st,{foto:true}));}}})]));
+    cont.appendChild(el("p",{class:"hint",text:"3. ¿En qué lugar de la nave?"}));
+    const sel=el("select",{style:"width:100%;font-size:18px;padding:12px",onchange:e=>{cerrarTodo();pasoSencillo(x,Object.assign({},st,{lugar:e.target.value||null}));}});
+    sel.appendChild(el("option",{value:"",text:"Elige el lugar"}));
+    [...new Set(Z.map(z=>z.grupo))].forEach(g=>{const og=el("optgroup",{label:g});Z.filter(z=>z.grupo===g).forEach(z=>og.appendChild(el("option",{value:z.nombre,text:z.nombre,selected:z.nombre===st.lugar})));sel.appendChild(og);});
+    cont.appendChild(sel);
+  }
+  const listo=m==="fijo"||(m==="nave"?!!st.nave:(!!st.nave&&!!st.foto&&!!st.lugar));
+  cont.appendChild(el("button",{class:"btn grande",disabled:true,style:"width:100%;margin-top:14px",text:listo?"Guardar (todavía no activo)":"Faltan datos"}));
+  dlg(h.titulo,cont,[{t:"Volver",cls:"sec"}]);
+}
+
 /* ---------- pintar ---------- */
 const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"]];
 function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
@@ -1126,6 +1194,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   else{const bp=$("bprueba");if(bp)bp.hidden=true;}
   if(esAdm()){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));}
   else{nav.hidden=true;S.tab="hoy";}
+  if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
 try{const c=new URLSearchParams(location.search).get("el");if(c){S.elPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
