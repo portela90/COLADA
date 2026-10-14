@@ -1153,7 +1153,10 @@ async function vSencillo(v){
   v.appendChild(el("h2",{style:"font-size:20px",text:"Lo que llevo hecho hoy"}));v.appendChild(hb);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){fb.appendChild(el("div",{class:"empty",text:e.message}));return;}
   const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre));
-  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")})].filter(Boolean)),[{t:"Volver",cls:"sec"}])},
+  // Solo añade una foto a la OT: no cambia su estado ni el almacén
+  const subirFoto=o=>el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer;margin:10px 0"},["📷 Añadir foto",
+    el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");}catch(er){toast(er.message);}}})]);
+  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),subirFoto(o)].filter(Boolean)),[{t:"Volver",cls:"sec"}])},
     [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})].filter(Boolean));
   const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
   fb.appendChild(pend.length?el("div",{class:"card"},pend.map(linea)):el("div",{class:"empty",text:"Hoy no tienes tareas pendientes."}));
