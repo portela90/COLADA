@@ -1138,6 +1138,9 @@ const SENCILLO_CAT=[
   ["c1d9c4cf-0182-4763-a434-f63e8545fc13","incidencia"],  // Filtración de agua
   ["d97512fc-3793-4e86-836e-d30eafefe560","incidencia"]   // Depósito desbordado
 ];
+// Foto del icono de cada trabajo del catálogo (en img/sencillo/). Sin foto = solo texto.
+const SENCILLO_FOTO={"8c1786a2-0221-42c1-8647-9a161d565352":"chem-trend.jpg","6d64b9b8-eee6-4e8e-ba79-8dff17ac7c29":"cimclean-pc240.jpg","c4666913-2e8f-4d09-9d02-3150b3f0145d":"ecocool-831.jpg","6111caaf-e08b-4d41-bcf3-905860ae370c":"servol-353.jpg","7d0851cf-6805-4528-9ff2-ce01357e948d":"bonderite-c-ak.jpg","922ae214-9516-466f-ac78-b2a446ad2035":"saca-blanca.jpg","8ee7a1a1-1c8f-42bc-ac75-911aafedbb29":"metalflow.jpg","a18205a7-be51-4e01-802e-48013655bc04":"avilub-hlp-46.jpg","dc0efc54-17ec-46ce-ae7f-9932a30509fe":"besterm.jpg","e581059f-19d1-4c0c-a95a-9a215477ed3f":"gear-avia-220.jpg","e9090bee-5862-4220-9221-cd2fd7a42179":"derrame-aceite.jpg"};
+const fotoSencillo=id=>SENCILLO_FOTO[id]?el("img",{src:"img/sencillo/"+SENCILLO_FOTO[id],alt:"",style:"width:100%;max-width:100%;height:110px;object-fit:cover;border-radius:10px;display:block;margin-bottom:8px"}):null;
 function esSencillo(){return !!S.yo&&S.yo.id===SENCILLO_ID&&!S.verOp;}
 async function vSencillo(v){
   const f=hoyISO();
@@ -1159,13 +1162,14 @@ async function vSencillo(v){
 async function catalogoSencillo(){
   const H=(await habituales(true).catch(()=>[]))||[];
   const items=SENCILLO_CAT.map(([id,m])=>({m,h:H.find(x=>x.id===id)})).filter(x=>x.h);
-  const grid=el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:10px"},items.map(x=>el("button",{class:"btn grande sec",style:"text-align:left;white-space:normal;min-height:88px;font-size:17px",text:x.h.titulo,onclick:()=>{cerrarTodo();setTimeout(()=>pasoSencillo(x,{}),0);}})));
+  const grid=el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:10px"},items.map(x=>el("button",{class:"btn grande sec",style:"text-align:left;white-space:normal;min-height:88px;font-size:17px",onclick:()=>{cerrarTodo();setTimeout(()=>pasoSencillo(x,{}),0);}},[fotoSencillo(x.h.id),el("span",{text:x.h.titulo})].filter(Boolean))));
   dlg("¿Qué has hecho?",el("div",null,[grid]),[{t:"Cerrar",cls:"sec"}]);
 }
 async function pasoSencillo(x,st){
   const m=x.m,h=x.h,cont=el("div");
   const Z=m==="incidencia"?((await zonasL().catch(()=>[]))||[]):[];
   const botonNave=n=>el("button",{class:"btn grande"+(st.nave===n?"":" sec"),style:"width:100%;margin:4px 0",text:n,onclick:()=>{cerrarTodo();pasoSencillo(x,Object.assign({},st,{nave:n}));}});
+  if(fotoSencillo(h.id))cont.appendChild(fotoSencillo(h.id));
   if(h.minutos_est)cont.appendChild(el("p",{class:"hint",text:durTxt(h.minutos_est)}));
   if(m==="fijo")cont.appendChild(el("p",{text:"Lugar: "+(h.lugar||"")}));
   if(m==="nave"||m==="incidencia"){cont.appendChild(el("p",{class:"hint",text:(m==="incidencia"?"2. ":"")+"¿En qué nave?"}));cont.appendChild(el("div",null,[botonNave("Nave 1"),botonNave("Nave 2")]));}
