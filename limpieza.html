@@ -1153,8 +1153,8 @@ async function vSencillo(v){
   v.appendChild(el("h2",{style:"font-size:20px",text:"Lo que llevo hecho hoy"}));v.appendChild(hb);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){fb.appendChild(el("div",{class:"empty",text:e.message}));return;}
   const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre));
-  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),[{t:"Volver",cls:"sec"}])},
-    [el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})]);
+  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")})].filter(Boolean)),[{t:"Volver",cls:"sec"}])},
+    [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})].filter(Boolean));
   const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
   fb.appendChild(pend.length?el("div",{class:"card"},pend.map(linea)):el("div",{class:"empty",text:"Hoy no tienes tareas pendientes."}));
   hb.appendChild(hech.length?el("div",{class:"card"},hech.map(linea)):el("div",{class:"empty",text:"Todavía no has hecho nada hoy."}));
