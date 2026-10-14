@@ -1156,7 +1156,7 @@ async function vSencillo(v){
   // Solo añade una foto a la OT: no cambia su estado ni el almacén
   const subirFoto=o=>el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer;margin:10px 0"},["📷 Añadir foto",
     el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");}catch(er){toast(er.message);}}})]);
-  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),subirFoto(o)].filter(Boolean)),[{t:"Volver",cls:"sec"}])},
+  const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),subirFoto(o)].filter(Boolean)),[...(o.estado!=="hecha"?[{t:"✔ Hecha",fn:async()=>{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:o.minutos_est||30,p_nota:null});toast("Hecha");pinta();}}]:[]),{t:"Volver",cls:"sec"}])},
     [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})].filter(Boolean));
   const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
   fb.appendChild(pend.length?el("div",{class:"card"},pend.map(linea)):el("div",{class:"empty",text:"Hoy no tienes tareas pendientes."}));
@@ -1171,17 +1171,16 @@ async function catalogoSencillo(){
 async function pasoSencillo(x,st){
   const m=x.m,h=x.h,cont=el("div");
   const Z=m==="incidencia"?((await zonasL().catch(()=>[]))||[]):[];
-  const botonNave=n=>el("button",{class:"btn grande"+(st.nave===n?"":" sec"),style:"width:100%;margin:4px 0",text:n,onclick:()=>{cerrarTodo();pasoSencillo(x,Object.assign({},st,{nave:n}));}});
+  const botonNave=n=>el("button",{class:"btn grande"+(st.nave===n?"":" sec"),style:"width:100%;margin:4px 0",text:n,onclick:()=>{cerrarTodo();setTimeout(()=>pasoSencillo(x,Object.assign({},st,{nave:n})),0);}});
   if(fotoSencillo(h.id))cont.appendChild(fotoSencillo(h.id));
   if(h.minutos_est)cont.appendChild(el("p",{class:"hint",text:durTxt(h.minutos_est)}));
   if(m==="fijo")cont.appendChild(el("p",{text:"Lugar: "+(h.lugar||"")}));
   if(m==="nave"||m==="incidencia"){cont.appendChild(el("p",{class:"hint",text:(m==="incidencia"?"2. ":"")+"¿En qué nave?"}));cont.appendChild(el("div",null,[botonNave("Nave 1"),botonNave("Nave 2")]));}
   if(m==="incidencia"){
     cont.appendChild(el("p",{class:"hint",text:"1. Foto (obligatoria)"}));
-    cont.appendChild(el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer"},[st.foto?"Foto hecha ✓":"📷 Hacer foto",
-      el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:e=>{if(e.target.files[0]){cerrarTodo();pasoSencillo(x,Object.assign({},st,{foto:true}));}}})]));
+    cont.appendChild(el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer"},[st.file?"Foto hecha ✓":"📷 Hacer foto",
+      el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f){cerrarTodo();setTimeout(()=>pasoSencillo(x,Object.assign({},st,{file:f})),0);}}})]));
     cont.appendChild(el("p",{class:"hint",text:"3. ¿En qué lugar de la nave?"}));
-    // Botones en vez de desplegable: con el dedo es más fácil y no depende del selector del móvil
     const zl=el("div",{style:"max-height:40vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"});
     [...new Set(Z.map(z=>z.grupo))].forEach(g=>{
       zl.appendChild(el("p",{class:"hint",style:"grid-column:1/3;margin:6px 0 0",text:g}));
@@ -1190,9 +1189,18 @@ async function pasoSencillo(x,st){
     cont.appendChild(zl);
     if(!Z.length)cont.appendChild(el("p",{class:"hint",text:"No se han cargado las zonas. Cierra y vuelve a intentarlo."}));
   }
-  const listo=m==="fijo"||(m==="nave"?!!st.nave:(!!st.nave&&!!st.foto&&!!st.lugar));
-  cont.appendChild(el("button",{class:"btn grande",disabled:true,style:"width:100%;margin-top:14px",text:listo?"Guardar (todavía no activo)":"Faltan datos"}));
-  dlg(h.titulo,cont,[{t:"Volver",cls:"sec"}]);
+  if(m==="nave"&&st.nave)cont.appendChild(el("p",{class:"hint",text:"Nave elegida: "+st.nave}));
+  dlg(h.titulo,cont,[{t:"Guardar",fn:()=>guardarSencillo(x,st)},{t:"Volver",cls:"sec"}]);
+}
+// Guarda el trabajo ya hecho con las mismas funciones que la app (ot_abrir y foto_add)
+async function guardarSencillo(x,st){
+  const m=x.m,h=x.h;
+  const completo=m==="fijo"||(m==="nave"?!!st.nave:(!!st.nave&&!!st.file&&!!st.lugar));
+  if(!completo){toast(m==="incidencia"?"Faltan la foto, la nave o el lugar":"Elige la nave");return false;}
+  const p={habitual_id:h.id,hecha:true,nave:st.nave||null,lugar:m==="fijo"?(h.lugar||null):(m==="nave"?st.nave:st.lugar)};
+  let r;try{r=await rpc("ot_abrir",{p_tok:S.tok,p:p});}catch(e){toast(e.message);return false;}
+  if(st.file){try{await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:await comprime(st.file)});}catch(e){toast("Guardado, pero la foto no: "+e.message);}}
+  toast("Guardado");S.fecha=hoyISO();pinta();
 }
 
 /* ---------- pintar ---------- */
