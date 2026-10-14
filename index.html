@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261007102738"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261014054356"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1230,6 +1230,53 @@ function vConsumo(){
    Los camiones colocados en el calendario del Plan se pueden dar por llegados:
    se abre Entradas ya rellenado y, al registrar, queda marcado "recibido"
    (y deja de sumarse en la proyección, porque ya es stock real). */
+/* Subir n fardos de una colada del almacén externo a su nave. Entera: la colada pasa a «en nave».
+   Una parte: la colada se parte en dos y queda el traslado apuntado. b = saldo de la colada (saldos()). */
+async function subirExterno(l,b,n){const hay=b.fa;
+  if(n===hay){
+    await db.doc("lotes/"+l.id).update({donde:"nave"});
+    await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:l.id,kg:0,fa:0,n:"Subida entera del almacén externo ("+hay+" fardos)"});
+  }else{
+    let dest=lotes.find(x=>x.nombre===l.nombre&&x.nave===l.nave&&x.material===l.material&&x.donde==="nave");
+    let did=dest?dest.id:uid("l");
+    if(!dest)await db.doc("lotes/"+did).set({nombre:l.nombre,material:l.material,nave:l.nave,donde:"nave",
+      kgInv:0,fardosInv:0,albaran:l.albaran||"",proveedor:l.proveedor||"",entrada:l.entrada||hoy(),
+      obs:"Parte de "+l.nombre+" subida del almacén externo"});
+    await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:did,kg:Math.round(n*(b.ratio||0)),fa:n,n:"Subida del almacén externo"});
+  }}
+/* BP del Plan que llega en parte: se suben a nave los fardos que han llegado (de las coladas
+   que digas, la más antigua primero) y en el calendario queda pendiente solo lo que falta. */
+function bpEnParte(x,mes){
+  const [nv,mt]=(x.k||"|").split("|"),S=saldos();
+  const L=lotes.filter(l=>l.nave===nv&&l.material===mt&&l.donde==="externo"&&S[l.id]&&S[l.id].fa>0)
+    .sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||"")||a.nombre.localeCompare(b.nombre,"es"));
+  if(!L.length){toast("No hay coladas de "+(nv||"esa nave")+" en el almacén externo");return;}
+  const v={};const tot=()=>Object.values(v).reduce((a,n)=>a+(n>0?n:0),0);
+  const err=el("div",{class:"banner b",hidden:""}),info=el("p",{class:"hint"});
+  const pinfo=()=>{const t=tot();info.textContent=t?("Llegan "+fmt(t)+" de "+fmt(x.fa)+" fardos previstos"+(t<x.fa?". Quedan pendientes "+fmt(x.fa-t)+".":t>x.fa?" (más de lo previsto).":".")):"Escribe cuántos fardos han llegado de cada colada.";};
+  const filas=L.map((l,i)=>el("div",{class:"rel-row",style:"grid-template-columns:1fr 84px"},[
+    el("div",{},[el("b",{text:l.nombre}),el("div",{class:"sub",text:"hay "+fmt(S[l.id].fa)+" f en el externo"+(i===0?" · la más antigua":"")})]),
+    el("input",{class:"num",type:"text",inputmode:"numeric",placeholder:"0","aria-label":"Fardos de "+l.nombre,oninput:e=>{const n=parseInt(e.target.value,10);v[l.id]=n>0?n:0;pinfo();}})]));
+  pinfo();
+  const cerrar=()=>ov.remove();
+  const guardar=async e=>{const t=tot();const mal=L.filter(l=>v[l.id]>S[l.id].fa);
+    if(!t){err.textContent="Pon los fardos que han llegado.";err.hidden=false;return;}
+    if(mal.length){err.textContent=mal.map(l=>l.nombre+": solo hay "+fmt(S[l.id].fa)).join(" · ");err.hidden=false;return;}
+    const b=e.currentTarget;b.disabled=true;
+    try{for(const l of L)if(v[l.id]>0)await subirExterno(l,S[l.id],v[l.id]);
+      const c=Object.assign({},cfg.plan||{}),p=Object.assign({camiones:[],consumo:{},entradas:[]},c[mes]||{});let hecho=false;const nuevas=[];
+      (p.entradas||[]).forEach(y=>{if(!hecho&&!y.rec&&y.f===x.f&&(y.k||"")===(x.k||"")&&y.fa===x.fa&&y.o===x.o){hecho=true;
+          nuevas.push(Object.assign({},y,{fa:t,rec:{f:hoy(),parte:true}}));
+          if(t<x.fa)nuevas.push(Object.assign({},y,{fa:x.fa-t}));}else nuevas.push(y);});
+      if(hecho){p.entradas=nuevas;c[mes]=p;cfg.plan=c;await saveCfg();}
+      cerrar();toast(fmt(t)+" fardos subidos a "+nv+(t<x.fa?" · quedan "+fmt(x.fa-t)+" pendientes":""));render();
+    }catch(er){b.disabled=false;err.textContent="No se pudo guardar. Revisa en Lotes qué se ha subido antes de repetir.";err.hidden=false;}};
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"BP traído en parte"},[
+    el("h3",{text:"BP traído en parte · "+etiqLinea(x.k)}),
+    el("p",{class:"sub",text:"Previsto el "+dmy(x.f)+": "+fmt(x.fa)+" fardos. Pon lo que ha llegado de cada colada; se sube a "+nv+" y el resto sigue en el calendario."}),
+    el("div",{},filas),info,err,
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),el("button",{type:"button",class:"btn",text:"Subir a nave",onclick:guardar})])])]);
+  document.body.appendChild(ov);setTimeout(()=>{const i=ov.querySelector("input");if(i)i.focus();},30);}
 function pendientesPlan(){const out=[];Object.keys(cfg.plan||{}).forEach(m=>{((cfg.plan[m]||{}).entradas||[]).forEach(x=>{if(!x.rec&&x.o!=="B")out.push(Object.assign({mes:m},x));});});
   return out.sort((a,b)=>(a.f||"").localeCompare(b.f||""));}
 async function marcarPlan(ref,rec){
@@ -1485,22 +1532,7 @@ function vLotes(){
             const n=parseInt(r,10);
             if(!(n>0)){toast("Pon un número de fardos");return;}
             if(n>hay){toast("Sólo hay "+fmt(hay)+" fardos");return;}
-            try{
-              if(n===hay){
-                await db.doc("lotes/"+l.id).update({donde:"nave"});
-                await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:l.id,kg:0,fa:0,n:"Subida entera del almacén externo ("+hay+" fardos)"});
-                toast("Lote entero subido a "+l.nave);
-              }else{
-                /* sube sólo una parte: el lote se parte en dos y queda el rastro del traslado */
-                let dest=lotes.find(x=>x.nombre===l.nombre&&x.nave===l.nave&&x.material===l.material&&x.donde==="nave");
-                let did=dest?dest.id:uid("l");
-                if(!dest)await db.doc("lotes/"+did).set({nombre:l.nombre,material:l.material,nave:l.nave,donde:"nave",
-                  kgInv:0,fardosInv:0,albaran:l.albaran||"",proveedor:l.proveedor||"",entrada:l.entrada||hoy(),
-                  obs:"Parte de "+l.nombre+" subida del almacén externo"});
-                await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:did,kg:Math.round(n*(b.ratio||0)),fa:n,n:"Subida del almacén externo"});
-                toast(fmt(n)+" fardos subidos a "+l.nave);
-              }
-            }catch(e){toast("No se pudo");}
+            try{await subirExterno(l,b,n);toast(n===hay?"Lote entero subido a "+l.nave:fmt(n)+" fardos subidos a "+l.nave);}catch(e){toast("No se pudo");}
           }}):null])
         ])))
       ])])
@@ -2235,12 +2267,13 @@ function vPlan(){
           try{await setPlan({entradas:ne2});toast("Fardos cambiados");}catch(err){toast("No se pudo guardar");}}}),
       (()=>{const mm=x.k?x.k.split("|")[1]:"L-2630",mc=mediaCamion(mm);return (x.o!=="B"&&mc.n&&Math.abs(x.fa-mc.fa)>=2)?el("div",{class:"sub",text:"media real "+Math.round(mc.fa)+" f"}):null;})()]),
     el("td",{class:"r acc"},[
-      x.rec?el("span",{},[el("span",{class:"pill ok",text:x.o==="B"?"Traído":"Recibido"+(x.rec.f?" "+dmy(x.rec.f):"")}),
+      x.rec?el("span",{},[el("span",{class:"pill ok",text:x.o==="B"?(x.rec.parte?"Traído "+(x.rec.f?dmy(x.rec.f):""):"Traído"):"Recibido"+(x.rec.f?" "+dmy(x.rec.f):"")}),
           (x.rec.k&&x.k&&x.rec.k!==x.k)?el("div",{class:"sub",text:"desviado a "+etiqLinea(x.rec.k)}):null]):
         el("span",{},[x.f<hoy()?el("span",{class:"pill bad",style:"margin-right:6px",text:"Retrasado"}):null,
           x.o==="B"?el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px",text:"Traído",onclick:async()=>{
               if(!(await confirmar("¿Marcar como traído el BP del "+dmy(x.f)+"?\n\nEl traslado de fardos se hace en Lotes → «Traer a nave». Esto sólo lo quita de la previsión.",{titulo:"BP traído",ok:"Marcar"})))return;
-              try{await marcarPlan(Object.assign({mes:m},x),{f:hoy()});toast("Marcado como traído");}catch(err){toast("No se pudo");}}}):
+              try{await marcarPlan(Object.assign({mes:m},x),{f:hoy()});toast("Marcado como traído");}catch(err){toast("No se pudo");}}}):null,
+          x.o==="B"?el("button",{class:"btn",type:"button",style:"font-size:13px;padding:5px 10px;margin-left:6px",text:"Traído en parte",onclick:()=>bpEnParte(x,m)}):
             el("button",{class:"btn",type:"button",style:"font-size:13px;padding:5px 10px",text:"Ha llegado",onclick:()=>llegaCamion(Object.assign({mes:m},x))})]),
       el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px",text:"Quitar",onclick:async()=>{
       try{await setPlan({entradas:ents.filter((_,i)=>i!==idx)});toast("Quitada");}catch(err){toast("No se pudo");}}})])
