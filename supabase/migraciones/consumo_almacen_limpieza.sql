@@ -11,10 +11,15 @@
 --    - disparador ots_consumo_almacen: al pasar una OT habitual a 'hecha' llama por pg_net
 --      a alm_consumo_limpieza. Si falla la llamada no se bloquea el cierre de la OT.
 --
--- Mapeo (bidón = 200 kg, GRG = 900 kg, saca = 1 ud):
---   bidones 200 kg: chem-trend, Metal Flow, Bonderite, Cinclean, Burgarola 353, FUCHS
---   GRG 900 kg: 220 (ACEITE OSO 220), Oso 46, térmico (ACEITE TÉRMICO BESTERM)
---   saca blanca: Sacar blancas (ud)
+-- Mapeo real (tareas_habituales.alm_cant, kg salvo indicación; revisado 2026-10-14):
+--   Chem-Trend SU-124 (bidón): 170 kg
+--   Cimclean PC240 (bidón): 211 kg
+--   Ecocool MS 831 BFF (bidón): 190 kg
+--   Servol 353 (bidón): 200 kg
+--   GRG Avilub Gear 220: 870 kg; GRG Avilub HLP-M 46: 870 kg; GRG Metalform V 106: 900 kg
+--   GRG Besterm HT (térmico): 870 kg
+--   GRG Bonderite (Nave 2 y C-AK 5129-28): 900 kg y 1000 kg
+--   saca blanca: 1 ud
 --
 -- Deshacer: borrar el movimiento "Limpieza: ..." en Almacén > Movimientos.
 --
