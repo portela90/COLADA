@@ -1178,10 +1178,14 @@ async function pasoSencillo(x,st){
     cont.appendChild(el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer"},[st.foto?"Foto hecha ✓":"📷 Hacer foto",
       el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:e=>{if(e.target.files[0]){cerrarTodo();pasoSencillo(x,Object.assign({},st,{foto:true}));}}})]));
     cont.appendChild(el("p",{class:"hint",text:"3. ¿En qué lugar de la nave?"}));
-    const sel=el("select",{style:"width:100%;font-size:18px;padding:12px",onchange:e=>{cerrarTodo();pasoSencillo(x,Object.assign({},st,{lugar:e.target.value||null}));}});
-    sel.appendChild(el("option",{value:"",text:"Elige el lugar"}));
-    [...new Set(Z.map(z=>z.grupo))].forEach(g=>{const og=el("optgroup",{label:g});Z.filter(z=>z.grupo===g).forEach(z=>og.appendChild(el("option",{value:z.nombre,text:z.nombre,selected:z.nombre===st.lugar})));sel.appendChild(og);});
-    cont.appendChild(sel);
+    // Botones en vez de desplegable: con el dedo es más fácil y no depende del selector del móvil
+    const zl=el("div",{style:"max-height:40vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px"});
+    [...new Set(Z.map(z=>z.grupo))].forEach(g=>{
+      zl.appendChild(el("p",{class:"hint",style:"grid-column:1/3;margin:6px 0 0",text:g}));
+      Z.filter(z=>z.grupo===g).forEach(z=>zl.appendChild(el("button",{class:"btn "+(st.lugar===z.nombre?"":"sec"),style:"margin:0;font-size:16px;padding:12px 6px",text:z.nombre,onclick:()=>{cerrarTodo();setTimeout(()=>pasoSencillo(x,Object.assign({},st,{lugar:z.nombre})),0);}})));
+    });
+    cont.appendChild(zl);
+    if(!Z.length)cont.appendChild(el("p",{class:"hint",text:"No se han cargado las zonas. Cierra y vuelve a intentarlo."}));
   }
   const listo=m==="fijo"||(m==="nave"?!!st.nave:(!!st.nave&&!!st.foto&&!!st.lugar));
   cont.appendChild(el("button",{class:"btn grande",disabled:true,style:"width:100%;margin-top:14px",text:listo?"Guardar (todavía no activo)":"Faltan datos"}));
