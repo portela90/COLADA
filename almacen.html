@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261014060107"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261014085509"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1622,7 +1622,8 @@ const lineas=()=>{const o=origenRepo();const pr=cat.almacenes.filter(l=>l.tipo==
 function almsDe(a){const S=new Set(a.alms||[]);const pp=a.almPpal;if(pp)S.add(pp);Object.keys(cat.dot||{}).forEach(l=>{if((cat.dot[l]||{})[a.id])S.add(l);});cat.almacenes.forEach(l=>{if(stockDe(a.id,l.id))S.add(l.id);});return cat.almacenes.filter(l=>S.has(l.id));}
 function ppalDe(a){if(a.almPpal&&cat.almacenes.some(l=>l.id===a.almPpal))return a.almPpal;const al=almsDe(a);const c=al.filter(l=>l.tipo!=="produccion");const pool=c.length?c:al;let best=null,mx=-Infinity;pool.forEach(l=>{const s=stockDe(a.id,l.id);if(s>mx){mx=s;best=l.id;}});return best||(origenRepo()||{}).id||(cat.almacenes[0]||{}).id||"";}
 const almById=id=>cat.almacenes.find(l=>l.id===id);
-function faltas(almId){const d=(cat.dot||{})[almId]||{};return Object.keys(d).map(id=>{const a=art(id);if(!a||a.activo===false)return null;const obj=+d[id]||0;const st=stockDe(id,almId);const org=ppalDe(a);
+/* a.limp: lo consume la app de Limpieza directamente de su almacén (aceites, taladrinas, sacas): no se baja a planta */
+function faltas(almId){const d=(cat.dot||{})[almId]||{};return Object.keys(d).map(id=>{const a=art(id);if(!a||a.activo===false||a.limp)return null;const obj=+d[id]||0;const st=stockDe(id,almId);const org=ppalDe(a);
   return{a,obj,st,org:org!==almId?org:null,falta:Math.max(0,Math.ceil(obj-st))};}).filter(Boolean);}
 function vRepo(v){draft.rv=draft.rv||"hoy";
   v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"],["prev","Previsión"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
@@ -2211,7 +2212,7 @@ function textoPrev(R,s){s=s||incluirSel("previsto",OPS_PRV);const{S,arts,E}=R;co
   return L.join("\n").trim();}
 function aplicarPrev(R){const{arts,E}=R;
   const cMin=arts.filter(x=>(+x.a.min||0)!==x.min),cEje=E.L.filter(x=>x.G.some(m=>(+m.min||0)!==x.min));
-  const cDot=[];arts.forEach(x=>Object.keys(x.dot).forEach(l=>{const ah=+(((cat.dot||{})[l]||{})[x.a.id])||0;if(ah!==x.dot[l])cDot.push({x,l,v:x.dot[l]});}));
+  const cDot=[];arts.forEach(x=>!x.a.limp&&Object.keys(x.dot).forEach(l=>{const ah=+(((cat.dot||{})[l]||{})[x.a.id])||0;if(ah!==x.dot[l])cDot.push({x,l,v:x.dot[l]});}));
   const op={min:cMin.length>0,eje:cEje.length>0,dot:cDot.length>0};
   const ck=(k,t,n)=>el("label",{style:"display:flex;gap:10px;align-items:center;flex-direction:row"},[el("input",{type:"checkbox",checked:op[k]&&n>0,disabled:!n,style:"width:22px;height:22px;flex:none",onchange:e=>op[k]=e.target.checked}),el("span",{text:t+" ("+(n?n+" cambian":"sin cambios")+")"})]);
   dlg("Aplicar lo sugerido",[ck("min","Stock mínimo de cada artículo",cMin.length),ck("eje","Mínimo en planta de cada modelo de eje",cEje.length),ck("dot","Lo que tiene que haber en cada almacén de producción",cDot.length),
