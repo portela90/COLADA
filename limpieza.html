@@ -256,7 +256,12 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
 /* «No se pudo»: cuatro motivos fijos, sin escribir */
 function noHecha(o,re){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Se suspendió el trabajo"];let cerrar=()=>{};
-  cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
+  cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();if(m.indexOf("suspendió")>=0){setTimeout(()=>motivoSuspension(o,re),0);return;}cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
+/* suspender un trabajo: hay que escribir el motivo */
+function motivoSuspension(o,re){let motivo="";
+  dlg("Motivo de la suspensión",el("div",null,[el("p",{class:"hint",text:"Explica por qué se suspende el trabajo."}),area("",x=>motivo=x)]),
+    [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!motivo.trim()){toast("Escribe el motivo");return false;}
+      try{await rpc("estado_ot",{p_tok:S.tok,p_ot:o.id,p_estado:"no_hecha",p_nota:"Se suspendió el trabajo: "+motivo.trim()});toast("Suspendido");re();}catch(er){toast(er.message);return false;}}}]);}
 function segOK(v,on){const b=[["OK","v-ok"],["NO-OK","v-no"],["N/A","v-na"]].map(([k,c])=>el("button",{type:"button",class:c,"aria-pressed":String(v===k),text:k,onclick:()=>{on(k);b.forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===k)));}}));return el("div",{class:"seg"},b);}
 const CHECKLIST_ACTIVA=false; /* desactivada hasta definir la checklist de inyectoras de fin de semana */
 /* ¿hay un tiempo medido de verdad? (pulsó «Empezar» hace al menos 2 minutos) */
