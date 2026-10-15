@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261015222649">
+<meta name="build" content="20261015223810">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -120,7 +120,7 @@ const ERR = {
   FIRMA_INVALIDA:'La firma no es válida. Vuelve a firmar.', SIN_TOOLBOX:'Ese mes no tiene Toolbox.',
   PIN_MAL:'PIN incorrecto.', BLOQUEADO:'Demasiados intentos. Espera 10 minutos.', PIN_FORMATO:'El PIN debe tener de 4 a 8 números.',
   NO_EXISTE:'No existe o ya no está disponible.', FALTA_COMPROMISO:'Falta el compromiso del mes.',
-  FALTA_FECHA:'Falta la fecha de la formación.', FALTA_TRABAJADOR:'Elige al menos un trabajador.'
+  FALTA_FECHA:'Falta la fecha de la formación.', FALTA_TRABAJADOR:'Elige al menos un trabajador.', FALTA_TIPO:'Elige el tipo de curso.', ARCHIVO_TIPO:'Solo se pueden adjuntar fotos (JPG/PNG) o PDF.', ARCHIVO_GRANDE:'El archivo es demasiado grande.'
 };
 
 // ====== Estado ======
@@ -1405,7 +1405,7 @@ async function pantallaFichas(){
   $('#w').innerHTML=`<p class="small muted" style="margin-top:0">Todo lo entregado y firmado por cada trabajador. Desde su ficha puedes sacar el expediente completo en PDF para una inspección.</p><div class="card">`+
     L.map(t=>`<div class="li" data-t="${esc(t.id)}" style="cursor:pointer"><span class="dot ${t.epis?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span>${t.activo?'':' <span class="chip">de baja</span>'}<br>
       <span class="small muted">${t.epis?`${t.epis} entrega${t.epis>1?'s':''} de EPI · última ${fmtF(t.ult_epi)}`:'Sin entregas de EPI'}${t.dni?'':' · <span style="color:var(--warn)">sin DNI</span>'}</span></span>
-      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}</span></div>`).join('')+`</div>`;
+      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
   document.querySelectorAll('[data-t]').forEach(el=>el.onclick=()=>pantallaFicha(el.dataset.t));
 }
 async function pantallaFicha(id){
@@ -1420,6 +1420,10 @@ async function pantallaFicha(id){
   $('#w').innerHTML=`<div class="card"><b style="font-size:19px">${esc(t.nombre)}</b>${t.activo?'':' <span class="chip">de baja</span>'}
       <div class="small muted" style="margin-top:4px">DNI: ${t.dni?esc(t.dni):'<span style="color:var(--warn)">sin poner</span>'} · ${esc(t.puesto||'')}</div>
       <div class="row" style="margin-top:12px"><button class="btn grow" id="exp">📄 Expediente PDF</button><button class="btn sec grow" id="nepi">＋ Entrega de EPI</button></div></div>
+    <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Formación y cursos</div><button class="btn ghost" id="ncurso">＋ Curso / certificado</button></div>
+    <div class="card">${(F.certs||[]).map(c=>{ const [et,cl]=estadoCad(c); return `<div class="li" data-curso="${esc(c.id)}" style="cursor:pointer"><span class="dot ${cl==='ok'?'ok':''}"></span><span class="grow"><span class="nm">${esc(c.tipo)}</span>${c.titulo?`<br><span class="small">${esc(c.titulo)}</span>`:''}<br><span class="small muted">${c.fecha?fmtF(c.fecha):'sin fecha'}${c.entidad?' · '+esc(c.entidad):''}${c.caduca?' · caduca '+fmtF(c.caduca):''} · ${c.archivos.length?'📎 '+c.archivos.length:'<span style="color:var(--warn)">sin certificado</span>'}</span></span>${cl?`<span class="chip ${cl}">${et}</span>`:''}</div>`; }).join('')}
+      ${F.formaciones.map(f=>`<div class="li" data-form="${esc(f.id)}" style="cursor:pointer"><span class="dot ${f.tiene_firma?'ok':''}"></span><span class="grow"><span class="nm">Formación práctica en el puesto</span><br><span class="small muted">${fmtF(f.fecha)}${f.impartida?' · '+esc(f.impartida):''} · ${(f.items||[]).map(n=>n).join(', ')}</span></span>${f.tiene_firma?(f.eval_eficaz===true?'<span class="chip ok">Eficaz</span>':f.eval_eficaz===false?'<span class="chip bad">No eficaz</span>':'<span class="chip">Sin evaluar</span>'):'<span class="chip blue">Sin firmar</span>'}</div>`).join('')}
+      ${!(F.certs||[]).length&&!F.formaciones.length?'<div class="empty">Sin formaciones ni cursos todavía.</div>':''}</div>
     <div class="h2">EPI y ropa entregados</div>
     <div class="card">${res.length?res.map(r=>`<div class="li"><span class="grow"><span class="nm">${esc(r.etq)}</span>${r.extra.size?`<br><span class="small muted">${esc([...r.extra].join(', '))}</span>`:''}</span>
         <span style="text-align:right"><b>${r.u}</b> <span class="small muted">ud.</span><br><span class="small muted">última ${fmtF(r.ult)}</span></span></div>`).join(''):'<div class="empty">Todavía no hay entregas firmadas.</div>'}</div>
@@ -1427,6 +1431,9 @@ async function pantallaFicha(id){
     <div class="card">${hist.length?hist.map(h=>`<div class="li" ${h.k!=='t'?`data-k="${h.k}" data-id="${esc(h.id)}" style="cursor:pointer"`:''}><span class="dot ${h.ok?'ok':''}"></span><span class="grow"><span class="nm">${esc(h.t)}</span><br><span class="small muted">${fmtF(h.f)}${h.sub?' · '+esc(h.sub):''}</span></span>${h.ok?'':'<span class="chip blue">Sin firmar</span>'}</div>`).join(''):'<div class="empty">Nada todavía.</div>'}</div>`;
   document.querySelectorAll('[data-k]').forEach(el=>el.onclick=()=> el.dataset.k==='d'?pantallaDocDetalle(el.dataset.id):pantallaFormDetalle(el.dataset.id));
   $('#nepi').onclick=()=>pantallaDocEditar('epi');
+  $('#ncurso').onclick=()=>pantallaCurso(t.id,t.nombre);
+  document.querySelectorAll('[data-curso]').forEach(el=>el.onclick=()=>pantallaCurso(t.id,t.nombre,F.certs.find(c=>c.id===el.dataset.curso)));
+  document.querySelectorAll('[data-form]').forEach(el=>el.onclick=()=>pantallaFormDetalle(el.dataset.form));
   $('#exp').onclick=e=>expedientePDF(F, e.currentTarget);
 }
 async function expedientePDF(F, btn){
@@ -1456,11 +1463,14 @@ async function expedientePDF(F, btn){
     const res=resumenEntregas(F.docs);
     tabla('Resumen de EPI y ropa entregados',['Equipo / prenda','Uds. total','Entregas','Primera','Última'],[L,330,390,440,495],
       res.map(r=>[r.etq+(r.extra.size?' ('+[...r.extra].join(', ')+')':''),String(r.u),String(r.veces),fmtF(r.primera),fmtF(r.ult)]));
+    tabla('Formación y cursos',['Curso','Fecha','Horas','Caduca','Estado'],[L,300,360,400,460],
+      [...(F.certs||[]).map(c=>[c.tipo+(c.titulo?' · '+c.titulo:'')+(c.entidad?' ('+c.entidad+')':''),c.fecha?fmtF(c.fecha):'—',c.horas?String(c.horas):'—',c.caduca?fmtF(c.caduca):'—',estadoCad(c)[0]+(c.archivos.length?' · certificado adjunto':'')]),
+       ...F.formaciones.map(f=>['Formación práctica en el puesto (F40R304)'+(f.impartida?' · '+f.impartida:''),fmtF(f.fecha),f.duracion||'—','—',f.tiene_firma?(f.eval_eficaz===true?'Firmada · eficaz':f.eval_eficaz===false?'Firmada · no eficaz':'Firmada'):'Pendiente de firma'])]);
     const hist=[...F.docs.map(d=>[d.fecha,DOC_INFO[d.tipo].c.replace('SH-CORP-SP-',''),DOC_INFO[d.tipo].t+(d.tipo.startsWith('epi')?': '+resumenEntregas([{...d,tiene_firma:true}]).map(r=>r.etq.replace(/ \(.*\)$/,'')).join(', '):''),d.tiene_firma?'Firmado '+fmtFH(d.firmado_en):'PENDIENTE DE FIRMA']),
       ...F.formaciones.map(f=>[f.fecha,'F40R304','Formación práctica en el puesto'+((f.items||[]).length?': '+(f.items||[]).map(n=>n).join(', '):'')+(f.eval_eficaz===true?' · eficaz':f.eval_eficaz===false?' · no eficaz':''),f.tiene_firma?'Firmado '+fmtFH(f.firmado_en):'PENDIENTE DE FIRMA']),
       ...F.toolbox.map(b=>[(b.firmado_en||'').slice(0,10),'FO-IB-031','Toolbox Talk '+MESES[b.mes-1]+' '+b.anio+(b.tema?': '+b.tema:''),'Firmado '+fmtFH(b.firmado_en)])].sort((a,b)=>b[0].localeCompare(a[0]));
     tabla('Historial de documentos',['Fecha','Documento','Contenido','Estado'],[L,105,170,440],hist.map(h=>[fmtF(h[0]),h[1],h[2],h[3]]));
-    y+=24; sitio(40); pg.drawText('A continuación se adjuntan los documentos firmados digitalmente por el trabajador.',{x:L,y:H-y,size:9,font,color:GRIS});
+    y+=24; sitio(40); pg.drawText('A continuación se adjuntan los documentos firmados digitalmente por el trabajador y los certificados de sus cursos.',{x:L,y:H-y,size:9,font,color:GRIS});
     // documentos firmados
     const ids=F.docs.filter(d=>d.tiene_firma).map(d=>d.id), fids=F.formaciones.filter(f=>f.tiene_firma).map(f=>f.id);
     const [docs,forms]=await Promise.all([ids.length?rpc('prl_doc_varios',{p_tok:S.tok,p_ids:ids}):[], fids.length?rpc('prl_form_firmas',{p_tok:S.tok,p_ids:fids}):[]]);
@@ -1469,12 +1479,71 @@ async function expedientePDF(F, btn){
     const cols=docs.filter(d=>d.tipo==='epi_col'); for(let i=0;i<cols.length;i+=4){ const g=cols.slice(i,i+4); await pegar(await rellenarDoc(PDFLib, await getP(DOC_INFO.epi_col.pdf), g[0], cfg, g)); }
     for(const d of docs.filter(d=>d.tipo!=='epi_col')) await pegar(await rellenarDoc(PDFLib, await getP(DOC_INFO[d.tipo].pdf), d, cfg));
     for(const f of forms) await pegar(await rellenarF40(PDFLib, await getP(PLANTILLA_F40), f, cfg));
+    await anexarCertificados(PDFLib, out, F, font, bold);
     const nombre=`Expediente PRL ${t.nombre}.pdf`;
     const blob=new Blob([await out.save()],{type:'application/pdf'}); const file=new File([blob],nombre,{type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]}) && /Android|iPhone|iPad/i.test(navigator.userAgent)){ try{ await navigator.share({files:[file],title:nombre}); }catch(e){ if(e.name!=='AbortError') throw e; } }
     else { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},4000); }
   }catch(e){ toast(e.message,true); }
   busy(btn,false);
+}
+
+// ====== CURSOS Y CERTIFICADOS (grúa, PEMP, carretilla…) ======
+const CURSOS = ['Carretilla elevadora','Plataforma elevadora (PEMP)','Puente grúa','Grúa móvil / autocargante','Trabajos en altura','Espacios confinados','Riesgo eléctrico',
+  'PRL nivel básico (60 h)','PRL 20 h / 6 h oficio (TPC)','Primeros auxilios','Extinción de incendios / emergencias','Manipulación de productos químicos','Manipulación manual de cargas','Otro'];
+function estadoCad(c){ if(!c.caduca) return ['Sin caducidad','']; const hoy=hoyISO(); if(c.caduca<hoy) return ['Caducado','bad']; if(c.caduca<=sumaDias(hoy,60)) return ['Caduca pronto','warn']; return ['Vigente','ok']; }
+function sumaDias(f,n){ const d=new Date(f+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function archivoADataURL(file){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onerror=()=>rej(new Error('No se ha podido leer el archivo'));
+    if(file.type==='application/pdf'){ if(file.size>5.5e6) return rej(new Error('El PDF es demasiado grande (máx. 5 MB). Prueba a hacerle una foto.')); r.onload=()=>res(r.result); r.readAsDataURL(file); return; }
+    if(!/^image\//.test(file.type)) return rej(new Error('Solo fotos o PDF'));
+    r.onload=()=>{ const im=new Image(); im.onload=()=>{ const k=Math.min(1,1700/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.8)); }; im.onerror=()=>rej(new Error('No se ha podido leer la imagen')); im.src=r.result; };
+    r.readAsDataURL(file); });
+}
+async function pantallaCurso(trab, nombreTrab, c){
+  pararVoz(); const nuevo=!c; c=c||{archivos:[]};
+  view(barra(nuevo?'Nuevo curso':'Curso', `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"></div>`);
+  $('#bk').onclick=()=>pantallaFicha(trab);
+  const enLista=CURSOS.includes(c.tipo);
+  $('#w').innerHTML=`<div class="card"><b>${esc(nombreTrab)}</b></div><div class="card">
+    <label class="f">Tipo de curso</label><select class="inp" id="k_tipo">${CURSOS.map(k=>`<option ${(c.tipo===k||(!enLista&&c.tipo&&k==='Otro'))?'selected':''}>${esc(k)}</option>`).join('')}</select>
+    <label class="f">Nombre del curso / detalle</label><input class="inp" id="k_tit" placeholder="ej. Operador de carretillas elevadoras" value="${esc(c.titulo||(!enLista?c.tipo||'':''))}">
+    <label class="f">Entidad que lo imparte</label><input class="inp" id="k_ent" value="${esc(c.entidad||'')}">
+    <div class="row"><div class="grow"><label class="f">Fecha del curso</label><input class="inp" type="date" id="k_fec" value="${esc(c.fecha||'')}"></div><div style="width:110px"><label class="f">Horas</label><input class="inp" type="number" min="0" step="0.5" id="k_hor" value="${esc(c.horas??'')}"></div></div>
+    <label class="f">Caduca / renovar antes de</label><input class="inp" type="date" id="k_cad" value="${esc(c.caduca||'')}">
+    <div class="row" style="margin-top:6px">${[1,3,5].map(n=>`<button class="btn ghost" data-anios="${n}">+${n} año${n>1?'s':''}</button>`).join('')}<span class="small muted">desde la fecha del curso</span></div>
+    <label class="f">Notas</label><textarea class="inp" id="k_not">${esc(c.notas||'')}</textarea></div>
+    ${nuevo?'':`<div class="card"><b>Certificado / diploma</b><div class="small muted">Foto o PDF. Se añade al expediente PDF del trabajador.</div>
+      <div id="arch">${c.archivos.map(a=>`<div class="li"><span class="grow">${a.mime==='application/pdf'?'📄':'🖼️'} ${esc(a.nombre||'archivo')} <span class="small muted">${Math.round((a.tam||0)/1024)} KB</span></span><button class="btn ghost" data-ver="${esc(a.id)}">Ver</button><button class="btn ghost" data-qa="${esc(a.id)}">✕</button></div>`).join('')||'<div class="small muted" style="padding:8px 0">Sin archivos todavía.</div>'}</div>
+      <label class="btn sec" style="cursor:pointer;width:100%;margin-top:8px">📎 Adjuntar foto o PDF<input type="file" accept="image/*,application/pdf" id="k_file" hidden multiple></label></div>`}
+    <div class="row"><button class="btn grow" id="k_save">${nuevo?'Guardar y adjuntar certificado':'Guardar'}</button>${nuevo?'':'<button class="btn bad" id="k_del">Borrar</button>'}</div>`;
+  document.querySelectorAll('[data-anios]').forEach(b=>b.onclick=()=>{ const f=$('#k_fec').value; if(!f){ toast('Pon antes la fecha del curso',true); return; } const d=new Date(f+'T12:00:00'); d.setFullYear(d.getFullYear()+(+b.dataset.anios)); $('#k_cad').value=d.toISOString().slice(0,10); });
+  $('#k_save').onclick=async e=>{ const b=e.currentTarget; busy(b,true);
+    const p={trabajador:trab,tipo:$('#k_tipo').value,titulo:$('#k_tit').value,entidad:$('#k_ent').value,fecha:$('#k_fec').value,horas:$('#k_hor').value,caduca:$('#k_cad').value,notas:$('#k_not').value};
+    if(!nuevo) p.id=c.id;
+    try{ const r=await rpc('prl_cert_guardar',{p_tok:S.tok,p}); toast('Guardado'); pantallaCurso(trab,nombreTrab,r); }catch(err){ busy(b,false); toast(err.message,true); } };
+  if(nuevo) return;
+  $('#k_del').onclick=async()=>{ if(!confirm('¿Borrar este curso y sus archivos?')) return; try{ await rpc('prl_cert_borrar',{p_tok:S.tok,p_id:c.id}); toast('Borrado'); pantallaFicha(trab); }catch(e){ toast(e.message,true); } };
+  $('#k_file').onchange=async e=>{ const files=[...e.target.files]; if(!files.length) return; const lab=e.target.parentNode; lab.style.opacity=.5;
+    try{ for(const f of files){ const data=await archivoADataURL(f); await rpc('prl_cert_arch_add',{p_tok:S.tok,p_cert:c.id,p_nombre:f.name||'certificado',p_data:data}); }
+      toast('Adjuntado'); const F=await rpc('prl_ficha',{p_tok:S.tok,p_trab:trab}); pantallaCurso(trab,nombreTrab,F.certs.find(x=>x.id===c.id)); }
+    catch(err){ lab.style.opacity=1; toast(err.message,true); } };
+  document.querySelectorAll('[data-qa]').forEach(b=>b.onclick=async()=>{ if(!confirm('¿Quitar este archivo?')) return; try{ await rpc('prl_cert_arch_borrar',{p_tok:S.tok,p_id:b.dataset.qa}); c.archivos=c.archivos.filter(a=>a.id!==b.dataset.qa); pantallaCurso(trab,nombreTrab,c); }catch(e){ toast(e.message,true); } });
+  document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=async()=>{ try{ const [a]=await rpc('prl_cert_arch_datos',{p_tok:S.tok,p_ids:[b.dataset.ver]});
+    const bin=Uint8Array.from(atob(a.data.split(',')[1]),ch=>ch.charCodeAt(0)); const url=URL.createObjectURL(new Blob([bin],{type:a.mime})); window.open(url,'_blank'); setTimeout(()=>URL.revokeObjectURL(url),60000); }catch(e){ toast(e.message,true); } });
+}
+// Añade los certificados al final del expediente
+async function anexarCertificados(PDFLib, out, F, font, bold){
+  const certs=(F.certs||[]); const ids=certs.flatMap(c=>c.archivos.map(a=>a.id)); if(!ids.length) return;
+  const datos=await rpc('prl_cert_arch_datos',{p_tok:S.tok,p_ids:ids}); const { rgb } = PDFLib;
+  for(const c of certs){ for(const a of c.archivos){ const d=datos.find(x=>x.id===a.id); if(!d) continue;
+    const bytes=Uint8Array.from(atob(d.data.split(',')[1]),ch=>ch.charCodeAt(0));
+    if(d.mime==='application/pdf'){ try{ const src=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true}); (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p)); }catch(e){ console.warn('PDF no anexado',e); } continue; }
+    const im=d.mime==='image/png'?await out.embedPng(bytes):await out.embedJpg(bytes);
+    const pg=out.addPage([595.28,841.89]); pg.drawText(`${c.tipo}${c.titulo?' · '+c.titulo:''}`.slice(0,90),{x:40,y:805,size:11,font:bold,color:rgb(0.09,0.13,0.35)});
+    pg.drawText(`${F.trabajador.nombre}${c.fecha?' · '+fmtF(c.fecha):''}${c.caduca?' · caduca '+fmtF(c.caduca):''}`,{x:40,y:790,size:9,font,color:rgb(0.4,0.4,0.4)});
+    const k=Math.min(515/im.width,730/im.height); pg.drawImage(im,{x:40+(515-im.width*k)/2,y:40+(730-im.height*k)/2,width:im.width*k,height:im.height*k}); } }
 }
 
 inicio();
