@@ -787,22 +787,23 @@ function formAbrirOTsHorno(e,accs,re){const f={motivo:"",nota:""};const tols=acc
       try{for(const acc of accs){const tol=acc.indexOf("cambio")===0;await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:ACC_HORNO[acc]+" · "+e.nombre,lugar:e.lugar||null,descripcion:f.nota.trim()||null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,accion_horno:acc,motivo:tol?f.motivo:null,hecha:false,auto:false,asignados:null}});}
         toast(accs.length===1?"OT abierta: empiézala cuando empieces":accs.length+" OT abiertas: empiézalas cuando empieces");re();}catch(er){toast(er.message);return false;}}}]);}
 function linUltHorno(U,k,t){const u=(U||{})[k];return el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · 📝 "+u.nota:""):"Nunca"})]);}
-function elegirAccionHorno(e,re){const op=(t,k)=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:t,onclick:()=>{cerrarTodo();setTimeout(()=>k(),0);}});
+function elegirAccionHorno(e,re){const sel=new Set();const box=el("div",null);
+  const pb=()=>{box.textContent="";ORDEN_HORNO.filter(k=>k!=="limpieza").forEach(k=>box.appendChild(el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0"+(sel.has(k)?";background:var(--acc);color:#fff":""),"aria-pressed":String(sel.has(k)),text:(sel.has(k)?"☑ ":"☐ ")+TXT_HORNO[k],onclick:()=>{sel.has(k)?sel.delete(k):sel.add(k);pb();}})));};
+  pb();
   dlg("¿Qué se ha hecho en "+e.nombre+"?",el("div",null,[
-    op("🧽 Limpieza ya hecha",()=>yaLimpio(e,re)),
-    op("🫗 Vaciado de horno",()=>formHornoAccion(e,"vaciado",re)),
-    op("🔁 Cambio de tolva",()=>formHornoAccion(e,"cambio_tolva",re)),
-    op("🔁 Cambio de cono",()=>formHornoAccion(e,"cambio_cono",re)),
-    op("🔁 Cambio de tolva y cono",()=>formHornoAccion(e,"cambio_tolva_cono",re))]),[{t:"Cancelar",cls:"sec"}]);}
-function formHornoAccion(e,acc,re){const f={fecha:hoyISO(),motivo:"",nota:""};const tol=acc!=="vaciado";const mots=el("div",{class:"seg sel"});const w=preguntaTiempo({minutos_est:null,inicio:null});
-  const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tol)pm();
-  dlg(ACC_HORNO[acc]+" · "+e.nombre,el("div",null,[
+    el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:"🧽 Limpieza ya hecha",onclick:()=>{cerrarTodo();setTimeout(()=>yaLimpio(e,re),0);}}),
+    el("p",{class:"hint",text:"Marca todo lo que se ha hecho en este horno (es un único trabajo y un único tiempo)."}),box]),
+    [{t:"Cancelar",cls:"sec"},{t:"Siguiente",cls:"ok",fn:()=>{if(!sel.size){toast("Marca al menos una acción");return false;}const accs=ORDEN_HORNO.filter(k=>sel.has(k));cerrarTodo();setTimeout(()=>formHornoAcciones(e,accs,re),0);}}]);}
+function formHornoAcciones(e,accs,re){const f={fecha:hoyISO(),motivo:"",nota:""};const tols=accs.some(a=>a!=="vaciado");const mots=el("div",{class:"seg sel"});const w=preguntaTiempo({minutos_est:null,inicio:null});
+  const pm=()=>{mots.textContent="";MOT_TOLVA.forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tols)pm();
+  dlg(accs.map(a=>ACC_HORNO[a]).join(" + ")+" · "+e.nombre,el("div",null,[
     fld("¿Qué día se hizo?",inp("hoFecha",f.fecha,v=>f.fecha=v,{type:"date",max:hoyISO()})),
-    tol?fld("¿Por qué se cambió?",mots):null,
+    tols?fld("¿Por qué se cambió?",mots):null,
     w,
     fld("Nota (opcional)",area("",x=>f.nota=x))]),
-    [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}if(tol&&!f.motivo){toast("Elige el motivo");return false;}
-      try{await rpc("horno_registrar",{p_tok:S.tok,p_el:e.id,p_accion:acc,p_fecha:f.fecha||null,p_motivo:tol?f.motivo:null,p_nota:f.nota.trim()||null,p_minutos:w.val()});toast(ACC_HORNO[acc]+" apuntado en "+e.nombre);re();}catch(er){toast(er.message);return false;}}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}if(tols&&!f.motivo){toast("Elige el motivo");return false;}
+      try{for(const acc of accs){await rpc("horno_registrar",{p_tok:S.tok,p_el:e.id,p_accion:acc,p_fecha:f.fecha||null,p_motivo:acc!=="vaciado"?f.motivo:null,p_nota:f.nota.trim()||null,p_minutos:w.val()});}
+        toast(accs.map(a=>ACC_HORNO[a]).join(" + ")+" apuntado en "+e.nombre);re();}catch(er){toast(er.message);return false;}}}]);}
 
 /* administración */
 function sigCodigo(tipo,L){const pre={molde:"M",horno:"H",contenedor:"C",otro:"X"}[tipo]+"-";let n=1;const usados=new Set((L||[]).map(e=>e.codigo));while(usados.has(pre+n))n++;return pre+n;}
