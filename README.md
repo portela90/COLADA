@@ -13,3 +13,6 @@ Control de coladas de aluminio (Nave 1 y Nave 2): entradas, consumos por relevo,
 ## Toolbox HSE
 
 `toolbox.html`: Toolbox Talk mensuales (SH-CORP-FO-IB-031) firmados en el móvil. Usa la misma sesión que `limpieza.html` (proyecto Supabase `limpieza-cie`, tablas `prl_*`, script en `supabase/migraciones/toolbox_prl.sql`). El jefe envía el Toolbox del mes, a cada operario le llega un aviso y firma con el dedo; el jefe descarga el PDF con el formato oficial para prevención. Fotos de cada mes en `img/toolbox/`.
+
+**Formación en el puesto (F40R304)**: en la misma página, pestaña «Formación en el puesto». El jefe crea el registro (uno o varios trabajadores a la vez), se lo envía, el trabajador lee el contenido de los puntos marcados y firma; luego se evalúa la eficacia. El PDF rellena la plantilla oficial `plantillas/F40R304.pdf` (sin firmas impresas: la del responsable de centro se guarda en Ajustes). Script: `supabase/migraciones/formacion_puesto.sql`.
+
