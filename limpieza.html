@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261015214315">
+<meta name="build" content="20261015220445">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -1224,7 +1224,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
     bp.hidden=false;bp.textContent=S.verOp?"↩ Volver a jefe":"👷 Probar como operario";bp.onclick=()=>{S.verOp=!S.verOp;S.tab="hoy";pinta();window.scrollTo(0,0);};}
   else{const bp=$("bprueba");if(bp)bp.hidden=true;}
   if(esAdm()){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));
-    nav.appendChild(el("button",{"aria-selected":"false",text:"Toolbox",onclick:()=>{location.href="toolbox.html";}}));}
+    nav.appendChild(el("button",{"aria-selected":"false",text:"Toolbox",onclick:()=>{location.href="toolbox.html?v="+Date.now();}}));}
   else{nav.hidden=true;S.tab="hoy";}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
@@ -1235,8 +1235,9 @@ let _tbN=0;const _pintaTb=pinta;pinta=function(){_pintaTb();const n=++_tbN;
   if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
   rpc("prl_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_tbN||!Array.isArray(L)||!L.length)return;const p=L[0];
     const MS=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-    const esF=p.tipo==="formacion",tit=esF?"Formación en el puesto para firmar":"Toolbox de "+MS[p.mes-1]+" para firmar";
-    const b=el("a",{href:esF?"toolbox.html?f="+p.id:"toolbox.html?a="+p.anio+"&m="+p.mes,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:var(--acc);border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
+    const esF=p.tipo==="formacion",esD=p.tipo==="doc",DN={epi:"Entrega de EPI",epi_col:"Entrega de EPI",info:"Entrega de información"};
+    const tit=esD?(DN[p.doc]||"Documento")+" para firmar":esF?"Formación en el puesto para firmar":"Toolbox de "+MS[p.mes-1]+" para firmar";
+    const b=el("a",{href:esD?"toolbox.html?d="+p.id:esF?"toolbox.html?f="+p.id:"toolbox.html?a="+p.anio+"&m="+p.mes,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:var(--acc);border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:"📋"}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:tit}),el("span",{style:"font-size:14px;opacity:.9",text:L.length>1?"Tienes "+L.length+" documentos pendientes. Toca para leer y firmar.":"Toca para leerlo y firmar."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
 const _pinta0=pinta;pinta=function(){_pinta0();if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>fichaElemento(c),300);}};
