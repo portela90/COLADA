@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261015151202"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261015171149"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -802,7 +802,7 @@ function sigCodBT(f){const p=PREF_BT[f];if(!p)return"";const re=new RegExp("^"+p
 const nomBT=a=>{if(!a.cod)return a.desc;const d=String(a.desc||"").replace(a.cod,"").replace(/^(barra expulsora|tornillo tope)\s*/i,"").replace(/^[\s·\-]+|[\s·\-]+$/g,"");return d?a.cod+" · "+d:a.cod;};
 const cambiosBT=(f,desde)=>todosMov().filter(m=>m.tipo==="salida"&&(!desde||m.f>=desde)&&(art(m.art)||{}).fam===f).sort((a,b)=>(b.f+(b.ts||0)).localeCompare(a.f+(a.ts||0)));
 const maqsArt=a=>(a.iny||[]).map(id=>maqN(id)).filter(x=>x&&x!=="—").sort((p,q)=>p.localeCompare(q,"es",{numeric:true}));
-const GRUPOS_H=["Tubos dosificadores","Juntas de cono","Juntas de tubo dosificador","Resistencias","Conexiones estrella","Conexiones fase","Centradores","Juntas de puerta y tapa"];
+const GRUPOS_H=["Tubos dosificadores","Conos","Juntas de cono","Juntas de tubo dosificador","Resistencias","Conexiones estrella","Conexiones fase","Centradores","Juntas de puerta y tapa","Juntas de termopar"];
 function gruposH(A){const g={};A.forEach(a=>{const k=a.grupo||"Otros";(g[k]=g[k]||[]).push(a);});return Object.keys(g).sort((x,y)=>{const i=GRUPOS_H.indexOf(x),j=GRUPOS_H.indexOf(y);return(i<0?99:i)-(j<0?99:j);}).map(k=>[k,g[k]]);}
 function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
   v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Apartado"},Object.keys(BT).map(k=>el("button",{type:"button","aria-pressed":String(f===k),text:BT[k].nom,onclick:()=>{draft.bt=k;draft.btMaq="";render(true);}}))));
@@ -3047,6 +3047,16 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
   const campos=el("div",{class:"frm",style:"gap:14px"});
   const verTodo={},tocadoC={};const av={};P.filter(c=>c.auto).forEach(c=>{av[c.id]=ex?autoVal(c,m0):[];});const nuevosArt=[];
   const pinta=()=>{campos.textContent="";P.forEach(c=>{
+    if(c.auto==="horno"){const sel0=new Set(av[c.id]);const h=hornoSel(P,val);const mc=h.marca||"";
+      /* solo los recambios de la marca del horno (y los que no son de ninguna marca); lo ya marcado siempre se ve */
+      const deOtra=a=>{const t=norm(a.desc);return mc&&h.marcas.some(x=>x!==mc&&wrd(t,x))&&!wrd(t,mc);};
+      const todos=artsActivos().filter(a=>a.fam==="horno");const ver=todos.filter(a=>verTodo[c.id]||sel0.has(a.id)||!deOtra(a));const ocu=todos.length-ver.length;
+      const gs=[...new Set(ver.map(a=>a.grupo||"Otros"))].sort((x,y)=>(GRUPOS_H.indexOf(x)+99)%99-(GRUPOS_H.indexOf(y)+99)%99);
+      const chip=a=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(a.id)),text:a.desc.replace(/^Tubo dosificador\s+/i,"")+(a.cod&&!a.desc.includes(a.cod)?" · "+a.cod:""),
+        onclick:()=>{if(sel0.has(a.id))sel0.delete(a.id);else{/* tubo dosificador: solo uno */if(a.grupo==="Tubos dosificadores")todos.filter(z=>z.grupo==="Tubos dosificadores").forEach(z=>sel0.delete(z.id));sel0.add(a.id);}av[c.id]=Array.from(sel0);pinta();}});
+      campos.appendChild(el("div",{style:"display:flex;flex-direction:column;gap:8px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:c.nom+(mc?" · "+cap(mc):" · elige antes el modelo de horno para filtrar")}),
+        ...gs.map(g=>el("div",{style:"display:flex;flex-direction:column;gap:4px"},[el("div",{class:"sub",text:g}),el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},ver.filter(a=>(a.grupo||"Otros")===g).sort((x,y)=>x.desc.localeCompare(y.desc,"es",{numeric:true})).map(chip))])),
+        ocu?el("div",{},el("button",{type:"button",class:"chip",style:"border-style:dotted",text:"ver los "+ocu+" de la otra marca",onclick:()=>{verTodo[c.id]=true;pinta();}})):null]));return;}
     if(c.auto){const sel0=new Set(av[c.id]);const multi=c.auto!=="piston";
       const chips=autoOps(c).concat(nuevosArt.filter(a=>a.fam===c.auto).map(a=>({id:a.id,t:a.desc}))).map(o=>el("button",{type:"button",class:"chip","aria-pressed":String(sel0.has(o.id)),text:o.t,onclick:()=>{if(sel0.has(o.id))sel0.delete(o.id);else{if(!multi)sel0.clear();sel0.add(o.id);}av[c.id]=Array.from(sel0);pinta();}}));
       if(c.auto==="barra"||c.auto==="tornillo")chips.push(el("button",{type:"button",class:"chip",style:"border-style:dashed",text:"＋ otra",onclick:()=>{const t=(prompt("Nombre de la nueva "+(c.auto==="barra"?"barra expulsora":"tornillo tope")+":")||"").trim();if(!t)return;
