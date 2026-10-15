@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261015064131"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261015151202"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -471,6 +471,11 @@ function laborables(a,b){let n=0;const d=new Date(a+"T12:00:00"),e=new Date(b+"T
 const art=id=>cat.articulos.find(a=>a.id===id);
 const almN=id=>{const a=cat.almacenes.find(x=>x.id===id);return a?a.nom:"—";};
 const maqN=id=>{const m=cat.maquinas.find(x=>x.id===id);return m?m.cod:"—";};
+/* destino de un consumo: una inyectora o una nave entera */
+const NAVES_C=["Nave 1A","Nave 1B","Nave 2"];
+function paraOpts(){return[el("optgroup",{label:"Nave"},NAVES_C.map(n=>el("option",{value:"nave:"+n,text:n}))),el("optgroup",{label:"Inyectora"},maqOpts().map(([v,t])=>el("option",{value:v,text:t})))];}
+function ponPara(rec,v){if(!v)return;if(v.startsWith("nave:"))rec.nave=v.slice(5);else rec.maq=v;}
+const paraTxt=m=>m.maq?maqN(m.maq):(m.nave||"");
 const provN=id=>{const p=cat.proveedores.find(x=>x.id===id);return p?p.nom:"";};
 const artsActivos=()=>cat.articulos.filter(a=>a.activo!==false);
 function artOpts(fil){const g={};artsActivos().filter(fil||(()=>true)).forEach(a=>{(g[a.fam]=g[a.fam]||[]).push(a);});
@@ -700,9 +705,9 @@ function iSal(P,fil){const o={};todosMov().forEach(m=>{if(m.tipo!=="salida"||!iE
 function iBT(f,P,o){const C=todosMov().filter(m=>m.tipo==="salida"&&iEn(m.f,P)&&(art(m.art)||{}).fam===f);const t=C.reduce((s,m)=>s+(+m.cant||0),0);if(!t)return["Ningún cambio en el periodo."];
   const L=["Total: "+iN(t)+" ud"];const g=kf=>{const x={};C.forEach(m=>{const k=kf(m);x[k]=(x[k]||0)+(+m.cant||0);});return Object.entries(x).sort((a,b)=>b[1]-a[1]);};
   L.push(...g(m=>art(m.art)?nomBT(art(m.art)):"?").map(([k,n])=>"- "+k+": "+iN(n)));
-  if(o.maq)L.push("Por máquina: "+g(m=>m.maq?maqN(m.maq):"sin máquina").map(([k,n])=>k+" "+iN(n)).join(" · "));
+  if(o.maq)L.push("Por máquina: "+g(m=>paraTxt(m)||"sin máquina").map(([k,n])=>k+" "+iN(n)).join(" · "));
   if(o.mot)L.push("Por motivo: "+g(m=>cap(m.motivo||"sin motivo")).map(([k,n])=>k+" "+iN(n)).join(" · "));
-  if(o.det)C.sort((a,b)=>a.f.localeCompare(b.f)).forEach(m=>L.push("  · "+fmtF(m.f)+" "+(m.maq?maqN(m.maq):"")+" · "+((art(m.art)||{}).desc||"")+" ×"+iN(m.cant)+(m.motivo?" · "+cap(m.motivo):"")+(m.resp?" · "+respTxt(m.resp):"")));
+  if(o.det)C.sort((a,b)=>a.f.localeCompare(b.f)).forEach(m=>L.push("  · "+fmtF(m.f)+" "+paraTxt(m)+" · "+((art(m.art)||{}).desc||"")+" ×"+iN(m.cant)+(m.motivo?" · "+cap(m.motivo):"")+(m.resp?" · "+respTxt(m.resp):"")));
   return L;}
 const iBTh=(f,P)=>({nombre:"Cambios "+(f==="barra"?"barras":"tornillos"),filas:todosMov().filter(m=>m.tipo==="salida"&&iEn(m.f,P)&&(art(m.art)||{}).fam===f).map(m=>({"Fecha":fmtF(m.f),"Inyectora":m.maq?maqN(m.maq):"","Referencia":(art(m.art)||{}).desc||"","Cantidad":+m.cant||0,"Motivo":cap(m.motivo||""),"Responsable":m.resp||"","Almacén":almN(m.alm)}))});
 const INF_ALM=[
@@ -1325,7 +1330,7 @@ function filaR(r){const a=art(r.art);let box;
   if(r.tipo==="piston")campos=[el("div",{class:"row"},[S("Inyectora","maq",maqOpts(),"Elige…",()=>{if(!r.diam){const u=ultimoPist(r.maq);if(u){r.diam=u.diam;r.auto.diam=1;}}pistAlm();}),S("Diámetro","diam",DIAM.map(x=>[x,x]),"Ø…",pistAlm),C()]),
       el("div",{class:"row"},[S("Motivo","motivo",MOTIVOS.map(m=>[m,cap(m)]),"Elige…"),S("Pistón usado","dp",DESTINOS.map(m=>[m,cap(m)]),"Elige…")]),
       el("div",{class:"row"},[T("Responsable","resp",{autocomplete:"off",list:"lOperR",placeholder:"Nº o nombre"}),pistArt(r.diam)?S("Sale de","alm",almOpts(),"No descontar"):null,F()])];
-  else if(r.tipo==="consumo")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Inyectora (opcional)","maq",maqOpts(),"—"),F()])];
+  else if(r.tipo==="consumo")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Para (inyectora o nave)","maq",paraOpts(),"—"),F()])];
   else if(r.tipo==="entrada")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Proveedor","prov",provOpts(),"—"),T("Nº albarán","alb",{autocomplete:"off"}),F()])];
   else if(r.tipo==="traslado")campos=[el("div",{class:"row"},[artS(),C()]),el("div",{class:"row"},[S("Desde","alm",almOptsArt(a),"Elige…"),S("Hasta","dest",almOptsArt(a,r.alm),"Elige…"),F()])];
   else if(r.tipo.startsWith("eje_"))campos=[el("div",{class:"row"},[T("Eje (código)","eje",{list:"lEjesR",autocomplete:"off",placeholder:"p. ej. 2.3.C-3"}),r.tipo==="eje_prep"?T("Desperfecto","desp",{autocomplete:"off"}):null,r.tipo==="eje_rec"?T("Albarán","alb",{autocomplete:"off"}):null,F()])];
@@ -1488,7 +1493,7 @@ async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>fa
     if(r.tipo==="piston"){const n=Math.round(q);const rec={id:uid(),f:r.f,maq:r.maq,diam:r.diam,cant:n,motivo:r.motivo,dest:r.dp,resp:(r.resp||"").trim()||null,nota};
       const pa=pistArt(r.diam);if(pa&&r.alm){const m={id:uid(),f:r.f,tipo:"salida",art:pa.id,alm:r.alm,cant:n,maq:r.maq,nota:"Cambio de pistón · "+cap(r.motivo)};movs.push(m);rec.movId=m.id;}pists.push(rec);}
     else if(r.tipo==="conteo"){const st=stockDe(r.art,r.alm);movs.push({f:r.f,tipo:"ajuste",art:r.art,alm:r.alm,cant:Math.round((q-st)*1000)/1000,contado:q,teorico:st,nota:nota||"Recuento"});}
-    else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo"&&r.maq)m.maq=r.maq;
+    else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo")ponPara(m,r.maq);
       if(r.tipo==="entrada"){if(r.prov)m.prov=r.prov;if((r.alb||"").trim())m.alb=r.alb.trim();}movs.push(m);}});
   try{if(movs.length)await addMovs(movs);if(pists.length){await addPists(pists);try{await ejePendDe(pists);}catch(e){}}
     for(const r of L.filter(x=>x.tipo.startsWith("eje_"))){const e=ejeDe(r.eje);if(!e)continue;
@@ -1614,7 +1619,7 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
       el("tbody",{},movs.map(m=>el("tr",{},[el("td",{class:"num",text:fmtF(m.f)}),el("td",{text:TIPOS[m.tipo]}),el("td",{class:"r num",text:signo(m)}),el("td",{text:dondeTxt(m)})])))])):el("p",{class:"hint",text:"Sin movimientos todavía."})],
     [{t:"Cerrar",cls:"sec"}]);}
 function signo(m){const c=+m.cant||0;if(m.tipo==="entrada")return"+"+fmtN(c);if(m.tipo==="salida")return"−"+fmtN(c);if(m.tipo==="ajuste")return(c>=0?"+":"−")+fmtN(Math.abs(c));return fmtN(c);}
-function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest):almN(m.alm)+(m.maq?" · "+maqN(m.maq):"");}
+function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest):almN(m.alm)+(paraTxt(m)?" · "+paraTxt(m):"");}
 
 /* ===== REPOSICIÓN ===== */
 const corto=l=>l.nom.replace(/^Almac[eé]n (de )?(producci[oó]n )?/i,"").replace(/^./,c=>c.toUpperCase());
@@ -1719,7 +1724,7 @@ function vMov(v){const d=draft.m;
     el("div",{class:"row"},[fld(t==="traslado"?"Desde":"Almacén",sel("mAlm",almOptsArt(art(d.art)),d.alm,x=>{d.alm=x;if(d.dest===x)d.dest="";if(t==="traslado")render(true);else pintaCalc();})),
       t==="traslado"?fld("Hasta",sel("mDest",almOptsArt(art(d.art),d.alm),d.dest,x=>{d.dest=x;pintaCalc();},"Destino…")):null,
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
-    t==="salida"?el("div",{class:"row"},[fld("Inyectora / máquina (opcional)",sel("mMaq",maqOpts(),d.maq,x=>d.maq=x,"—"))]):null,
+    t==="salida"?el("div",{class:"row"},[fld("Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—"))]):null,
     t==="entrada"?el("div",{class:"row"},[fld("Proveedor",sel("mProv",provOpts(),d.prov,x=>d.prov=x,"—")),fld("Nº albarán",inp("mAlb",d.alb,x=>d.alb=x,{autocomplete:"off"}))]):null,
     t==="entrada"&&assets?fld("Foto del albarán",fileI):null,
     t==="entrada"&&draft.mFile?el("p",{class:"hint",text:"Foto elegida: "+draft.mFile.name}):null,
@@ -1747,7 +1752,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   const rec={f:d.f,tipo:d.tipo,art:a.id,alm:d.alm,cant:q,nota:d.nota.trim()||null};
   if(d.tipo==="ajuste"){const st=stockDe(a.id,d.alm);rec.cant=Math.round((q-st)*1000)/1000;rec.contado=q;rec.teorico=st;if(rec.cant===0){rec.nota=rec.nota||"Recuento sin diferencias";}}
   if(d.tipo==="traslado")rec.dest=d.dest;
-  if(d.tipo==="salida"&&d.maq)rec.maq=d.maq;
+  if(d.tipo==="salida")ponPara(rec,d.maq);
   if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();}
   const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{
@@ -2109,7 +2114,7 @@ async function exportarExcel(btn){if(!downloads){toast("Esta vista no permite de
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
     const add=(n,rows)=>X.utils.book_append_sheet(wb,X.utils.json_to_sheet(rows.length?rows:[{"Sin datos":""}]),n);
     add("Stock",artsActivos().map(a=>{const r={"Artículo":a.desc,"Código":a.cod||"","Familia":FAM[a.fam]||a.fam,"Unidad":a.ud,"Ubicación":a.ubic||"","Almacén principal":almN(ppalDe(a)),"Proveedor":provN(a.prov)};cat.almacenes.forEach(l=>{r[l.nom]=stockDe(a.id,l.id);});r["Total"]=stockDe(a.id);r["Mínimo"]=+a.min||0;r["Consumo/día"]=Math.round(consDia(a)*100)/100;r["Plazo (días)"]=plazoArt(a)||"";r["Pedir al llegar a"]=Math.ceil(puntoPedido(a));r["Pedir ahora"]=cantPedir(a);r["Estado"]=NIV[nivel(a)];r["Pedido el"]=a.pedido||"";r["Cantidad pedida"]=a.pedCant||"";r["Llegada prevista"]=a.prevista||"";return r;}));
-    add("Movimientos",todosMov().slice().sort((a,b)=>(a.f+"|"+a.ts).localeCompare(b.f+"|"+b.ts)).map(m=>{const a=art(m.art);return{"Fecha":m.f,"Tipo":TIPOS[m.tipo]||m.tipo,"Artículo":a?a.desc:m.art,"Cantidad":(m.tipo==="salida"?-1:1)*(+m.cant||0),"Almacén":almN(m.alm),"Destino":m.dest?almN(m.dest):"","Inyectora":m.maq?maqN(m.maq):"","Proveedor":provN(m.prov),"Albarán":m.alb||"","Contado":m.contado!=null?m.contado:"","Nota":m.nota||""};}));
+    add("Movimientos",todosMov().slice().sort((a,b)=>(a.f+"|"+a.ts).localeCompare(b.f+"|"+b.ts)).map(m=>{const a=art(m.art);return{"Fecha":m.f,"Tipo":TIPOS[m.tipo]||m.tipo,"Artículo":a?a.desc:m.art,"Cantidad":(m.tipo==="salida"?-1:1)*(+m.cant||0),"Almacén":almN(m.alm),"Destino":m.dest?almN(m.dest):"","Inyectora":m.maq?maqN(m.maq):"","Nave":m.nave||(m.maq?((cat.maquinas.find(x=>x.id===m.maq)||{}).nave||""):""),"Proveedor":provN(m.prov),"Albarán":m.alb||"","Contado":m.contado!=null?m.contado:"","Nota":m.nota||""};}));
     add("Cambios pistón",todosPist().map(p=>{const mq=cat.maquinas.find(x=>x.id===p.maq);return{"Fecha":p.f,"Inyectora":maqN(p.maq),"Nave":mq&&mq.nave||"","Diámetro":p.diam,"Cantidad":+p.cant||1,"Motivo":p.motivo||"","Destino del pistón usado":p.dest||"","Responsable":p.resp||"","Observaciones":p.nota||""};}));
     add("Ejes",ejes.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(e=>{const ab=abiertaDe(e.cod);return{"Código eje":e.cod,"Modelo":e.mod,"Referencia":ejeRef(e),"Estado":(EST_E[e.estado]||[e.estado])[0],"Marcado":e.marcado?"Sí":"No","Último albarán":ultAlb(e.cod)||"","Observaciones":e.obs||"","Desperfecto abierto":ab?ab.desp||"":"","Enviado":ab&&ab.env||"","Días laborables":ab&&ab.env?diasAb(ab):""};}));
     add("Reparaciones",todasRep().sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||"")).map(r=>{const e=ejes.find(z=>z.cod===r.eje);return{"Código eje":r.eje,"Referencia":e?ejeRef(e):"","Desperfecto":r.desp||"","Enviado":r.env||"","Recibido":r.rec||"","Albarán":r.alb||"","Resultado":r.res==="ok"?"OK":r.res==="anulada"?"Anulada":r.res?"Cerrada":"Abierta","NO-OK":r.nook?"Sí":"","Devuelto a reparar":r.dev||"","Observación":r.obs||""};}));
@@ -2856,6 +2861,12 @@ function vCons(v){draft.cd=draft.cd||90;const D=draft.cd,hy=hoy(),des=sumaDias(h
     el("div",{class:"lst"},filas.map(f=>el("button",{type:"button",class:"it",onclick:()=>fichaIny(f.m)},[el("span",{class:"stripe "+(f.pist>=Math.max(3,tp/Math.max(1,filas.length)*1.8)?"warn":"")}),
       el("div",{class:"ppal"},[el("div",{class:"t1",text:f.m.cod+" · "+(valFicha(f.m,"c-maq")||"")}),el("div",{class:"t2",text:[zonaDe(f.m),diamDe(f.m)?"pistón "+diamDe(f.m):null,f.mo?"molde "+f.mo.cod:null,f.top.length?f.top.join(", "):"sin material sacado"].filter(Boolean).join(" · ")})]),
       el("div",{class:"cant num"},[el("b",{text:fmtN(f.pist)}),el("small",{text:"pistones · "+fmtN(f.mat)+" ud"+(f.eu?" · "+eur(f.eu):"")})])])))]));
+  const MN=todosMov().filter(x=>x.tipo==="salida"&&!x.maq&&x.nave&&x.f>=des);
+  if(MN.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consumo cargado a nave"}),el("span",{class:"der sub",text:"sin inyectora"})]),
+    el("div",{class:"lst"},NAVES_C.map(n=>{const ms=MN.filter(x=>x.nave===n);if(!ms.length)return null;const g={};ms.forEach(x=>{g[x.art]=(g[x.art]||0)+(+x.cant||0);});
+      const eu=ms.reduce((t,x)=>t+(+x.cant||0)*precioDe(art(x.art)),0);
+      return el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe"}),el("div",{class:"ppal"},[el("div",{class:"t1",text:n}),el("div",{class:"t2",text:Object.entries(g).sort((a,b)=>b[1]-a[1]).map(([id,c])=>{const a=art(id);return(a?a.desc:id)+" ×"+fmtN(c);}).join(" · ")})]),
+        el("div",{class:"cant num"},[el("b",{text:fmtN(ms.reduce((t,x)=>t+(+x.cant||0),0))}),el("small",{text:"ud"+(eu?" · "+eur(eu):"")})])]);}).filter(Boolean))]));
   v.appendChild(el("p",{class:"hint",text:(te?"":"Cuando metas precios en los artículos (Almacén › editar artículo), aquí saldrá el gasto en euros de cada máquina. ")+"Cuando apuntes los cambios de molde, saldrá también el consumo por molde."}));}
 function itMolde(x){const en=cat.maquinas.filter(m=>hoyDe(m).molde===x.id).map(m=>m.cod);
   return el("button",{type:"button",class:"it",onclick:()=>formMolde(x)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:moldeTxt(x)}),el("div",{class:"t2",text:[x.diam?"pistón "+x.diam:"sin Ø de pistón",x.notas,en.length?"puesto en "+en.join(", "):"sin máquina"].filter(Boolean).join(" · ")})])]);}
