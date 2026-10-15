@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261014085509"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261015061950"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1790,7 +1790,7 @@ function statsPist(){const hy=hoy(),all=todosPist();const first=all.length?all[0
   return out;}
 const NIVP={bad:"Crítico",warn:"Ajustado",ok:"OK",na:"—"};
 function vPist(v){const d=draft.p;
-  {const u=(cat.ajustes||{}).ultInfPist;const pend=todosPist().filter(p=>!u||p.f>u);if(pend.length)v.appendChild(el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:180px",text:pend.reduce((a,p)=>a+(+p.cant||1),0)+" pistones consumidos sin informar a "+destPist().nom.split(" ")[0]+(u?" desde el "+fmtF(sumaDias(u,1)):"")}),el("button",{type:"button",class:"btn peq",text:"Preparar informe",onclick:informePist})]));}
+  {const u=(cat.ajustes||{}).ultInfPist;const pend=pistPend();if(pend.length)v.appendChild(el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:180px",text:pend.reduce((a,p)=>a+(+p.cant||1),0)+" pistones consumidos sin informar a "+destPist().nom.split(" ")[0]+(u?" desde el "+fmtF(sumaDias(u,1)):"")}),el("button",{type:"button",class:"btn peq",text:"Preparar informe",onclick:informePist})]));}
   const S=statsPist();
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>{document.getElementById("pForm")&&document.getElementById("pForm").scrollIntoView({behavior:"smooth"});}}),
     el("button",{type:"button",class:"btn sec",text:"Informe diario para "+destPist().nom.split(" ")[0],onclick:informePist}),
@@ -1946,7 +1946,11 @@ const destPist=()=>Object.assign({nom:"Beatriz Arrizabalaga",email:"",tel:""},(c
 function formDestPist(despues){const x=destPist();
   dlg("Informe de pistones: a quién se envía",[fld("Nombre",inp("dpN",x.nom,v=>x.nom=v,{autocomplete:"off"})),fld("Correo",inp("dpE",x.email,v=>x.email=v,{type:"email",autocomplete:"off",inputmode:"email"})),fld("Teléfono / WhatsApp (opcional)",inp("dpT",x.tel,v=>x.tel=v,{type:"tel",autocomplete:"off"}))],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{infP:{nom:(x.nom||"").trim()||"Beatriz Arrizabalaga",email:(x.email||"").trim(),tel:(x.tel||"").trim()}});try{await saveCat();toast("Guardado");}catch(e){return false;}render(true);if(despues)setTimeout(despues,0);}}]);}
+/* Cambios de pistón sin informar: con fecha posterior al último informe, o apuntados después de enviarlo
+   aunque lleven una fecha anterior (p. ej. un cambio de ayer que se apunta hoy). */
+function pistPend(){const aj=cat.ajustes||{},u=aj.ultInfPist,uts=+aj.ultInfPistTs||0;return todosPist().filter(p=>!u||p.f>u||(uts&&(+p.ts||0)>uts));}
 function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj.ultInfPist&&aj.ultInfPist<hy?sumaDias(aj.ultInfPist,1):hy,hasta:hy};
+  const tarde=pistPend().filter(p=>aj.ultInfPist&&p.f<=aj.ultInfPist);if(tarde.length){const mn=tarde.map(p=>p.f).sort()[0];if(mn<f.desde)f.desde=mn;}
   const D=destPist(),pn=(D.nom||"").split(" ")[0];
   const ta=el("textarea",{id:"ipTxt",readonly:true,style:"min-height:280px;font-family:'IBM Plex Mono',monospace;font-size:12.5px"});
   const mail=el("a",{class:"btn",target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por correo a "+pn});
@@ -1958,12 +1962,12 @@ function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj
     wa.href="https://wa.me/"+(telWA(D.tel)||"")+"?text="+encodeURIComponent(ta.value);};pinta();
   const acts=[{t:"Copiar",cls:"sec",fn:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Informe copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}return false;}}];
   if(downloads)acts.push({t:"Excel para SAP",cls:"sec",fn:async()=>{await excelInforme(f.desde,f.hasta);return false;}});
-  acts.push({t:"Marcar como enviado",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{ultInfPist:f.hasta});try{await saveCat();toast("Informado hasta el "+fmtF(f.hasta));}catch(e){return false;}render(true);}});
+  acts.push({t:"Marcar como enviado",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{ultInfPist:f.hasta>(aj.ultInfPist||"")?f.hasta:aj.ultInfPist,ultInfPistTs:Date.now()});try{await saveCat();toast("Informado hasta el "+fmtF(f.hasta));}catch(e){return false;}render(true);}});
   acts.push({t:"Cerrar",cls:"sec"});
   let cerrar=null;
   cerrar=dlg("Informe diario de pistones",[el("p",{class:"sub"},["Para: ",el("b",{text:D.nom}),D.email?" · "+D.email:" · sin correo guardado"," ",el("button",{type:"button",class:"btn txt peq",style:"color:var(--acc)",text:"Cambiar",onclick:()=>{if(cerrar)cerrar();formDestPist(informePist);}})]),
     el("div",{class:"row"},[fld("Desde",inp("ipD",f.desde,v=>{f.desde=v;pinta();},{type:"date"})),fld("Hasta",inp("ipH",f.hasta,v=>{f.hasta=v;pinta();},{type:"date"}))]),
-    el("p",{class:"hint",text:aj.ultInfPist?"Último informe enviado: hasta el "+fmtF(aj.ultInfPist)+". Por defecto empieza el día siguiente para no dejar huecos ni repetir.":"Es el primer informe: elige desde qué día."}),
+    el("p",{class:"hint",text:aj.ultInfPist?"Último informe enviado: hasta el "+fmtF(aj.ultInfPist)+". Por defecto empieza el día siguiente para no dejar huecos ni repetir."+(tarde.length?" Ojo: hay "+tarde.length+" cambio"+(tarde.length===1?"":"s")+" apuntado"+(tarde.length===1?"":"s")+" después del último envío con fecha "+[...new Set(tarde.map(p=>fmtF(p.f)))].join(", ")+", por eso empieza en esa fecha.":""):"Es el primer informe: elige desde qué día."}),
     chP.node,ta,mail,wa,
     el("p",{class:"hint",text:"«Enviar por correo» abre tu aplicación de correo con el informe ya escrito"+(D.email?" para "+D.email:"; como no hay correo guardado tendrás que ponerlo tú (guárdalo con «Cambiar»)")+". Después pulsa «Marcar como enviado» para que el siguiente informe empiece donde acaba este."}),
     el("p",{class:"hint",text:"Si los pistones tienen el código de material de SAP en su ficha (campo Código), sale entre corchetes."})],acts);}
