@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261014054356"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261015060105"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1233,16 +1233,18 @@ function vConsumo(){
 /* Subir n fardos de una colada del almacén externo a su nave. Entera: la colada pasa a «en nave».
    Una parte: la colada se parte en dos y queda el traslado apuntado. b = saldo de la colada (saldos()). */
 async function subirExterno(l,b,n){const hay=b.fa;
-  if(n===hay){
+  /* si ya se subió antes una parte de esta colada, lo que llega se junta en esa misma línea de la nave */
+  const yaEnNave=lotes.find(x=>x.id!==l.id&&x.nombre===l.nombre&&x.nave===l.nave&&x.material===l.material&&x.donde==="nave");
+  if(n===hay&&!yaEnNave){
     await db.doc("lotes/"+l.id).update({donde:"nave"});
     await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:l.id,kg:0,fa:0,n:"Subida entera del almacén externo ("+hay+" fardos)"});
   }else{
-    let dest=lotes.find(x=>x.nombre===l.nombre&&x.nave===l.nave&&x.material===l.material&&x.donde==="nave");
+    let dest=yaEnNave;
     let did=dest?dest.id:uid("l");
     if(!dest)await db.doc("lotes/"+did).set({nombre:l.nombre,material:l.material,nave:l.nave,donde:"nave",
       kgInv:0,fardosInv:0,albaran:l.albaran||"",proveedor:l.proveedor||"",entrada:l.entrada||hoy(),
       obs:"Parte de "+l.nombre+" subida del almacén externo"});
-    await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:did,kg:Math.round(n*(b.ratio||0)),fa:n,n:"Subida del almacén externo"});
+    await addMov({i:uid("m"),t:"T",f:hoy(),o:l.id,d:did,kg:n===hay?Math.round(b.kg):Math.round(n*(b.ratio||0)),fa:n,n:n===hay?"Subida del almacén externo (resto, "+n+" fardos)":"Subida del almacén externo"});
   }}
 /* BP del Plan que llega en parte: se suben a nave los fardos que han llegado (de las coladas
    que digas, la más antigua primero) y en el calendario queda pendiente solo lo que falta. */
