@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016183904">
+<meta name="build" content="20261016204136">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -229,6 +229,8 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm()
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
     el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
       sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,
+      o.orig_n&&o.orig_n.length?el("span",{class:"pill info",title:"La app lo ha pasado automáticamente porque esa persona no está",text:"🔄 Era de "+o.orig_n.map(n=>n.split(" ")[0]).join(", ")}):null,
+      o.auto_motivo==="sin_nadie"&&o.estado==="pendiente"&&admin?el("span",{class:"pill bad",text:"⚠ Nadie disponible para hacerlo"}):null,
       admin&&S.plant&&o.fecha===S.fecha?(o.nombres||[]).filter(n=>S.plant[n]&&!S.plant[n].length&&!(o.cubre||[]).some(c=>c.ausente===n&&c.sustituto)).map(n=>el("span",{class:"pill bad",text:n.split(" ")[0]+" libra hoy"})):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
       o.lugar?el("span",{text:"📍 "+o.lugar}):null,o.turno?el("span",{text:"🕑 "+o.turno}):null,quien?el("span",{text:"👤 "+quien}):null,
       o.origen==="rapida"&&o.creado_por_n?el("span",{text:"Abierta por "+o.creado_por_n.split(" ")[0]+" a las "+hora(o.creado)}):null,
@@ -1034,9 +1036,23 @@ async function vEquipo(v){const box=el("div",null,el("div",{class:"empty",text:"
       el("div",{class:"meta"},[el("span",{text:"📅 "+(x.desde===x.hasta?fCorta(x.desde):fCorta(x.desde)+" → "+fCorta(x.hasta))}),x.desde<=hoy?el("span",{class:"pill warn",text:"Falta hoy"}):el("span",{class:"pill",text:"Próximamente"}),
         el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"Lo cubre "+x.sustituto_n:"Sin cubrir"}),x.nota?el("span",{text:"📝 "+x.nota}):null])])):el("div",{class:"empty",text:"Nadie falta. Si alguien está de baja o de vacaciones, pulsa «＋ Alguien falta» y elige quién le cubre."})]));
     box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Festivos"})),FE.length?FE.map(x=>el("div",{class:"linea"},[el("span",{style:"flex:1",text:fCorta(x.fecha)+" · "+x.nombre}),el("button",{class:"btn sec peq",text:"Quitar",onclick:async()=>{try{await rpc("festivo_quitar",{p_tok:S.tok,p_fecha:x.fecha});toast("Quitado");pinta();}catch(e){toast(e.message);}}})])):el("div",{class:"empty",text:"No hay festivos marcados. En un festivo no se generan trabajos de tareas fijas."}),el("button",{class:"btn sec",text:"＋ Añadir festivo",onclick:()=>formFestivo(()=>pinta())})]));
+    box.appendChild(cardReparto(L));
     const faltaHoy=new Set(SU.filter(x=>x.desde<=hoy&&x.hasta>=hoy&&x.motivo!=="Horas extra").map(x=>x.ausente));box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Compañeros"})),L.map(w=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formTrab(w,()=>pinta())},[el("div",{class:"t",text:w.nombre+(w.rol==="admin"?" · administrador":"")+(w.activo?"":" (ya no trabaja)")}),
     el("div",{class:"meta"},[faltaHoy.has(w.id)?el("span",{class:"pill warn",text:"Falta hoy"}):null,el("span",{text:w.equipos.join(" y ")}),w.turno_semana?el("span",{text:"⏱ "+w.turno_semana}):null,w.turno_finde?el("span",{text:"⏱ "+w.turno_finde}):null,el("span",{class:"pill "+(w.tiene_pin?"ok":"warn"),text:w.tiene_pin?"Ya ha entrado":"Aún no ha entrado"}),w.activo?el("span",{class:"pill "+(w.avisos?"ok":""),text:w.avisos?"🔔 Avisos":"🔕 Sin avisos"}):null,w.telefono?el("span",{text:"📱 "+w.telefono}):null,w.activo&&w.rol!=="admin"?el("span",{class:Object.keys(w.horario||{}).length?"":"pill warn",text:Object.keys(w.horario||{}).length?"🕑 "+horSemana(w.horario):"Sin horario"}):null])]))]));}
   catch(e){box.textContent=e.message;}}
+/* Reparto automático: quién puede hacer hornos y qué ha hecho la app */
+function cardReparto(L){const card=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"🔄 Reparto automático"})),el("div",{class:"empty",text:"Cargando…"})]);
+  rpc("auto_estado",{p_tok:S.tok}).then(E=>{card.lastChild.remove();const H=new Set(E.hornos);
+    const ch=el("div",{class:"chips"});L.filter(w=>w.activo&&w.rol!=="admin").forEach(w=>ch.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(H.has(w.id)),text:w.nombre,onclick:async e=>{const si=!H.has(w.id);
+      try{await rpc("auto_habilidad",{p_tok:S.tok,p_trab:w.id,p_hab:"hornos",p_si:si});if(si)H.add(w.id);else H.delete(w.id);e.target.setAttribute("aria-pressed",String(si));toast(si?w.nombre.split(" ")[0]+" ya puede recibir trabajos de hornos":"Quitado");}catch(er){toast(er.message);}}})));
+    const fecha=f=>f===hoyISO()?"hoy":fCorta(f);
+    card.appendChild(el("div",{class:"bd"},[
+      el("p",{class:"hint",style:"margin-top:0",text:"Si alguien libra, falta sin sustituto o está de vacaciones, la app pasa sus trabajos de hoy y de mañana a un compañero del mismo equipo que trabaje ese día y tenga menos carga. Si vuelve, se los devuelve. Te avisa al móvil cada vez."}),
+      el("b",{text:"Pueden hacer trabajos de hornos"}),el("p",{class:"hint",style:"margin:2px 0 6px",text:"Los trabajos de hornos y escoria solo se pasan a estas personas."}),ch,
+      E.sin_nadie.length?el("div",{class:"aviso",style:"margin:12px 0 0"},["⚠ Sin nadie disponible",el("small",{text:E.sin_nadie.map(x=>x.titulo+" ("+fecha(x.fecha)+")").join(" · ")+". Asígnalos tú o marca a más gente para hornos."})]):null,
+      el("h4",{text:"Lo que ha repartido la app (últimos 7 días)"}),
+      E.ultimos.length?el("div",null,E.ultimos.map(x=>el("div",{class:"linea",style:"cursor:default"},[el("span",{style:"flex:1",text:x.titulo+" · "+fecha(x.fecha)}),el("small",{class:"hint",style:"margin:0",text:x.detalle.replace("Automático: ","→ ")})]))):el("p",{class:"hint",text:"Todavía no ha tenido que repartir nada."})]));}).catch(e=>{card.lastChild.textContent=e.message;});
+  return card;}
 function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;const ed=editorHorario(w.horario);
   const nvb=el("div",{class:"chips"});const pn=()=>{nvb.textContent="";["Nave 1","Nave 2"].forEach(k=>nvb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String((w.naves||[]).includes(k)),text:k,onclick:()=>{w.naves=(w.naves||[]).includes(k)?w.naves.filter(x=>x!==k):(w.naves||[]).concat([k]);pn();}})));};pn();
   const eqb=el("div",{class:"chips"});const pe=()=>{eqb.textContent="";["Semana","Finde"].forEach(k=>eqb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(w.equipos.includes(k)),text:k,onclick:()=>{w.equipos=w.equipos.includes(k)?w.equipos.filter(x=>x!==k):w.equipos.concat([k]);if(!w.equipos.length)w.equipos=[k];pe();}})));};pe();
