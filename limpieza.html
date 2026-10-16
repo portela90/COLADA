@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016154731">
+<meta name="build" content="20261016183904">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -115,7 +115,7 @@ tr.libre th,tr.equipo th{font-weight:600!important;color:var(--mut)!important}
 .ley{display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 12px 12px;font-size:12px;color:var(--mut)}.ley span{display:flex;gap:5px;align-items:center}.ley i.c{display:inline-block;width:14px;height:14px;border-radius:4px}
 .ley i.c.ok{background:var(--okbg);border:1px solid var(--ok)}.ley i.c.warn{background:var(--warnbg);border:1px solid var(--warn)}.ley i.c.bad{background:var(--badbg);border:1px solid var(--bad)}.ley i.c.libra{background:var(--surf2);border:1px solid var(--line)}.ley i.c.sinh{background:var(--surf2);border:1px dashed var(--mut)}
 @media (prefers-color-scheme:dark){td.c.equipo{background:#16324D}}
-nav button{font-size:12px;padding:12px 2px 14px}
+nav button{font-size:12px;padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}nav button .ic{font-size:20px;line-height:1}nav button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .btn.sec{min-height:46px}
 .linea.elx{padding:8px 0;border-bottom:1px solid var(--line)}.elx .ico{font-size:22px;width:30px;text-align:center}
 input.bus{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);color:var(--ink);margin:6px 0 0}
@@ -1236,10 +1236,22 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   if(S.yo.rol==="admin"){let bp=$("bprueba");if(!bp){bp=el("button",{id:"bprueba",class:"sec",type:"button"});$("bsalir").parentNode.insertBefore(bp,$("bsalir"));}
     bp.hidden=false;bp.textContent=S.verOp?"↩ Volver a jefe":"👷 Probar como operario";bp.onclick=()=>{S.verOp=!S.verOp;S.tab="hoy";pinta();window.scrollTo(0,0);};}
   else{const bp=$("bprueba");if(bp)bp.hidden=true;}
-  if(esAdm()){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));
-    nav.appendChild(el("button",{"aria-selected":"false",text:"Toolbox",onclick:()=>{location.href="toolbox.html?v="+Date.now();}}));
-    nav.appendChild(el("button",{"aria-selected":"false",text:"Encargado",onclick:()=>{location.href="encargado.html?v="+Date.now();}}));
-    nav.appendChild(el("button",{"aria-selected":"false",text:"Calendario",onclick:()=>{location.href="calendario.html?v="+Date.now();}}));}
+  if(esAdm()){nav.hidden=false;nav.textContent="";
+    /* barra de abajo: en el móvil solo 4 pestañas + «Más»; en pantallas anchas, todas */
+    const ir=k=>()=>{S.tab=k;pinta();window.scrollTo(0,0);},pag=u=>()=>{location.href=u+"?v="+Date.now();};
+    const T={hoy:["📋","Día"],semana:["🗓","Semana"],tareas:["🧰","Tareas"],equipo:["👥","Equipo"],avisos:["🔔","Avisos"],resumen:["📊","Resumen"]};
+    const EXT=[["🦺","Toolbox","toolbox.html"],["🧭","Encargado","encargado.html"],["📅","Calendario","calendario.html"]];
+    const bot=(ic,t,sel,fn)=>el("button",{"aria-selected":String(!!sel),onclick:fn},[el("span",{class:"ic",text:ic}),el("span",{text:t})]);
+    const ancho=window.innerWidth>=760,prin=ancho?Object.keys(T):["hoy","semana","tareas","equipo"];
+    prin.forEach(k=>nav.appendChild(bot(T[k][0],T[k][1],S.tab===k,ir(k))));
+    if(ancho)EXT.forEach(([ic,t,u])=>nav.appendChild(bot(ic,t,false,pag(u))));
+    else{const resto=Object.keys(T).filter(k=>!prin.includes(k));
+      nav.appendChild(bot("☰","Más",resto.includes(S.tab),()=>{let cerrar=()=>{};
+        const fila=(ic,t,sub,fn)=>el("button",{type:"button",class:"btn sec",style:"display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin:0 0 8px",onclick:()=>{cerrar();fn();}},[el("span",{style:"font-size:24px",text:ic}),el("span",{style:"flex:1"},[el("b",{text:t}),sub?el("small",{style:"display:block;font-weight:400;color:var(--mut)",text:sub}):null])]);
+        cerrar=dlg("Más secciones",el("div",null,[...resto.map(k=>fila(T[k][0],T[k][1],null,ir(k))),
+          fila("🦺","Toolbox y prevención","Toolbox, formación, EPIs y fichas",pag("toolbox.html")),
+          fila("🧭","Encargado","Instrucciones, checklist e incidencias",pag("encargado.html")),
+          fila("📅","Calendario laboral","Festivos, vacaciones y firmas",pag("calendario.html"))]),[{t:"Cerrar",cls:"sec"}]);}));}}
   else{nav.hidden=true;S.tab="hoy";}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
