@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016212814">
+<meta name="build" content="20261016214137">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -38,6 +38,7 @@ nav button[aria-selected=true]{color:var(--acc);border-top-color:var(--acc)}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--mut)}
 details.card>summary::-webkit-details-marker{display:none}
 .aviso{background:var(--warnbg);color:var(--warn);border-radius:var(--r);padding:10px 14px;margin:0 0 12px;font-weight:600}
+.aviso.mal{background:var(--badbg);color:var(--bad)}
 .aviso small{display:block;font-weight:400;color:var(--ink)}
 .names{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .names button{padding:16px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surf);font-weight:700;font-size:16px;cursor:pointer;text-align:center}
@@ -746,15 +747,28 @@ function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")
   if(d>e.frecuencia_dias)return{k:"bad",d,t:"Atrasado "+(d-e.frecuencia_dias)+" día"+(d-e.frecuencia_dias>1?"s":"")};
   if(d===e.frecuencia_dias)return{k:"warn",d,t:"Toca hoy"};
   return{k:"ok",d,t:d===0?"Limpiado hoy":"Al día · toca en "+(e.frecuencia_dias-d)+" d"};}
+/* vaciado preventivo de hornos mantenedores (mínimo 1 vez al año para no tapar cono y tolva) */
+const fAnio=f=>new Date(f+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"numeric",year:"numeric"});
+function vaciadoEl(e){if(e.tipo!=="horno"||!e.vaciado_dias)return null;
+  if(e.vaciado_excepcion)return{k:"sin",t:"🫗 Excepción"+(e.vaciado_nota?": "+e.vaciado_nota:"")};
+  if(e.vaciado_abierto)return{k:"info",t:"🫗 Vaciado en marcha"};
+  if(!e.ult_vaciado)return{k:"warn",t:"🫗 Vaciado: sin fecha"};
+  const d=Math.floor((new Date(hoyISO()+"T12:00:00")-new Date(e.ult_vaciado+"T12:00:00"))/864e5),rest=e.vaciado_dias-d,lim=sumaD(e.ult_vaciado,e.vaciado_dias);
+  if(rest<0)return{k:"bad",t:"🫗 Vaciado atrasado "+(-rest)+" d",d,lim};
+  if(rest<=30)return{k:"warn",t:"🫗 Vaciar antes del "+fAnio(lim),d,lim};
+  return{k:"ok",t:"🫗 Vaciado hace "+(d<60?d+" d":Math.round(d/30)+" meses"),d,lim};}
 let ELS=null;const ordEl=(a,b)=>a.tipo.localeCompare(b.tipo)||a.codigo.localeCompare(b.codigo,"es",{numeric:true});async function elementosL(force){if(!ELS||force)ELS=(await rpc("elementos",{p_tok:S.tok})).sort(ordEl);return ELS;}
-async function listaElementos(re){let L;try{L=await elementosL(true);}catch(e){toast(e.message);return;}
+async function listaElementos(re,filtro0){let L;try{L=await elementosL(true);}catch(e){toast(e.message);return;}
   if(!L.length){dlg("Moldes y hornos mantenedores",el("p",{class:"empty",text:esAdm()?"Todavía no hay ninguno. Añádelos en Tareas.":"Todavía no hay ninguno dado de alta."}));return;}
-  let q="",tp="";const box=el("div",{class:"lst-el"});const ORD={bad:0,warn:1,sin:2,ok:3};
-  const pin=()=>{box.textContent="";const F=L.filter(e=>e.activo&&(!tp||e.tipo===tp)&&(!q||(e.codigo+" "+e.nombre+" "+(e.lugar||"")).toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>ORD[estadoEl(a).k]-ORD[estadoEl(b).k]||a.codigo.localeCompare(b.codigo,"es",{numeric:true}));
+  let q="",tp="",vac=filtro0==="vaciados";const box=el("div",{class:"lst-el"});const ORD={bad:0,warn:1,info:2,sin:2,ok:3};
+  const ordV=e=>{const v=vaciadoEl(e);return v?ORD[v.k]:3;};
+  const pin=()=>{box.textContent="";const F=L.filter(e=>e.activo&&(!tp||e.tipo===tp)&&(!vac||(vaciadoEl(e)&&["bad","warn"].includes(vaciadoEl(e).k)))&&(!q||(e.codigo+" "+e.nombre+" "+(e.lugar||"")).toLowerCase().includes(q.toLowerCase())))
+      .sort((a,b)=>vac?(ordV(a)-ordV(b)||(a.ult_vaciado||"").localeCompare(b.ult_vaciado||"")):(Math.min(ORD[estadoEl(a).k],ordV(a))-Math.min(ORD[estadoEl(b).k],ordV(b))||a.codigo.localeCompare(b.codigo,"es",{numeric:true})));
     if(!F.length)box.appendChild(el("p",{class:"empty",text:"Nada con esa búsqueda."}));
     F.forEach(e=>{const s=estadoEl(e);box.appendChild(el("button",{class:"linea elx",onclick:()=>{cerrarTodo();fichaElemento(e.codigo,re);}},[el("span",{class:"ico",text:tipoEl(e.tipo)[2]}),
-      el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.ultima_por?" · último: "+e.ultima_por.split(" ")[0]:"")+(e.ult_otra?" · "+(ACC_HORNO[e.ult_otra_accion]||"Vaciado")+" "+fCorta(diaDe(e.ult_otra))+(e.ult_otra_por?" ("+e.ult_otra_por.split(" ")[0]+")":""):"")})]),el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t})]));});};
-  const tps=el("div",{class:"chips",style:"margin:8px 0"});const pt=()=>{tps.textContent="";[["","Todos"]].concat(TIPOS_EL.filter(t=>L.some(e=>e.tipo===t[0])).map(t=>[t[0],t[2]+" "+t[3]])).forEach(([k,t])=>tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(tp===k),text:t,onclick:()=>{tp=k;pt();pin();}})));};pt();
+      el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.ultima_por?" · último: "+e.ultima_por.split(" ")[0]:"")+(e.ult_otra?" · "+(ACC_HORNO[e.ult_otra_accion]||"Vaciado")+" "+fCorta(diaDe(e.ult_otra))+(e.ult_otra_por?" ("+e.ult_otra_por.split(" ")[0]+")":""):"")})]),el("span",{style:"display:flex;flex-direction:column;gap:3px;align-items:flex-end"},[el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),(v=>v?el("span",{class:"pill "+(v.k==="sin"?"":v.k),text:v.t}):null)(vaciadoEl(e))])]));});};
+  const tps=el("div",{class:"chips",style:"margin:8px 0"});const pt=()=>{tps.textContent="";[["","Todos"]].concat(TIPOS_EL.filter(t=>L.some(e=>e.tipo===t[0])).map(t=>[t[0],t[2]+" "+t[3]])).forEach(([k,t])=>tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(tp===k&&!vac),text:t,onclick:()=>{tp=k;vac=false;pt();pin();}})));
+    if(L.some(e=>e.tipo==="horno"))tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(vac),text:"🫗 Toca vaciar ("+L.filter(e=>e.activo&&vaciadoEl(e)&&["bad","warn"].includes(vaciadoEl(e).k)).length+")",onclick:()=>{vac=!vac;tp="";pt();pin();}}));};pt();
   const bus=el("input",{type:"search",placeholder:"Buscar por código o nombre",class:"bus","aria-label":"Buscar"});bus.oninput=()=>{q=bus.value;pin();};
   dlg("Moldes y hornos mantenedores",el("div",null,[escanerBtn(re),bus,tps,box]));pin();}
 function escanerBtn(re){const ok="BarcodeDetector" in window&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia;
@@ -781,6 +795,9 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
   dlg(T[2]+" "+e.nombre,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill info",text:T[1]+" · "+e.codigo}),e.lugar?el("span",{text:"📍 "+e.lugar}):null,el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t}),
       e.frecuencia_dias?el("span",{text:"Cada "+e.frecuencia_dias+" día"+(e.frecuencia_dias>1?"s":"")}):null,e.minutos_est?el("span",{text:"⏳ "+durTxt(e.minutos_est)}):null]),
     e.abierta?el("div",{class:"aviso"},["Limpieza empezada a las "+hora(e.abierta.inicio),el("small",{text:"Cuando acabes pulsa «✔ Terminar limpieza»."})]):null,
+    e.tipo==="horno"&&vaciadoEl(e)?(v=>el("div",{class:"aviso"+(v.k==="bad"?" mal":""),style:v.k==="ok"||v.k==="sin"||v.k==="info"?"background:var(--surf2);color:var(--ink)":""},[v.t,
+      el("small",{text:(e.ult_vaciado?"Último vaciado: "+fAnio(e.ult_vaciado)+(v.lim?" · hay que vaciarlo antes del "+fAnio(v.lim):""):"No consta ningún vaciado. "+(esAdm()?"Pon la fecha del último en «Editar».":"Díselo al encargado."))+
+        " · Vaciarlo al menos cada "+(e.vaciado_dias>=365?"año":e.vaciado_dias+" días")+" evita que se tapen el cono y la tolva."+(e.cambios_365?" ⚠ Cambios de tolva/cono en el último año: "+e.cambios_365+".":"")})]))(vaciadoEl(e)):null,
     e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","🧽 Limpieza"),linUltHorno(e.ult,"vaciado","🫗 Vaciado"),linUltHorno(e.ult,"cambio_tolva","🔁 Cambio de tolva"),linUltHorno(e.ult,"cambio_cono","🔁 Cambio de cono"),linUltHorno(e.ult,"cambio_tolva_cono","🔁 Tolva y cono")])]):null,
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 function yaLimpio(e,re){const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
@@ -830,13 +847,21 @@ function formHornoAcciones(e,accs,re){const f={fecha:hoyISO(),motivo:"",nota:""}
 function sigCodigo(tipo,L){const pre={molde:"M",horno:"H",contenedor:"C",otro:"X"}[tipo]+"-";let n=1;const usados=new Set((L||[]).map(e=>e.codigo));while(usados.has(pre+n))n++;return pre+n;}
 function formElemento(e0,re){const e=Object.assign({tipo:"horno",activo:true},JSON.parse(JSON.stringify(e0||{})));if(!e.codigo)e.codigo=sigCodigo(e.tipo,ELS);
   const cod=inp(e.codigo,v=>e.codigo=v.toUpperCase(),{autocapitalize:"characters"});
-  const tb=el("div",{class:"seg sel"});const pt=()=>{tb.textContent="";TIPOS_EL.forEach(([k,t,i])=>tb.appendChild(el("button",{type:"button","aria-pressed":String(e.tipo===k),text:i+" "+t,onclick:()=>{e.tipo=k;if(!e.id){e.codigo=sigCodigo(k,ELS);cod.value=e.codigo;}pt();}})));};pt();
+  const tb=el("div",{class:"seg sel"});const pt=()=>{tb.textContent="";TIPOS_EL.forEach(([k,t,i])=>tb.appendChild(el("button",{type:"button","aria-pressed":String(e.tipo===k),text:i+" "+t,onclick:()=>{e.tipo=k;if(!e.id){e.codigo=sigCodigo(k,ELS);cod.value=e.codigo;}pt();if(typeof vacBox!=="undefined")vacBox.hidden=k!=="horno";}})));};pt();
   const fb=el("div",{class:"chips"});const pf=()=>{fb.textContent="";[[null,"Sin fijar"],[1,"Cada día"],[7,"Semanal"],[14,"Cada 2 semanas"],[30,"Mensual"]].forEach(([k,t])=>fb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String((e.frecuencia_dias||null)===k),text:t,onclick:()=>{e.frecuencia_dias=k;pf();}})));};pf();
+  if(e.tipo==="horno"&&e.vaciado_dias==null)e.vaciado_dias=365;
+  const vd=el("div",{class:"chips"});const pvd=()=>{vd.textContent="";[[180,"Cada 6 meses"],[270,"Cada 9 meses"],[365,"Cada año"]].forEach(([k,t])=>vd.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(e.vaciado_dias===k),text:t,onclick:()=>{e.vaciado_dias=k;pvd();}})));};pvd();
+  const notaV=fld("¿Por qué? (sale en la lista)",inp(e.vaciado_nota,v=>e.vaciado_nota=v,{placeholder:"p. ej. Fuera de servicio"}));notaV.hidden=!e.vaciado_excepcion;
+  const vacBox=el("div",{style:"border:1px solid var(--line);border-radius:12px;padding:10px 12px 2px;margin:0 0 10px"},[el("b",{text:"🫗 Vaciado preventivo"}),
+    el("p",{class:"hint",style:"margin:2px 0 8px",text:"Vaciarlo a tiempo evita residuos que tapan el cono y la tolva. Un cambio de tolva o cono también cuenta como vaciado. Solo para hornos."}),
+    fld("Vaciarlo como mínimo",vd),fld("Último vaciado conocido (si se hizo antes de usar la app)",inp(e.vaciado_ref,v=>e.vaciado_ref=v,{type:"date"})),
+    el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 8px"},[el("input",{type:"checkbox",checked:!!e.vaciado_excepcion,onchange:ev=>{e.vaciado_excepcion=ev.target.checked;notaV.hidden=!e.vaciado_excepcion;}}),"Excepción: no avisar de este horno"]),notaV]);
+  vacBox.hidden=e.tipo!=="horno";
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(e.id)bot.unshift({t:"🗑 Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar "+e.nombre+"? Su historial de limpiezas se conserva."))return false;await rpc("elemento_borrar",{p_tok:S.tok,p_id:e.id});ELS=null;toast("Borrado");re();}});
-  bot.push({t:"Guardar",fn:async()=>{if(!(e.nombre||"").trim()){toast("Pon el nombre");return false;}const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{id:e.id||null,tipo:e.tipo,codigo:e.codigo,nombre:e.nombre,lugar:e.lugar,frecuencia_dias:e.frecuencia_dias||null,minutos_est:e.minutos_est||null,activo:e.activo,puntos:e.puntos||[]}});ELS=null;toast("Guardado · código "+r.codigo);re();}});
+  bot.push({t:"Guardar",fn:async()=>{if(!(e.nombre||"").trim()){toast("Pon el nombre");return false;}const r=await rpc("elemento_guardar",{p_tok:S.tok,p:{id:e.id||null,tipo:e.tipo,codigo:e.codigo,nombre:e.nombre,lugar:e.lugar,frecuencia_dias:e.frecuencia_dias||null,minutos_est:e.minutos_est||null,activo:e.activo,puntos:e.puntos||[],vaciado_dias:e.tipo==="horno"?(e.vaciado_dias||365):null,vaciado_ref:e.vaciado_ref||null,vaciado_excepcion:!!e.vaciado_excepcion,vaciado_nota:e.vaciado_nota||null}});ELS=null;toast("Guardado · código "+r.codigo);re();}});
   dlg(e.id?"Editar "+e.nombre:"Nuevo molde u horno mantenedor",el("div",null,[fld("Tipo",tb),el("div",{class:"row"},[fld("Código (va en el QR)",cod),fld("Nombre",inp(e.nombre,v=>e.nombre=v,{placeholder:"p. ej. Horno mantenedor F28"}))]),
-    fld("Dónde está (opcional)",inp(e.lugar,v=>e.lugar=v,{placeholder:"p. ej. Nave 2"})),fld("Cada cuánto hay que limpiarlo",fb),fld("Tiempo que lleva limpiarlo",campoTiempo(e.minutos_est,v=>e.minutos_est=v)),fld("Puntos de la checklist (uno por línea; los puedes cambiar al limpiar)",area((e.puntos||[]).join("\n"),v=>e.puntos=v.split("\n").map(x=>x.trim()).filter(Boolean))),
+    fld("Dónde está (opcional)",inp(e.lugar,v=>e.lugar=v,{placeholder:"p. ej. Nave 2"})),fld("Cada cuánto hay que limpiarlo",fb),vacBox,fld("Tiempo que lleva limpiarlo",campoTiempo(e.minutos_est,v=>e.minutos_est=v)),fld("Puntos de la checklist (uno por línea; los puedes cambiar al limpiar)",area((e.puntos||[]).join("\n"),v=>e.puntos=v.split("\n").map(x=>x.trim()).filter(Boolean))),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:e.activo,onchange:ev=>e.activo=ev.target.checked}),"Activo"])]),bot);}
 function variosElementos(re){let tipo="horno",txt="";const tb=el("div",{class:"seg sel"});const pt=()=>{tb.textContent="";TIPOS_EL.forEach(([k,t,i])=>tb.appendChild(el("button",{type:"button","aria-pressed":String(tipo===k),text:i+" "+t,onclick:()=>{tipo=k;pt();}})));};pt();
   dlg("Añadir varios de golpe",el("div",null,[fld("Tipo",tb),fld("Uno por línea",area("",v=>txt=v)),el("p",{class:"hint",text:"Escribe solo el nombre (p. ej. «Horno mantenedor F28») y el código se pone solo. Si quieres un código concreto, ponlo delante con punto y coma: «M-120; Molde tapa 120»."})]),
@@ -1301,7 +1326,7 @@ let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
     const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:"📅"}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
-const _pinta0=pinta;pinta=function(){_pinta0();if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>fichaElemento(c),300);}};
+const _pinta0=pinta;pinta=function(){_pinta0();if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
 if(S.tok&&S.yo)rpc("yo",{p_tok:S.tok}).then(y=>{if(!y||!y.id)return;const antes=!!S.yo.encargado;S.yo=Object.assign({},S.yo,{encargado:!!y.encargado});ls.set("limp.yo",JSON.stringify(S.yo));if(antes!==!!y.encargado)pinta();}).catch(()=>{});
 })();
