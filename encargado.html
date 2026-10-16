@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016151305">
+<meta name="build" content="20261016152840">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
@@ -54,7 +54,7 @@ nav button b.n{position:absolute;margin:-4px 0 0 22px;background:var(--bad);colo
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#16212C;color:#fff;padding:10px 16px;border-radius:999px;z-index:60;font-size:14px;max-width:90vw}
 .prog{position:sticky;top:52px;z-index:5;background:var(--bg);padding:6px 0 8px}.bar{height:8px;border-radius:4px;background:var(--surf2);overflow:hidden;border:1px solid var(--line)}.bar i{display:block;height:100%;background:var(--ok)}
 .linea{all:unset;display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
-.ed{display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 14px;border-bottom:1px solid var(--line);align-items:center}.ed .bs{display:flex;gap:4px}
+.ed{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}.ed .bs{display:flex;gap:4px}
 .visor{position:fixed;inset:0;z-index:80;background:#000;display:flex;align-items:center;justify-content:center}.visor img{max-width:100%;max-height:100%}
 </style>
 </head>
@@ -163,22 +163,25 @@ async function vCheck(v){if(IR.c){CK_FECHA=IR.c;IR.c=null;}const f=CK_FECHA||(do
   box.textContent="";
   const prev=R.check;const prevIt={};((prev&&prev.items)||[]).forEach(i=>prevIt[i.id]=i);
   /* puntos activos + los que ya se guardaron ese día aunque luego se quitaran */
-  const items=R.puntos.map(p=>Object.assign({id:p.id,grupo:p.grupo,texto:p.texto,estado:null,nota:"",foto:null},prevIt[p.id]?{estado:prevIt[p.id].estado,nota:prevIt[p.id].nota||"",foto:prevIt[p.id].foto||null}:{}));
-  ((prev&&prev.items)||[]).forEach(i=>{if(!items.some(x=>x.id===i.id))items.push(Object.assign({},i));});
+  const items=R.puntos.map(p=>Object.assign({id:p.id,grupo:p.grupo,texto:p.texto,tipo:p.tipo||"ok",ayuda:p.ayuda,minimo:p.minimo,foto_si_mal:!!p.foto_si_mal,estado:null,valor:"",nota:"",foto:null},
+    prevIt[p.id]?{estado:prevIt[p.id].estado,valor:prevIt[p.id].valor==null?"":String(prevIt[p.id].valor),nota:prevIt[p.id].nota||"",foto:prevIt[p.id].foto||null}:{}));
+  ((prev&&prev.items)||[]).forEach(i=>{if(!items.some(x=>x.id===i.id))items.push(Object.assign({tipo:"ok",valor:"",nota:""},i,{valor:i.valor==null?"":String(i.valor),nota:i.nota||""}));});
+  const oblig=items.filter(i=>i.tipo!=="txt");
   let nota=(prev&&prev.nota)||"";let cambiado=false;
   if(prev)box.appendChild(el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill "+(prev.cerrado?"ok":"warn"),text:prev.cerrado?"Terminado":"A medias (guardado)"}),el("span",{text:"Por "+nom1(prev.hecho_por_n)+" · "+cuando(prev.actualizado)})]));
   if(!items.length){box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:esJefe()?"Todavía no hay puntos. Ponlos en Ajustes.":"Todavía no hay puntos en el checklist."})));return;}
   const bar=el("i",{style:"width:0%"}),cnt=el("span");
-  const prog=()=>{const n=items.filter(i=>i.estado).length;bar.style.width=Math.round(n*100/items.length)+"%";const m=items.filter(i=>i.estado==="mal").length;cnt.textContent=n+" de "+items.length+" revisados"+(m?" · "+m+" con problema":"");};
+  const prog=()=>{const n=oblig.filter(i=>i.estado).length;bar.style.width=Math.round(n*100/Math.max(1,oblig.length))+"%";const m=items.filter(i=>i.estado==="mal").length;cnt.textContent=n+" de "+oblig.length+" revisados"+(m?" · "+m+" con problema":"");};
   box.appendChild(el("div",{class:"prog"},[el("div",{class:"bar"},bar),el("div",{class:"meta",style:"margin-top:4px"},cnt)]));
   const card=el("div",{class:"card"});box.appendChild(card);let g=null;
   items.forEach(it=>{if(it.grupo!==g){g=it.grupo;card.appendChild(el("div",{class:"grp",text:g}));}card.appendChild(punto(it,()=>{cambiado=true;prog();}));});
   prog();
   box.appendChild(el("div",{class:"card"},el("div",{class:"bd"},fld("Nota general (opcional)",area(nota,x=>{nota=x;cambiado=true;},3)))));
-  const guarda=async cerrar=>{const falta=items.filter(i=>!i.estado);
+  const guarda=async cerrar=>{const falta=oblig.filter(i=>!i.estado);
     if(cerrar&&falta.length){toast("Falta por marcar: "+falta[0].texto);return;}
-    if(cerrar&&items.some(i=>i.estado==="mal"&&!i.nota.trim()&&!i.foto)){toast("En los puntos con problema, explica qué pasa o pon una foto");return;}
-    try{await rpc("enc_check_guardar",{p_tok:S.tok,p_fecha:f,p_items:items.filter(i=>i.estado).map(i=>({id:i.id,grupo:i.grupo,texto:i.texto,estado:i.estado,nota:i.nota.trim()||null,foto:i.foto||null})),p_nota:nota,p_cerrar:!!cerrar});
+    const sinExp=items.find(i=>i.estado==="mal"&&i.tipo==="ok"&&!i.nota.trim()&&!i.foto);if(cerrar&&sinExp){toast("Explica qué pasa o pon una foto: "+sinExp.texto);return;}
+    const sinFoto=items.find(i=>i.estado==="mal"&&i.foto_si_mal&&!i.foto);if(cerrar&&sinFoto){toast("Pon una foto: "+sinFoto.texto);return;}
+    try{await rpc("enc_check_guardar",{p_tok:S.tok,p_fecha:f,p_items:items.filter(i=>i.estado).map(i=>({id:i.id,grupo:i.grupo,texto:i.texto,tipo:i.tipo,estado:i.estado,valor:i.tipo==="ok"?null:(i.tipo==="num"?Number(i.valor):i.valor.trim()),minimo:i.minimo==null?null:i.minimo,nota:i.nota.trim()||null,foto:i.foto||null})),p_nota:nota,p_cerrar:!!cerrar});
       cambiado=false;toast(cerrar?(esJefe()?"Guardado":"Enviado a Cristian ✔"):"Guardado. Puedes seguir luego.");re();}catch(e){toast(e.message);}};
   box.appendChild(el("div",{class:"row",style:"margin:0 0 14px"},[el("button",{class:"btn sec",text:"💾 Guardar y seguir luego",onclick:()=>guarda(false)}),el("button",{class:"btn ok",text:"✔ Terminar y enviar",onclick:()=>guarda(true)})]));
   window.onbeforeunload=()=>cambiado?"":undefined;
@@ -189,15 +192,21 @@ async function vCheck(v){if(IR.c){CK_FECHA=IR.c;IR.c=null;}const f=CK_FECHA||(do
       c.mal?el("span",{class:"pill bad",text:c.mal+" mal"}):null,el("span",{class:"pill "+(c.cerrado?"ok":"warn"),text:c.cerrado?c.ok+"/"+c.total+" bien":"a medias"})])));}).catch(e=>hist.lastChild.textContent=e.message);}
 function punto(it,cambio){const w=el("div",{class:"pt"+(it.estado==="mal"?" mal":"")});
   const extra=el("div",{style:"display:grid;gap:6px"});
+  const ayuda=it.ayuda||it.tipo==="num"&&it.minimo!=null?el("div",{class:"hint",style:"margin:-4px 0 0",text:[it.ayuda,it.tipo==="num"&&it.minimo!=null?"Mínimo: "+it.minimo:null].filter(Boolean).join(" · ")}):null;
+  if(it.tipo==="txt"){w.append(...[el("b",{text:it.texto}),ayuda,el("textarea",{class:"x",rows:2,oninput:e=>{it.valor=e.target.value;it.estado=it.valor.trim()?"ok":null;cambio();}},[])].filter(Boolean));w.querySelector("textarea").value=it.valor||"";return w;}
   const pintaExtra=()=>{extra.textContent="";w.className="pt"+(it.estado==="mal"?" mal":"");if(it.estado!=="mal")return;
     const ft=el("div",{class:"fotos"});if(it.foto)ft.appendChild(el("img",{src:it.foto,alt:"foto",onclick:()=>verFoto(it.foto)}));
-    extra.appendChild(el("input",{class:"x",placeholder:"¿Qué pasa? (p. ej. quedan 2 cajas de guantes)",value:it.nota,oninput:e=>{it.nota=e.target.value;cambio();}}));
+    if(it.tipo==="num")extra.appendChild(el("div",{style:"color:var(--bad);font-weight:700;font-size:14px",text:"Por debajo del mínimo ("+it.minimo+")"}));
+    extra.appendChild(el("input",{class:"x",placeholder:it.tipo==="num"?"Nota (opcional)":"¿Qué pasa?"+(it.foto_si_mal?" (y pon una foto)":""),value:it.nota,oninput:e=>{it.nota=e.target.value;cambio();}}));
     extra.appendChild(el("div",{class:"row"},[botonFoto(it.foto?"📷 Cambiar foto":"📷 Foto",d=>{it.foto=d;cambio();pintaExtra();}),it.foto?el("button",{class:"btn sec peq",text:"Quitar foto",onclick:()=>{it.foto=null;cambio();pintaExtra();}}):null,
       el("button",{class:"btn sec peq",text:"⚠ Crear incidencia",onclick:()=>formInc({tipo:tipoDe(it),texto:(it.texto+(it.nota?": "+it.nota:"")),foto:it.foto})})]));
     extra.appendChild(ft);};
+  if(it.tipo==="num"){const n=el("input",{class:"x",type:"number",inputmode:"decimal",min:"0",placeholder:"Escribe el número",value:it.valor,style:"max-width:220px;font-size:20px;font-weight:700",
+      oninput:()=>{it.valor=n.value;it.estado=n.value===""?null:(it.minimo!=null&&Number(n.value)<Number(it.minimo)?"mal":"ok");cambio();pintaExtra();}});
+    w.append(...[el("b",{text:it.texto}),ayuda,n,extra].filter(Boolean));pintaExtra();return w;}
   const seg=el("div",{class:"seg"});const B=[["ok","✔ Bien","v-ok"],["mal","✖ Mal","v-mal"],["na","No aplica","v-na"]].map(([k,t,c])=>el("button",{type:"button",class:c,"aria-pressed":String(it.estado===k),text:t,onclick:()=>{it.estado=k;B.forEach(b=>b.setAttribute("aria-pressed",String(b===B.find(x=>x.textContent===t))));cambio();pintaExtra();}}));
   B.forEach(b=>seg.appendChild(b));
-  w.append(el("b",{text:it.texto}),seg,extra);pintaExtra();return w;}
+  w.append(...[el("b",{text:it.texto}),ayuda,seg,extra].filter(Boolean));pintaExtra();return w;}
 const tipoDe=it=>/m[aá]quina|fregadora|barredora|aspirador|plataforma|carretilla/i.test(it.texto+it.grupo)?"Máquina averiada":/guante|gafa|mascarilla|tap[oó]n|epi|botiqu/i.test(it.texto)?"Faltan EPIs":/papel|jab[oó]n|bolsa|producto|absorbente/i.test(it.texto)?"Falta material":/extintor|salida|derrame|pasillo|seguridad/i.test(it.texto+it.grupo)?"Seguridad":"Otro";
 
 /* ---------------- INCIDENCIAS ---------------- */
@@ -245,35 +254,63 @@ function formInc(x0){const x=Object.assign({tipo:"",lugar:"",texto:"",urgente:fa
       await rpc("enc_incidencia_nueva",{p_tok:S.tok,p:{tipo:x.tipo,lugar:x.lugar,texto:x.texto,urgente:x.urgente,foto:x.foto}});toast("Aviso enviado ✔");S.tab="inc";ls.set("enc.tab","inc");re();}}]);}
 
 /* ---------------- AJUSTES (solo jefe) ---------------- */
+const TIPO_P={ok:"✔ Bien / Mal",num:"🔢 Número",txt:"📝 Texto"};
 async function vAjustes(v){
-  /* puntos del checklist */
+  /* puntos del checklist, por grupos */
   const card=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Puntos del checklist"})),el("div",{class:"empty",text:"Cargando…"})]);v.appendChild(card);
   const card2=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Encargado"})),el("div",{class:"empty",text:"Cargando…"})]);v.appendChild(card2);
   let P;try{P=(await rpc("enc_puntos",{p_tok:S.tok})).filter(p=>p.activo);}catch(e){card.lastChild.textContent=e.message;return;}
   card.lastChild.remove();
-  const lista=el("div");let sucio=false;
-  const dib=()=>{lista.textContent="";let g=null;
-    P.forEach((p,i)=>{if(p.grupo!==g){g=p.grupo;lista.appendChild(el("div",{class:"grp",text:g}));}
-      lista.appendChild(el("div",{class:"ed"},[el("input",{class:"x",value:p.texto,oninput:e=>{p.texto=e.target.value;sucio=true;}}),
-        el("div",{class:"bs"},[el("button",{class:"btn sec peq","aria-label":"Subir",text:"▲",disabled:i===0,onclick:()=>{[P[i-1],P[i]]=[P[i],P[i-1]];if(P[i].grupo!==P[i-1].grupo)P[i-1].grupo=P[i].grupo;sucio=true;dib();}}),
-          el("button",{class:"btn sec peq","aria-label":"Bajar",text:"▼",disabled:i===P.length-1,onclick:()=>{[P[i+1],P[i]]=[P[i],P[i+1]];if(P[i].grupo!==P[i+1].grupo)P[i+1].grupo=P[i].grupo;sucio=true;dib();}}),
-          el("button",{class:"btn sec peq","aria-label":"Quitar",text:"✕",onclick:()=>{P.splice(i,1);sucio=true;dib();}})])]));});};
+  let G=[];const aGrupos=L=>{const out=[];L.forEach(p=>{let g=out.find(x=>x.nombre===p.grupo);if(!g){g={nombre:p.grupo,items:[]};out.push(g);}g.items.push(Object.assign({},p));});return out;};G=aGrupos(P);
+  let sucio=false;const lista=el("div");
+  const bGuardar=el("button",{class:"btn ok",style:"width:100%",text:"💾 Guardar cambios",disabled:true,onclick:async()=>{
+    const items=[];G.forEach(g=>g.items.forEach(p=>items.push({id:p.id||null,grupo:g.nombre.trim()||"General",texto:p.texto,tipo:p.tipo||"ok",minimo:p.tipo==="num"&&p.minimo!==""&&p.minimo!=null?p.minimo:null,ayuda:p.ayuda||null,foto_si_mal:!!p.foto_si_mal})));
+    try{P=(await rpc("enc_puntos_guardar",{p_tok:S.tok,p_items:items})).filter(p=>p.activo);G=aGrupos(P);marca(false);dib();toast("Checklist guardado ✔");}catch(e){toast(e.message);}}});
+  const marca=x=>{sucio=x;bGuardar.disabled=!x;bGuardar.textContent=x?"💾 Guardar cambios":"✔ Todo guardado";};marca(false);
+  const mueve=(L,i,d)=>{const j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];marca(true);dib();};
+  const editar=(g,p)=>{const x=Object.assign({texto:"",tipo:"ok",minimo:"",ayuda:"",foto_si_mal:false},p||{});let gr=g.nombre;
+    const minF=fld("Mínimo (si baja de aquí, cuenta como problema)",inp(x.minimo==null?"":x.minimo,v=>x.minimo=v,{type:"number",inputmode:"decimal",placeholder:"p. ej. 3"}));
+    const fotoF=el("label",{style:"display:flex;gap:10px;align-items:center;margin:0 0 10px;font-size:15px"},[el("input",{type:"checkbox",checked:x.foto_si_mal,style:"width:22px;height:22px",onchange:e=>x.foto_si_mal=e.target.checked}),"Pedir foto obligatoria si está mal"]);
+    const tipos=el("div",{class:"chips"});const pt=()=>{tipos.textContent="";Object.entries(TIPO_P).forEach(([k,t])=>tipos.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(x.tipo===k),text:t,onclick:()=>{x.tipo=k;pt();}})));minF.hidden=x.tipo!=="num";fotoF.hidden=x.tipo!=="ok";};
+    const gS=el("select",null,G.map(z=>el("option",{value:z.nombre,text:z.nombre})));gS.value=gr;gS.onchange=()=>gr=gS.value;
+    pt();
+    dlg(p?"Cambiar punto":"Nuevo punto en «"+g.nombre+"»",el("div",null,[fld("Qué hay que revisar",inp(x.texto,v=>x.texto=v,{placeholder:"p. ej. Canaleta de la F28 limpia"})),
+      el("div",{class:"f"},[el("span",{text:"Tipo de respuesta"}),tipos]),
+      el("p",{class:"hint",text:"Bien / Mal: lo normal. Número: para contar (cajas de guantes, sacas…). Texto: para que escriba algo."}),
+      minF,fotoF,fld("Ayuda para el encargado (opcional)",inp(x.ayuda,v=>x.ayuda=v,{placeholder:"p. ej. Mirar también debajo de la máquina"})),
+      p?fld("Grupo",gS):null]),
+      [{t:"Cancelar",cls:"sec"},{t:p?"Aceptar":"＋ Añadir",cls:"ok",fn:()=>{if(!x.texto.trim()){toast("Escribe qué hay que revisar");return false;}
+        x.texto=x.texto.trim();
+        if(p){Object.assign(p,x);if(gr!==g.nombre){g.items.splice(g.items.indexOf(p),1);G.find(z=>z.nombre===gr).items.push(p);}}
+        else g.items.push(x);
+        marca(true);dib();}}]);};
+  const dib=()=>{lista.textContent="";
+    G.forEach((g,gi)=>{
+      const nomI=el("input",{class:"x",value:g.nombre,style:"font-weight:700",oninput:e=>{g.nombre=e.target.value;marca(true);}});
+      lista.appendChild(el("div",{class:"grp",style:"display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;padding:8px 10px"},[nomI,
+        el("button",{class:"btn sec peq","aria-label":"Subir grupo",text:"▲",disabled:gi===0,onclick:()=>mueve(G,gi,-1)}),
+        el("button",{class:"btn sec peq","aria-label":"Bajar grupo",text:"▼",disabled:gi===G.length-1,onclick:()=>mueve(G,gi,1)}),
+        el("button",{class:"btn sec peq","aria-label":"Borrar grupo",text:"🗑",onclick:()=>{if(g.items.length&&!confirm("¿Borrar el grupo «"+g.nombre+"» y sus "+g.items.length+" puntos?"))return;G.splice(gi,1);marca(true);dib();}})]));
+      g.items.forEach((p,i)=>lista.appendChild(el("div",{class:"ed"},[
+        el("button",{type:"button",style:"all:unset;cursor:pointer;display:grid;gap:3px",onclick:()=>editar(g,p)},[el("span",{text:p.texto}),
+          el("span",{class:"meta"},[p.tipo&&p.tipo!=="ok"?el("span",{class:"pill",text:TIPO_P[p.tipo]+(p.tipo==="num"&&p.minimo!=null&&p.minimo!==""?" · mín. "+p.minimo:"")}):null,p.foto_si_mal&&p.tipo==="ok"?el("span",{class:"pill",text:"📷 foto si mal"}):null,p.ayuda?el("span",{text:"💬 "+p.ayuda}):null])]),
+        el("div",{class:"bs"},[el("button",{class:"btn sec peq","aria-label":"Subir",text:"▲",disabled:i===0,onclick:()=>mueve(g.items,i,-1)}),
+          el("button",{class:"btn sec peq","aria-label":"Bajar",text:"▼",disabled:i===g.items.length-1,onclick:()=>mueve(g.items,i,1)}),
+          el("button",{class:"btn sec peq","aria-label":"Cambiar",text:"✏",onclick:()=>editar(g,p)}),
+          el("button",{class:"btn sec peq","aria-label":"Quitar",text:"✕",onclick:()=>{if(!confirm("¿Quitar «"+p.texto+"»?"))return;g.items.splice(i,1);marca(true);dib();}})])])));
+      lista.appendChild(el("div",{style:"padding:6px 14px 12px"},el("button",{class:"btn sec peq",text:"＋ Añadir punto aquí",onclick:()=>editar(g,null)})));});};
   dib();
-  const grupos=()=>[...new Set(P.map(p=>p.grupo))];
-  let nG=grupos()[0]||"General",nT="";
-  const gSel=el("input",{class:"x",list:"grupos",value:nG,oninput:e=>nG=e.target.value,placeholder:"Grupo"});const dl=el("datalist",{id:"grupos"},grupos().map(g=>el("option",{value:g})));
-  const tI=el("input",{class:"x",placeholder:"Nuevo punto…",oninput:e=>nT=e.target.value});
-  card.append(el("p",{class:"hint",style:"padding:0 14px",text:"Esta es mi propuesta inicial de puntos críticos. Cambia el texto, ordénalos, quita los que no sirvan y añade los vuestros. Los cambios valen para los checklists nuevos; los ya hechos no se tocan."}),lista,
-    el("div",{class:"bd",style:"display:grid;gap:8px"},[el("div",{class:"row"},[gSel,dl,tI]),
-      el("button",{class:"btn sec",text:"＋ Añadir punto",onclick:()=>{if(!nT.trim()){toast("Escribe el punto");return;}const g=nG.trim()||"General";let pos=-1;P.forEach((p,i)=>{if(p.grupo===g)pos=i;});const n={id:null,grupo:g,texto:nT.trim()};if(pos<0)P.push(n);else P.splice(pos+1,0,n);nT="";tI.value="";sucio=true;dib();}}),
-      el("button",{class:"btn ok",text:"💾 Guardar los puntos",onclick:async()=>{try{P=(await rpc("enc_puntos_guardar",{p_tok:S.tok,p_items:P.map(p=>({id:p.id,grupo:p.grupo,texto:p.texto}))})).filter(p=>p.activo);sucio=false;dib();toast("Puntos guardados");}catch(e){toast(e.message);}}})]));
+  card.append(el("p",{class:"hint",style:"padding:10px 14px 0",text:"Toca un punto para cambiarlo. Puedes cambiar el nombre de los grupos, ordenarlo todo y elegir cómo se responde cada punto. Al terminar, pulsa «Guardar cambios». Los checklists ya hechos no cambian."}),lista,
+    el("div",{class:"bd",style:"display:grid;gap:8px;position:sticky;bottom:64px;background:var(--surf);border-top:1px solid var(--line)"},[
+      el("button",{class:"btn sec",text:"＋ Nuevo grupo",onclick:()=>{let n="";dlg("Nuevo grupo",fld("Nombre del grupo",inp("",v=>n=v,{placeholder:"p. ej. Nave 2"})),[{t:"Cancelar",cls:"sec"},{t:"Crear",cls:"ok",fn:()=>{n=n.trim();if(!n){toast("Pon un nombre");return false;}if(G.some(z=>z.nombre===n)){toast("Ya hay un grupo con ese nombre");return false;}G.push({nombre:n,items:[]});marca(true);dib();setTimeout(()=>{const g=G[G.length-1];editar(g,null);},50);}}]);}}),
+      bGuardar]));
   window.onbeforeunload=()=>sucio?"":undefined;
   /* quién es encargado */
   try{const [E,T]=await Promise.all([rpc("enc_encargados",{p_tok:S.tok}),rpc("trabajadores_gestor",{p_tok:S.tok})]);card2.lastChild.remove();
     const ids=new Set(E.map(e=>e.id));const ch=el("div",{class:"chips"});
     T.filter(w=>w.rol!=="admin").forEach(w=>ch.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(ids.has(w.id)),text:w.nombre,onclick:async e=>{const si=!ids.has(w.id);
       try{await rpc("enc_encargado_poner",{p_tok:S.tok,p_id:w.id,p_si:si});if(si)ids.add(w.id);else ids.delete(w.id);e.target.setAttribute("aria-pressed",String(si));toast(si?w.nombre.split(" ")[0]+" es encargado":"Quitado");}catch(er){toast(er.message);}}})));
-    card2.append(el("div",{class:"bd"},[el("p",{class:"hint",style:"margin-top:0",text:"El encargado puede ver los trabajos de todos, crear y asignar trabajos, poner faltas, hacer el checklist y avisar de incidencias. No puede borrar trabajos ni ver datos personales u horas. Tiene que salir y volver a entrar en la app para notar el cambio."}),ch]));}
+    card2.append(el("div",{class:"bd"},[el("p",{class:"hint",style:"margin-top:0",text:"El encargado puede ver los trabajos de todos, crear y asignar trabajos, poner faltas, hacer el checklist y avisar de incidencias. No puede borrar trabajos ni ver datos personales u horas. Lo notará la próxima vez que abra la app."}),ch]));}
   catch(e){card2.lastChild.textContent=e.message;}}
 
 pinta();
