@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261015220445">
+<meta name="build" content="20261016080505">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -316,7 +316,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
-  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre);
+  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"🕑 Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
@@ -426,6 +426,8 @@ async function formHabitual(h0,re){await trabajadores().catch(()=>{});const h=Ob
 /* filtros del panel del jefe */
 const ESTF=[["","Todos los estados"],["pendiente","Por hacer"],["en_curso","En curso"],["hecha","Hechas"],["no_hecha","No se pudieron"]];
 const TIPF=[["","Todos los tipos"],["fija","Tareas fijas"],["habitual","Habituales"],["rapida","Abiertas por trabajadores"],["urgente","Urgentes"],["manual","Puestas por el jefe"]];
+/* sustituciones: si este trabajo es de alguien que falta y lo cubro yo, devuelve su nombre */
+function cubroYo(o){const c=(o.cubre||[]).find(x=>x.sustituto&&x.sustituto===S.yo.nombre&&(o.nombres||[]).includes(x.ausente));return c?c.ausente:null;}
 function quienes(o){const r=new Set();(o.nombres||[]).forEach(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);r.add(c?c.sustituto:n);});if(o.hecho_por_n)r.add(o.hecho_por_n);return r;}
 function pasaFiltro(o){const F=S.fil||{};if(F.est&&o.estado!==F.est)return false;
   if(F.tipo==="fija"&&o.origen!=="fija")return false;if(F.tipo==="habitual"&&!o.habitual_id)return false;if(F.tipo==="rapida"&&(o.origen!=="rapida"||o.habitual_id))return false;
@@ -1164,12 +1166,12 @@ async function vSencillo(v){
   v.appendChild(el("button",{class:"btn grande",style:"width:100%;margin:14px 0",text:"+ Trabajo que he hecho",onclick:()=>catalogoSencillo()}));
   v.appendChild(el("h2",{style:"font-size:20px",text:"Lo que llevo hecho hoy"}));v.appendChild(hb);
   let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){fb.appendChild(el("div",{class:"empty",text:e.message}));return;}
-  const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre));
+  const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o));
   // Solo añade una foto a la OT: no cambia su estado ni el almacén
   const subirFoto=o=>el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer;margin:10px 0"},["📷 Añadir foto",
     el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");}catch(er){toast(er.message);}}})]);
   const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),subirFoto(o)].filter(Boolean)),[...(o.estado!=="hecha"?[{t:"✔ Hecha",fn:async()=>{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:o.minutos_est||30,p_nota:null});toast("Hecha");pinta();}}]:[]),{t:"Volver",cls:"sec"}])},
-    [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")})].filter(Boolean));
+    [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")+(cubroYo(o)?" · cubres a "+cubroYo(o).split(" ")[0]:"")})].filter(Boolean));
   const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
   fb.appendChild(pend.length?el("div",{class:"card"},pend.map(linea)):el("div",{class:"empty",text:"Hoy no tienes tareas pendientes."}));
   hb.appendChild(hech.length?el("div",{class:"card"},hech.map(linea)):el("div",{class:"empty",text:"Todavía no has hecho nada hoy."}));
