@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261015223810">
+<meta name="build" content="20261016000039">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -1026,8 +1026,14 @@ const DOC_INFO = {
   epi:      {t:'Entrega de EPI', c:'SH-CORP-SP-FO-014', pdf:'plantillas/SH-CORP-SP-FO-014.pdf', firma:true},
   epi_col:  {t:'EPI de uso colectivo (altura)', c:'SH-CORP-SP-FO-072', pdf:'plantillas/SH-CORP-SP-FO-072.pdf', firma:true},
   info:     {t:'Entrega de información', c:'SH-CORP-SP-FP-022', pdf:'plantillas/SH-CORP-SP-FP-022.pdf', firma:true},
-  botiquin: {t:'Revisión del botiquín', c:'SH-CORP-SP-FO-018', pdf:'plantillas/SH-CORP-SP-FO-018.pdf', firma:false}
+  botiquin: {t:'Revisión del botiquín', c:'SH-CORP-SP-FO-018', pdf:'plantillas/SH-CORP-SP-FO-018.pdf', firma:false},
+  autoriz:  {t:'Autorización de uso de maquinaria', c:'AUTORIZ.', pdf:null, firma:true}
 };
+const MAQUINAS=['Carretilla elevadora','Plataforma elevadora móvil de personal (PEMP)','Puente grúa','Grúa autocargante','Transpaleta eléctrica','Apilador eléctrico','Barredora / fregadora con conductor','Hidrolimpiadora de alta presión','Escalera / andamio móvil'];
+const AUT_TXT=['Ha recibido la formación e información adecuadas sobre los riesgos derivados de su utilización y las medidas preventivas a adoptar.',
+  'Utilizará los equipos conforme a las instrucciones del fabricante, las normas de seguridad del centro y solo para las tareas para las que han sido diseñados.',
+  'Revisará el equipo antes de cada uso y comunicará de inmediato a su responsable cualquier anomalía o deterioro, sin utilizarlo hasta su reparación.',
+  'Esta autorización es personal e intransferible y podrá ser revocada por la empresa en cualquier momento.'];
 // F014: [clave, texto, lado, y0, y1, categorías]
 const EPI_L = { unit:[289.4,319.5], cat2:[[319.5,366.6],[366.6,435.2]], cat3:[[320.8,361.4],[363.4,407.2],[407.2,435.2]] };
 const EPI_R = { unit:[600.3,631], cat3:[[631,675.6],[675.6,719.4],[719.4,755.5]] };
@@ -1115,6 +1121,9 @@ function htmlDoc(d){
     if(x.otros) filas.push(`<li><b>${esc(x.otros)}</b></li>`);
     h+=`<div class="card read"><div class="tema">Equipos de trabajo en altura que recibes</div><p class="small muted">Entrega temporal · ${fmtF(d.fecha)}${x.hora?' a las '+esc(x.hora):''}</p><ul>${filas.join('')||'<li>—</li>'}</ul></div>
       <div class="card read"><b>Al firmar declaras que:</b><ol>${COL_DECL.map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`;
+  } else if(d.tipo==='autoriz'){
+    h+=`<div class="card read"><p>La empresa <b>${esc(x.empresa||'')}</b> autoriza a <b>${esc(d.nombre||'')}</b> a utilizar los siguientes equipos de trabajo${x.hasta?` hasta el <b>${fmtF(x.hasta)}</b>`:''}:</p>
+      <ul>${(x.maquinas||[]).map(m=>`<li><b>${esc(m)}</b></li>`).join('')||'<li>—</li>'}</ul>${x.obs?`<p class="small">${esc(x.obs)}</p>`:''}<b>El trabajador declara y se compromete a que:</b><ol>${AUT_TXT.map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`;
   } else if(d.tipo==='info'){
     h+=`<div class="card read"><p>En base a lo dispuesto en el artículo 18 de la Ley de Prevención de Riesgos Laborales (Ley 31/1995), se te entrega la siguiente información, disponible en <a href="${INFO_URL}" target="_blank" rel="noopener">la web de ISS</a>:</p><ul>${INFO_DOCS.map(t=>`<li><b>${esc(t)}</b></li>`).join('')}</ul>
       <p>Con la firma de este documento te comprometes a leer atentamente la información facilitada y, como consecuencia de ello, a cumplir con las obligaciones detalladas en el art. 29 de la Ley 31/1995 en materia de prevención.</p>
@@ -1133,7 +1142,7 @@ async function pantallaDocLeer(id){
   let h=htmlDoc(d);
   if(!d.tiene_firma && S.yo.rol==='admin'){ h+=`<div class="card small muted">Así lo ve el trabajador. Para recoger su firma en tu móvil usa “Firmar aquí” en la ficha.</div>`; $('#w').innerHTML=h; return; }
   if(d.tiene_firma){ h+=`<div class="card done"><div class="big">✅</div><h3 style="margin:10px 0 4px">Firmado</h3><div class="muted small">${fmtFH(d.firmado_en)}</div>${d.firma?`<img src="${d.firma}" style="max-height:70px;margin-top:10px">`:''}</div>`; $('#w').innerHTML=h; return; }
-  h+=`<div class="card"><b>Tu firma</b><label class="check"><input type="checkbox" id="leido"><span>${d.tipo==='info'?'He recibido esta información y me comprometo a leerla.':'He recibido los equipos y conozco su uso correcto.'}</span></label>
+  h+=`<div class="card"><b>Tu firma</b><label class="check"><input type="checkbox" id="leido"><span>${d.tipo==='info'?'He recibido esta información y me comprometo a leerla.':d.tipo==='autoriz'?'He leído la autorización y me comprometo a cumplir estas normas.':'He recibido los equipos y conozco su uso correcto.'}</span></label>
     <div class="sigbox" id="sb"><canvas></canvas><div class="sigline"></div><div class="ph">Firma aquí con el dedo</div></div>
     <div class="row" style="margin-top:8px"><span class="small muted grow">${esc(d.nombre||'')}</span><button class="btn ghost" id="borra">Borrar</button></div></div><div style="height:70px"></div>
     <div class="sticky-act"><div><button class="btn big ok" id="firmar" disabled>Firmar</button></div></div>`;
@@ -1191,8 +1200,11 @@ async function pantallaDocEditar(tipo, d){
       <p class="small muted" style="margin-bottom:0">El DNI y el puesto se ponen en ⚙︎ Ajustes → Trabajadores.</p></div>` : `<div class="card"><b>${esc(d.nombre)}</b></div>`;
   }
   h+=`<div class="card"><label class="f">Fecha</label><input class="inp" type="date" id="d_fec" value="${esc(d.fecha||hoyISO())}">`;
-  if(tipo==='epi'||tipo==='info') h+=`<label class="f">Lugar (para “En …, a … de …”)</label><input class="inp" id="d_lug" value="${esc(x.lugar??(S.cfg.lugar||''))}">`;
+  if(tipo==='epi'||tipo==='info'||tipo==='autoriz') h+=`<label class="f">Lugar (para “En …, a … de …”)</label><input class="inp" id="d_lug" value="${esc(x.lugar??(S.cfg.lugar||''))}">`;
   if(tipo==='info') h+=`<label class="f">Empresa</label><input class="inp" id="d_emp" value="${esc(x.empresa??(S.cfg.empresa||''))}">`;
+  if(tipo==='autoriz') h+=`<label class="f">Empresa</label><input class="inp" id="a_emp" value="${esc(x.empresa??(S.cfg.empresa||''))}">
+    <label class="f">Válida hasta (opcional)</label><input class="inp" type="date" id="a_hasta" value="${esc(x.hasta||'')}">
+    <label class="f">Autoriza (nombre y cargo)</label><input class="inp" id="a_por" value="${esc(x.autoriza??((S.cfg.formador||S.yo.nombre)+' · Responsable'))}">`;
   if(tipo==='epi_col') h+=`<label class="f">Hora de entrega</label><input class="inp" type="time" id="d_hora" value="${esc(x.hora||new Date().toTimeString().slice(0,5))}">`;
   if(tipo==='botiquin') h+=`<label class="f">Empresa Grupo ISS</label><input class="inp" id="b_emp" value="${esc(x.empresa??(S.cfg.empresa||''))}">
     <label class="f">Ubicación</label><input class="inp" id="b_ubi" placeholder="ej. Nave 1, vestuario" value="${esc(x.ubicacion||'')}">
@@ -1211,6 +1223,13 @@ async function pantallaDocEditar(tipo, d){
     const its=x.items||{};
     h+=`<div class="card"><b>Equipos que se entregan</b>${COL_ITEMS.map(([k,t])=>`<div class="li" style="flex-wrap:wrap"><label style="display:flex;gap:10px;align-items:center;flex:1;min-width:200px;cursor:pointer"><input type="checkbox" class="ci" data-k="${k}" ${its[k]?'checked':''} style="width:22px;height:22px"><span>${esc(t)}</span></label><input class="inp cs" data-k="${k}" placeholder="Nº serie" value="${esc(its[k]&&its[k].serie||'')}" style="width:130px;min-height:38px"></div>`).join('')}
       <label class="f">Otros EPI</label><input class="inp" id="c_otros" value="${esc(x.otros||'')}"></div>`;
+  }
+  if(tipo==='autoriz'){
+    const ms=new Set(x.maquinas||[]); const otras=(x.maquinas||[]).filter(m=>!MAQUINAS.includes(m));
+    h+=`<div class="card"><b>Equipos que puede utilizar</b>${MAQUINAS.map(m=>`<label class="li" style="cursor:pointer"><input type="checkbox" class="am" value="${esc(m)}" ${ms.has(m)?'checked':''} style="width:22px;height:22px"><span class="grow">${esc(m)}</span></label>`).join('')}
+      <label class="f">Otros equipos (separados por comas)</label><input class="inp" id="a_otras" value="${esc(otras.join(', '))}">
+      <label class="f">Observaciones / limitaciones</label><textarea class="inp" id="a_obs">${esc(x.obs||'')}</textarea>
+      <p class="small muted" style="margin-bottom:0">Antes de autorizar, comprueba en su ficha que tiene el curso correspondiente en vigor.</p></div>`;
   }
   if(tipo==='botiquin'){
     const its=x.items||[];
@@ -1243,6 +1262,9 @@ async function pantallaDocEditar(tipo, d){
       if(!Object.keys(D.items).length && !D.otros.length) throw new Error('Marca al menos un equipo'); }
     if(tipo==='epi_col'){ D.items={}; document.querySelectorAll('.ci:checked').forEach(c=>{ D.items[c.dataset.k]={serie:document.querySelector(`.cs[data-k="${c.dataset.k}"]`).value.trim()}; }); D.otros=$('#c_otros').value.trim();
       if(!Object.keys(D.items).length && !D.otros) throw new Error('Marca al menos un equipo'); }
+    if(tipo==='autoriz'){ D.empresa=$('#a_emp').value.trim(); D.hasta=$('#a_hasta').value; D.autoriza=$('#a_por').value.trim(); D.obs=$('#a_obs').value.trim();
+      D.maquinas=[...document.querySelectorAll('.am:checked')].map(c=>c.value).concat($('#a_otras').value.split(',').map(s=>s.trim()).filter(Boolean));
+      if(!D.maquinas.length) throw new Error('Marca al menos un equipo'); }
     if(tipo==='botiquin'){ Object.assign(D,{empresa:$('#b_emp').value.trim(),ubicacion:$('#b_ubi').value.trim(),centro:$('#b_cen').value.trim(),otros:$('#b_otros').value.trim(),otros_a:$('#b_otros_a').value,
         n_bot:$('#b_nb').value,n_rep:$('#b_nr').value,realiza:$('#b_rea').value.trim(),supervisa:$('#b_sup').value.trim(),usar_mi_firma:$('#b_mia').checked});
       D.items=BOT_ITEMS.map((_,i)=>({a:document.querySelector(`.ba[data-i="${i}"]`).value, ok:(x.items[i]||{}).ok}));
@@ -1318,7 +1340,33 @@ function selloDeFoto(file){ // conserva el color, quita el fondo blanco
 }
 
 // ---- PDF
+async function generarAutoriz(PDFLib, d, cfg){
+  const { PDFDocument, StandardFonts, rgb } = PDFLib; const x=d.datos||{};
+  const doc=await PDFDocument.create(); const pg=doc.addPage([595.28,841.89]); const H=841.89, L=60, R=535;
+  const font=await doc.embedFont(StandardFonts.Helvetica), bold=await doc.embedFont(StandardFonts.HelveticaBold), NAVY=rgb(0.09,0.13,0.35), INK=rgb(0.1,0.1,0.1);
+  const wrap=(s,size,f,max)=>{ const out=[]; let cur=''; for(const w of String(s).split(' ')){ const t=cur?cur+' '+w:w; if(f.widthOfTextAtSize(t,size)>max&&cur){ out.push(cur); cur=w; } else cur=t; } if(cur) out.push(cur); return out; };
+  let y=70; const par=(s,size=10.5,f=font,c=INK,ind=0)=>{ for(const l of wrap(s,size,f,R-L-ind)){ pg.drawText(l,{x:L+ind,y:H-y,size,font:f,color:c}); y+=size*1.45; } };
+  pg.drawRectangle({x:0,y:H-50,width:595.28,height:50,color:NAVY});
+  pg.drawText('AUTORIZACIÓN DE USO DE EQUIPOS DE TRABAJO',{x:L,y:H-32,size:15,font:bold,color:rgb(1,1,1)});
+  y=85; par('Real Decreto 1215/1997 y Ley 31/1995 de Prevención de Riesgos Laborales',9,font,rgb(0.4,0.4,0.4)); y+=12;
+  const fila=(k,v)=>{ pg.drawText(k,{x:L,y:H-y,size:10,font:bold,color:INK}); pg.drawText(String(v||'—'),{x:L+120,y:H-y,size:10.5,font,color:INK}); y+=17; };
+  fila('Empresa:',x.empresa||cfg.empresa); fila('Centro:',cfg.centro); fila('Trabajador/a:',d.nombre); fila('DNI / NIE:',d.dni); fila('Puesto:',d.puesto); y+=10;
+  par(`La empresa AUTORIZA al trabajador/a arriba indicado a utilizar los siguientes equipos de trabajo${x.hasta?', con validez hasta el '+fmtF(x.hasta):''}:`); y+=4;
+  for(const m of (x.maquinas||[])){ pg.drawText('•',{x:L+8,y:H-y,size:11,font:bold,color:NAVY}); par(m,10.5,bold,INK,22); }
+  if(x.obs){ y+=4; par('Observaciones / limitaciones: '+x.obs,10); }
+  y+=10; par('El trabajador/a declara y se compromete a que:',10.5,bold);
+  AUT_TXT.forEach((t,i)=>{ pg.drawText((i+1)+'.',{x:L+4,y:H-y,size:10,font:bold,color:INK}); par(t,10,font,INK,20); y+=2; });
+  y+=14; par(`En ${x.lugar||cfg.lugar||'…………'}, a ${fLarga2(d.fecha)}`,10.5);
+  const yb=Math.max(y+20,620); const box=(x0,t1,t2)=>{ pg.drawText(t1,{x:x0,y:H-yb,size:9.5,font:bold,color:INK}); if(t2) pg.drawText(t2,{x:x0,y:H-yb-12,size:8.5,font,color:rgb(0.35,0.35,0.35)}); pg.drawRectangle({x:x0,y:H-yb-100,width:210,height:80,borderColor:rgb(0.75,0.75,0.75),borderWidth:0.8}); };
+  box(L,'Por la empresa',x.autoriza||''); box(R-210,'El trabajador/a',d.nombre||'');
+  const img=async(u,x0,y0,w,h)=>{ if(!u) return; const b=Uint8Array.from(atob(u.split(',')[1]),c=>c.charCodeAt(0)); const im=/^data:image\/png/.test(u)?await doc.embedPng(b):await doc.embedJpg(b); const k=Math.min(w/im.width,h/im.height); pg.drawImage(im,{x:x0+(w-im.width*k)/2,y:H-y0-h+(h-im.height*k)/2,width:im.width*k,height:im.height*k}); };
+  await img(cfg.sello||cfg.firma_formador, L+5, yb+22, 200, 74);
+  await img(d.firma, R-205, yb+22, 200, 74);
+  if(d.firmado_en) pg.drawText('Firmado digitalmente '+fmtFH(d.firmado_en),{x:R-210,y:H-yb-110,size:7,font,color:rgb(0.45,0.45,0.45)});
+  return doc;
+}
 async function rellenarDoc(PDFLib, plantilla, d, cfg, extra){
+  if(d.tipo==='autoriz') return generarAutoriz(PDFLib, d, cfg);
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const doc=await PDFDocument.load(plantilla); const font=await doc.embedFont(StandardFonts.Helvetica), bold=await doc.embedFont(StandardFonts.HelveticaBold);
   const pg=doc.getPage(0), H=pg.getHeight(), ink=rgb(0.05,0.1,0.3), x=d.datos||{};
@@ -1374,7 +1422,7 @@ async function pdfDocs(ids, nombre, btn){
   try{
     const [PDFLib, lista, cfg] = await Promise.all([cargarPdfLib(), rpc('prl_doc_varios',{p_tok:S.tok,p_ids:ids}), rpc('prl_config_leer',{p_tok:S.tok})]);
     const plantillas={}; const salida=await PDFLib.PDFDocument.create();
-    const getP=async t=>plantillas[t]||(plantillas[t]=await fetch(DOC_INFO[t].pdf).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla'); return r.arrayBuffer(); }));
+    const getP=async t=>!DOC_INFO[t].pdf?null:plantillas[t]||(plantillas[t]=await fetch(DOC_INFO[t].pdf).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla'); return r.arrayBuffer(); }));
     // EPI colectivo: se agrupan por trabajador (4 entregas por hoja)
     const grupos=[]; const col={};
     for(const d of lista){ if(d.tipo==='epi_col'){ const g=col[d.trabajador]||(col[d.trabajador]=[]); if(!g.length||g[g.length-1].length===4){ const n=[]; g.push(n); grupos.push(n); } g[g.length-1].push(d); } else grupos.push(d); }
@@ -1405,7 +1453,7 @@ async function pantallaFichas(){
   $('#w').innerHTML=`<p class="small muted" style="margin-top:0">Todo lo entregado y firmado por cada trabajador. Desde su ficha puedes sacar el expediente completo en PDF para una inspección.</p><div class="card">`+
     L.map(t=>`<div class="li" data-t="${esc(t.id)}" style="cursor:pointer"><span class="dot ${t.epis?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span>${t.activo?'':' <span class="chip">de baja</span>'}<br>
       <span class="small muted">${t.epis?`${t.epis} entrega${t.epis>1?'s':''} de EPI · última ${fmtF(t.ult_epi)}`:'Sin entregas de EPI'}${t.dni?'':' · <span style="color:var(--warn)">sin DNI</span>'}</span></span>
-      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
+      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${!t.rm_resultado?'<span class="chip warn">sin reconoc. médico</span>':t.rm_proximo&&t.rm_proximo<hoyISO()?'<span class="chip bad">reconoc. médico caducado</span>':''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
   document.querySelectorAll('[data-t]').forEach(el=>el.onclick=()=>pantallaFicha(el.dataset.t));
 }
 async function pantallaFicha(id){
@@ -1420,6 +1468,17 @@ async function pantallaFicha(id){
   $('#w').innerHTML=`<div class="card"><b style="font-size:19px">${esc(t.nombre)}</b>${t.activo?'':' <span class="chip">de baja</span>'}
       <div class="small muted" style="margin-top:4px">DNI: ${t.dni?esc(t.dni):'<span style="color:var(--warn)">sin poner</span>'} · ${esc(t.puesto||'')}</div>
       <div class="row" style="margin-top:12px"><button class="btn grow" id="exp">📄 Expediente PDF</button><button class="btn sec grow" id="nepi">＋ Entrega de EPI</button></div></div>
+    <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Datos del trabajador</div><button class="btn ghost" id="edatos">Editar</button></div>
+    <div class="card">
+      <div class="li"><span class="grow small muted">Fecha de alta</span><b>${t.fecha_alta?fmtF(t.fecha_alta):'<span style="color:var(--warn)">sin poner</span>'}</b></div>
+      ${t.fecha_baja?`<div class="li"><span class="grow small muted">Fecha de baja</span><b>${fmtF(t.fecha_baja)}</b></div>`:''}
+      <div class="li"><span class="grow small muted">Teléfono</span><b>${esc(t.telefono||'—')}</b></div>
+      <div class="li"><span class="grow small muted">Contacto de emergencia</span><b style="text-align:right">${t.emerg_nombre||t.emerg_tel?esc((t.emerg_nombre||'')+' '+(t.emerg_tel||'')):'—'}</b></div>
+      <div class="li"><span class="grow small muted">Idioma</span><b>${esc(t.idioma||'—')}</b></div>
+      <div class="li"><span class="grow small muted">Tallas</span><b style="text-align:right">${Object.entries(t.tallas||{}).filter(([k,v])=>v).map(([k,v])=>esc(TALLAS_N[k]||k)+' '+esc(v)).join(' · ')||'—'}</b></div>
+      <div class="li"><span class="grow small muted">Reconocimiento médico</span><span style="text-align:right">${rmTexto(t)}</span></div>
+      ${avisosFicha(F).map(a=>`<div class="small" style="color:var(--warn);padding-top:8px">⚠︎ ${a}</div>`).join('')}
+    </div>
     <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Formación y cursos</div><button class="btn ghost" id="ncurso">＋ Curso / certificado</button></div>
     <div class="card">${(F.certs||[]).map(c=>{ const [et,cl]=estadoCad(c); return `<div class="li" data-curso="${esc(c.id)}" style="cursor:pointer"><span class="dot ${cl==='ok'?'ok':''}"></span><span class="grow"><span class="nm">${esc(c.tipo)}</span>${c.titulo?`<br><span class="small">${esc(c.titulo)}</span>`:''}<br><span class="small muted">${c.fecha?fmtF(c.fecha):'sin fecha'}${c.entidad?' · '+esc(c.entidad):''}${c.caduca?' · caduca '+fmtF(c.caduca):''} · ${c.archivos.length?'📎 '+c.archivos.length:'<span style="color:var(--warn)">sin certificado</span>'}</span></span>${cl?`<span class="chip ${cl}">${et}</span>`:''}</div>`; }).join('')}
       ${F.formaciones.map(f=>`<div class="li" data-form="${esc(f.id)}" style="cursor:pointer"><span class="dot ${f.tiene_firma?'ok':''}"></span><span class="grow"><span class="nm">Formación práctica en el puesto</span><br><span class="small muted">${fmtF(f.fecha)}${f.impartida?' · '+esc(f.impartida):''} · ${(f.items||[]).map(n=>n).join(', ')}</span></span>${f.tiene_firma?(f.eval_eficaz===true?'<span class="chip ok">Eficaz</span>':f.eval_eficaz===false?'<span class="chip bad">No eficaz</span>':'<span class="chip">Sin evaluar</span>'):'<span class="chip blue">Sin firmar</span>'}</div>`).join('')}
@@ -1432,6 +1491,7 @@ async function pantallaFicha(id){
   document.querySelectorAll('[data-k]').forEach(el=>el.onclick=()=> el.dataset.k==='d'?pantallaDocDetalle(el.dataset.id):pantallaFormDetalle(el.dataset.id));
   $('#nepi').onclick=()=>pantallaDocEditar('epi');
   $('#ncurso').onclick=()=>pantallaCurso(t.id,t.nombre);
+  $('#edatos').onclick=()=>pantallaDatosTrab(t);
   document.querySelectorAll('[data-curso]').forEach(el=>el.onclick=()=>pantallaCurso(t.id,t.nombre,F.certs.find(c=>c.id===el.dataset.curso)));
   document.querySelectorAll('[data-form]').forEach(el=>el.onclick=()=>pantallaFormDetalle(el.dataset.form));
   $('#exp').onclick=e=>expedientePDF(F, e.currentTarget);
@@ -1454,6 +1514,10 @@ async function expedientePDF(F, btn){
     pg.drawText('Ficha del trabajador · generada el '+fmtFH(new Date().toISOString()),{x:L,y:H-68,size:9.5,font,color:rgb(0.85,0.88,0.95)});
     y=125; t1('Trabajador:',L,10,bold); t1(t.nombre,L+90,11,bold,NAVY); y+=18; t1('DNI / NIE:',L,10,bold); t1(t.dni||'—',L+90,10); y+=18; t1('Puesto:',L,10,bold); t1(t.puesto||'—',L+90,10);
     y+=18; t1('Empresa:',L,10,bold); t1(cfg.empresa||'',L+90,10); y+=18; t1('Centro:',L,10,bold); t1(cfg.centro||'',L+90,10);
+    y+=18; t1('Fecha de alta:',L,10,bold); t1(t.fecha_alta?fmtF(t.fecha_alta):'—',L+90,10); if(t.fecha_baja){ t1('Fecha de baja:',L+230,10,bold); t1(fmtF(t.fecha_baja),L+320,10); }
+    if(t.idioma){ y+=18; t1('Idioma:',L,10,bold); t1(t.idioma,L+90,10); }
+    y+=18; t1('Vigilancia salud:',L,10,bold); t1(rmPlano(t),L+90,10);
+    if(t.rm_limitacion){ y+=16; t1('Limitación laboral: '+t.rm_limitacion,L+90,9,font,rgb(0.3,0.3,0.3)); }
     const tabla=(titulo,cab,xs,filas)=>{ y+=28; sitio(40); t1(titulo,L,12,bold,NAVY); y+=8; pg.drawLine({start:{x:L,y:H-y},end:{x:R,y:H-y},thickness:1,color:NAVY}); y+=14;
       cab.forEach((c,i)=>t1(c,xs[i],8.5,bold,GRIS)); y+=6;
       if(!filas.length){ y+=12; t1('Sin registros.',L,9.5,font,GRIS); return; }
@@ -1474,7 +1538,7 @@ async function expedientePDF(F, btn){
     // documentos firmados
     const ids=F.docs.filter(d=>d.tiene_firma).map(d=>d.id), fids=F.formaciones.filter(f=>f.tiene_firma).map(f=>f.id);
     const [docs,forms]=await Promise.all([ids.length?rpc('prl_doc_varios',{p_tok:S.tok,p_ids:ids}):[], fids.length?rpc('prl_form_firmas',{p_tok:S.tok,p_ids:fids}):[]]);
-    const pl={}; const getP=async u=>pl[u]||(pl[u]=await fetch(u).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla'); return r.arrayBuffer(); }));
+    const pl={}; const getP=async u=>!u?null:pl[u]||(pl[u]=await fetch(u).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla'); return r.arrayBuffer(); }));
     const pegar=async d=>(await out.copyPages(d,d.getPageIndices())).forEach(p=>out.addPage(p));
     const cols=docs.filter(d=>d.tipo==='epi_col'); for(let i=0;i<cols.length;i+=4){ const g=cols.slice(i,i+4); await pegar(await rellenarDoc(PDFLib, await getP(DOC_INFO.epi_col.pdf), g[0], cfg, g)); }
     for(const d of docs.filter(d=>d.tipo!=='epi_col')) await pegar(await rellenarDoc(PDFLib, await getP(DOC_INFO[d.tipo].pdf), d, cfg));
@@ -1544,6 +1608,56 @@ async function anexarCertificados(PDFLib, out, F, font, bold){
     const pg=out.addPage([595.28,841.89]); pg.drawText(`${c.tipo}${c.titulo?' · '+c.titulo:''}`.slice(0,90),{x:40,y:805,size:11,font:bold,color:rgb(0.09,0.13,0.35)});
     pg.drawText(`${F.trabajador.nombre}${c.fecha?' · '+fmtF(c.fecha):''}${c.caduca?' · caduca '+fmtF(c.caduca):''}`,{x:40,y:790,size:9,font,color:rgb(0.4,0.4,0.4)});
     const k=Math.min(515/im.width,730/im.height); pg.drawImage(im,{x:40+(515-im.width*k)/2,y:40+(730-im.height*k)/2,width:im.width*k,height:im.height*k}); } }
+}
+
+
+// ====== DATOS DEL TRABAJADOR Y RECONOCIMIENTO MÉDICO ======
+const TALLAS_N={camiseta:'Camiseta',pantalon:'Pantalón',chaqueta:'Chaqueta',calzado:'Calzado',guantes:'Guantes'};
+const RM_N={apto:'Apto',apto_restr:'Apto con limitaciones',no_apto:'No apto',renuncia:'Renuncia firmada'};
+function rmPlano(t){ if(!t.rm_resultado) return 'Sin datos'; return RM_N[t.rm_resultado]+(t.rm_fecha?' ('+fmtF(t.rm_fecha)+')':'')+(t.rm_proximo?' · próximo '+fmtF(t.rm_proximo):''); }
+function rmTexto(t){
+  if(!t.rm_resultado) return '<span style="color:var(--warn)">sin datos</span>';
+  const cad=t.rm_proximo&&t.rm_proximo<hoyISO(), pronto=!cad&&t.rm_proximo&&t.rm_proximo<=sumaDias(hoyISO(),60);
+  const cl=t.rm_resultado==='no_apto'?'bad':t.rm_resultado==='apto_restr'?'warn':cad?'bad':pronto?'warn':'ok';
+  return `<span class="chip ${cl}">${esc(RM_N[t.rm_resultado])}</span><br><span class="small muted">${t.rm_fecha?fmtF(t.rm_fecha):''}${t.rm_proximo?' · próximo '+fmtF(t.rm_proximo)+(cad?' (caducado)':''):''}</span>${t.rm_limitacion?`<br><span class="small">${esc(t.rm_limitacion)}</span>`:''}`;
+}
+function avisosFicha(F){
+  const t=F.trabajador, a=[]; const info=F.docs.filter(d=>d.tipo==='info'&&d.tiene_firma).map(d=>d.fecha).sort()[0];
+  const form=F.formaciones.filter(f=>f.tiene_firma).map(f=>f.fecha).sort()[0];
+  if(!info) a.push('No tiene firmada la entrega de información de riesgos (F022).');
+  else if(t.fecha_alta && info>t.fecha_alta) a.push(`La información de riesgos se firmó el ${fmtF(info)}, después del alta (${fmtF(t.fecha_alta)}).`);
+  if(!form) a.push('No tiene firmada la formación práctica en el puesto.');
+  else if(t.fecha_alta && form>sumaDias(t.fecha_alta,30)) a.push(`La formación en el puesto es del ${fmtF(form)}, más de un mes después del alta.`);
+  if(t.rm_resultado==='no_apto') a.push('Reconocimiento médico: NO APTO.');
+  return a;
+}
+async function pantallaDatosTrab(t){
+  pararVoz();
+  view(barra('Datos del trabajador', `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"></div>`);
+  $('#bk').onclick=()=>pantallaFicha(t.id);
+  const tl=t.tallas||{};
+  $('#w').innerHTML=`<div class="card"><b>${esc(t.nombre)}</b><div class="small muted">Solo lo ves tú.</div></div>
+   <div class="card"><b>Identificación</b>
+    <div class="row"><div class="grow"><label class="f">DNI / NIE</label><input class="inp" id="t_dni" value="${esc(t.dni||'')}" autocapitalize="characters"></div><div class="grow"><label class="f">Puesto de trabajo</label><input class="inp" id="t_pue" value="${esc(t.puesto_propio||'')}" placeholder="${esc(t.categoria||'')}"></div></div>
+    <div class="row"><div class="grow"><label class="f">Fecha de alta</label><input class="inp" type="date" id="t_alta" value="${esc(t.fecha_alta||'')}"></div><div class="grow"><label class="f">Fecha de baja</label><input class="inp" type="date" id="t_baja" value="${esc(t.fecha_baja||'')}"></div></div>
+    <label class="f">Idioma que mejor entiende</label><input class="inp" id="t_idi" list="idiomas" value="${esc(t.idioma||'')}"><datalist id="idiomas">${['Castellano','Árabe','Francés','Inglés','Rumano','Portugués','Bambara','Wolof','Ucraniano'].map(i=>`<option value="${i}">`).join('')}</datalist></div>
+   <div class="card"><b>Contacto</b>
+    <label class="f">Teléfono del trabajador</label><input class="inp" type="tel" id="t_tel" value="${esc(t.telefono||'')}">
+    <div class="row"><div class="grow"><label class="f">Contacto de emergencia (nombre)</label><input class="inp" id="t_en" value="${esc(t.emerg_nombre||'')}"></div><div class="grow"><label class="f">Teléfono de emergencia</label><input class="inp" type="tel" id="t_et" value="${esc(t.emerg_tel||'')}"></div></div></div>
+   <div class="card"><b>Tallas</b><div class="row">${Object.entries(TALLAS_N).map(([k,n])=>`<div style="width:30%;min-width:90px"><label class="f">${n}</label><input class="inp tt" data-k="${k}" value="${esc(tl[k]||'')}"></div>`).join('')}</div></div>
+   <div class="card"><b>Reconocimiento médico</b><div class="small muted">Solo el resultado de aptitud y las fechas. Nunca diagnósticos ni el motivo de una limitación.</div>
+    <label class="f">Resultado</label><select class="inp" id="t_rm"><option value="">— Sin datos —</option>${Object.entries(RM_N).map(([k,n])=>`<option value="${k}" ${t.rm_resultado===k?'selected':''}>${n}</option>`).join('')}</select>
+    <div class="row"><div class="grow"><label class="f">Fecha del reconocimiento</label><input class="inp" type="date" id="t_rmf" value="${esc(t.rm_fecha||'')}"></div><div class="grow"><label class="f">Próximo reconocimiento</label><input class="inp" type="date" id="t_rmp" value="${esc(t.rm_proximo||'')}"></div></div>
+    <div class="row" style="margin-top:6px"><button class="btn ghost" id="t_rm1">Próximo: +1 año</button></div>
+    <div id="t_limw" ${t.rm_resultado==='apto_restr'?'':'hidden'}><label class="f">Limitación laboral (solo lo que afecta al trabajo)</label><input class="inp" id="t_lim" placeholder="ej. No manipular cargas de más de 15 kg" value="${esc(t.rm_limitacion||'')}"></div></div>
+   <button class="btn big" id="t_save">Guardar</button>`;
+  $('#t_rm').onchange=()=>{ $('#t_limw').hidden=$('#t_rm').value!=='apto_restr'; };
+  $('#t_rm1').onclick=()=>{ const f=$('#t_rmf').value; if(!f){ toast('Pon antes la fecha del reconocimiento',true); return; } const d=new Date(f+'T12:00:00'); d.setFullYear(d.getFullYear()+1); $('#t_rmp').value=d.toISOString().slice(0,10); };
+  $('#t_save').onclick=async e=>{ const b=e.currentTarget; busy(b,true);
+    const tallas={}; document.querySelectorAll('.tt').forEach(i=>{ if(i.value.trim()) tallas[i.dataset.k]=i.value.trim(); });
+    const p={dni:$('#t_dni').value,puesto:$('#t_pue').value,fecha_alta:$('#t_alta').value,fecha_baja:$('#t_baja').value,idioma:$('#t_idi').value,telefono:$('#t_tel').value,
+      emerg_nombre:$('#t_en').value,emerg_tel:$('#t_et').value,tallas,rm_resultado:$('#t_rm').value,rm_fecha:$('#t_rmf').value,rm_proximo:$('#t_rmp').value,rm_limitacion:$('#t_rm').value==='apto_restr'?$('#t_lim').value:''};
+    try{ await rpc('prl_trab_datos_guardar',{p_tok:S.tok,p_id:t.id,p}); toast('Guardado'); pantallaFicha(t.id); }catch(err){ busy(b,false); toast(err.message,true); } };
 }
 
 inicio();
