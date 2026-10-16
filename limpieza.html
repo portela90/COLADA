@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016151028">
+<meta name="build" content="20261016154731">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -1238,7 +1238,8 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   else{const bp=$("bprueba");if(bp)bp.hidden=true;}
   if(esAdm()){nav.hidden=false;nav.textContent="";TABS_ADMIN.forEach(([k,t])=>nav.appendChild(el("button",{"aria-selected":String(S.tab===k),text:t,onclick:()=>{S.tab=k;pinta();window.scrollTo(0,0);}})));
     nav.appendChild(el("button",{"aria-selected":"false",text:"Toolbox",onclick:()=>{location.href="toolbox.html?v="+Date.now();}}));
-    nav.appendChild(el("button",{"aria-selected":"false",text:"Encargado",onclick:()=>{location.href="encargado.html?v="+Date.now();}}));}
+    nav.appendChild(el("button",{"aria-selected":"false",text:"Encargado",onclick:()=>{location.href="encargado.html?v="+Date.now();}}));
+    nav.appendChild(el("button",{"aria-selected":"false",text:"Calendario",onclick:()=>{location.href="calendario.html?v="+Date.now();}}));}
   else{nav.hidden=true;S.tab="hoy";}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
@@ -1263,6 +1264,13 @@ let _enN=0;const _pintaEn=pinta;pinta=function(){_pintaEn();const n=++_enN;
     if(!tit)return;
     const b=el("a",{href:"encargado.html?v="+Date.now(),style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:"+(R.inc_urgentes&&R.rol==="admin"?"#C0392B":"#16212C")+";border-radius:var(--r);padding:12px 16px;margin:0 0 12px"},
       [el("span",{style:"font-size:26px;line-height:1",text:R.rol==="admin"?"⚠":"🧭"}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:16px",text:tit}),el("span",{style:"font-size:14px;opacity:.9",text:sub})]),el("span",{style:"font-size:24px",text:"›"})]);
+    const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
+/* Calendario laboral pendiente de firmar (trabajadores) */
+let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
+  if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
+  rpc("cal_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_caN||!Array.isArray(L)||!L.length)return;const p=L[0];
+    const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
+      [el("span",{style:"font-size:30px;line-height:1",text:"📅"}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
 const _pinta0=pinta;pinta=function(){_pinta0();if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
