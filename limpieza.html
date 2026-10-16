@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016204136">
+<meta name="build" content="20261016212814">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -740,8 +740,9 @@ const TIPOS_EL=[["molde","Molde","🧩","Moldes"],["horno","Horno mantenedor","�
 const tipoEl=k=>TIPOS_EL.find(x=>x[0]===k)||TIPOS_EL[3];
 const urlEl=c=>APP_URL+"?el="+encodeURIComponent(c);
 function estadoEl(e){const d=e.ultima?Math.floor((new Date(hoyISO()+"T12:00:00")-new Date(diaDe(e.ultima)+"T12:00:00"))/864e5):null;
-  if(!e.frecuencia_dias)return{k:"sin",d,t:e.ultima?(d===0?"Limpiado hoy":"Hace "+d+" día"+(d>1?"s":"")):"Nunca limpiado"};
-  if(d==null)return{k:"bad",d,t:"Nunca limpiado"};
+  const nunca=e.ult_otra?"Sin limpieza registrada":"Nunca limpiado";
+  if(!e.frecuencia_dias)return{k:"sin",d,t:e.ultima?(d===0?"Limpiado hoy":"Limpiado hace "+d+" día"+(d>1?"s":"")):nunca};
+  if(d==null)return{k:"bad",d,t:nunca};
   if(d>e.frecuencia_dias)return{k:"bad",d,t:"Atrasado "+(d-e.frecuencia_dias)+" día"+(d-e.frecuencia_dias>1?"s":"")};
   if(d===e.frecuencia_dias)return{k:"warn",d,t:"Toca hoy"};
   return{k:"ok",d,t:d===0?"Limpiado hoy":"Al día · toca en "+(e.frecuencia_dias-d)+" d"};}
@@ -752,7 +753,7 @@ async function listaElementos(re){let L;try{L=await elementosL(true);}catch(e){t
   const pin=()=>{box.textContent="";const F=L.filter(e=>e.activo&&(!tp||e.tipo===tp)&&(!q||(e.codigo+" "+e.nombre+" "+(e.lugar||"")).toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>ORD[estadoEl(a).k]-ORD[estadoEl(b).k]||a.codigo.localeCompare(b.codigo,"es",{numeric:true}));
     if(!F.length)box.appendChild(el("p",{class:"empty",text:"Nada con esa búsqueda."}));
     F.forEach(e=>{const s=estadoEl(e);box.appendChild(el("button",{class:"linea elx",onclick:()=>{cerrarTodo();fichaElemento(e.codigo,re);}},[el("span",{class:"ico",text:tipoEl(e.tipo)[2]}),
-      el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.ultima_por?" · último: "+e.ultima_por.split(" ")[0]:"")})]),el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t})]));});};
+      el("span",{style:"flex:1;min-width:0"},[el("b",{text:e.nombre}),el("small",{class:"hint",style:"display:block;margin:0",text:e.codigo+(e.lugar?" · "+e.lugar:"")+(e.ultima_por?" · último: "+e.ultima_por.split(" ")[0]:"")+(e.ult_otra?" · "+(ACC_HORNO[e.ult_otra_accion]||"Vaciado")+" "+fCorta(diaDe(e.ult_otra))+(e.ult_otra_por?" ("+e.ult_otra_por.split(" ")[0]+")":""):"")})]),el("span",{class:"pill "+(s.k==="sin"?"":s.k),text:s.t})]));});};
   const tps=el("div",{class:"chips",style:"margin:8px 0"});const pt=()=>{tps.textContent="";[["","Todos"]].concat(TIPOS_EL.filter(t=>L.some(e=>e.tipo===t[0])).map(t=>[t[0],t[2]+" "+t[3]])).forEach(([k,t])=>tps.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(tp===k),text:t,onclick:()=>{tp=k;pt();pin();}})));};pt();
   const bus=el("input",{type:"search",placeholder:"Buscar por código o nombre",class:"bus","aria-label":"Buscar"});bus.oninput=()=>{q=bus.value;pin();};
   dlg("Moldes y hornos mantenedores",el("div",null,[escanerBtn(re),bus,tps,box]));pin();}
