@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017231303">
+<meta name="build" content="20261017232557">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -240,8 +240,11 @@ function avisoJornada(o,re){if(esAdm()||o.fecha!==hoyISO()||!(o.estado==="pendie
      {t:"⏱ No me da tiempo: pedir permiso",cls:"ok",fn:()=>{setTimeout(()=>pedirQuedarse(o,re,falta!=null?falta-Math.max(0,quedan):60),0);}},
      {t:"📅 Lo dejo para mañana",cls:"bad",fn:()=>{cambia(o,"no_hecha",re,"Falta de tiempo: se deja para mañana");}}]),0);
   return true;}
-setInterval(()=>{if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy"||document.hidden||document.querySelector(".ov"))return;
-  for(const o of (S.diaD||[])){if(o.estado==="en_curso"&&avisoJornada(o,()=>pinta()))break;}},60000);
+/* se revisa al abrir el Día y cada minuto: primero los trabajos empezados, luego los pendientes (incluidos los del finde, que no tienen «Empezar») */
+function revisaJornada(){if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy"||document.hidden||document.querySelector(".ov"))return;
+  const L=(S.diaD||[]).filter(o=>o.estado==="en_curso").concat((S.diaD||[]).filter(o=>o.estado==="pendiente"));
+  for(const o of L){if(avisoJornada(o,()=>pinta()))break;}}
+setInterval(revisaJornada,60000);
 function pedirQuedarse(o,re,sug){let min=sug&&sug>0?Math.min(120,Math.max(30,Math.ceil(sug/30)*30)):60,mot="",foto=null;const urg=o.prioridad==="alta";
   const fbox=el("div",{class:"fotos"});
   const fbtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin:0 0 10px"},["📷 Hacer foto de cómo está (obligatoria)",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{foto=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba otra vez.");return;}fbox.textContent="";fbox.appendChild(el("img",{src:foto,alt:"foto"}));fbtn.firstChild.textContent="📷 Cambiar la foto";}})]);
@@ -406,7 +409,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R,HD=[],PE=[];try{[R,HD,PE]=await Promise.all([rpc("ots_dia",{p_tok:S.tok,p_fecha:f}),admin?rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}).catch(()=>[]):Promise.resolve([]),rpc("extra_lista",{p_tok:S.tok,p_fecha:f}).catch(()=>[])]);}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
   S.pet={};(PE||[]).slice().reverse().forEach(p=>S.pet[p.ot_id]=p);if(admin)bloquePeticiones(pbx,PE||[],re);
-  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
+  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;setTimeout(revisaJornada,1200);}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"🕑 Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
