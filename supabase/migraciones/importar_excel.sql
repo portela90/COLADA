@@ -21,7 +21,7 @@ begin t:=_gestor(p_tok);
     asg := coalesce((select array_agg(x::uuid) from jsonb_array_elements_text(coalesce(i->'asignados','[]')) x),'{}');
     if cardinality(asg)=0 and p_reparto='auto' then
       select c.id into nuevo from trabajadores c where _disponible(c,f) and eq=any(c.equipos)
-        and (not (coalesce(i->>'titulo','') ~* 'horno|escoria') or exists(select 1 from limp_habilidad h where h.trabajador=c.id and h.habilidad='hornos' and h.activo))
+        and (not _titulo_horno(i->>'titulo') or exists(select 1 from limp_habilidad h where h.trabajador=c.id and h.habilidad='hornos' and h.activo))
         order by _carga(c.id,f), c.nombre limit 1;
       if nuevo is not null then asg := array[nuevo]; end if;
     end if;
@@ -48,3 +48,10 @@ language plpgsql security definer set search_path to 'public' as $$
 begin perform _gestor(p_tok);
   return coalesce((select jsonb_agg(jsonb_build_object('fecha',fecha,'titulo',lower(trim(titulo)),'lugar',coalesce(lower(lugar),''))) from ots where fecha between p_desde and p_hasta and not borrado),'[]');
 end $$;
+
+-- Solo cuenta como trabajo de hornos si es limpiar/vaciar un horno, horno mantenedor/de fusión o escoria
+-- (no un «suelo junto al horno»)
+create or replace function public._titulo_horno(t text) returns boolean language sql immutable as $$
+  select coalesce(t,'') ~* '(limpi|vaci)[a-z]*\s+(del?\s+)?(los\s+)?horno|horno\s+(mantenedor|de\s+fusi|fusi)|escoria' $$;
+create or replace function public._es_horno(o public.ots) returns boolean language sql immutable as $$
+  select _titulo_horno(o.titulo) or o.elemento_id is not null or o.accion_horno is not null $$;
