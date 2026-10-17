@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017103322">
+<meta name="build" content="20261017105348">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -201,6 +201,10 @@ const desde=ts=>(Date.now()-new Date(ts).getTime())/60000;
 /* minutos trabajados de una OT descontando las pausas (pausado_min + la pausa actual si la hay) */
 const trabajadoMin=(ini,pm,pa)=>desde(ini)-(pm||0)-(pa?desde(pa):0);
 const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
+/* ¿es un trabajo del fin de semana? */
+const esFindeOT=o=>o.equipo==="Finde"||finde(o.fecha);
+function puedeMarcarFinde(o){if(esAdm())return true;if(sinAsignar(o))return esEnc();
+  if(o.todo_equipo)return true;return (o.asignados||[]).includes(S.yo.id)||!!cubroYo(o);}
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
   const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
 function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm();
@@ -226,6 +230,14 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm()
     [pau,noS,rea,fot].forEach(b=>{if(b)fin.push(b);});
     acc.filter(b=>!fin.includes(b)).forEach(b=>fin.push(b));
     acc.length=0;acc.push(...fin);}
+  if(esFindeOT(o)){/* fin de semana: sin «Empezar»; «Hecha» (con tiempo) y «No hecha» (con motivo).
+       Sin persona: solo lo marca el encargado. Con persona: solo esa persona (y el jefe). */
+    const puede=puedeMarcarFinde(o),f=[];
+    if(puede&&(o.estado==="pendiente"||o.estado==="en_curso")){f.push(el("button",{class:"btn ok",text:"✔ Hecha",onclick:()=>terminar(o,re)}));f.push(el("button",{class:"btn bad",text:"✖ No hecha",onclick:()=>noHecha(o,re,true)}));}
+    if(puede&&(o.estado==="hecha"||o.estado==="no_hecha"))f.push(el("button",{class:"btn sec peq",text:"Reabrir",onclick:()=>{if(confirm("¿Reabrir este trabajo?"))cambia(o,"pendiente",re);}}));
+    acc.filter(b=>/^📷|^Editar|^Asignar|^🗑|^✏|^⏱/.test(b.textContent)).forEach(b=>f.push(b));
+    if(!puede&&(o.estado==="pendiente"||o.estado==="en_curso")&&!sinAsignar(o))f.unshift(el("span",{class:"hint",style:"align-self:center;margin:0",text:"Lo marca "+((o.nombres||[]).map(n=>n.split(" ")[0]).join(", ")||"quien lo tenga")}));
+    acc.length=0;acc.push(...f);}
   return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
     el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
@@ -261,8 +273,12 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))))).catch(()=>{});
   else fbox.appendChild(el("p",{class:"hint",text:"Sin fotos."}));}
 /* «No se pudo»: cuatro motivos fijos, sin escribir */
-function noHecha(o,re){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Se suspendió el trabajo"];let cerrar=()=>{};
-  cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();if(m.indexOf("suspendió")>=0){setTimeout(()=>motivoSuspension(o,re),0);return;}cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
+function noHecha(o,re,otros){const MOT=["⏱ Falta de tiempo","📦 Falta de material","🔧 Avería de máquina","🚫 Se suspendió el trabajo"].concat(otros?["📝 Otro motivo"]:[]);let cerrar=()=>{};
+  cerrar=dlg("No se pudo hacer",el("div",{class:"lst"},MOT.map(m=>el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin-bottom:8px",text:m,onclick:()=>{cerrar();if(m.indexOf("suspendió")>=0){setTimeout(()=>motivoSuspension(o,re),0);return;}if(m.indexOf("Otro motivo")>=0){setTimeout(()=>otroMotivo(o,re),0);return;}cambia(o,"no_hecha",re,m.replace(/^\S+\s/,""));}}))),[{t:"Cancelar",cls:"sec"}]);}
+function otroMotivo(o,re){let motivo="";
+  dlg("¿Por qué no se pudo hacer?",el("div",null,[el("p",{class:"hint",text:"Escribe el motivo."}),area("",x=>motivo=x)]),
+    [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!motivo.trim()){toast("Escribe el motivo");return false;}
+      try{await rpc("estado_ot",{p_tok:S.tok,p_ot:o.id,p_estado:"no_hecha",p_nota:motivo.trim()});toast("Guardado");re();}catch(er){toast(er.message);return false;}}}]);}
 /* suspender un trabajo: hay que escribir el motivo */
 function motivoSuspension(o,re){let motivo="";
   dlg("Motivo de la suspensión",el("div",null,[el("p",{class:"hint",text:"Explica por qué se suspende el trabajo."}),area("",x=>motivo=x)]),
@@ -284,7 +300,7 @@ function preguntaTiempoAv(o){let val=o.minutos_est||null;const OPC=[5,10,15,20,3
   const box=el("div",{class:"chips tmp"});const otro=el("input",{type:"number",inputmode:"numeric",min:"1",max:"720",placeholder:"otro",class:"otro","aria-label":"Otros minutos"});
   const pin=()=>{box.textContent="";OPC.forEach(m=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(val===m),text:durTxt(m)+(m===o.minutos_est?" ★":""),onclick:()=>{val=m;otro.value="";pin();}})));box.appendChild(otro);};
   otro.oninput=()=>{const n=parseInt(otro.value,10);val=n>0?n:null;box.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));};pin();
-  const w=el("div",{class:"tpreg"},[el("b",{text:"¿Cuánto has tardado?"}),el("p",{class:"hint",style:"margin:2px 0 8px",text:(o.inicio&&!o.tiempo_auto?"Has pulsado «Empezar» y «Terminar» casi a la vez.":"No pulsaste «Empezar».")+(o.minutos_est?" Viene marcado el tiempo normal de esta tarea (★); cámbialo si has tardado más o menos.":" Toca el tiempo que más se parezca.")}),box]);
+  const w=el("div",{class:"tpreg"},[el("b",{text:"¿Cuánto has tardado?"}),el("p",{class:"hint",style:"margin:2px 0 8px",text:(esFindeOT(o)?"":o.inicio&&!o.tiempo_auto?"Has pulsado «Empezar» y «Terminar» casi a la vez.":"No pulsaste «Empezar».")+(o.minutos_est?" Viene marcado el tiempo normal de esta tarea (★); cámbialo si has tardado más o menos.":" Toca el tiempo que más se parezca.")}),box]);
   w.val=()=>val;return w;}
 /* checklist editable (hornos mantenedores): se pueden quitar o añadir puntos en cada limpieza */
 function puntosEd(pts,ck){const box=el("div",{class:"chk"});const dib=()=>{box.textContent="";pts.forEach((k,i)=>box.appendChild(el("div",{class:"it"},[el("b",{text:k}),segOK(ck[k],v=>ck[k]=v),el("button",{type:"button",class:"btn sec peq",text:"✕",onclick:()=>{delete ck[k];pts.splice(i,1);dib();}})])));};dib();
