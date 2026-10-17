@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017222204">
+<meta name="build" content="20261017231303">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -142,7 +142,7 @@ const CHECK_FIN=["Espátulas","Palas","Martillo","Aspiradora","Hidrolimpiadora",
 const DIAS=[["lunes","L"],["martes","M"],["miercoles","X"],["jueves","J"],["viernes","V"],["sabado","S"],["domingo","D"]];
 const TURNOS_S=["Partido","Tarde","Refuerzo"],TURNOS_F=["Mañana finde"];
 const EST={pendiente:["Pendiente","warn"],en_curso:["En curso","info"],hecha:["Hecha","ok"],no_hecha:["No hecha","bad"]};
-const ERR={NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
+const ERR={FALTA_FOTO:"Haz una foto de cómo está el trabajo",YA_PEDIDO:"Ya has pedido quedarte para este trabajo. Espera la respuesta.",FALTA_MOTIVO:"Escribe por qué tienes que quedarte",YA_RESPONDIDA:"Esa petición ya está respondida",NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x==="html")e.innerHTML=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -155,6 +155,7 @@ async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{metho
 /* fotos: van al almacén de Supabase (Storage); si algo falla, se guardan como antes, dentro de la base de datos */
 async function subirAlmacen(ruta,blob){const x=await fetch(URL_SB+"/storage/v1/object/fotos/"+ruta,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":blob.type||"image/jpeg"},body:blob});
   if(!x.ok)throw new Error("No se pudo subir la foto ("+x.status+")");}
+async function fotoAlmacen(ot,d){const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});return r.id;}
 async function guardarFoto(ot,d){try{const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());return await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});}
   catch(e){return rpc("foto_add",{p_tok:S.tok,p_ot:ot,p_data:d});}}
 const hoyISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
@@ -213,10 +214,63 @@ function puedeMarcarFinde(o){if(esAdm())return true;if(sinAsignar(o))return esEn
   if(o.todo_equipo)return true;return (o.asignados||[]).includes(S.yo.id)||!!cubroYo(o);}
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
   const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
+/* ---- pedir permiso para quedarse más tiempo ---- */
+const durPet=m=>m<60?m+" min":String(Math.round(m/6)/10).replace(".",",")+" h";
+function pillPet(o){const p=S.pet&&S.pet[o.id];if(!p)return null;
+  if(p.estado==="pendiente")return el("span",{class:"pill warn",text:"⏱ Pidió quedarse +"+durPet(p.minutos)+" · esperando respuesta"});
+  if(p.estado==="si")return el("span",{class:"pill ok",text:"✔ Puede quedarse +"+durPet(p.minutos)});
+  if(p.estado==="no")return el("span",{class:"pill bad",text:"✖ No quedarse: se deja para mañana"});return null;}
+/* aviso de fin de jornada: si al abrir o empezar un trabajo queda poco de jornada (o el trabajo no da tiempo), la app lo recuerda y guía para pedir permiso */
+function finJornada(){const h=S.miHor;return h&&h.length?h[h.length-1][1]:null;}
+function minHastaFin(){const f=finJornada();if(!f)return null;const [hh,mm]=f.split(":").map(Number);const d=new Date();return hh*60+mm-(d.getHours()*60+d.getMinutes());}
+function faltaOT(o){if(!o.minutos_est)return null;if(o.estado==="en_curso"&&o.inicio)return Math.max(0,Math.round(o.minutos_est-trabajadoMin(o.inicio,o.pausado_min,o.pausa_desde)));return o.minutos_est;}
+const esMiaOT=o=>!!o.todo_equipo||o.hecho_por===S.yo.id||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre);
+function avisoJornada(o,re){if(esAdm()||o.fecha!==hoyISO()||!(o.estado==="pendiente"||o.estado==="en_curso"))return false;if(!esMiaOT(o))return false;
+  const p=S.pet&&S.pet[o.id];if(p&&(p.estado==="pendiente"||p.estado==="si"))return false;
+  const quedan=minHastaFin();if(quedan==null)return false;const falta=faltaOT(o);
+  if(!(quedan<=30||(falta!=null&&falta>quedan)))return false;
+  const k="aj."+o.id+"."+hoyISO()+"."+(quedan<=0?"fin":"pre");if(ls.get(k))return false;ls.set(k,"1");
+  const urg=o.prioridad==="alta",fin=finJornada();
+  setTimeout(()=>dlg("⏰ Se acaba tu jornada",el("div",null,[
+    el("p",{style:"margin:0 0 6px;font-size:17px;font-weight:700",text:quedan>0?"Tu jornada termina a las "+fin+": te quedan "+durTxt(quedan)+".":"Tu jornada terminó a las "+fin+"."}),
+    el("p",{style:"margin:0 0 10px",text:o.titulo+(falta!=null?" · "+(o.estado==="en_curso"?"te falta ~"+durTxt(falta):"suele llevar ~"+durTxt(falta)):"")}),
+    el("div",{class:"aviso"+(urg?" mal":""),style:urg?"":"background:var(--surf2);color:var(--ink)"},[urg?"⚠ Este trabajo es URGENTE.":"Este trabajo NO es urgente.",el("small",{style:"display:block;font-weight:400",text:urg?"Si no te da tiempo, pide permiso a Cristian para quedarte.":"Lo normal es dejarlo para mañana. Pide quedarte solo si de verdad hace falta."})]),
+    el("p",{class:"hint",text:"Sin el sí de Cristian, no te quedes."})]),
+    [{t:"✅ Me da tiempo",cls:"sec"},
+     {t:"⏱ No me da tiempo: pedir permiso",cls:"ok",fn:()=>{setTimeout(()=>pedirQuedarse(o,re,falta!=null?falta-Math.max(0,quedan):60),0);}},
+     {t:"📅 Lo dejo para mañana",cls:"bad",fn:()=>{cambia(o,"no_hecha",re,"Falta de tiempo: se deja para mañana");}}]),0);
+  return true;}
+setInterval(()=>{if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy"||document.hidden||document.querySelector(".ov"))return;
+  for(const o of (S.diaD||[])){if(o.estado==="en_curso"&&avisoJornada(o,()=>pinta()))break;}},60000);
+function pedirQuedarse(o,re,sug){let min=sug&&sug>0?Math.min(120,Math.max(30,Math.ceil(sug/30)*30)):60,mot="",foto=null;const urg=o.prioridad==="alta";
+  const fbox=el("div",{class:"fotos"});
+  const fbtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin:0 0 10px"},["📷 Hacer foto de cómo está (obligatoria)",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{foto=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba otra vez.");return;}fbox.textContent="";fbox.appendChild(el("img",{src:foto,alt:"foto"}));fbtn.firstChild.textContent="📷 Cambiar la foto";}})]);
+  const ch=el("div",{class:"chips"});const pc=()=>{ch.textContent="";[30,60,90,120].forEach(m=>ch.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(min===m),text:"+"+durPet(m),onclick:()=>{min=m;pc();}})));};pc();
+  dlg("¿Necesitas quedarte?",el("div",null,[el("div",{class:"aviso"+(urg?" mal":""),style:urg?"":"background:var(--surf2);color:var(--ink)"},[urg?"⚠ Este trabajo es URGENTE.":"Este trabajo NO es urgente.",el("small",{style:"display:block;font-weight:400",text:urg?"Pide permiso igualmente: Cristian te responde al momento.":"Si no da tiempo, lo normal es dejarlo para mañana. Pide permiso solo si de verdad hace falta."})]),
+    el("p",{style:"margin:0 0 6px;font-weight:700",text:o.titulo}),
+    el("div",{class:"f"},[el("span",{text:"¿Cuánto tiempo más?"}),ch]),fld("¿Por qué hace falta hoy?",area("",x=>mot=x,3)),fbtn,fbox,
+    el("p",{class:"hint",text:"Le llega un aviso a Cristian. No te quedes hasta que te responda que sí."})]),
+    [{t:"Cancelar",cls:"sec"},{t:"📲 Pedir permiso",cls:"ok",fn:async()=>{if(!mot.trim()){toast("Escribe por qué hace falta hoy");return false;}if(!foto){toast("Haz una foto de cómo está el trabajo");return false;}
+      try{const fid=await fotoAlmacen(o.id,foto);await rpc("extra_pedir",{p_tok:S.tok,p_ot:o.id,p_minutos:min,p_motivo:mot.trim(),p_foto:fid});toast("Enviado. Espera la respuesta antes de quedarte.");re();}catch(e){toast(e.message);return false;}}}]);}
+function responderPet(p,re,si){let nota="";
+  dlg(si?"Sí, puede quedarse":"No, se deja para mañana",el("div",null,[el("p",{style:"margin:0 0 8px",text:(p.nombre||"")+" · "+p.titulo+" · +"+durPet(p.minutos)}),
+    fld("Mensaje para "+(p.nombre||"").split(" ")[0]+" (opcional)",inp("",v=>nota=v,{placeholder:si?"p. ej. Vale, pero no más de esa hora":"p. ej. Mañana lo terminas a primera hora"})),
+    si?el("p",{class:"hint",text:"Se apunta solo como hora extra de hoy, con el trabajo y el motivo."}):null]),
+    [{t:"Cancelar",cls:"sec"},{t:si?"✔ Sí, que se quede":"✖ No, mañana",cls:si?"ok":"bad",fn:async()=>{try{await rpc("extra_responder",{p_tok:S.tok,p_id:p.id,p_si:si,p_nota:nota.trim()||null});cerrarTodo();toast(si?"Le ha llegado el sí":"Le ha llegado el no");re();}catch(e){toast(e.message);return false;}}}]);}
+function filaPet(p,re){const pend=p.estado==="pendiente";
+  return el("div",{class:"ot"},[el("div",{class:"t",style:"font-weight:700",text:(p.nombre||"").split(" ")[0]+" pide quedarse +"+durPet(p.minutos)}),
+    el("div",{class:"meta"},[el("span",{class:"pill "+(p.urgente?"bad":""),text:p.urgente?"Urgente":"No urgente"}),el("span",{text:p.titulo+(p.lugar?" · "+p.lugar:"")}),el("span",{text:"a las "+hora(p.creado)}),
+      !pend?el("span",{class:"pill "+(p.estado==="si"?"ok":"bad"),text:(p.estado==="si"?"✔ Sí":"✖ No")+(p.respondido?" · "+hora(p.respondido):"")}):null]),
+    el("div",{class:"d",text:"📝 "+p.motivo+(p.respuesta?"  ·  Respuesta: "+p.respuesta:"")}),
+    p.foto_url?el("div",{class:"fotos",style:"margin:6px 0"},miniFoto({data:p.foto_url},(p.nombre||"")+" · "+p.titulo+" · "+hora(p.creado))):null,
+    pend?el("div",{class:"row acc"},[el("button",{class:"btn ok peq",text:"✔ Sí",onclick:()=>responderPet(p,re,true)}),el("button",{class:"btn bad peq",text:"✖ No, mañana",onclick:()=>responderPet(p,re,false)})]):null]);}
+function bloquePeticiones(box,PE,re){box.textContent="";if(!PE.length)return;const pend=PE.filter(p=>p.estado==="pendiente"),resto=PE.filter(p=>p.estado!=="pendiente");
+  if(pend.length)box.appendChild(el("div",{class:"card",style:"border-color:var(--warn)"},[el("div",{class:"hd"},el("h2",{text:"⏱ Piden quedarse ("+pend.length+")"})),el("div",{class:"bd"},pend.map(p=>filaPet(p,re)))]));
+  if(resto.length)box.appendChild(el("details",{class:"card"},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"⏱ Peticiones respondidas hoy ("+resto.length+")"})),el("div",{class:"bd"},resto.map(p=>filaPet(p,re)))]));}
 function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm();
   const quien=quienTxt(o);const sinCubrir=(o.cubre||[]).some(c=>!c.sustituto);
   const acc=[];
-  if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"▶ Empezar",onclick:()=>cambia(o,"en_curso",re)}));
+  if(o.estado==="pendiente")acc.push(el("button",{class:"btn peq",text:"▶ Empezar",onclick:async()=>{await cambia(o,"en_curso",re);avisoJornada(Object.assign({},o,{estado:"en_curso",inicio:new Date().toISOString(),pausado_min:0,pausa_desde:null}),re);}}));
   if(o.estado==="en_curso"&&!o.pausa_desde)acc.push(el("button",{class:"btn sec peq",text:"⏸ Pausar",title:"Para el tiempo (por ejemplo, si hay una urgencia)",onclick:()=>pausar(o,re,true)}));
   if(o.estado==="en_curso"&&o.pausa_desde)acc.push(el("button",{class:"btn peq",text:"▶ Seguir",onclick:()=>pausar(o,re,false)}));
   if(o.estado==="en_curso"||o.estado==="pendiente")acc.push(el("button",{class:"btn ok peq",text:"✔ Terminar",onclick:()=>terminar(o,re)}));
@@ -244,9 +298,9 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm()
     acc.filter(b=>/^📷|^Editar|^Asignar|^🗑|^✏|^⏱/.test(b.textContent)).forEach(b=>f.push(b));
     if(!puede&&(o.estado==="pendiente"||o.estado==="en_curso")&&!sinAsignar(o))f.unshift(el("span",{class:"hint",style:"align-self:center;margin:0",text:"Lo marca "+((o.nombres||[]).map(n=>n.split(" ")[0]).join(", ")||"quien lo tenga")}));
     acc.length=0;acc.push(...f);}
-  return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>detalle(o)},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
+  return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>{detalle(o);avisoJornada(o,re);}},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
-    el("div",{class:"meta"},[o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
+    el("div",{class:"meta"},[pillPet(o),o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
       sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,
       o.orig_n&&o.orig_n.length?el("span",{class:"pill info",title:"La app lo ha pasado automáticamente porque esa persona no está",text:"🔄 Era de "+o.orig_n.map(n=>n.split(" ")[0]).join(", ")}):null,
       o.auto_motivo==="sin_nadie"&&o.estado==="pendiente"&&admin?el("span",{class:"pill bad",text:"⚠ Nadie disponible para hacerlo"}):null,
@@ -347,10 +401,12 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"🏭 Inyectoras y hornos mantenedores",onclick:()=>listaElementos(re)}));
   const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
   if(admin){const cb=el("div");v.appendChild(cb);bloqueConsumos(cb,f);}
+  const pbx=el("div");v.appendChild(pbx);
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
-  let R,HD=[];try{[R,HD]=await Promise.all([rpc("ots_dia",{p_tok:S.tok,p_fecha:f}),admin?rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}).catch(()=>[]):Promise.resolve([])]);}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
-  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
+  let R,HD=[],PE=[];try{[R,HD,PE]=await Promise.all([rpc("ots_dia",{p_tok:S.tok,p_fecha:f}),admin?rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}).catch(()=>[]):Promise.resolve([]),rpc("extra_lista",{p_tok:S.tok,p_fecha:f}).catch(()=>[])]);}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
+  S.pet={};(PE||[]).slice().reverse().forEach(p=>S.pet[p.ot_id]=p);if(admin)bloquePeticiones(pbx,PE||[],re);
+  box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"🕑 Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
@@ -1365,6 +1421,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
 try{const c=new URLSearchParams(location.search).get("el");if(c){S.elPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
+try{const c=new URLSearchParams(location.search).get("pet");if(c){S.petPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
 /* Toolbox HSE: si el operario tiene uno pendiente de firmar, sale un aviso arriba que lleva a toolbox.html */
 let _tbN=0;const _pintaTb=pinta;pinta=function(){_pintaTb();const n=++_tbN;
   if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
@@ -1392,7 +1449,7 @@ let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
     const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:"📅"}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
-const _pinta0=pinta;pinta=function(){_pinta0();if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
+const _pinta0=pinta;pinta=function(){_pinta0();if(S.petPend&&S.tok&&S.yo){const c=S.petPend;S.petPend=null;if(esAdm())rpc("extra_ver",{p_tok:S.tok,p_id:c}).then(p=>{if(p.estado==="pendiente")setTimeout(()=>dlg("⏱ Pide quedarse",el("div",null,filaPet(p,()=>pinta())),[{t:"Cerrar",cls:"sec"}]),300);}).catch(()=>{});}if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
 if(S.tok&&S.yo)rpc("yo",{p_tok:S.tok}).then(y=>{if(!y||!y.id)return;const antes=!!S.yo.encargado;S.yo=Object.assign({},S.yo,{encargado:!!y.encargado});ls.set("limp.yo",JSON.stringify(S.yo));if(antes!==!!y.encargado)pinta();}).catch(()=>{});
 })();
