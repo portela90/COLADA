@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017232557">
+<meta name="build" content="20261017233254">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -226,7 +226,7 @@ function minHastaFin(){const f=finJornada();if(!f)return null;const [hh,mm]=f.sp
 function faltaOT(o){if(!o.minutos_est)return null;if(o.estado==="en_curso"&&o.inicio)return Math.max(0,Math.round(o.minutos_est-trabajadoMin(o.inicio,o.pausado_min,o.pausa_desde)));return o.minutos_est;}
 const esMiaOT=o=>!!o.todo_equipo||o.hecho_por===S.yo.id||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre);
 function avisoJornada(o,re){if(esAdm()||o.fecha!==hoyISO()||!(o.estado==="pendiente"||o.estado==="en_curso"))return false;if(!esMiaOT(o))return false;
-  const p=S.pet&&S.pet[o.id];if(p&&(p.estado==="pendiente"||p.estado==="si"))return false;
+  const p=S.pet&&S.pet[o.id];if(p&&p.estado!=="anulada")return false;
   const quedan=minHastaFin();if(quedan==null)return false;const falta=faltaOT(o);
   if(!(quedan<=30||(falta!=null&&falta>quedan)))return false;
   const k="aj."+o.id+"."+hoyISO()+"."+(quedan<=0?"fin":"pre");if(ls.get(k))return false;ls.set(k,"1");
@@ -267,6 +267,12 @@ function filaPet(p,re){const pend=p.estado==="pendiente";
     el("div",{class:"d",text:"📝 "+p.motivo+(p.respuesta?"  ·  Respuesta: "+p.respuesta:"")}),
     p.foto_url?el("div",{class:"fotos",style:"margin:6px 0"},miniFoto({data:p.foto_url},(p.nombre||"")+" · "+p.titulo+" · "+hora(p.creado))):null,
     pend?el("div",{class:"row acc"},[el("button",{class:"btn ok peq",text:"✔ Sí",onclick:()=>responderPet(p,re,true)}),el("button",{class:"btn bad peq",text:"✖ No, mañana",onclick:()=>responderPet(p,re,false)})]):null]);}
+/* el trabajador ve la respuesta del jefe al abrir la app (el aviso del móvil no sale si tiene la app abierta) */
+function respuestasPet(PE){const p=PE.find(x=>(x.estado==="si"||x.estado==="no")&&!ls.get("petv."+x.id));if(!p)return;ls.set("petv."+p.id,"1");
+  const si=p.estado==="si",quien=(p.respondido_por_n||"Cristian").split(" ")[0];
+  setTimeout(()=>dlg(si?"✔ Puedes quedarte":"✖ No hace falta quedarse",el("div",null,[
+    el("div",{class:"aviso",style:si?"background:var(--okbg);color:var(--ok)":"background:var(--badbg);color:var(--bad)"},[si?"Puedes quedarte +"+durPet(p.minutos)+".":"Vete a casa: se deja para mañana.",el("small",{style:"display:block;font-weight:400",text:p.titulo})]),
+    p.respuesta?el("p",{style:"margin:0;font-size:16px",text:"💬 "+quien+": «"+p.respuesta+"»"}):null]),[{t:"Entendido",cls:"ok"}]),400);}
 function bloquePeticiones(box,PE,re){box.textContent="";if(!PE.length)return;const pend=PE.filter(p=>p.estado==="pendiente"),resto=PE.filter(p=>p.estado!=="pendiente");
   if(pend.length)box.appendChild(el("div",{class:"card",style:"border-color:var(--warn)"},[el("div",{class:"hd"},el("h2",{text:"⏱ Piden quedarse ("+pend.length+")"})),el("div",{class:"bd"},pend.map(p=>filaPet(p,re)))]));
   if(resto.length)box.appendChild(el("details",{class:"card"},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"⏱ Peticiones respondidas hoy ("+resto.length+")"})),el("div",{class:"bd"},resto.map(p=>filaPet(p,re)))]));}
@@ -408,7 +414,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R,HD=[],PE=[];try{[R,HD,PE]=await Promise.all([rpc("ots_dia",{p_tok:S.tok,p_fecha:f}),admin?rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}).catch(()=>[]):Promise.resolve([]),rpc("extra_lista",{p_tok:S.tok,p_fecha:f}).catch(()=>[])]);}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
-  S.pet={};(PE||[]).slice().reverse().forEach(p=>S.pet[p.ot_id]=p);if(admin)bloquePeticiones(pbx,PE||[],re);
+  S.pet={};(PE||[]).slice().reverse().forEach(p=>S.pet[p.ot_id]=p);if(admin)bloquePeticiones(pbx,PE||[],re);else respuestasPet(PE||[]);
   box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;setTimeout(revisaJornada,1200);}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
