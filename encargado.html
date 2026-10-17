@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016152840">
+<meta name="build" content="20261017090626">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
@@ -65,7 +65,7 @@ nav button b.n{position:absolute;margin:-4px 0 0 22px;background:var(--bad);colo
 <script>
 (function(){
 const URL_SB="https://uddejncrjcyyaxjocbpj.supabase.co",KEY="sb_publishable_UqnQLvLkCI0kk_y1KDt94Q_ccYmLw2i";
-const ERR={SESION:"Tu sesión ha caducado. Vuelve a entrar en la app.",NO_ADMIN:"Esto solo lo puede hacer el jefe",FALTA_TITULO:"Pon un título",FALTA_TIPO:"Elige qué pasa",FECHAS_MAL:"Las fechas están al revés",ARCHIVO_TIPO:"La foto no vale",ARCHIVO_GRANDE:"Demasiadas fotos: quita alguna"};
+const ERR={DEMASIADAS:"Demasiados trabajos de golpe (máximo 300)",SESION:"Tu sesión ha caducado. Vuelve a entrar en la app.",NO_ADMIN:"Esto solo lo puede hacer el jefe",FALTA_TITULO:"Pon un título",FALTA_TIPO:"Elige qué pasa",FECHAS_MAL:"Las fechas están al revés",ARCHIVO_TIPO:"La foto no vale",ARCHIVO_GRANDE:"Demasiadas fotos: quita alguna"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -100,7 +100,7 @@ if(IR.t)S.tab="inicio";if(IR.c)S.tab="check";if(IR.i)S.tab="inc";
 if(Q.toString())history.replaceState(null,"",location.pathname);
 const esJefe=()=>S.rol==="admin";
 
-const TABS=[["inicio","📋","Instrucciones"],["check","✅","Checklist"],["inc","⚠","Incidencias"]];
+const TABS=[["inicio","📋","Instrucciones"],["excel","📥","Trabajos"],["check","✅","Checklist"],["inc","⚠","Incidencias"]];
 function pintaNav(){const n=$("nav");n.hidden=false;n.textContent="";
   const L=TABS.concat(esJefe()?[["ajustes","⚙","Ajustes"]]:[]);
   L.forEach(([k,i,t])=>{const cnt=k==="inicio"&&!esJefe()?S.res.traspasos_sin_leer:k==="inc"?S.res.inc_abiertas:0;
@@ -114,7 +114,7 @@ async function pinta(){const v=$("v");v.textContent="";
   if(S.rol==="no"){v.appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{text:"Este apartado es solo para el encargado y el jefe."}),el("a",{class:"btn",href:"limpieza.html",text:"Volver a la app"})])));return;}
   if(S.tab==="ajustes"&&!esJefe())S.tab="inicio";
   pintaNav();
-  ({inicio:vInicio,check:vCheck,inc:vInc,ajustes:vAjustes})[S.tab](v);}
+  ({inicio:vInicio,excel:vExcel,check:vCheck,inc:vInc,ajustes:vAjustes})[S.tab](v);}
 const re=()=>pinta();
 
 /* ---------------- INSTRUCCIONES ---------------- */
@@ -151,6 +151,87 @@ function formTraspaso(x0){const x=Object.assign({desde:sabado(),hasta:sumaD(saba
     el("p",{class:"hint",text:"Le llega un aviso al móvil. Cuando lo lea, aquí verás «Leído»."+(x.id?" Si lo cambias, tendrá que volver a leerlo.":"")})]),
     [{t:"Cancelar",cls:"sec"},{t:x.id?"Guardar":"📲 Enviar",cls:"ok",fn:async()=>{if(!x.titulo.trim()){toast("Pon un título");return false;}if(x.hasta<x.desde){toast("Las fechas están al revés");return false;}
       await rpc("enc_traspaso_guardar",{p_tok:S.tok,p:{id:x.id||null,desde:x.desde,hasta:x.hasta,titulo:x.titulo,texto:x.texto}});toast("Enviado al encargado");re();}}]);}
+
+
+/* ---------------- IMPORTAR TRABAJOS DEL FIN DE SEMANA DESDE EXCEL ---------------- */
+function cargaJS(src,glob){return window[glob]?Promise.resolve():new Promise((ok,ko)=>{const x=document.createElement("script");x.src=src;x.onload=ok;x.onerror=()=>ko(new Error("No se pudo cargar el lector de Excel. Revisa internet."));document.head.appendChild(x);});}
+const norm=t=>String(t==null?"":t).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+const CAMPOS=[["titulo","Trabajo",/trabajo|tarea|actividad|que hacer|operacion|limpieza|descripcion/],["lugar","Dónde",/zona|lugar|maquina|ubicacion|nave|sitio|area|linea/],["fecha","Día",/^dia|fecha|dia$/],
+  ["quien","Quién",/quien|operari|responsable|asignad|persona|trabajador|nombre/],["descripcion","Notas",/observ|nota|detalle|coment|instruc/],["minutos","Tiempo",/tiempo|hora|min|duracion/],["urgente","Urgente",/urgen|priori/]];
+const EX={trab:null};
+async function vExcel(v){
+  v.appendChild(el("p",{class:"hint",text:"Sube el Excel con los trabajos del fin de semana. La app lee las columnas, te enseña lo que va a crear y, al confirmar, crea las OT y avisa a cada uno."}));
+  const inpF=el("input",{type:"file",accept:".xlsx,.xls,.csv,.ods",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f)leerExcel(f,v);e.target.value="";}});
+  v.appendChild(el("label",{class:"btn grande",style:"text-align:center;cursor:pointer"},["📥 Subir el Excel del fin de semana",inpF]));
+  v.appendChild(el("div",{id:"exbox"}));}
+async function leerExcel(file,v){const box=$("exbox");box.textContent="";box.appendChild(el("div",{class:"empty",text:"Leyendo «"+file.name+"»…"}));
+  try{await cargaJS("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","XLSX");
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+    if(!EX.trab)EX.trab=await rpc("trabajadores_gestor",{p_tok:S.tok});
+    EX.wb=wb;EX.hoja=wb.SheetNames.find(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,blankrows:false}).length>1)||wb.SheetNames[0];EX.nombre=file.name;EX.cab=null;EX.map=null;
+    pintaExcel();}catch(e){box.textContent="";box.appendChild(el("div",{class:"empty",text:"No he podido leer el archivo: "+e.message}));}}
+function sabadoObj(){const h=hoyISO(),d=dow(h);return d===6?h:d===0?sumaD(h,6):sumaD(h,6-d);}
+function aFecha(x,sab){if(x instanceof Date&&!isNaN(x)){const d=new Date(x.getTime()-x.getTimezoneOffset()*60000);return d.toISOString().slice(0,10);}
+  const t=norm(x);if(!t)return null;
+  const m=t.match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?/);if(m){let y=m[3]?+m[3]:+sab.slice(0,4);if(y<100)y+=2000;const f=y+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0");if(!isNaN(new Date(f)))return f;}
+  if(/sab/.test(t))return sab;if(/dom/.test(t))return sumaD(sab,1);if(/ambos|los dos|sab.*dom|fin de semana|finde/.test(t))return"ambos";return null;}
+function quienes(x){const t=norm(x);if(!t)return{ids:[],mal:[]};const ids=[],mal=[];
+  t.split(/[,;\/+\n]| y /).map(z=>z.trim()).filter(Boolean).forEach(tok=>{if(/todos|equipo/.test(tok))return;
+    const W=EX.trab.filter(w=>w.rol!=="admin");const nn=w=>norm(w.nombre);
+    const w=W.find(w=>nn(w)===tok)||W.find(w=>nn(w).split(" ")[0]===tok)||W.find(w=>nn(w).split(" ").some(p=>p.length>3&&p===tok))||W.find(w=>nn(w).startsWith(tok))||W.find(w=>tok.length>3&&tok.includes(nn(w).split(" ")[0]));
+    if(w){if(!ids.includes(w.id))ids.push(w.id);}else mal.push(tok);});return{ids,mal};}
+function pintaExcel(){const box=$("exbox");box.textContent="";const ws=EX.wb.Sheets[EX.hoja];
+  const filas=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:""});
+  if(!filas.length){box.appendChild(el("div",{class:"empty",text:"Esa hoja está vacía."}));return;}
+  /* fila de cabecera: la primera (de las 15 primeras) con más textos que coinciden con los nombres de columna */
+  if(EX.cab==null){let best=0,bi=0;filas.slice(0,15).forEach((r,i)=>{const n=r.filter(c=>CAMPOS.some(([,,rx])=>rx.test(norm(c)))).length;if(n>best){best=n;bi=i;}});EX.cab=bi;}
+  const cab=(filas[EX.cab]||[]).map(c=>String(c||"").trim());const ncol=Math.max(...filas.map(r=>r.length));
+  if(!EX.map){EX.map={};const usadas=new Set();CAMPOS.forEach(([k,,rx])=>{const i=cab.findIndex((c,j)=>!usadas.has(j)&&rx.test(norm(c)));if(i>=0){EX.map[k]=i;usadas.add(i);}});
+    if(EX.map.titulo==null){/* si no hay cabecera clara, la columna con más texto */let bi=0,bl=0;for(let j=0;j<ncol;j++){const l=filas.slice(EX.cab+1).reduce((a,r)=>a+String(r[j]||"").length,0);if(l>bl){bl=l;bi=j;}}EX.map.titulo=bi;}}
+  EX.sab=EX.sab||sabadoObj();EX.diaDef=EX.diaDef||"sab";EX.reparto=EX.reparto||"auto";
+  const colSel=k=>{const s=el("select",{class:"x"},[el("option",{value:"",text:"— ninguna —"})].concat(Array.from({length:ncol},(_,j)=>el("option",{value:String(j),text:(cab[j]||"Columna "+String.fromCharCode(65+j))}))));s.value=EX.map[k]==null?"":String(EX.map[k]);s.onchange=()=>{EX.map[k]=s.value===""?null:+s.value;pintaExcel();};return s;};
+  const chips=(ops,val,on)=>el("div",{class:"chips"},ops.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(val===k),text:t,onclick:()=>{on(k);pintaExcel();}})));
+  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"1. Columnas"}),el("span",{class:"meta",text:EX.nombre})]),el("div",{class:"bd"},[
+    EX.wb.SheetNames.length>1?el("label",{class:"f"},[el("span",{text:"Hoja"}),(()=>{const s=el("select",{class:"x"},EX.wb.SheetNames.map(n=>el("option",{value:n,text:n})));s.value=EX.hoja;s.onchange=()=>{EX.hoja=s.value;EX.cab=null;EX.map=null;pintaExcel();};return s;})()]):null,
+    el("p",{class:"hint",style:"margin-top:0",text:"He adivinado qué es cada columna. Si algo no cuadra, cámbialo."}),
+    el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"},CAMPOS.map(([k,t])=>el("label",{class:"f"},[el("span",{text:t+(k==="titulo"?" *":"")}),colSel(k)]))),
+    el("label",{class:"f"},[el("span",{text:"Fila de títulos"}),(()=>{const s=el("select",{class:"x"},filas.slice(0,15).map((r,i)=>el("option",{value:String(i),text:"Fila "+(i+1)+": "+r.filter(Boolean).slice(0,3).join(" · ").slice(0,50)})));s.value=String(EX.cab);s.onchange=()=>{EX.cab=+s.value;EX.map=null;pintaExcel();};return s;})()])])]));
+  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"2. Fin de semana y reparto"})),el("div",{class:"bd"},[
+    el("label",{class:"f"},[el("span",{text:"Sábado del fin de semana"}),el("input",{type:"date",class:"x",value:EX.sab,onchange:e=>{if(e.target.value){EX.sab=dow(e.target.value)===6?e.target.value:sumaD(e.target.value,(6-dow(e.target.value)+7)%7);pintaExcel();}}})]),
+    el("div",{class:"f"},[el("span",{text:"Trabajos sin día en el Excel"}),chips([["sab","Sábado "+fCorta(EX.sab).split(" ").pop()],["dom","Domingo "+fCorta(sumaD(EX.sab,1)).split(" ").pop()],["ambos","Los dos días"]],EX.diaDef,k=>EX.diaDef=k)]),
+    el("div",{class:"f"},[el("span",{text:"Trabajos sin persona en el Excel"}),chips([["auto","Repartir entre los del finde"],["equipo","Que lo vea todo el equipo"],["sin","Sin asignar"]],EX.reparto,k=>EX.reparto=k)]),
+    el("p",{class:"hint",style:"margin:0",text:EX.reparto==="auto"?"Se reparten entre los que trabajan ese día, al que menos carga tenga. Los de hornos solo a quien tenga permiso.":EX.reparto==="equipo"?"Les sale a todos los del finde y lo coge el primero.":"Te salen en «Sin asignar» para que los asigne el encargado."})])]));
+  /* filas */
+  const M=EX.map,val=(r,k)=>M[k]==null?"":r[M[k]];
+  const items=[];filas.slice(EX.cab+1).forEach((r,ix)=>{const tit=String(val(r,"titulo")||"").trim();if(!tit||norm(tit)===norm(cab[M.titulo]))return;
+    let f=M.fecha!=null?aFecha(val(r,"fecha"),EX.sab):null;const sinDia=!f;if(!f)f=EX.diaDef==="sab"?EX.sab:EX.diaDef==="dom"?sumaD(EX.sab,1):"ambos";
+    const q=quienes(val(r,"quien"));const mn=parseFloat(String(val(r,"minutos")).replace(",","."));
+    const minutos=isNaN(mn)?null:(mn<=12&&/hora|h$/i.test(cab[M.minutos]||"")?Math.round(mn*60):Math.round(mn));
+    const base={titulo:tit,lugar:String(val(r,"lugar")||"").trim(),descripcion:String(val(r,"descripcion")||"").trim(),asignados:q.ids,mal:q.mal,minutos_est:minutos,urgente:/^(si|sí|x|1|urgente|alta)$/i.test(String(val(r,"urgente")).trim()),sinDia,fila:ix+EX.cab+2};
+    (f==="ambos"?[EX.sab,sumaD(EX.sab,1)]:[f]).forEach(ff=>items.push(Object.assign({},base,{fecha:ff,ok:true})));});
+  EX.items=items;
+  const card=el("div",{class:"card"},el("div",{class:"hd"},[el("h2",{text:"3. Vista previa ("+items.length+")"})]));box.appendChild(card);
+  if(!items.length){card.appendChild(el("div",{class:"empty",text:"No encuentro trabajos. Revisa qué columna es «Trabajo» y la fila de títulos."}));return;}
+  const nom=id=>(EX.trab.find(w=>w.id===id)||{nombre:"?"}).nombre.split(" ")[0];
+  const lista=el("div");card.appendChild(lista);
+  rpc("ots_existentes",{p_tok:S.tok,p_desde:EX.sab,p_hasta:sumaD(EX.sab,1)}).then(X=>{items.forEach(it=>{it.dup=X.some(x=>x.fecha===it.fecha&&x.titulo===norm(it.titulo).replace(/\s+/g," ")&&x.lugar===norm(it.lugar));if(it.dup)it.ok=false;});pintaLista();}).catch(()=>pintaLista());
+  const btn=el("button",{class:"btn ok grande",style:"margin:12px 14px;width:calc(100% - 28px)"});
+  const pintaLista=()=>{lista.textContent="";const n=items.filter(i=>i.ok).length;btn.textContent="✔ Crear "+n+" OT"+(n!==1?"s":"");btn.disabled=!n;
+    items.forEach(it=>lista.appendChild(el("label",{class:"linea",style:"align-items:flex-start;cursor:pointer;"+(it.ok?"":"opacity:.55")},[
+      el("input",{type:"checkbox",checked:it.ok,style:"width:22px;height:22px;margin-top:2px",onchange:e=>{it.ok=e.target.checked;pintaLista();}}),
+      el("span",{style:"flex:1;display:grid;gap:3px"},[el("b",{text:it.titulo}),
+        el("span",{class:"meta"},[el("span",{class:"pill",text:dow(it.fecha)===6?"Sáb "+fCorta(it.fecha).split(" ").pop():dow(it.fecha)===0?"Dom "+fCorta(it.fecha).split(" ").pop():fCorta(it.fecha)}),
+          it.lugar?el("span",{text:"📍 "+it.lugar}):null,
+          it.asignados.length?el("span",{text:"👤 "+it.asignados.map(nom).join(", ")}):el("span",{text:EX.reparto==="auto"?"👤 reparto automático":EX.reparto==="equipo"?"👥 todo el equipo":"sin asignar"}),
+          it.minutos_est?el("span",{text:"⏳ "+it.minutos_est+" min"}):null,it.urgente?el("span",{class:"pill bad",text:"Urgente"}):null,
+          it.dup?el("span",{class:"pill warn",text:"Ya existe"}):null,it.mal.length?el("span",{class:"pill warn",text:"No conozco: "+it.mal.join(", ")}):null]),
+        it.descripcion?el("span",{style:"font-size:13px;color:var(--mut)",text:it.descripcion}):null])])));};
+  btn.onclick=async()=>{const sel=items.filter(i=>i.ok);if(!sel.length)return;btn.disabled=true;
+    try{const r=await rpc("ots_importar",{p_tok:S.tok,p_reparto:EX.reparto,p_items:sel.map(i=>({titulo:i.titulo,lugar:i.lugar,descripcion:i.descripcion,fecha:i.fecha,asignados:i.asignados,minutos_est:i.minutos_est,urgente:i.urgente}))});
+      $("exbox").textContent="";$("exbox").appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px;font-size:18px;font-weight:700;color:var(--ok)",text:"✔ "+r.creadas+" OT creadas"+(r.repetidas?" · "+r.repetidas+" ya existían":"")}),
+        el("p",{class:"hint",text:"A cada uno le ha llegado un aviso con sus trabajos. Las ves en la app, en el día del sábado y del domingo."}),el("a",{class:"btn sec",href:"limpieza.html",text:"Ver en la app"})])));}
+    catch(e){toast(e.message);btn.disabled=false;}};
+  card.appendChild(btn);}
 
 /* ---------------- CHECKLIST FIN DE SEMANA ---------------- */
 let CK_FECHA=null;
