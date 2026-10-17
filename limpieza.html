@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017180121">
+<meta name="build" content="20261017183109">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -71,7 +71,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 10px;
 .row.acc{flex-wrap:wrap}.row.acc>*{flex:1 1 auto}
 .linea{all:unset;display:flex;gap:8px;align-items:center;padding:6px 0;flex-wrap:wrap;width:100%;cursor:pointer}div.linea{cursor:default}
 table.det th{width:34%;text-transform:none;font-size:13px}h4{margin:14px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
-ol.hist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}ol.hist small{color:var(--mut)}
+ol.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.fdato{background:var(--surf2);border-radius:10px;padding:8px 10px;display:grid;gap:2px}.fdato small{color:var(--mut);font-size:12px}.fdato b{font-size:15px}
+.hist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}ol.hist small{color:var(--mut)}
 .seg.sel button[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
 .bar.llena i{background:var(--bad)}
 .ot .tit:focus-visible,.linea:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
@@ -803,6 +804,7 @@ async function escanear(re){let stream;const v=el("video",{playsinline:true,mute
     const paso=async()=>{if(!vivo||!document.body.contains(v)){fin();return;}try{const r=await det.detect(v);if(r.length){const txt=r[0].rawValue||"";let cod=txt;try{const u=new URL(txt);cod=u.searchParams.get("el")||txt;}catch(e){}fin();cerrar();fichaElemento(cod,re);return;}}catch(e){}setTimeout(paso,250);};paso();}
   catch(e){fin();msg.textContent="No se puede abrir la cámara. Usa la cámara del móvil para leer el código.";}}
 async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc("elemento_ficha",{p_tok:S.tok,p_cod:cod});}catch(er){toast(er.message);return;}
+  if(e.tipo==="inyectora"){fichaIny(e,re);return;}
   const s=estadoEl(e),T=tipoEl(e.tipo);
   const hist=(e.historial||[]).length?el("ol",{class:"hist"},e.historial.map(h=>el("li",null,[el("b",{text:fCorta(diaDe(h.fin))+" "+hora(h.fin)}),
     (h.accion&&h.accion!=="limpieza"?" · "+ACC_HORNO[h.accion]:"")+" · "+h.quien+(h.min!=null?" · "+durTxt(h.min):"")+(h.motivo?" · motivo: "+h.motivo:"")+(h.nota?" · 📝 "+h.nota:"")+(h.nfotos?" · 📷"+h.nfotos:"")]))):el("p",{class:"hint",text:"Todavía no se ha limpiado nunca con la app."});
@@ -822,6 +824,26 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
         " · Vaciarlo al menos cada "+(e.vaciado_dias>=365?"año":e.vaciado_dias+" días")+" evita que se tapen el cono y la tolva."+(e.cambios_365?" ⚠ Cambios de tolva/cono en el último año: "+e.cambios_365+".":"")})]))(vaciadoEl(e)):null,
     e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","🧽 Limpieza"),linUltHorno(e.ult,"vaciado","🫗 Vaciado"),linUltHorno(e.ult,"cambio_tolva","🔁 Cambio de tolva"),linUltHorno(e.ult,"cambio_cono","🔁 Cambio de cono"),linUltHorno(e.ult,"cambio_tolva_cono","🔁 Tolva y cono")])]):null,
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
+/* ficha de una inyectora: primero los datos y el historial; apuntar la limpieza es un botón aparte */
+function fichaIny(e,re){const s=estadoEl(e);const H=e.historial||[];
+  const dato=(k,v)=>el("div",{class:"fdato"},[el("small",{text:k}),el("b",{text:v})]);
+  const ult=H[0];
+  const res=r=>r==="OK"?el("span",{class:"pill ok",text:"✔ Checklist OK"}):r==="NO-OK"?el("span",{class:"pill bad",text:"⚠ Checklist con fallos"}):null;
+  const cab=el("div",{class:"fgrid"},[dato("Nave",e.lugar||"—"),dato("Estado",s.t),dato("Última limpieza",ult?fCorta(diaDe(ult.fin))+" "+hora(ult.fin):"Nunca"),dato("Hecha por",ult?ult.quien:"—"),
+    dato("Tiempo",ult&&ult.min!=null?durTxt(ult.min):"—"),dato("Limpiezas (90 días)",String(e.n90||0)),e.frecuencia_dias?dato("Frecuencia","Cada "+e.frecuencia_dias+" días"):null,e.minutos_est?dato("Tiempo normal",durTxt(e.minutos_est)):null].filter(Boolean));
+  const hist=H.length?el("div",{class:"lst"},H.map(h=>el("button",{class:"linea",style:"cursor:"+(h.nfotos?"pointer":"default"),onclick:()=>{if(h.nfotos)verFotos({id:h.id,titulo:e.nombre+" · "+fCorta(diaDe(h.fin))},()=>{});}},[
+      el("span",{style:"flex:1;min-width:0"},[el("b",{text:fCorta(diaDe(h.fin))+" · "+hora(h.fin)}),el("small",{class:"hint",style:"display:block;margin:0",text:[h.quien,h.min!=null?durTxt(h.min):null,h.nota?"📝 "+h.nota:null].filter(Boolean).join(" · ")})]),
+      el("span",{style:"display:flex;flex-direction:column;gap:3px;align-items:flex-end"},[res(h.resultado),h.nfotos?el("span",{class:"pill",text:"📷 "+h.nfotos}):null])]))):el("p",{class:"empty",text:"Todavía no hay ninguna limpieza apuntada."});
+  const bots=[];
+  if(e.abierta)bots.push({t:"✔ Terminar limpieza",cls:"ok",fn:()=>{setTimeout(()=>terminar(Object.assign({},e.abierta,{puntos:e.puntos}),()=>{fichaElemento(e.codigo,re);re();}),0);}});
+  else bots.push({t:"🧽 Apuntar limpieza",cls:"ok",fn:()=>{setTimeout(()=>dlg("Limpieza de la "+e.nombre,el("p",{class:"hint",text:"¿La vas a empezar ahora o ya está hecha?"}),[
+      {t:"▶ Empezar ahora",fn:async()=>{try{await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:false,p_minutos:null,p_nota:null,p_checks:null});toast("Empezada: cuando acabes, vuelve a la ficha y pulsa «Terminar»");re();}catch(er){toast(er.message);}}},
+      {t:"✔ Ya está limpia",cls:"ok",fn:()=>{setTimeout(()=>yaLimpio(e,re),0);}},{t:"Cancelar",cls:"sec"}]),0);}});
+  if(esAdm())bots.push({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formElemento(e,re),0);}});
+  bots.push({t:"Cerrar",cls:"sec"});
+  dlg("🏭 Inyectora "+e.nombre,el("div",null,[
+    e.abierta?el("div",{class:"aviso"},[e.abierta.estado==="pendiente"?"Hay un trabajo para hoy: "+e.abierta.titulo:"Limpieza empezada a las "+hora(e.abierta.inicio),el("small",{style:"display:block;font-weight:400",text:"Cuando acabes pulsa «✔ Terminar limpieza»."})]):null,
+    cab,el("h4",{text:"Historial de limpiezas"}),hist]),bots);}
 function yaLimpio(e,re,GP){if(GP===undefined&&!(e.puntos&&e.puntos.length)){rpc("check_el_puntos",{p_tok:S.tok,p_el:e.id}).then(r=>yaLimpio(e,re,Array.isArray(r)?r:[])).catch(()=>yaLimpio(e,re,[]));return;}const gp=GP&&GP.length?GP:null;const w=preguntaTiempo({minutos_est:e.minutos_est,inicio:null});w.querySelector("p").textContent=e.minutos_est?"Viene marcado el tiempo normal (★); cámbialo si has tardado más o menos.":"Toca el tiempo que más se parezca.";
   let nota="";const fotos=[];const fbox=el("div",{class:"fotos"});const pts=(e.puntos&&e.puntos.length)?e.puntos.slice():null;const ck={};
   dlg("Limpio: "+e.nombre,el("div",null,[w,pts?el("div",null,[el("b",{text:"Puntos de la limpieza (quita o añade los que hagan falta)"}),puntosEd(pts,ck)]):gp?el("div",null,[el("b",{text:"Marca cómo ha quedado cada punto"}),el("div",{class:"chk"},gp.map(p=>puntoTrab(p,ck)))]):null,fld("Nota (opcional)",area("",x=>nota=x)),
