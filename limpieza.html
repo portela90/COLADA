@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017183109">
+<meta name="build" content="20261017195256">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -344,7 +344,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   if(admin){const cb=el("div");v.appendChild(cb);bloqueConsumos(cb,f);}
   const avs=el("div");v.appendChild(avs);rpc("avisos_activos",{p_tok:S.tok}).then(A=>A.forEach(a=>avs.appendChild(el("div",{class:"aviso"},[a.titulo,a.descripcion?el("small",{text:a.descripcion}):null])))).catch(()=>{});
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
-  let R;try{R=await rpc("ots_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
+  let R,HD=[];try{[R,HD]=await Promise.all([rpc("ots_dia",{p_tok:S.tok,p_fecha:f}),admin?rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}).catch(()=>[]):Promise.resolve([])]);}catch(e){box.textContent="";box.appendChild(el("div",{class:"card"},el("div",{class:"empty",text:e.message})));return;}
   box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   const Df=admin?D.filter(pasaFiltro):(S.soloMios!==false?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):(S.soloMios!==false?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
@@ -355,12 +355,16 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
     box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn sec",text:"＋ Planificar OT",onclick:()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana"},re)}),el("button",{class:"btn sec",text:"＋ Falta",onclick:()=>formSust({desde:f,hasta:f},re)}),el("button",{class:"btn sec",text:"🕑 Horas del día",onclick:()=>formHorasDia(f,re)})]));
     box.appendChild(el("button",{class:"btn wa",style:"width:100%;margin:0 0 12px",text:"📲 Enviar los trabajos por WhatsApp",onclick:()=>enviarDiaWA(D,f)}));
     box.appendChild(barraFiltros(D,A,re));
-    if(R.plantilla){const fal=new Set(AU.filter(x=>x.motivo!=="Horas extra").map(x=>x.ausente)),ex=[];
+    if(R.plantilla){const fal=new Set(AU.filter(x=>x.motivo!=="Horas extra").map(x=>x.ausente)),exH={},exN={};
+      (R.extras||[]).forEach(x=>{exH[x.trabajador]=(exH[x.trabajador]||0)+(+x.horas||0);if(x.nota)exN[x.trabajador]=x.nota;});
+      (HD||[]).forEach(x=>{if(+x.extra_mano>0&&!(x.id in exH)){exH[x.id]=+x.extra_mano;if(x.nota)exN[x.id]=x.nota;}});
+      AU.filter(x=>x.motivo==="Horas extra").forEach(x=>{const k=x.sustituto||x.ausente;if(k&&!(k in exH))exH[k]=0;});
+      const ex=Object.keys(exH);const exTxt=id=>exH[id]?"+"+String(exH[id]).replace(".",",")+" h extra":"horas extra";
       const carga={};D.forEach(o=>{if(!o.minutos_est||o.todo_equipo)return;(o.nombres||[]).forEach(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);const k=c?c.sustituto:n;carga[k]=(carga[k]||0)+o.minutos_est;});});
       const jornada=tr=>(tr||[]).reduce((t,r)=>{const[a,b]=r.map(x=>{const[h,m]=x.split(":");return +h*60+ +m;});return t+(b-a);},0);
       const tr=R.plantilla.filter(x=>(x.tramos&&x.tramos.length)||ex.includes(x.id)),li=R.plantilla.filter(x=>x.tramos&&!x.tramos.length&&!ex.includes(x.id)),sh=R.plantilla.filter(x=>x.tramos==null&&!ex.includes(x.id));
       box.appendChild(el("details",{class:"card plant"},[el("summary",{class:"hd"},[el("h2",{text:"Quién trabaja ("+tr.filter(x=>!fal.has(x.id)).length+")"}),el("span",{class:"mas",text:"▾"})]),el("div",{class:"bd"},[
-        tr.map(x=>el("div",{class:"linea"+(fal.has(x.id)?" tach":"")},[el("span",{style:"flex:1"},[x.nombre,carga[x.nombre]?el("small",{class:"carga"+(jornada(x.tramos)&&carga[x.nombre]>jornada(x.tramos)?" mucha":""),text:" ⏳ "+durTxt(carga[x.nombre])+" de trabajo"+(jornada(x.tramos)?" / "+durTxt(jornada(x.tramos))+" de jornada":"")}):null]),el("span",{class:"pill "+(fal.has(x.id)?"bad":ex.includes(x.id)?"warn":"info"),text:fal.has(x.id)?"Falta":(x.tramos&&x.tramos.length?horTxt(x.tramos):"")+(ex.includes(x.id)?(x.tramos&&x.tramos.length?" + ":"")+"horas extra":"")})])),
+        tr.map(x=>el("div",{class:"linea"+(fal.has(x.id)?" tach":"")},[el("span",{style:"flex:1"},[x.nombre,exN[x.id]&&ex.includes(x.id)?el("small",{class:"hint",style:"display:block;margin:0",text:"🕑 "+exN[x.id]}):null,carga[x.nombre]?el("small",{class:"carga"+(jornada(x.tramos)&&carga[x.nombre]>jornada(x.tramos)?" mucha":""),text:" ⏳ "+durTxt(carga[x.nombre])+" de trabajo"+(jornada(x.tramos)?" / "+durTxt(jornada(x.tramos))+" de jornada":"")}):null]),el("span",{class:"pill "+(fal.has(x.id)?"bad":ex.includes(x.id)?"warn":"info"),text:fal.has(x.id)?"Falta":(x.tramos&&x.tramos.length?horTxt(x.tramos):"")+(ex.includes(x.id)?(x.tramos&&x.tramos.length?" · ":"")+exTxt(x.id):"")})])),
         li.length?el("p",{class:"hint",text:"Libran: "+li.map(x=>x.nombre.split(" ")[0]).join(", ")}):null,
         sh.length?el("p",{class:"hint",text:"Sin horario puesto: "+sh.map(x=>x.nombre.split(" ")[0]).join(", ")+" (ponlo en Equipo)"}):null])]));}
     if(AU.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Faltas y sustituciones"})),el("div",{class:"bd"},AU.map(x=>el("button",{class:"linea",onclick:()=>formSust(x,re)},[
