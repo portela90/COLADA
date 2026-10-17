@@ -1,8 +1,8 @@
 -- =====================================================================
 -- PEDIR PERMISO PARA QUEDARSE MÁS TIEMPO — limpieza-cie
 --   1. El trabajador pulsa «⏱ Necesito quedarme» en un trabajo: dice cuánto
---      tiempo y por qué. Le llega un aviso al jefe con el trabajo, si es
---      urgente o no, y el motivo.
+--      tiempo, por qué, y hace una FOTO obligatoria de cómo está. Le llega un
+--      aviso al jefe con el trabajo, si es urgente o no, el motivo y la foto.
 --   2. El jefe responde «Sí» o «No, mañana». Al trabajador le llega la
 --      respuesta al móvil. Sin el sí, no se queda.
 --   3. Si es sí, se apunta solo como hora extra del día (tabla extras),
@@ -24,8 +24,10 @@ create table if not exists public.pet_extra (
   respondido timestamptz,
   respondido_por uuid references public.trabajadores(id),
   extra_id uuid,
+  foto uuid references public.fotos(id),
   creado timestamptz not null default now()
 );
+alter table public.pet_extra add column if not exists foto uuid references public.fotos(id);
 alter table public.pet_extra enable row level security;
 create index if not exists pet_extra_fecha on public.pet_extra(fecha);
 
@@ -34,13 +36,15 @@ language sql stable security definer set search_path to 'public' as $$
   select to_jsonb(p) || jsonb_build_object(
     'nombre', (select nombre from trabajadores where id = p.trabajador),
     'titulo', o.titulo, 'lugar', o.lugar, 'urgente', o.prioridad = 'alta', 'estado_ot', o.estado,
-    'respondido_por_n', (select nombre from trabajadores where id = p.respondido_por))
+    'respondido_por_n', (select nombre from trabajadores where id = p.respondido_por),
+    'foto_url', (select _foto_src(f) from fotos f where f.id = p.foto))
   from ots o where o.id = p.ot_id;
 $$;
 revoke execute on function public._pet_json(pet_extra) from public, anon, authenticated;
 
--- El trabajador pide quedarse
-create or replace function public.extra_pedir(p_tok uuid, p_ot uuid, p_minutos int, p_motivo text) returns jsonb
+-- El trabajador pide quedarse (con foto obligatoria del trabajo, ya subida con foto_reservar)
+drop function if exists public.extra_pedir(uuid, uuid, int, text);
+create or replace function public.extra_pedir(p_tok uuid, p_ot uuid, p_minutos int, p_motivo text, p_foto uuid) returns jsonb
 language plpgsql security definer set search_path to 'public' as $$
 declare t trabajadores; o ots; p pet_extra; h text;
 begin t := _yo(p_tok);
@@ -48,13 +52,14 @@ begin t := _yo(p_tok);
   if coalesce(trim(p_motivo), '') = '' then raise exception 'FALTA_MOTIVO'; end if;
   if p_minutos is null or p_minutos < 10 or p_minutos > 480 then raise exception 'TIEMPO_MAL'; end if;
   if exists(select 1 from pet_extra where ot_id = p_ot and trabajador = t.id and estado = 'pendiente') then raise exception 'YA_PEDIDO'; end if;
-  insert into pet_extra(ot_id, trabajador, minutos, motivo) values (p_ot, t.id, p_minutos, trim(p_motivo)) returning * into p;
+  if p_foto is null or not exists(select 1 from fotos where id = p_foto and ot_id = p_ot and (subida or data is not null)) then raise exception 'FALTA_FOTO'; end if;
+  insert into pet_extra(ot_id, trabajador, minutos, motivo, foto) values (p_ot, t.id, p_minutos, trim(p_motivo), p_foto) returning * into p;
   h := case when p_minutos < 60 then p_minutos || ' min' else trim(to_char(p_minutos / 60.0, 'FM990.0')) || ' h' end;
   if cardinality(_admins()) > 0 then
     perform _avisar(jsonb_build_object('mensajes', jsonb_build_array(jsonb_build_object(
       'trabajadores', _admins(), 'urgente', true, 'tag', 'pet-' || p.id,
       'titulo', '⏱ ' || split_part(t.nombre, ' ', 1) || ' pide quedarse +' || h,
-      'texto', o.titulo || case when o.prioridad = 'alta' then ' · URGENTE' else ' · no urgente' end || ' — ' || p.motivo,
+      'texto', o.titulo || case when o.prioridad = 'alta' then ' · URGENTE' else ' · no urgente' end || ' — ' || p.motivo || ' 📷 Toca para ver la foto',
       'url', 'limpieza.html?pet=' || p.id))));
   end if;
   return _pet_json(p);
@@ -112,7 +117,7 @@ begin t := _yo(p_tok);
   return _pet_json(p);
 end $$;
 
-grant execute on function public.extra_pedir(uuid, uuid, int, text) to anon, authenticated;
+grant execute on function public.extra_pedir(uuid, uuid, int, text, uuid) to anon, authenticated;
 grant execute on function public.extra_anular(uuid, uuid) to anon, authenticated;
 grant execute on function public.extra_responder(uuid, uuid, boolean, text) to anon, authenticated;
 grant execute on function public.extra_lista(uuid, date) to anon, authenticated;

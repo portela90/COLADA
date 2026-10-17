@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017230555">
+<meta name="build" content="20261017230854">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -142,7 +142,7 @@ const CHECK_FIN=["Espátulas","Palas","Martillo","Aspiradora","Hidrolimpiadora",
 const DIAS=[["lunes","L"],["martes","M"],["miercoles","X"],["jueves","J"],["viernes","V"],["sabado","S"],["domingo","D"]];
 const TURNOS_S=["Partido","Tarde","Refuerzo"],TURNOS_F=["Mañana finde"];
 const EST={pendiente:["Pendiente","warn"],en_curso:["En curso","info"],hecha:["Hecha","ok"],no_hecha:["No hecha","bad"]};
-const ERR={YA_PEDIDO:"Ya has pedido quedarte para este trabajo. Espera la respuesta.",FALTA_MOTIVO:"Escribe por qué tienes que quedarte",YA_RESPONDIDA:"Esa petición ya está respondida",NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
+const ERR={FALTA_FOTO:"Haz una foto de cómo está el trabajo",YA_PEDIDO:"Ya has pedido quedarte para este trabajo. Espera la respuesta.",FALTA_MOTIVO:"Escribe por qué tienes que quedarte",YA_RESPONDIDA:"Esa petición ya está respondida",NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x==="html")e.innerHTML=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -155,6 +155,7 @@ async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{metho
 /* fotos: van al almacén de Supabase (Storage); si algo falla, se guardan como antes, dentro de la base de datos */
 async function subirAlmacen(ruta,blob){const x=await fetch(URL_SB+"/storage/v1/object/fotos/"+ruta,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":blob.type||"image/jpeg"},body:blob});
   if(!x.ok)throw new Error("No se pudo subir la foto ("+x.status+")");}
+async function fotoAlmacen(ot,d){const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});return r.id;}
 async function guardarFoto(ot,d){try{const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());return await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});}
   catch(e){return rpc("foto_add",{p_tok:S.tok,p_ot:ot,p_data:d});}}
 const hoyISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
@@ -219,14 +220,16 @@ function pillPet(o){const p=S.pet&&S.pet[o.id];if(!p)return null;
   if(p.estado==="pendiente")return el("span",{class:"pill warn",text:"⏱ Pidió quedarse +"+durPet(p.minutos)+" · esperando respuesta"});
   if(p.estado==="si")return el("span",{class:"pill ok",text:"✔ Puede quedarse +"+durPet(p.minutos)});
   if(p.estado==="no")return el("span",{class:"pill bad",text:"✖ No quedarse: se deja para mañana"});return null;}
-function pedirQuedarse(o,re){let min=60,mot="";const urg=o.prioridad==="alta";
+function pedirQuedarse(o,re){let min=60,mot="",foto=null;const urg=o.prioridad==="alta";
+  const fbox=el("div",{class:"fotos"});
+  const fbtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin:0 0 10px"},["📷 Hacer foto de cómo está (obligatoria)",el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{foto=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba otra vez.");return;}fbox.textContent="";fbox.appendChild(el("img",{src:foto,alt:"foto"}));fbtn.firstChild.textContent="📷 Cambiar la foto";}})]);
   const ch=el("div",{class:"chips"});const pc=()=>{ch.textContent="";[30,60,90,120].forEach(m=>ch.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(min===m),text:"+"+durPet(m),onclick:()=>{min=m;pc();}})));};pc();
   dlg("¿Necesitas quedarte?",el("div",null,[el("div",{class:"aviso"+(urg?" mal":""),style:urg?"":"background:var(--surf2);color:var(--ink)"},[urg?"⚠ Este trabajo es URGENTE.":"Este trabajo NO es urgente.",el("small",{style:"display:block;font-weight:400",text:urg?"Pide permiso igualmente: Cristian te responde al momento.":"Si no da tiempo, lo normal es dejarlo para mañana. Pide permiso solo si de verdad hace falta."})]),
     el("p",{style:"margin:0 0 6px;font-weight:700",text:o.titulo}),
-    el("div",{class:"f"},[el("span",{text:"¿Cuánto tiempo más?"}),ch]),fld("¿Por qué hace falta hoy?",area("",x=>mot=x,3)),
+    el("div",{class:"f"},[el("span",{text:"¿Cuánto tiempo más?"}),ch]),fld("¿Por qué hace falta hoy?",area("",x=>mot=x,3)),fbtn,fbox,
     el("p",{class:"hint",text:"Le llega un aviso a Cristian. No te quedes hasta que te responda que sí."})]),
-    [{t:"Cancelar",cls:"sec"},{t:"📲 Pedir permiso",cls:"ok",fn:async()=>{if(!mot.trim()){toast("Escribe por qué hace falta hoy");return false;}
-      try{await rpc("extra_pedir",{p_tok:S.tok,p_ot:o.id,p_minutos:min,p_motivo:mot.trim()});toast("Enviado. Espera la respuesta antes de quedarte.");re();}catch(e){toast(e.message);return false;}}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"📲 Pedir permiso",cls:"ok",fn:async()=>{if(!mot.trim()){toast("Escribe por qué hace falta hoy");return false;}if(!foto){toast("Haz una foto de cómo está el trabajo");return false;}
+      try{const fid=await fotoAlmacen(o.id,foto);await rpc("extra_pedir",{p_tok:S.tok,p_ot:o.id,p_minutos:min,p_motivo:mot.trim(),p_foto:fid});toast("Enviado. Espera la respuesta antes de quedarte.");re();}catch(e){toast(e.message);return false;}}}]);}
 function responderPet(p,re,si){let nota="";
   dlg(si?"Sí, puede quedarse":"No, se deja para mañana",el("div",null,[el("p",{style:"margin:0 0 8px",text:(p.nombre||"")+" · "+p.titulo+" · +"+durPet(p.minutos)}),
     fld("Mensaje para "+(p.nombre||"").split(" ")[0]+" (opcional)",inp("",v=>nota=v,{placeholder:si?"p. ej. Vale, pero no más de esa hora":"p. ej. Mañana lo terminas a primera hora"})),
@@ -237,6 +240,7 @@ function filaPet(p,re){const pend=p.estado==="pendiente";
     el("div",{class:"meta"},[el("span",{class:"pill "+(p.urgente?"bad":""),text:p.urgente?"Urgente":"No urgente"}),el("span",{text:p.titulo+(p.lugar?" · "+p.lugar:"")}),el("span",{text:"a las "+hora(p.creado)}),
       !pend?el("span",{class:"pill "+(p.estado==="si"?"ok":"bad"),text:(p.estado==="si"?"✔ Sí":"✖ No")+(p.respondido?" · "+hora(p.respondido):"")}):null]),
     el("div",{class:"d",text:"📝 "+p.motivo+(p.respuesta?"  ·  Respuesta: "+p.respuesta:"")}),
+    p.foto_url?el("div",{class:"fotos",style:"margin:6px 0"},miniFoto({data:p.foto_url},(p.nombre||"")+" · "+p.titulo+" · "+hora(p.creado))):null,
     pend?el("div",{class:"row acc"},[el("button",{class:"btn ok peq",text:"✔ Sí",onclick:()=>responderPet(p,re,true)}),el("button",{class:"btn bad peq",text:"✖ No, mañana",onclick:()=>responderPet(p,re,false)})]):null]);}
 function bloquePeticiones(box,PE,re){box.textContent="";if(!PE.length)return;const pend=PE.filter(p=>p.estado==="pendiente"),resto=PE.filter(p=>p.estado!=="pendiente");
   if(pend.length)box.appendChild(el("div",{class:"card",style:"border-color:var(--warn)"},[el("div",{class:"hd"},el("h2",{text:"⏱ Piden quedarse ("+pend.length+")"})),el("div",{class:"bd"},pend.map(p=>filaPet(p,re)))]));
