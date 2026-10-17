@@ -4,8 +4,12 @@
 --   · Alta de las inyectoras de Nave 1 y Nave 2 (código = F4, F52…; sin frecuencia).
 --   · Los trabajos «Limpieza F52», «Limpiar F62…» (del Excel del finde o a mano)
 --     se enlazan solos con su inyectora, así cuentan como limpieza en su ficha.
---   · La ficha (al escanear el QR) ofrece terminar el trabajo pendiente de hoy
---     en vez de abrir otro.
+--   · En la ficha de una inyectora con trabajo pendiente para hoy, la app ofrece
+--     terminar ese trabajo en vez de abrir otro.
+--
+-- CÓMO USARLO: Supabase → proyecto limpieza-cie → SQL Editor → New query →
+-- pega todo este archivo → Run. Se puede ejecutar más de una vez sin duplicar nada.
+-- Hazlo DESPUÉS de aceptar el PR de la app (si no, la lista de hornos no sabe qué es una inyectora).
 -- =====================================================================
 alter table public.elementos drop constraint if exists elementos_tipo_check;
 alter table public.elementos add constraint elementos_tipo_check check (tipo = any (array['molde','horno','contenedor','inyectora','otro']));
