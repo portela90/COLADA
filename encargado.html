@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017093128">
+<meta name="build" content="20261017103238">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
@@ -160,7 +160,7 @@ const CAMPOS=[["titulo","Trabajo",/^(trabajos?|tareas?|actividad(es)?|puntos?|su
   ["quien","Quién",/^(quien|operari[oa]s?|responsables?|asignad[oa]s?|personas?|trabajador(es)?|nombres?)\b/],["descripcion","Notas",/^(observaciones?|notas?|detalles?|comentarios?|instrucciones?)\b/],["minutos","Tiempo",/^(tiempo|horas?|minutos?|duracion)\b/],["urgente","Urgente",/^(urgente|prioridad)\b/]];
 const EX={trab:null};
 async function vExcel(v){
-  v.appendChild(el("p",{class:"hint",text:"Sube el Excel con los trabajos del fin de semana. La app lee las columnas, te enseña lo que va a crear y, al confirmar, crea las OT y avisa a cada uno."}));
+  v.appendChild(el("p",{class:"hint",text:"Sube el Excel con los trabajos del fin de semana. Elige el día de cada uno y, si quieres, quién lo hace. Los que no tengan persona solo los verá el encargado."}));
   const inpF=el("input",{type:"file",accept:".xlsx,.xls,.csv,.ods",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f)leerExcel(f,v);e.target.value="";}});
   v.appendChild(el("label",{class:"btn grande",style:"text-align:center;cursor:pointer"},["📥 Subir el Excel del fin de semana",inpF]));
   v.appendChild(el("div",{id:"exbox"}));}
@@ -193,57 +193,59 @@ function pintaExcel(){const box=$("exbox");box.textContent="";const ws=EX.wb.She
   const cab=(filas[EX.cab]||[]).map(c=>String(c||"").trim());const ncol=Math.max(...filas.map(r=>r.length));
   if(!EX.map){EX.map={};const usadas=new Set();CAMPOS.forEach(([k,,rx])=>{const i=cab.findIndex((c,j)=>!usadas.has(j)&&rx.test(norm(c)));if(i>=0){EX.map[k]=i;usadas.add(i);}});
     if(EX.map.titulo==null){/* si no hay cabecera clara, la columna con más texto */let bi=0,bl=0;for(let j=0;j<ncol;j++){const l=filas.slice(EX.cab+1).reduce((a,r)=>a+String(r[j]||"").length,0);if(l>bl){bl=l;bi=j;}}EX.map.titulo=bi;}}
-  EX.sab=EX.sab||sabadoObj();EX.diaDef=EX.diaDef||"sab";EX.reparto=EX.reparto||"auto";
+  EX.sab=EX.sab||sabadoObj();
   const colSel=k=>{const s=el("select",{class:"x"},[el("option",{value:"",text:"— ninguna —"})].concat(Array.from({length:ncol},(_,j)=>el("option",{value:String(j),text:(cab[j]||"Columna "+String.fromCharCode(65+j))}))));s.value=EX.map[k]==null?"":String(EX.map[k]);s.onchange=()=>{EX.map[k]=s.value===""?null:+s.value;pintaExcel();};return s;};
-  const chips=(ops,val,on)=>el("div",{class:"chips"},ops.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(val===k),text:t,onclick:()=>{on(k);pintaExcel();}})));
-  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"1. Columnas"}),el("span",{class:"meta",text:EX.nombre})]),el("div",{class:"bd"},[
+  /* ajustes de columnas: escondidos, solo si algo sale mal */
+  const ajustes=el("details",{class:"card"},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{style:"text-transform:none;letter-spacing:0;font-size:14px",text:"⚙ Si falta algún trabajo o sale algo raro, toca aquí"})),el("div",{class:"bd"},[
     EX.wb.SheetNames.length>1?el("label",{class:"f"},[el("span",{text:"Hoja"}),(()=>{const s=el("select",{class:"x"},EX.wb.SheetNames.map(n=>el("option",{value:n,text:n})));s.value=EX.hoja;s.onchange=()=>{EX.hoja=s.value;EX.cab=null;EX.map=null;pintaExcel();};return s;})()]):null,
-    el("p",{class:"hint",style:"margin-top:0",text:"He adivinado qué es cada columna. Si algo no cuadra, cámbialo."}),
+    el("p",{class:"hint",style:"margin-top:0",text:"Qué columna del Excel es cada cosa."}),
     el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"},CAMPOS.map(([k,t])=>el("label",{class:"f"},[el("span",{text:t+(k==="titulo"?" *":"")}),colSel(k)]))),
-    el("label",{class:"f"},[el("span",{text:"Fila de títulos"}),(()=>{const s=el("select",{class:"x"},filas.slice(0,15).map((r,i)=>el("option",{value:String(i),text:"Fila "+(i+1)+": "+r.filter(Boolean).slice(0,3).join(" · ").slice(0,50)})));s.value=String(EX.cab);s.onchange=()=>{EX.cab=+s.value;EX.map=null;pintaExcel();};return s;})()])])]));
-  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"2. Fin de semana y reparto"})),el("div",{class:"bd"},[
-    EX.sabDelExcel?el("p",{class:"hint",style:"margin:0 0 6px",text:"📅 He leído las fechas del título del Excel."}):null,
-    el("label",{class:"f"},[el("span",{text:"Sábado del fin de semana"}),el("input",{type:"date",class:"x",value:EX.sab,onchange:e=>{if(e.target.value){EX.sabFijo=true;EX.sabDelExcel=false;EX.sab=dow(e.target.value)===6?e.target.value:sumaD(e.target.value,(6-dow(e.target.value)+7)%7);pintaExcel();}}})]),
-    el("div",{class:"f"},[el("span",{text:"Trabajos sin día en el Excel"}),chips([["sab","Sábado "+fCorta(EX.sab).split(" ").pop()],["dom","Domingo "+fCorta(sumaD(EX.sab,1)).split(" ").pop()],["ambos","Los dos días"]],EX.diaDef,k=>EX.diaDef=k)]),
-    el("div",{class:"f"},[el("span",{text:"Trabajos sin persona en el Excel"}),chips([["auto","Repartir entre los del finde"],["equipo","Que lo vea todo el equipo"],["sin","Sin asignar"]],EX.reparto,k=>EX.reparto=k)]),
-    el("p",{class:"hint",style:"margin:0",text:EX.reparto==="auto"?"Se reparten entre los que trabajan ese día, al que menos carga tenga. Los de hornos solo a quien tenga permiso.":EX.reparto==="equipo"?"Les sale a todos los del finde y lo coge el primero.":"Te salen en «Sin asignar» para que los asigne el encargado."})])]));
+    el("label",{class:"f"},[el("span",{text:"Fila de títulos"}),(()=>{const s=el("select",{class:"x"},filas.slice(0,15).map((r,i)=>el("option",{value:String(i),text:"Fila "+(i+1)+": "+r.filter(Boolean).slice(0,3).join(" · ").slice(0,50)})));s.value=String(EX.cab);s.onchange=()=>{EX.cab=+s.value;EX.map=null;pintaExcel();};return s;})()])])]);
   /* filas */
-  const M=EX.map,val=(r,k)=>M[k]==null?"":r[M[k]];
+  const M=EX.map,val=(r,k)=>M[k]==null?"":r[M[k]];const dom=sumaD(EX.sab,1);
   const items=[];filas.slice(EX.cab+1).forEach((r,ix)=>{const tit=String(val(r,"titulo")||"").trim();if(!tit||norm(tit)===norm(cab[M.titulo]))return;
-    let f=M.fecha!=null?aFecha(val(r,"fecha"),EX.sab):null;const sinDia=!f;if(!f)f=EX.diaDef==="sab"?EX.sab:EX.diaDef==="dom"?sumaD(EX.sab,1):"ambos";
+    let f=M.fecha!=null?aFecha(val(r,"fecha"),EX.sab):null;if(f!==EX.sab&&f!==dom)f=EX.sab;
     const q=quienes(val(r,"quien"));const mn=parseFloat(String(val(r,"minutos")).replace(",","."));
     const minutos=isNaN(mn)?null:(mn<=12&&/hora|h$/i.test(cab[M.minutos]||"")?Math.round(mn*60):Math.round(mn));
     let lug=String(val(r,"lugar")||"").trim(),titF=tit;
     if(/^\d+$/.test(lug))lug="Nave "+lug;                              /* columna Nave con 1 o 2 */
     const cm=tit.match(/^([FM])\s*-?\s*(\d{1,3})$/i);                    /* «F-30» → «Limpieza F30» en la zona F30 */
     if(cm){const z=cm[1].toUpperCase()+cm[2];titF="Limpieza "+z;lug=z;}
-    const base={titulo:titF,lugar:lug,descripcion:String(val(r,"descripcion")||"").trim(),asignados:q.ids,mal:q.mal,minutos_est:minutos,urgente:/^(si|sí|x|1|urgente|alta)$/i.test(String(val(r,"urgente")).trim()),sinDia,fila:ix+EX.cab+2};
-    (f==="ambos"?[EX.sab,sumaD(EX.sab,1)]:[f]).forEach(ff=>items.push(Object.assign({},base,{fecha:ff,ok:true})));});
+    items.push({titulo:titF,lugar:lug,descripcion:String(val(r,"descripcion")||"").trim(),quien:q.ids[0]||"",mal:q.mal,minutos_est:minutos,urgente:/^(si|sí|x|1|urgente|alta)$/i.test(String(val(r,"urgente")).trim()),fecha:f,ok:true,fila:ix});});
   EX.items=items;
-  const nFilas=filas.slice(EX.cab+1).filter(r=>r.some(c=>String(c).trim())).length,nTrab=new Set(items.map(i=>i.fila)).size;
-  const card=el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"3. Vista previa ("+items.length+")"})]),
-    el("p",{class:"hint",style:"padding:8px 14px 0;margin:0"+(nTrab<nFilas?";color:var(--warn);font-weight:700":""),text:"He leído "+nTrab+" trabajo"+(nTrab!==1?"s":"")+" de "+nFilas+" fila"+(nFilas!==1?"s":"")+" con datos debajo de los títulos."+(nTrab<nFilas?" Si falta alguno, revisa la columna «Trabajo» y la «Fila de títulos».":"")})]);box.appendChild(card);
-  if(!items.length){card.appendChild(el("div",{class:"empty",text:"No encuentro trabajos. Revisa qué columna es «Trabajo» y la fila de títulos."}));return;}
-  const nom=id=>(EX.trab.find(w=>w.id===id)||{nombre:"?"}).nombre.split(" ")[0];
-  const lista=el("div");card.appendChild(lista);
-  rpc("ots_existentes",{p_tok:S.tok,p_desde:EX.sab,p_hasta:sumaD(EX.sab,1)}).then(X=>{items.forEach(it=>{it.dup=X.some(x=>x.fecha===it.fecha&&x.titulo===norm(it.titulo).replace(/\s+/g," ")&&x.lugar===norm(it.lugar));if(it.dup)it.ok=false;});pintaLista();}).catch(()=>pintaLista());
+  const nFilas=filas.slice(EX.cab+1).filter(r=>r.some(c=>String(c).trim())).length;
+  /* cabecera: fin de semana + recuento */
+  box.appendChild(el("div",{class:"card"},el("div",{class:"bd",style:"display:grid;gap:8px"},[
+    el("div",{class:"row",style:"align-items:center"},[el("b",{style:"flex:2",text:"📅 Sáb "+fCorta(EX.sab).split(" ").pop()+" y dom "+fCorta(dom).split(" ").pop()+(EX.sabDelExcel?" (del Excel)":"")}),
+      el("input",{type:"date",class:"x","aria-label":"Cambiar el fin de semana",value:EX.sab,onchange:e=>{if(e.target.value){EX.sabFijo=true;EX.sabDelExcel=false;EX.sab=dow(e.target.value)===6?e.target.value:sumaD(e.target.value,(6-dow(e.target.value)+7)%7);pintaExcel();}}})]),
+    el("p",{class:"hint",style:"margin:0;"+(items.length<nFilas?"color:var(--warn);font-weight:700":""),text:"📄 "+EX.nombre+" · "+items.length+" trabajo"+(items.length!==1?"s":"")+(items.length<nFilas?" de "+nFilas+" filas: revisa los ajustes de abajo":"")}),
+    el("p",{class:"hint",style:"margin:0",text:"Sin persona: solo lo ve el encargado, que lo reparte. Con persona: lo ven esa persona y el encargado."})])));
+  const card=el("div",{class:"card"});box.appendChild(card);
+  if(!items.length){card.appendChild(el("div",{class:"empty",text:"No encuentro trabajos. Toca «⚙» de abajo y elige la columna de los trabajos."}));box.appendChild(ajustes);return;}
+  const finde=EX.trab.filter(w=>w.rol!=="admin"&&(w.equipos||[]).includes("Finde")),otros=EX.trab.filter(w=>w.rol!=="admin"&&!(w.equipos||[]).includes("Finde"));
+  const selQuien=it=>{const s=el("select",{class:"x",style:"padding:8px 10px;font-size:15px;flex:1;min-width:0;width:auto",onchange:e=>{it.quien=e.target.value;}},[el("option",{value:"",text:"👤 Solo el encargado"}),
+      el("optgroup",{label:"Fin de semana"},finde.map(w=>el("option",{value:w.id,text:w.nombre}))),otros.length?el("optgroup",{label:"Otros"},otros.map(w=>el("option",{value:w.id,text:w.nombre}))):null]);s.value=it.quien||"";return s;};
+  const segDia=it=>{const B=[[EX.sab,"Sáb"],[dom,"Dom"]].map(([f,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(it.fecha===f),text:t,style:"padding:7px 14px",onclick:()=>{it.fecha=f;B.forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===t)));}}));return el("div",{class:"chips",style:"flex-wrap:nowrap"},B);};
   const btn=el("button",{class:"btn ok grande",style:"margin:12px 14px;width:calc(100% - 28px)"});
-  const pintaLista=()=>{lista.textContent="";const n=items.filter(i=>i.ok).length;btn.textContent="✔ Crear "+n+" OT"+(n!==1?"s":"");btn.disabled=!n;
-    items.forEach(it=>lista.appendChild(el("label",{class:"linea",style:"align-items:flex-start;cursor:pointer;"+(it.ok?"":"opacity:.55")},[
-      el("input",{type:"checkbox",checked:it.ok,style:"width:22px;height:22px;margin-top:2px",onchange:e=>{it.ok=e.target.checked;pintaLista();}}),
-      el("span",{style:"flex:1;display:grid;gap:3px"},[el("b",{text:it.titulo}),
-        el("span",{class:"meta"},[el("span",{class:"pill",text:dow(it.fecha)===6?"Sáb "+fCorta(it.fecha).split(" ").pop():dow(it.fecha)===0?"Dom "+fCorta(it.fecha).split(" ").pop():fCorta(it.fecha)}),
-          it.lugar?el("span",{text:"📍 "+it.lugar}):null,
-          it.asignados.length?el("span",{text:"👤 "+it.asignados.map(nom).join(", ")}):el("span",{text:EX.reparto==="auto"?"👤 reparto automático":EX.reparto==="equipo"?"👥 todo el equipo":"sin asignar"}),
-          it.minutos_est?el("span",{text:"⏳ "+it.minutos_est+" min"}):null,it.urgente?el("span",{class:"pill bad",text:"Urgente"}):null,
-          it.dup?el("span",{class:"pill warn",text:"Ya existe"}):null,it.mal.length?el("span",{class:"pill warn",text:"No conozco: "+it.mal.join(", ")}):null]),
-        it.descripcion?el("span",{style:"font-size:13px;color:var(--mut)",text:it.descripcion}):null])])));};
+  const cuenta=()=>{const n=items.filter(i=>i.ok).length;btn.textContent="✔ Crear "+n+" trabajo"+(n!==1?"s":"");btn.disabled=!n;};
+  card.appendChild(el("div",{class:"linea",style:"background:var(--surf2);flex-wrap:wrap"},[el("span",{style:"flex:1;font-size:14px;font-weight:600",text:"Poner todos en:"}),
+    el("button",{class:"btn sec peq",text:"Sábado",onclick:()=>{items.forEach(i=>i.fecha=EX.sab);pintaFilas();}}),el("button",{class:"btn sec peq",text:"Domingo",onclick:()=>{items.forEach(i=>i.fecha=dom);pintaFilas();}})]));
+  const lista=el("div");card.appendChild(lista);card.appendChild(btn);
+  const pintaFilas=()=>{lista.textContent="";items.forEach(it=>{const fila=el("div",{class:"linea",style:"align-items:flex-start;flex-wrap:wrap;gap:8px;"+(it.ok?"":"opacity:.5")},[
+      el("input",{type:"checkbox",checked:it.ok,"aria-label":"Crear este trabajo",style:"width:24px;height:24px;margin-top:2px",onchange:e=>{it.ok=e.target.checked;fila.style.opacity=it.ok?"":".5";cuenta();}}),
+      el("span",{style:"flex:1;min-width:180px;display:grid;gap:2px"},[el("b",{text:it.titulo}),
+        (it.lugar||it.descripcion||it.dup||it.mal.length)?el("span",{class:"meta"},[it.lugar?el("span",{text:"📍 "+it.lugar}):null,it.descripcion?el("span",{text:"📝 "+it.descripcion}):null,
+          it.dup?el("span",{class:"pill warn",text:"Ya está creado"}):null,it.mal.length?el("span",{class:"pill warn",text:"No conozco a: "+it.mal.join(", ")}):null]):null]),
+      el("div",{style:"display:flex;gap:6px;align-items:center;flex-basis:100%;padding-left:32px"},[segDia(it),selQuien(it)])]);lista.appendChild(fila);});cuenta();};
+  pintaFilas();
+  rpc("ots_existentes",{p_tok:S.tok,p_desde:EX.sab,p_hasta:dom}).then(X=>{let c=false;items.forEach(it=>{it.dup=X.some(x=>(x.fecha===EX.sab||x.fecha===dom)&&x.titulo===norm(it.titulo).replace(/\s+/g," ")&&x.lugar===norm(it.lugar));if(it.dup){it.ok=false;c=true;}});if(c)pintaFilas();}).catch(()=>{});
   btn.onclick=async()=>{const sel=items.filter(i=>i.ok);if(!sel.length)return;btn.disabled=true;
-    try{const r=await rpc("ots_importar",{p_tok:S.tok,p_reparto:EX.reparto,p_items:sel.map(i=>({titulo:i.titulo,lugar:i.lugar,descripcion:i.descripcion,fecha:i.fecha,asignados:i.asignados,minutos_est:i.minutos_est,urgente:i.urgente}))});
-      $("exbox").textContent="";$("exbox").appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px;font-size:18px;font-weight:700;color:var(--ok)",text:"✔ "+r.creadas+" OT creadas"+(r.repetidas?" · "+r.repetidas+" ya existían":"")}),
-        el("p",{class:"hint",text:"A cada uno le ha llegado un aviso con sus trabajos. Las ves en la app, en el día del sábado y del domingo."}),el("a",{class:"btn sec",href:"limpieza.html",text:"Ver en la app"})])));}
+    try{const r=await rpc("ots_importar",{p_tok:S.tok,p_reparto:"sin",p_items:sel.map(i=>({titulo:i.titulo,lugar:i.lugar,descripcion:i.descripcion,fecha:i.fecha,asignados:i.quien?[i.quien]:[],minutos_est:i.minutos_est,urgente:i.urgente}))});
+      const sinP=sel.filter(i=>!i.quien).length;
+      $("exbox").textContent="";$("exbox").appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px;font-size:18px;font-weight:700;color:var(--ok)",text:"✔ "+r.creadas+" trabajos creados"+(r.repetidas?" · "+r.repetidas+" ya existían":"")}),
+        el("p",{class:"hint",text:(sinP?sinP+" sin persona: los ve solo el encargado para repartirlos. ":"")+(sel.length-sinP?"A los que tienen persona les ha llegado un aviso.":"")}),el("a",{class:"btn sec",href:"limpieza.html",text:"Ver en la app"})])));}
     catch(e){toast(e.message);btn.disabled=false;}};
-  card.appendChild(btn);}
+  box.appendChild(ajustes);}
 
 /* ---------------- CHECKLIST FIN DE SEMANA ---------------- */
 let CK_FECHA=null;
