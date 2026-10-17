@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017103238">
+<meta name="build" content="20261017103926">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
@@ -46,6 +46,7 @@ nav button b.n{position:absolute;margin:-4px 0 0 22px;background:var(--bad);colo
 .f input,.f select,.f textarea,input.x{font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);color:var(--ink);font-weight:400;width:100%}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{padding:9px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);cursor:pointer;font-size:15px}
 .chip[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+@media (prefers-color-scheme:dark){.chip[aria-pressed=true]{color:#0F151B;font-weight:700}.btn{color:#0F151B}.btn.sec{color:var(--ink)}}
 .seg{display:flex;gap:6px}.seg button{flex:1;padding:10px 0;border-radius:10px;border:1px solid var(--line);background:var(--surf2);font-weight:700;cursor:pointer;min-height:44px}
 .seg button[aria-pressed=true].v-ok{background:var(--ok);color:#fff;border-color:var(--ok)}.seg button[aria-pressed=true].v-mal{background:var(--bad);color:#fff;border-color:var(--bad)}.seg button[aria-pressed=true].v-na{background:var(--mut);color:#fff;border-color:var(--mut)}
 .grp{padding:8px 14px;background:var(--surf2);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);border-bottom:1px solid var(--line)}
@@ -55,6 +56,8 @@ nav button b.n{position:absolute;margin:-4px 0 0 22px;background:var(--bad);colo
 .prog{position:sticky;top:52px;z-index:5;background:var(--bg);padding:6px 0 8px}.bar{height:8px;border-radius:4px;background:var(--surf2);overflow:hidden;border:1px solid var(--line)}.bar i{display:block;height:100%;background:var(--ok)}
 .linea{all:unset;display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;box-sizing:border-box}
 .ed{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}.ed .bs{display:flex;gap:4px}
+select.selq{-webkit-appearance:none;appearance:none;width:100%;min-width:0;font-size:15px;padding:9px 30px 9px 10px;border:1px solid var(--line);border-radius:10px;background-color:var(--surf2);color:var(--ink);
+  background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
 .visor{position:fixed;inset:0;z-index:80;background:#000;display:flex;align-items:center;justify-content:center}.visor img{max-width:100%;max-height:100%}
 </style>
 </head>
@@ -223,7 +226,7 @@ function pintaExcel(){const box=$("exbox");box.textContent="";const ws=EX.wb.She
   const card=el("div",{class:"card"});box.appendChild(card);
   if(!items.length){card.appendChild(el("div",{class:"empty",text:"No encuentro trabajos. Toca «⚙» de abajo y elige la columna de los trabajos."}));box.appendChild(ajustes);return;}
   const finde=EX.trab.filter(w=>w.rol!=="admin"&&(w.equipos||[]).includes("Finde")),otros=EX.trab.filter(w=>w.rol!=="admin"&&!(w.equipos||[]).includes("Finde"));
-  const selQuien=it=>{const s=el("select",{class:"x",style:"padding:8px 10px;font-size:15px;flex:1;min-width:0;width:auto",onchange:e=>{it.quien=e.target.value;}},[el("option",{value:"",text:"👤 Solo el encargado"}),
+  const selQuien=it=>{const s=el("select",{class:"selq",onchange:e=>{it.quien=e.target.value;}},[el("option",{value:"",text:"👤 Encargado"}),
       el("optgroup",{label:"Fin de semana"},finde.map(w=>el("option",{value:w.id,text:w.nombre}))),otros.length?el("optgroup",{label:"Otros"},otros.map(w=>el("option",{value:w.id,text:w.nombre}))):null]);s.value=it.quien||"";return s;};
   const segDia=it=>{const B=[[EX.sab,"Sáb"],[dom,"Dom"]].map(([f,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(it.fecha===f),text:t,style:"padding:7px 14px",onclick:()=>{it.fecha=f;B.forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===t)));}}));return el("div",{class:"chips",style:"flex-wrap:nowrap"},B);};
   const btn=el("button",{class:"btn ok grande",style:"margin:12px 14px;width:calc(100% - 28px)"});
@@ -231,12 +234,12 @@ function pintaExcel(){const box=$("exbox");box.textContent="";const ws=EX.wb.She
   card.appendChild(el("div",{class:"linea",style:"background:var(--surf2);flex-wrap:wrap"},[el("span",{style:"flex:1;font-size:14px;font-weight:600",text:"Poner todos en:"}),
     el("button",{class:"btn sec peq",text:"Sábado",onclick:()=>{items.forEach(i=>i.fecha=EX.sab);pintaFilas();}}),el("button",{class:"btn sec peq",text:"Domingo",onclick:()=>{items.forEach(i=>i.fecha=dom);pintaFilas();}})]));
   const lista=el("div");card.appendChild(lista);card.appendChild(btn);
-  const pintaFilas=()=>{lista.textContent="";items.forEach(it=>{const fila=el("div",{class:"linea",style:"align-items:flex-start;flex-wrap:wrap;gap:8px;"+(it.ok?"":"opacity:.5")},[
+  const pintaFilas=()=>{lista.textContent="";items.forEach(it=>{const fila=el("div",{class:"linea",style:"align-items:flex-start;gap:10px;"+(it.ok?"":"opacity:.5")},[
       el("input",{type:"checkbox",checked:it.ok,"aria-label":"Crear este trabajo",style:"width:24px;height:24px;margin-top:2px",onchange:e=>{it.ok=e.target.checked;fila.style.opacity=it.ok?"":".5";cuenta();}}),
-      el("span",{style:"flex:1;min-width:180px;display:grid;gap:2px"},[el("b",{text:it.titulo}),
+      el("div",{style:"flex:1;min-width:0;display:grid;gap:6px"},[el("b",{style:"overflow-wrap:anywhere",text:it.titulo}),
         (it.lugar||it.descripcion||it.dup||it.mal.length)?el("span",{class:"meta"},[it.lugar?el("span",{text:"📍 "+it.lugar}):null,it.descripcion?el("span",{text:"📝 "+it.descripcion}):null,
-          it.dup?el("span",{class:"pill warn",text:"Ya está creado"}):null,it.mal.length?el("span",{class:"pill warn",text:"No conozco a: "+it.mal.join(", ")}):null]):null]),
-      el("div",{style:"display:flex;gap:6px;align-items:center;flex-basis:100%;padding-left:32px"},[segDia(it),selQuien(it)])]);lista.appendChild(fila);});cuenta();};
+          it.dup?el("span",{class:"pill warn",text:"Ya está creado"}):null,it.mal.length?el("span",{class:"pill warn",text:"No conozco a: "+it.mal.join(", ")}):null]):null,
+        el("div",{style:"display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center"},[segDia(it),selQuien(it)])])]);lista.appendChild(fila);});cuenta();};
   pintaFilas();
   rpc("ots_existentes",{p_tok:S.tok,p_desde:EX.sab,p_hasta:dom}).then(X=>{let c=false;items.forEach(it=>{it.dup=X.some(x=>(x.fecha===EX.sab||x.fecha===dom)&&x.titulo===norm(it.titulo).replace(/\s+/g," ")&&x.lugar===norm(it.lugar));if(it.dup){it.ok=false;c=true;}});if(c)pintaFilas();}).catch(()=>{});
   btn.onclick=async()=>{const sel=items.filter(i=>i.ok);if(!sel.length)return;btn.disabled=true;
