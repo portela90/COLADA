@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017195256">
+<meta name="build" content="20261017222204">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -152,6 +152,11 @@ async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{metho
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){}
   if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(k==="SESION"){salir(true);}throw new Error(k?ERR[k]:m);}
   if(j&&j.error){throw new Error(ERR[j.error]||j.error);}return j;}
+/* fotos: van al almacén de Supabase (Storage); si algo falla, se guardan como antes, dentro de la base de datos */
+async function subirAlmacen(ruta,blob){const x=await fetch(URL_SB+"/storage/v1/object/fotos/"+ruta,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":blob.type||"image/jpeg"},body:blob});
+  if(!x.ok)throw new Error("No se pudo subir la foto ("+x.status+")");}
+async function guardarFoto(ot,d){try{const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());return await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});}
+  catch(e){return rpc("foto_add",{p_tok:S.tok,p_ot:ot,p_data:d});}}
 const hoyISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
 const sumaD=(f,n)=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
 const fLarga=f=>new Date(f+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
@@ -321,12 +326,12 @@ function terminar(o,re,PT){if(o.elemento_id&&!ELS){elementosL().then(()=>termina
   dlg("Terminar: "+o.titulo,body,[{t:"Cancelar",cls:"sec"},{t:"Guardar como hecha",cls:"ok",fn:async()=>{if(preg&&!preg.val()){toast("Marca cuánto has tardado");return false;}const falta=usaCk?(pts||(iny?iny.filter(x=>x.tipo!=="txt").map(x=>x.texto):CHECK)).filter(k=>!ck[k]):[];if(falta.length){toast("Falta marcar: "+falta[0]);return false;}
     const sinFoto=iny&&!fotos.length&&iny.find(x=>x.foto_si_mal&&ck[x.texto]==="NO-OK");if(sinFoto){toast("Pon una foto de cómo ha quedado: "+sinFoto.texto);return false;}
     if(conFin&&CHECK_FIN.some(k=>!fin[k])){toast("Falta marcar el material");return false;}
-    if(usaCk)await rpc("checklist_ot",{p_tok:S.tok,p_ot:o.id,p_check:ck,p_final:conFin?fin:null});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
+    if(usaCk)await rpc("checklist_ot",{p_tok:S.tok,p_ot:o.id,p_check:ck,p_final:conFin?fin:null});for(const d of fotos)await guardarFoto(o.id,d);
     if(preg){try{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:preg.val(),p_nota:nota.trim()||null});toast("Hecha · "+durTxt(preg.val()));re();}catch(er){toast(er.message);}}
     else await cambia(o,"hecha",re,nota.trim());}}]);}
 function comprime(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const M=1100,k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);/* ~150 KB por foto: se ve bien en el móvil y la base dura unas 3 veces más */let q=.62,d=c.toDataURL("image/jpeg",q);while(d.length>220000&&q>.32){q-=.08;d=c.toDataURL("image/jpeg",q);}if(d.length>220000){const c2=document.createElement("canvas");c2.width=Math.round(c.width*.75);c2.height=Math.round(c.height*.75);c2.getContext("2d").drawImage(c,0,0,c2.width,c2.height);d=c2.toDataURL("image/jpeg",.55);}ok(d);};im.onerror=ko;im.src=r.result;};r.onerror=ko;r.readAsDataURL(f);});}
 async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class:"empty",text:"Cargando…"}));
-  const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
+  const add=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer;margin-top:10px"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await guardarFoto(o.id,await comprime(f));toast("Foto guardada");carga();re();}catch(er){toast(er.message);}}})]);
   const carga=async()=>{try{const L=await rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id});box.textContent="";if(!L.length)box.appendChild(el("p",{class:"hint",text:"Sin fotos todavía."}));L.forEach(x=>box.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))));}catch(e){box.textContent=e.message;}};
   dlg("Fotos · "+o.titulo,el("div",null,[box,add]));carga();}
 
@@ -431,7 +436,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
-    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:o.elegir&&!hecha?chQ.val():null})});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:d});
+    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:o.elegir&&!hecha?chQ.val():null})});for(const d of fotos)await guardarFoto(r.id,d);
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"OT abierta y asignada al del relevo y nave":"OT abierta: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"OT abierta y asignada":o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
@@ -596,7 +601,7 @@ function datosInforme(O){const hechas=O.filter(o=>o.estado==="hecha"),noh=O.filt
   const T={};O.filter(o=>o.origen==="fija").forEach(o=>{const t=T[o.titulo]=T[o.titulo]||{n:0,h:0,s:0,nm:0,est:null};t.n++;if(o.estado==="hecha"){t.h++;if(o.minutos!=null&&!o.tiempo_auto){t.s+=o.minutos;t.nm++;}}if(o.minutos_est)t.est=o.minutos_est;});
   const D={};O.forEach(o=>{const d=D[o.fecha]=D[o.fecha]||{t:0,h:0};d.t++;if(o.estado==="hecha")d.h++;});
   return{hechas,noh,sin,P,T,D,inc:O.filter(o=>o.origen==="rapida"),min:hechas.reduce((t,o)=>t+(o.minutos||0),0)};}
-function achica(src,M,q){return new Promise(ok=>{const im=new Image();im.onload=()=>{const k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+function achica(src,M,q){return new Promise(ok=>{const im=new Image();if(/^https?:/.test(src))im.crossOrigin="anonymous";im.onload=()=>{const k=Math.min(1,M/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
   c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok({src:c.toDataURL("image/jpeg",q),w:c.width,h:c.height});};im.onerror=()=>ok(null);im.src=src;});}
 /* Horas de la semana para el PDF: horas trabajadas, extra a mano, fuera de presupuesto y bolsa, con motivos y trabajos de cada día */
 async function horasSemana(desde,hasta,O){
@@ -855,7 +860,7 @@ function yaLimpio(e,re,GP){if(GP===undefined&&!(e.puntos&&e.puntos.length)){rpc(
     [{t:"Cancelar",cls:"sec"},{t:"✔ Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}
       if(pts&&pts.some(k=>!ck[k])){toast("Falta marcar: "+pts.find(k=>!ck[k]));return false;}
       if(gp){const f=gp.find(x=>x.tipo!=="txt"&&!ck[x.texto]);if(f){toast("Falta marcar: "+f.texto);return false;}const sf=!fotos.length&&gp.find(x=>x.foto_si_mal&&ck[x.texto]==="NO-OK");if(sf){toast("Pon una foto de cómo ha quedado: "+sf.texto);return false;}}
-      const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null,p_checks:pts?Object.fromEntries(pts.map(k=>[k,ck[k]])):(gp?ck:null)});for(const d of fotos)await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:d});
+      const o=await rpc("limpieza_abrir",{p_tok:S.tok,p_el:e.id,p_hecha:true,p_minutos:w.val(),p_nota:nota||null,p_checks:pts?Object.fromEntries(pts.map(k=>[k,ck[k]])):(gp?ck:null)});for(const d of fotos)await guardarFoto(o.id,d);
       toast("Apuntado: "+e.nombre+" limpio ("+durTxt(w.val())+")");re();}}]);}
 /* hornos mantenedores: qué se ha hecho (limpieza con checklist; vaciado y cambios de tolva sin checklist) */
 const ACC_HORNO={limpieza:"Limpieza",vaciado:"Vaciado",cambio_tolva:"Cambio de tolva",cambio_cono:"Cambio de cono",cambio_tolva_cono:"Cambio de tolva y cono"};
@@ -966,7 +971,7 @@ async function hacerCopia(info){const msg=el("p",{class:"hint",style:"font-size:
     XLSX.utils.book_append_sheet(wb,ws,"Trabajos");zip.file("trabajos.xlsx",XLSX.write(wb,{type:"array",bookType:"xlsx"}));
     const ids=F.map(f=>f.id);let hechas=0;
     for(let i=0;i<ids.length;i+=10){const D=await rpc("fotos_datos",{p_tok:S.tok,p_ids:ids.slice(i,i+10)});
-      D.forEach(d=>{if(d.data)zip.file(nomF[d.id],d.data.split(",")[1],{base64:true});});hechas+=D.length;pr("Descargando fotos "+hechas+" de "+ids.length+"…",5+85*hechas/Math.max(1,ids.length));}
+      for(const d of D){if(!d.data)continue;if(/^https?:/.test(d.data)){try{zip.file(nomF[d.id],await (await fetch(d.data)).blob());}catch(e){}}else zip.file(nomF[d.id],d.data.split(",")[1],{base64:true});}hechas+=D.length;pr("Descargando fotos "+hechas+" de "+ids.length+"…",5+85*hechas/Math.max(1,ids.length));}
     pr("Creando el archivo…",92);const blob=await zip.generateAsync({type:"blob"});
     const nombre="limpieza-copia-"+hoyISO()+".zip";const a=el("a",{href:URL.createObjectURL(blob),download:nombre});document.body.appendChild(a);a.click();a.remove();
     S.copiados=ids;ls.set("limp.copia",hoyISO());cerrar();
@@ -978,11 +983,23 @@ async function liberar(){const ids=S.copiados||[];if(!ids.length){toast("Primero
   if(!confirm("¿Has guardado el archivo de la copia? Se borrarán "+ids.length+" fotos de la app (siguen en tu copia)."))return false;
   let n=0;for(let i=0;i<ids.length;i+=200)n+=await rpc("fotos_liberar",{p_tok:S.tok,p_ids:ids.slice(i,i+200)});
   S.copiados=null;toast("Espacio liberado: "+n+" fotos");pinta();}
+/* pasar las fotos antiguas (guardadas dentro de la base de datos) al almacén de fotos */
+async function moverFotos(){let ids;try{ids=await rpc("fotos_por_mover",{p_tok:S.tok});}catch(e){toast(e.message);return;}
+  if(!ids.length){toast("No queda ninguna foto por mover");return;}
+  if(!confirm("Se van a pasar "+ids.length+" fotos al almacén. Tarda unos minutos: no cierres la app. ¿Seguimos?"))return;
+  const msg=el("p",{class:"hint",style:"font-size:15px",text:"Empezando…"}),bar=el("div",{class:"bar"},el("i",{style:"width:0%"}));
+  const cerrar=dlg("Moviendo fotos",el("div",null,[msg,bar,el("p",{class:"hint",text:"No cierres la app hasta que termine."})]),[]);
+  let ok=0,mal=0,ult="";
+  for(const id of ids){try{const r=await rpc("foto_mover_reservar",{p_tok:S.tok,p_id:id});await subirAlmacen(r.ruta,await (await fetch(r.data)).blob());ok+=await rpc("foto_mover_ok",{p_tok:S.tok,p_id:id});}catch(e){mal++;ult=e.message;}
+    msg.textContent="Movidas "+ok+" de "+ids.length+(mal?" · "+mal+" con error":"");bar.firstChild.style.width=Math.round((ok+mal)*100/ids.length)+"%";}
+  cerrar();dlg(mal?"Terminado con errores":"Fotos movidas ✔",el("p",{text:ok+" fotos pasadas al almacén."+(mal?" "+mal+" no se pudieron ("+ult+"). Siguen dentro de la base de datos y puedes volver a intentarlo.":" La base de datos ya no las guarda dentro.")}),[{t:"Vale",cls:"ok",fn:()=>{pinta();}}]);}
 function bloqueCopia(){const box=el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Copia de seguridad"})),el("div",{class:"empty",text:"Cargando…"})]);
   rpc("espacio",{p_tok:S.tok}).then(E=>{box.lastChild.remove();const pct=Math.round(E.total*100/E.limite);const ult=ls.get("limp.copia");
     box.appendChild(el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px",text:"Espacio usado: "+pct+" % ("+Math.round(E.total/1048576)+" MB de "+Math.round(E.limite/1048576)+" MB)"}),
       el("div",{class:"bar"+(pct>=80?" llena":"")},el("i",{style:"width:"+Math.min(100,pct)+"%"})),
-      el("p",{class:"hint",text:E.fotos+" fotos en la app ("+Math.round(E.fotos_bytes/1048576)+" MB)"+(E.liberadas?" · "+E.liberadas+" ya guardadas en copias":"")+(ult?" · última copia desde este móvil: "+fCorta(ult):"")}),
+      E.almacen!=null?el("p",{class:"hint",style:"margin:0 0 4px",text:"🗂 Almacén de fotos: "+E.almacen+" fotos, "+Math.round(E.almacen_bytes/1048576)+" MB de "+Math.round(E.almacen_limite/1048576)+" MB"}):null,
+      el("p",{class:"hint",text:E.fotos+" fotos dentro de la base de datos ("+Math.round(E.fotos_bytes/1048576)+" MB)"+(E.liberadas?" · "+E.liberadas+" ya guardadas en copias":"")+(ult?" · última copia desde este móvil: "+fCorta(ult):"")}),
+      E.almacen!=null&&E.fotos>0?el("button",{class:"btn ok",style:"width:100%;margin:0 0 8px",text:"🗂 Mover "+E.fotos+" fotos al almacén",onclick:()=>moverFotos()}):null,
       el("div",{class:"row"},[el("button",{class:"btn",text:"⬇ Hacer copia",onclick:()=>hacerCopia(E)}),S.copiados&&S.copiados.length?el("button",{class:"btn bad",text:"Liberar espacio ("+S.copiados.length+" fotos)",onclick:()=>liberar()}):null])]));}).catch(e=>{box.lastChild.textContent=e.message;});
   return box;}
 
@@ -1271,7 +1288,7 @@ async function vSencillo(v){
   const mias=(R.dia||[]).filter(o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o));
   // Solo añade una foto a la OT: no cambia su estado ni el almacén
   const subirFoto=o=>el("label",{class:"btn grande sec",style:"display:block;text-align:center;cursor:pointer;margin:10px 0"},["📷 Añadir foto",
-    el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await rpc("foto_add",{p_tok:S.tok,p_ot:o.id,p_data:await comprime(f)});toast("Foto guardada");}catch(er){toast(er.message);}}})]);
+    el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{await guardarFoto(o.id,await comprime(f));toast("Foto guardada");}catch(er){toast(er.message);}}})]);
   const linea=o=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>dlg(o.titulo,el("div",null,[fotoSencillo(o.habitual_id),el("p",{text:[o.descripcion,o.lugar,o.minutos_est?durTxt(o.minutos_est):""].filter(Boolean).join(" · ")}),subirFoto(o)].filter(Boolean)),[...(o.estado!=="hecha"?[{t:"✔ Hecha",fn:async()=>{await rpc("terminar_ot",{p_tok:S.tok,p_ot:o.id,p_minutos:o.minutos_est||30,p_nota:null});toast("Hecha");pinta();}}]:[]),{t:"Volver",cls:"sec"}])},
     [fotoSencillo(o.habitual_id),el("div",{class:"t",text:o.titulo}),el("div",{class:"d",text:(o.minutos_est?durTxt(o.minutos_est)+" · ":"")+(o.lugar||"")+(cubroYo(o)?" · cubres a "+cubroYo(o).split(" ")[0]:"")})].filter(Boolean));
   const pend=mias.filter(o=>o.estado!=="hecha"),hech=mias.filter(o=>o.estado==="hecha");
@@ -1315,7 +1332,7 @@ async function guardarSencillo(x,st){
   if(!completo){toast(m==="incidencia"?"Faltan la foto, la nave o el lugar":"Elige la nave");return false;}
   const p={habitual_id:h.id,hecha:true,nave:st.nave||null,lugar:m==="fijo"?(h.lugar||null):(m==="nave"?st.nave:st.lugar)};
   let r;try{r=await rpc("ot_abrir",{p_tok:S.tok,p:p});}catch(e){toast(e.message);return false;}
-  if(st.file){try{await rpc("foto_add",{p_tok:S.tok,p_ot:r.id,p_data:await comprime(st.file)});}catch(e){toast("Guardado, pero la foto no: "+e.message);}}
+  if(st.file){try{await guardarFoto(r.id,await comprime(st.file));}catch(e){toast("Guardado, pero la foto no: "+e.message);}}
   toast("Guardado");S.fecha=hoyISO();pinta();
 }
 
