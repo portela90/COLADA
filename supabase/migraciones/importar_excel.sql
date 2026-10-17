@@ -8,7 +8,7 @@
 -- =====================================================================
 create or replace function public.ots_importar(p_tok uuid, p_items jsonb, p_reparto text) returns jsonb
 language plpgsql security definer set search_path to 'public' as $$
-declare t trabajadores; i jsonb; f date; asg uuid[]; nuevo uuid; o ots; n int := 0; dup int := 0; quien jsonb := '{}'; k text; eq text;
+declare t trabajadores; i jsonb; f date; asg uuid[]; nuevo uuid; o ots; n int := 0; dup int := 0; sinp int := 0; quien jsonb := '{}'; k text; eq text;
 begin t:=_gestor(p_tok);
   if jsonb_array_length(coalesce(p_items,'[]'))>300 then raise exception 'DEMASIADAS'; end if;
   for i in select * from jsonb_array_elements(coalesce(p_items,'[]')) loop
@@ -31,7 +31,7 @@ begin t:=_gestor(p_tok);
       case when nullif(i->>'minutos_est','')::int between 1 and 1440 then (i->>'minutos_est')::int end)
     returning * into o;
     insert into ot_log(ot,quien,accion,detalle) values (o.id,t.id,'creada','Importada del Excel');
-    n := n+1;
+    n := n+1; if cardinality(o.asignados)=0 and not o.todo_equipo then sinp := sinp+1; end if;
     foreach nuevo in array o.asignados loop k := nuevo::text; quien := jsonb_set(quien, array[k], to_jsonb(coalesce((quien->>k)::int,0)+1)); end loop;
   end loop;
   -- un aviso por persona con cuántos trabajos le han tocado
@@ -39,7 +39,12 @@ begin t:=_gestor(p_tok);
     perform _avisar(jsonb_build_object('mensajes',(select jsonb_agg(jsonb_build_object('trabajadores',array[key::uuid],'tag','excel-'||_hoy(),
       'titulo','Trabajos del fin de semana','texto','Te han puesto '||value||' trabajo'||case when value::int>1 then 's' else '' end||'. Míralos en la app.')) from jsonb_each_text(quien))));
   end if;
-  return jsonb_build_object('creadas',n,'repetidas',dup);
+  -- los que no tienen persona solo los ve el encargado: se le avisa para que los reparta
+  if sinp>0 and cardinality(array_remove(_encargados(),t.id))>0 then
+    perform _avisar(jsonb_build_object('mensajes',jsonb_build_array(jsonb_build_object('trabajadores',array_remove(_encargados(),t.id),'tag','excel-enc-'||_hoy(),'url','limpieza.html',
+      'titulo','Trabajos del fin de semana para repartir','texto','Hay '||sinp||' trabajo'||case when sinp>1 then 's' else '' end||' sin persona. Asígnalos en la app.'))));
+  end if;
+  return jsonb_build_object('creadas',n,'repetidas',dup,'sin_persona',sinp);
 end $$;
 
 -- Para que la vista previa marque los que ya existen
