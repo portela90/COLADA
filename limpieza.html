@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261017233254">
+<meta name="build" content="20261018161446">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -128,6 +128,7 @@ video.cam{width:100%;border-radius:12px;background:#000;max-height:60vh}
 @media print{body>*:not(.printov){display:none!important}.printov{position:static!important;background:none!important;display:block!important}.printov .dlg{max-height:none!important;overflow:visible!important;box-shadow:none;padding:0;border-radius:0}
   .noprint{display:none!important}#printArea{grid-template-columns:repeat(3,1fr);gap:6mm}.etq{border:1px dashed #999}}
 .f input.falta{border-color:var(--bad);box-shadow:0 0 0 2px var(--badbg)}
+label:has(> input[type=file][accept^="image"])::after{content:"Solo el sitio o la máquina. Sin personas, piezas, pantallas ni documentos.";display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:4px;line-height:1.3}
 </style>
 </head>
 <body>
@@ -151,7 +152,16 @@ function toast(t){const d=el("div",{class:"toast",text:t});document.body.appendC
 async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(args||{})});
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){}
   if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(k==="SESION"){salir(true);}throw new Error(k?ERR[k]:m);}
-  if(j&&j.error){throw new Error(ERR[j.error]||j.error);}return j;}
+  if(j&&j.error){throw new Error(ERR[j.error]||j.error);}
+  if(FIRMAR.includes(fn))await firmarFotos(j);return j;}
+/* fotos del almacén privado: la base de datos da la ruta y aquí se pide un enlace firmado que caduca en 1 hora */
+const FIRMAR=["fotos_ot","fotos_datos","extra_lista","extra_ver"];
+async function firmarFotos(j){const L=Array.isArray(j)?j:(j?[j]:[]);const T=[];
+  L.forEach(o=>{if(!o||typeof o!=="object")return;if(o.ruta&&!o.data)T.push([o,"data",o.ruta]);if(o.foto_ruta&&!o.foto_url)T.push([o,"foto_url",o.foto_ruta]);});
+  for(let i=0;i<T.length;i+=100){const lote=T.slice(i,i+100);
+    try{const x=await fetch(URL_SB+"/storage/v1/object/sign/fotos",{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify({expiresIn:3600,paths:lote.map(t=>t[2])})});
+      if(!x.ok)continue;const R=await x.json();
+      lote.forEach(([o,k,ru])=>{const f=(R||[]).find(y=>y.path===ru);if(f&&f.signedURL)o[k]=URL_SB+"/storage/v1"+f.signedURL;});}catch(e){}}}
 /* fotos: van al almacén de Supabase (Storage); si algo falla, se guardan como antes, dentro de la base de datos */
 async function subirAlmacen(ruta,blob){const x=await fetch(URL_SB+"/storage/v1/object/fotos/"+ruta,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":blob.type||"image/jpeg"},body:blob});
   if(!x.ok)throw new Error("No se pudo subir la foto ("+x.status+")");}
