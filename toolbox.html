@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016000039">
+<meta name="build" content="20261018160404">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -1453,7 +1453,7 @@ async function pantallaFichas(){
   $('#w').innerHTML=`<p class="small muted" style="margin-top:0">Todo lo entregado y firmado por cada trabajador. Desde su ficha puedes sacar el expediente completo en PDF para una inspección.</p><div class="card">`+
     L.map(t=>`<div class="li" data-t="${esc(t.id)}" style="cursor:pointer"><span class="dot ${t.epis?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span>${t.activo?'':' <span class="chip">de baja</span>'}<br>
       <span class="small muted">${t.epis?`${t.epis} entrega${t.epis>1?'s':''} de EPI · última ${fmtF(t.ult_epi)}`:'Sin entregas de EPI'}${t.dni?'':' · <span style="color:var(--warn)">sin DNI</span>'}</span></span>
-      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${!t.rm_resultado?'<span class="chip warn">sin reconoc. médico</span>':t.rm_proximo&&t.rm_proximo<hoyISO()?'<span class="chip bad">reconoc. médico caducado</span>':''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
+      <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${!RM_ACTIVO?'':!t.rm_resultado?'<span class="chip warn">sin reconoc. médico</span>':t.rm_proximo&&t.rm_proximo<hoyISO()?'<span class="chip bad">reconoc. médico caducado</span>':''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
   document.querySelectorAll('[data-t]').forEach(el=>el.onclick=()=>pantallaFicha(el.dataset.t));
 }
 async function pantallaFicha(id){
@@ -1476,7 +1476,7 @@ async function pantallaFicha(id){
       <div class="li"><span class="grow small muted">Contacto de emergencia</span><b style="text-align:right">${t.emerg_nombre||t.emerg_tel?esc((t.emerg_nombre||'')+' '+(t.emerg_tel||'')):'—'}</b></div>
       <div class="li"><span class="grow small muted">Idioma</span><b>${esc(t.idioma||'—')}</b></div>
       <div class="li"><span class="grow small muted">Tallas</span><b style="text-align:right">${Object.entries(t.tallas||{}).filter(([k,v])=>v).map(([k,v])=>esc(TALLAS_N[k]||k)+' '+esc(v)).join(' · ')||'—'}</b></div>
-      <div class="li"><span class="grow small muted">Reconocimiento médico</span><span style="text-align:right">${rmTexto(t)}</span></div>
+      ${RM_ACTIVO?`<div class="li"><span class="grow small muted">Reconocimiento médico</span><span style="text-align:right">${rmTexto(t)}</span></div>`:''}
       ${avisosFicha(F).map(a=>`<div class="small" style="color:var(--warn);padding-top:8px">⚠︎ ${a}</div>`).join('')}
     </div>
     <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Formación y cursos</div><button class="btn ghost" id="ncurso">＋ Curso / certificado</button></div>
@@ -1516,8 +1516,8 @@ async function expedientePDF(F, btn){
     y+=18; t1('Empresa:',L,10,bold); t1(cfg.empresa||'',L+90,10); y+=18; t1('Centro:',L,10,bold); t1(cfg.centro||'',L+90,10);
     y+=18; t1('Fecha de alta:',L,10,bold); t1(t.fecha_alta?fmtF(t.fecha_alta):'—',L+90,10); if(t.fecha_baja){ t1('Fecha de baja:',L+230,10,bold); t1(fmtF(t.fecha_baja),L+320,10); }
     if(t.idioma){ y+=18; t1('Idioma:',L,10,bold); t1(t.idioma,L+90,10); }
-    y+=18; t1('Vigilancia salud:',L,10,bold); t1(rmPlano(t),L+90,10);
-    if(t.rm_limitacion){ y+=16; t1('Limitación laboral: '+t.rm_limitacion,L+90,9,font,rgb(0.3,0.3,0.3)); }
+    if(RM_ACTIVO){ y+=18; t1('Vigilancia salud:',L,10,bold); t1(rmPlano(t),L+90,10); }
+    if(RM_ACTIVO&&t.rm_limitacion){ y+=16; t1('Limitación laboral: '+t.rm_limitacion,L+90,9,font,rgb(0.3,0.3,0.3)); }
     const tabla=(titulo,cab,xs,filas)=>{ y+=28; sitio(40); t1(titulo,L,12,bold,NAVY); y+=8; pg.drawLine({start:{x:L,y:H-y},end:{x:R,y:H-y},thickness:1,color:NAVY}); y+=14;
       cab.forEach((c,i)=>t1(c,xs[i],8.5,bold,GRIS)); y+=6;
       if(!filas.length){ y+=12; t1('Sin registros.',L,9.5,font,GRIS); return; }
@@ -1613,6 +1613,9 @@ async function anexarCertificados(PDFLib, out, F, font, bold){
 
 // ====== DATOS DEL TRABAJADOR Y RECONOCIMIENTO MÉDICO ======
 const TALLAS_N={camiseta:'Camiseta',pantalon:'Pantalón',chaqueta:'Chaqueta',calzado:'Calzado',guantes:'Guantes'};
+/* Reconocimiento médico: OCULTO hasta que la empresa (DPO / prevención) lo autorice.
+   Para volver a mostrarlo, poner RM_ACTIVO=true. Los datos que hubiera no se borran. */
+const RM_ACTIVO=false;
 const RM_N={apto:'Apto',apto_restr:'Apto con limitaciones',no_apto:'No apto',renuncia:'Renuncia firmada'};
 function rmPlano(t){ if(!t.rm_resultado) return 'Sin datos'; return RM_N[t.rm_resultado]+(t.rm_fecha?' ('+fmtF(t.rm_fecha)+')':'')+(t.rm_proximo?' · próximo '+fmtF(t.rm_proximo):''); }
 function rmTexto(t){
@@ -1628,7 +1631,7 @@ function avisosFicha(F){
   else if(t.fecha_alta && info>t.fecha_alta) a.push(`La información de riesgos se firmó el ${fmtF(info)}, después del alta (${fmtF(t.fecha_alta)}).`);
   if(!form) a.push('No tiene firmada la formación práctica en el puesto.');
   else if(t.fecha_alta && form>sumaDias(t.fecha_alta,30)) a.push(`La formación en el puesto es del ${fmtF(form)}, más de un mes después del alta.`);
-  if(t.rm_resultado==='no_apto') a.push('Reconocimiento médico: NO APTO.');
+  if(RM_ACTIVO&&t.rm_resultado==='no_apto') a.push('Reconocimiento médico: NO APTO.');
   return a;
 }
 async function pantallaDatosTrab(t){
@@ -1645,7 +1648,7 @@ async function pantallaDatosTrab(t){
     <label class="f">Teléfono del trabajador</label><input class="inp" type="tel" id="t_tel" value="${esc(t.telefono||'')}">
     <div class="row"><div class="grow"><label class="f">Contacto de emergencia (nombre)</label><input class="inp" id="t_en" value="${esc(t.emerg_nombre||'')}"></div><div class="grow"><label class="f">Teléfono de emergencia</label><input class="inp" type="tel" id="t_et" value="${esc(t.emerg_tel||'')}"></div></div></div>
    <div class="card"><b>Tallas</b><div class="row">${Object.entries(TALLAS_N).map(([k,n])=>`<div style="width:30%;min-width:90px"><label class="f">${n}</label><input class="inp tt" data-k="${k}" value="${esc(tl[k]||'')}"></div>`).join('')}</div></div>
-   <div class="card"><b>Reconocimiento médico</b><div class="small muted">Solo el resultado de aptitud y las fechas. Nunca diagnósticos ni el motivo de una limitación.</div>
+   <div class="card"${RM_ACTIVO?'':' hidden'}><b>Reconocimiento médico</b><div class="small muted">Solo el resultado de aptitud y las fechas. Nunca diagnósticos ni el motivo de una limitación.</div>
     <label class="f">Resultado</label><select class="inp" id="t_rm"><option value="">— Sin datos —</option>${Object.entries(RM_N).map(([k,n])=>`<option value="${k}" ${t.rm_resultado===k?'selected':''}>${n}</option>`).join('')}</select>
     <div class="row"><div class="grow"><label class="f">Fecha del reconocimiento</label><input class="inp" type="date" id="t_rmf" value="${esc(t.rm_fecha||'')}"></div><div class="grow"><label class="f">Próximo reconocimiento</label><input class="inp" type="date" id="t_rmp" value="${esc(t.rm_proximo||'')}"></div></div>
     <div class="row" style="margin-top:6px"><button class="btn ghost" id="t_rm1">Próximo: +1 año</button></div>
