@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261015171149"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261018200709"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1169,7 +1169,7 @@ function camposEje(g,pinta){const num=(id,lab,k)=>fld(lab,inp(id,g[k],z=>{const 
 function cargarPdfJs(){if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
   s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";ok(window.pdfjsLib);};s.onerror=()=>ko(new Error("No se pudo cargar el lector de PDF"));document.head.appendChild(s);});}
 async function baseDePlano(doc){let bl;if(doc.blobFn)bl=await doc.blobFn();else{const u=await (window.urlFirmada?window.urlFirmada(doc.id):fotoUrl(doc.id));if(!u)throw new Error("No se pudo abrir el plano");bl=await (await fetch(u)).blob();}
-  if(/pdf/i.test(bl.type||doc.tipo||"")||/\.pdf$/i.test(doc.nombre||"")){const L=await cargarPdfJs();const pdf=await L.getDocument({data:await bl.arrayBuffer()}).promise;const pg=await pdf.getPage(1);
+  if(/pdf/i.test(bl.type||doc.tipo||"")||/\.pdf$/i.test(doc.nombre||"")){const L=await cargarPdfJs();const pdf=await L.getDocument({isEvalSupported:false,data:await bl.arrayBuffer()}).promise;const pg=await pdf.getPage(1);
     const v0=pg.getViewport({scale:1});const sc=Math.min(3,3000/Math.max(v0.width,v0.height));const vp=pg.getViewport({scale:sc});const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
     const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:cx,viewport:vp}).promise;return c;}
   return await createImageBitmap(bl);}
@@ -2108,7 +2108,7 @@ async function importarExcel(file){try{await cargarXLSX();}catch(e){toast("No se
         p.id=a.id;});
       const acum={};plan.filter(p=>p.cant!=null).forEach(p=>{const k=p.id+"|"+p.alm;const t=stockDe(p.id,p.alm);movs.push({f:hy,tipo:"ajuste",art:p.id,alm:p.alm,cant:Math.round((p.cant-t)*1000)/1000,contado:p.cant,teorico:t,nota:"Importado desde Excel"});});
       try{await saveCat();if(movs.length)await addMovs(movs);toast("Importados "+plan.length+" artículos");}catch(e){toast("No se pudo importar");return false;}render(true);}}]);}
-function cargarXLSX(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";sc.onload=()=>res();sc.onerror=()=>rej(new Error("no se pudo cargar el generador de Excel"));document.head.appendChild(sc);});}
+function cargarXLSX(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";sc.onload=()=>res();sc.onerror=()=>rej(new Error("no se pudo cargar el generador de Excel"));document.head.appendChild(sc);});}
 async function exportarExcel(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}
   btn.disabled=true;const t0=btn.textContent;btn.textContent="Preparando…";
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();

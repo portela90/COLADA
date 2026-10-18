@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261018161446">
+<meta name="build" content="20261018200709">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
@@ -170,7 +170,7 @@ async function vExcel(v){
   v.appendChild(el("label",{class:"btn grande",style:"text-align:center;cursor:pointer"},["📥 Subir el Excel del fin de semana",inpF]));
   v.appendChild(el("div",{id:"exbox"}));}
 async function leerExcel(file,v){const box=$("exbox");box.textContent="";box.appendChild(el("div",{class:"empty",text:"Leyendo «"+file.name+"»…"}));
-  try{await cargaJS("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","XLSX");
+  try{await cargaJS("https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","XLSX");
     const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
     if(!EX.trab)EX.trab=await rpc("trabajadores_gestor",{p_tok:S.tok});
     EX.wb=wb;EX.hoja=wb.SheetNames.find(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,blankrows:false}).length>1)||wb.SheetNames[0];EX.nombre=file.name;EX.cab=null;EX.map=null;EX.sab=null;EX.sabFijo=false;EX.sabDelExcel=false;

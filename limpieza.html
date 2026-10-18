@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261018161446">
+<meta name="build" content="20261018200709">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -662,7 +662,7 @@ function bloqueRepetidos(O,dias){const L=problemasRepetidos(O);
 async function cargaLib(urls,listo,nom){if(listo())return;for(const u of urls){try{await new Promise((ok,ko)=>{const s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});if(listo())return;}catch(e){}}throw new Error("No se pudo cargar "+nom+". Revisa internet.");}
 const libPDF=async()=>{await cargaLib(["https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"],()=>!!window.jspdf,"el PDF");
   await cargaLib(["https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js","https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"],()=>!!window.jspdf.jsPDF.API.autoTable,"las tablas del PDF");};
-const libXLSX=()=>cargaLib(["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"],()=>!!window.XLSX,"el Excel");
+const libXLSX=()=>cargaLib(["https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"],()=>!!window.XLSX,"el Excel");
 const lunesDe=f=>{const d=new Date(f+"T12:00:00");return sumaD(f,-((d.getDay()+6)%7));};
 const fDM=f=>f.slice(8,10)+"/"+f.slice(5,7);const fDMA=f=>fDM(f)+"/"+f.slice(0,4);
 const numSemana=f=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+3-((d.getDay()+6)%7));const y=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-y)/864e5-3+((y.getDay()+6)%7))/7);};
@@ -1033,7 +1033,7 @@ const limpio=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[
 async function hacerCopia(info){const msg=el("p",{class:"hint",style:"font-size:15px",text:"Preparando…"});const bar=el("div",{class:"bar"},el("i",{style:"width:0%"}));
   const cerrar=dlg("Haciendo copia",el("div",null,[msg,bar,el("p",{class:"hint",text:"No cierres la app hasta que termine."})]),[]);
   const pr=(t,p)=>{msg.textContent=t;bar.firstChild.style.width=Math.round(p)+"%";};
-  try{await Promise.all([cargaJS("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","JSZip"),cargaJS("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","XLSX")]);
+  try{await Promise.all([cargaJS("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","JSZip"),cargaJS("https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","XLSX")]);
     pr("Leyendo trabajos…",3);const [O,F]=await Promise.all([rpc("ots_export",{p_tok:S.tok}),rpc("fotos_lista",{p_tok:S.tok})]);
     const zip=new JSZip();const nomF={},cuenta={};
     F.forEach(f=>{const b=f.fecha+"_"+limpio(f.titulo);cuenta[b]=(cuenta[b]||0)+1;nomF[f.id]="fotos/"+f.fecha.slice(0,7)+"/"+b+"_"+cuenta[b]+".jpg";});
