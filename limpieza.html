@@ -460,7 +460,13 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
         el("span",{style:"flex:1",text:"🚫 "+x.ausente_n+" · "+(x.motivo||"Falta")+(x.hasta!==x.desde?" hasta "+fCorta(x.hasta):"")}),
         el("span",{class:"pill "+(x.sustituto?"ok":"bad"),text:x.sustituto?"lo cubre "+x.sustituto_n.split(" ")[0]:"sin cubrir"})])))]));
       const SA=D.filter(sinAsignar);if(SA.length)box.appendChild(el("div",{class:"card",style:"border-color:var(--warn)"},[el("div",{class:"hd"},el("h2",{text:"Para repartir ("+SA.length+")"})),el("p",{class:"hint",style:"padding:0 14px",text:"Solo los ves tú. Toca «Asignar» para dárselo a alguien."}),SA.map(o=>tarjeta(o,re))]));}
-    AU.filter(x=>x.sustituto===S.yo.id).forEach(x=>box.appendChild(el("div",{class:"aviso"},["Hoy haces también los trabajos de "+x.ausente_n,el("small",{text:x.motivo&&x.motivo!=="Horas extra"?"Motivo: "+x.motivo:"Te salen abajo con su nombre."})])));}
+    AU.filter(x=>x.sustituto===S.yo.id).forEach(x=>box.appendChild(el("div",{class:"aviso"},["Hoy haces también los trabajos de "+x.ausente_n,el("small",{text:x.motivo&&x.motivo!=="Horas extra"?"Motivo: "+x.motivo:"Te salen abajo con su nombre."})])));
+    /* carga del que cubre: sus trabajos propios + los de la persona que falta */
+    if(AU.some(x=>x.sustituto===S.yo.id)){const sum=L=>L.reduce((t,o)=>t+(o.minutos_est||0),0);
+      const propios=D.filter(o=>!o.todo_equipo&&(o.nombres||[]).includes(S.yo.nombre)&&!(o.cubre||[]).some(c=>c.ausente===S.yo.nombre&&c.sustituto)),
+        cubiertos=D.filter(o=>(o.cubre||[]).some(c=>c.sustituto===S.yo.nombre));
+      const tp=sum(propios),tc=sum(cubiertos);
+      if(tp+tc>0)box.appendChild(el("div",{class:"aviso"},["Hoy tienes "+durTxt(tp+tc)+" de trabajo: "+durTxt(tp)+" tuyos y "+durTxt(tc)+" de los que cubres.",el("small",{text:"Si no te da tiempo, avisa a tu encargado para que reparta tus trabajos propios."})]));}}
   if(Af.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Atrasadas ("+Af.length+")"})]),Af.map(o=>tarjeta(o,re))]));
   const vis=(admin||esEnc())?Df.filter(o=>!sinAsignar(o)):Df;
   const cur=vis.filter(o=>o.estado==="en_curso"),pend=vis.filter(o=>o.estado==="pendiente"),hechas=vis.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
