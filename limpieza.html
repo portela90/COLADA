@@ -1115,7 +1115,7 @@ async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("ho
   const fila=r=>el("div",{class:"ot"},[el("div",{class:"t",text:r.nombre}),el("div",{class:"d",text:"Horario: "+r.hor}),
     el("div",{class:"row"},[fld("Horas trabajadas",inp(r.tra,v=>{r.tra=v;r.cambio=true;},{inputmode:"decimal"})),fld("De ellas, fuera de presupuesto",inp(r.fu,v=>r.fu=v,{inputmode:"decimal"}))]),
     fld("Extra a mano (opcional)",inp(r.em,v=>r.em=v,{inputmode:"decimal"})),
-    fld("Motivo de las horas fuera de presupuesto o extra (para tu jefa)",inp(r.nota,v=>r.nota=v)),
+    fld("Motivo de las horas fuera de presupuesto o extra (para tu jefa). Obligatorio si pones horas",inp(r.nota,v=>r.nota=v)),
     fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
   const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo que pase de sus horas normales cuenta como extra festivo. ":"")+"«Extra a mano»: horas que se pagan como extra. Lo que pase de 35 h a la semana va a la bolsa sola, y un día libre sin baja ni vacaciones resta de la bolsa. "+"Aparecen sus horas de horario (en festivo, 0 h). Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
   dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
@@ -1123,6 +1123,7 @@ async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("ho
       if(fa&&tra==null)tra=0;
       if((tra!=null&&(tra<0||tra>24))||fu<0||fu>24){toast("Revisa las horas de "+r.nombre);return false;}
       if(tra!=null&&fu>tra){toast("Lo de fuera de presupuesto no puede ser más que lo trabajado ("+r.nombre+")");return false;}
+      if((fu>0||(numH(r.em)||0)>0)&&!(r.nota||"").trim()){toast("Escribe el motivo de las horas fuera de presupuesto o extra ("+r.nombre+")");return false;}
       items.push({id:r.id,trabajadas:(r.cambio||fa)?tra:null,fuera:fu,falta:fa,nota:null,extra_mano:numH(r.em),banco:null,nota:(r.nota||"").trim()||null});}
     try{await rpc("horas_dia_guardar",{p_tok:S.tok,p_fecha:f,p_items:items});}catch(e){toast(e.message);return false;}
     toast("Guardado");re();}}]);}
