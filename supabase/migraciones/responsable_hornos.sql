@@ -18,3 +18,9 @@ grant execute on function public.resp_hornos_yo(uuid) to anon, authenticated;
 --   from jsonb_array_elements_text(p->'asignados') x; -> ... x where t.rol='admin' or x::uuid=(select ve from limp_resp_hornos where trabajador=t.id);
 -- Pendiente a mano: quitarlo de encargados para que no tenga permisos de encargado:
 --   delete from limp_encargados where trabajador='b169322b-fee1-4475-b2cb-cee2581b6961';
+
+-- Ampliación (2026-10-20): el responsable puede asignar a varios operarios de hornos (Juan José y Freddy).
+-- Aplicado a mano: tabla limp_resp_hornos_op (resp, operario); _ve y ot_abrir miran esa tabla en vez de limp_resp_hornos.ve;
+-- resp_hornos_yo devuelve la lista {operarios:[...]}.
+create table if not exists public.limp_resp_hornos_op (resp uuid not null references public.trabajadores(id), operario uuid not null references public.trabajadores(id), primary key (resp, operario));
+insert into public.limp_resp_hornos_op(resp, operario) values ('b169322b-fee1-4475-b2cb-cee2581b6961','6661e57e-a053-41c2-8c3c-65bc712c6c4d'),('b169322b-fee1-4475-b2cb-cee2581b6961','6ca399ac-ff85-42d7-970a-ecd8347dbfb3') on conflict do nothing;
