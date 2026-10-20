@@ -546,13 +546,15 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
 /* tareas habituales: no tienen día fijo, pero se hacen a menudo */
 async function formHabitual(h0,re){await trabajadores().catch(()=>{});const h=Object.assign({activo:true},JSON.parse(JSON.stringify(h0)));const bot=[{t:"Cancelar",cls:"sec"}];
   const quien=chipsTrab((TRAB||[]).filter(w=>w.activo),h.solo_para||[],true);
+  /* grupo: limpieza o hornos (cada grupo ve solo sus tareas) */
+  h.grupo=h.grupo||"limpieza";const grp=el("div",{class:"seg sel"});const pg=()=>{grp.textContent="";[["limpieza","🧽 Limpieza"],["hornos","🔥 Hornos"]].forEach(([k,t])=>grp.appendChild(el("button",{type:"button","aria-pressed":String(h.grupo===k),text:t,onclick:()=>{h.grupo=k;pg();}})));};pg();
   if(h.id)bot.push({t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar esta tarea habitual? Los trabajos ya hechos se conservan."))return false;await rpc("habitual_borrar",{p_tok:S.tok,p_id:h.id});HAB=null;toast("Borrada");re();}});
   bot.push({t:"Guardar",fn:async()=>{if(!(h.titulo||"").trim()){toast("Pon el nombre de la tarea");return false;}
-    await rpc("habitual_guardar",{p_tok:S.tok,p:{id:h.id||null,titulo:h.titulo,lugar:h.lugar,descripcion:h.descripcion,minutos_est:h.minutos_est||null,activo:h.activo,solo_para:quien.val()}});HAB=null;toast("Guardada");re();}});
+    await rpc("habitual_guardar",{p_tok:S.tok,p:{id:h.id||null,titulo:h.titulo,lugar:h.lugar,descripcion:h.descripcion,minutos_est:h.minutos_est||null,activo:h.activo,solo_para:quien.val(),grupo:h.grupo}});HAB=null;toast("Guardada");re();}});
   dlg(h.id?"Editar tarea habitual":"Nueva tarea habitual",el("div",null,[el("p",{class:"hint",text:"Sale como botón al abrir una OT. Al marcarla como hecha se apunta este tiempo aunque no hayan pulsado «Empezar»."}),
     fld("Nombre",inp(h.titulo,v=>h.titulo=v,{placeholder:"p. ej. Vaciar contenedor de viruta"})),fld("Tiempo que lleva hacerla",campoTiempo(h.minutos_est,v=>h.minutos_est=v)),
     fld("Dónde (opcional)",inp(h.lugar,v=>h.lugar=v)),fld("Descripción (opcional)",area(h.descripcion,v=>h.descripcion=v)),
-    fld("¿Quién la hace? (si no marcas a nadie, la ve todo el mundo)",quien),
+    fld("¿De qué grupo es?",grp),fld("¿Quién la hace? (si no marcas a nadie, la ve todo el mundo de su grupo)",quien),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:h.activo,onchange:e=>h.activo=e.target.checked}),"Activa (si la quitas, deja de salir)"])]),bot);}
 /* filtros del panel del jefe */
 const ESTF=[["","Todos los estados"],["pendiente","Por hacer"],["en_curso","En curso"],["hecha","Hechas"],["no_hecha","No se pudieron"]];
