@@ -518,7 +518,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
-    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:o.elegir&&!hecha?chQ.val():null})});for(const d of fotos)await guardarFoto(r.id,d);
+    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});for(const d of fotos)await guardarFoto(r.id,d);
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"OT abierta y asignada al del relevo y nave":"OT abierta: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"OT abierta y asignada":o.yo||admin?"OT abierta y apuntada a tu nombre":"OT abierta: el jefe la asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
@@ -528,6 +528,9 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const relRow=admin?el("div",{class:"row"},[fld("Relevo",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),"",v=>o.turno=v)),fld("Nave",sel([["","—"],["Nave 1","Nave 1"],["Nave 2","Nave 2"]],"",v=>o.nave=v))]):null;if(relRow)relRow.hidden=true;
   /* operarios: pantalla sencilla (sin «quién lo hace», sin «dónde» aparte: la zona es el sitio; detalles y foto plegados) */
   const sim=!admin;
+  /* responsable de hornos: puede dar la OT a uno de sus operarios de hornos */
+  let asgR=(S.resp&&S.resp.operarios[0])?S.resp.operarios[0].id:null;
+  const quienR=(S.resp&&sim)?fld("¿Quién lo hace?",(()=>{const c=el("div",{class:"chips"});const pc=()=>{c.textContent="";S.resp.operarios.forEach(x=>c.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(asgR===x.id),text:x.nombre,onclick:()=>{asgR=x.id;pc();}})));};pc();return c;})()):null;
   const fotoBtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["📷 Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]);
   const urgente=fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x));
   /* incidencias frecuentes: un toque rellena qué ha pasado y la urgencia */
@@ -535,7 +538,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const incBox=el("div",{class:"chips",style:"margin:-4px 0 10px"},INC_FREC.map(([t,u])=>el("button",{type:"button",class:"chip",text:t+(u?" ⚠":""),onclick:()=>{hSel=null;o.habitual_id=null;ph();o.titulo=t;tit.value=t;o.urgente=u;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===(u?1:0))));marcaLug();}})));
   if(sim)fZ.firstChild.textContent="¿Dónde?";
   const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",area("",x=>o.descripcion=x)),fotoBtn,fbox]);
-  const cuerpo=sim?[fld("Lo más frecuente",incBox),hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,urgente,masOp]
+  const cuerpo=sim?[fld("Lo más frecuente",incBox),hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,quienR,urgente,masOp]
     :[fld("Lo más frecuente",incBox),hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
       relRow,fld("Detalles (opcional)",area("",x=>o.descripcion=x)),fotoBtn,fbox];
   dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"✔ Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
