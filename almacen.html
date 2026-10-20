@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261018200709"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261020105354"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -565,7 +565,7 @@ function vRes(v){v.appendChild(el("div",{class:"acciones"},[el("button",{type:"b
     const cant=x.cant!=null?x.cant:f.falta;if(cant>0)bajar.push(Object.assign({l,k},f,{falta:cant}));}));
   {const nq=Object.keys(okBajar()).length;if(nq)T("info",nq+" artículo"+(nq===1?"":"s")+" quitado"+(nq===1?"":"s")+" de «Bajar a planta»","Vuelven solos si se gasta más. Si quieres que vuelvan a contar desde ya, pulsa el botón.","Volver a mostrar",()=>confirmar("Volver a mostrar",Object.keys(okBajar()).map(k=>{const[l,id]=k.split("|");const a=art(id),al=almById(l);return(a?a.desc:"?")+" · "+(al?corto(al):"?");}).join(", "),"Mostrar todos",async()=>{cat.bajarOk={};await saveCat();render(true);toast("Vuelven a contar todos");}));}
   if(bajar.length)T("warn","Bajar "+bajar.length+" artículos a planta","A "+[...new Set(bajar.map(f=>corto(f.l)))].join(", "),"Reponer",ir("repo",()=>{draft.rv="hoy";render(true);}),bajarEditor(bajar));
-  const pend=ejePend();if(pend.length)T("bad",pend.length+(pend.length===1?" eje quitado":" ejes quitados")+" sin número",pend.map(p=>p.maq).join(", "),"Poner número",ir("ejes"));
+  const pend=ejePend();if(pend.length)T("bad",pend.length+(pend.length===1?" eje":" ejes")+" en cuarentena sin número",pend.map(p=>p.maq).join(", "),"Poner número",ir("ejes"));
   const prep=ejes.filter(e=>e.estado==="preparado");if(prep.length)T("warn",prep.length+(prep.length===1?" eje preparado":" ejes preparados")+" sin enviar",prep.map(e=>e.cod).slice(0,6).join(", "),"Enviar",()=>{irA("ejes");setTimeout(envioMultiple,0);});
   const ejP=R.E.L.filter(x=>x.pedir>0||x.faltan>0);if(ejP.length)T(ejP.some(x=>x.faltan)?"bad":"warn","Pedir "+ejP.reduce((t,x)=>t+x.pedir,0)+" ejes al taller",ejP.map(x=>x.m.cod+(x.pedir?" ×"+x.pedir:"")+(x.faltan?" (faltan "+x.faltan+")":"")).join(", "),"Ver previsión",ir("repo",()=>{draft.rv="prev";render(true);}));
   const prevP=R.arts.filter(x=>x.pedir>0&&!(x.a.pedido));if(prevP.length)T("info","Pedido previsto hasta fin de "+nomMes(S.mesSig)+": "+prevP.length+" artículos",prevP.slice(0,4).map(x=>x.a.desc+" "+fmtN(x.pedir)).join(", ")+(prevP.length>4?"…":""),"Ver previsión",ir("repo",()=>{draft.rv="prev";render(true);}));
@@ -768,7 +768,7 @@ const INF_ALM=[
     const L=["Reparados: "+reps.length+" · coste "+eur(c),"Recuperados en planta: "+recu.length+" · ahorro "+eur(ah)];
     if(!(cat.modelos||[]).some(m=>+m.precioRep>0))L.push("(Faltan los precios de reparación: Ejes → Precios de reparación)");
     if(o.mod){const g={};reps.forEach(r=>{const k=modeloDeEje(r.eje);const x=g[k]=g[k]||{n:0,c:0};x.n++;x.c+=costeRep(r).v;});Object.keys(g).sort().forEach(k=>L.push("- "+k+": "+g[k].n+" reparados · "+eur(g[k].c)));}return L;}},
- {id:"e_pend",grupo:"Ejes",nom:"Ejes quitados sin número",per:false,texto:()=>{const L=ejePend();return L.length?L.map(p=>"- "+p.maq+" · "+((p.mods||[]).join("/")||"?")+" · "+(p.motivo===AGARR?"pistón agarrotado":"rotura")+" el "+fmtF(p.f)):["Ninguno."];}},
+ {id:"e_pend",grupo:"Ejes",nom:"Ejes en cuarentena (sin número)",per:false,texto:()=>{const L=ejePend();return L.length?L.map(p=>"- "+p.maq+" · "+((p.mods||[]).join("/")||"?")+" · "+motTxt(p).toLowerCase()+" el "+fmtF(p.f)):["Ninguno."];}},
  {id:"v_ped",grupo:"Previsión",nom:"Pedido previsto hasta fin del mes siguiente",per:false,opts:[["rango","Previsión y stock",true]],
   texto:(P,o)=>{const R=prevTodo();const A=R.arts.filter(x=>x.pedir>0);return A.length?A.map(x=>"- "+x.a.desc+": "+iN(x.pedir)+" "+x.a.ud+(o.rango?" (previsión "+nomMes(R.S.mesSig)+" "+fmtR(x.mes.lo,x.cont)+"–"+fmtR(x.mes.hi,x.cont)+", hay "+iN(x.st)+")":"")):["Todo cubierto hasta final de "+nomMes(R.S.mesSig)+"."];},
   hoja:()=>{const R=prevTodo();return{nombre:"Pedido previsto",filas:R.arts.filter(x=>x.pedir>0).map(x=>({"Artículo":x.a.desc,"Pedir":x.pedir,"Unidad":x.a.ud,"Stock":x.st,"Previsión mín":x.mes.lo,"Previsión máx":x.mes.hi,"Mínimo sugerido":x.min}))};}},
@@ -2267,6 +2267,21 @@ const pesoPend=p=>p.motivo===AGARR?1-tasaRecup():1;
 const ejePend=()=>cat.ejePend||[];
 const modsMaq=cod=>(cat.modelos||[]).filter(m=>inyDe(m).includes(cod));
 function pendDeGrupo(m){const cs=grupoEje(m).map(x=>x.cod);return ejePend().filter(p=>(p.mods||[]).some(c=>cs.includes(c)));}
+const MOT_CUAR=[["ROTURA","Rotura de pistón"],[AGARR,"Pistón agarrotado"],["POSTIZO ROTO","Postizo roto"],["FUGA DE AGUA","Fuga de agua"],["OTRO","Otro"]];
+const motTxt=p=>p.motivo===AGARR?"Pistón agarrotado":(!p.motivo||p.motivo==="ROTURA")?"Rotura de pistón":p.motivo==="OTRO"?(p.nota||"Otro motivo"):cap(p.motivo);
+/* poner a mano un eje en cuarentena sin saber su número */
+function formCuarentena(maqId){const m0=maqId?cat.maquinas.find(x=>x.id===maqId):null;const f={maq:m0?m0.id:"",mot:"ROTURA",f:hoy(),nota:""};
+  const info=el("p",{class:"hint"});const pintaInfo=()=>{const m=cat.maquinas.find(x=>x.id===f.maq);if(!m){info.textContent="";return;}const ms=modsMaq(m.cod);
+    info.textContent=ms.length?"Eje de esa máquina: "+ms.map(x=>x.ref+" ("+x.cod+")").join(" o ")+". Contará un eje menos en planta.":"Esta máquina no tiene modelo de eje en su ficha: se apunta igual, pero no descuenta de ningún modelo.";};
+  const motB=el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"});const pintaMot=()=>{motB.textContent="";MOT_CUAR.forEach(([k,t])=>motB.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(f.mot===k),text:t,onclick:()=>{f.mot=k;pintaMot();}})));};pintaMot();pintaInfo();
+  dlg("Poner eje en cuarentena",[el("p",{class:"sub",text:"Sin saber todavía qué eje es. Cuando lo sepas, en Ejes › Ejes en cuarentena pones su número y lo preparas para enviar."}),
+    fld("Inyectora",sel("cuM",maqOpts(),f.maq,v=>{f.maq=v;pintaInfo();},"Elige…")),info,
+    el("div",{style:"display:flex;flex-direction:column;gap:6px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:"Motivo"}),motB]),
+    el("div",{class:"row"},[fld("Fecha",inp("cuF",f.f,v=>f.f=v,{type:"date"})),fld("Nota (opcional)",inp("cuN",f.nota,v=>f.nota=v,{autocomplete:"off",placeholder:"qué le pasa"}))])],
+   [{t:"Cancelar",cls:"sec"},{t:"Poner en cuarentena",fn:async()=>{const m=cat.maquinas.find(x=>x.id===f.maq);if(!m){toast("Elige la inyectora");return false;}
+     if(f.mot==="OTRO"&&!f.nota.trim()){toast("Escribe el motivo en la nota");return false;}
+     cat.ejePend=ejePend().concat([{id:uid(),f:f.f||hoy(),maq:m.cod,mods:modsMaq(m.cod).map(x=>x.cod),pist:null,diam:null,motivo:f.mot,nota:f.nota.trim()||null,manual:true}]);
+     try{await saveCat();toast("Eje de la "+m.cod+" en cuarentena");}catch(e){return false;}render(true);}}]);}
 const QUEDA_EJE=DESTINOS[1];/* «queda puesto en el eje»: el eje no se puede usar hasta sacarle el pistón */
 async function ejePendDe(recs){const nue=(recs||[]).filter(r=>r&&r.maq&&(MOT_EJE.includes(r.motivo)||r.dest===QUEDA_EJE)).map(r=>{const cod=maqN(r.maq);return{id:uid(),f:r.f,maq:cod,mods:modsMaq(cod).map(m=>m.cod),pist:r.id||null,diam:r.diam||null,motivo:MOT_EJE.includes(r.motivo)?r.motivo:AGARR};});
   if(!nue.length)return;cat.ejePend=ejePend().concat(nue);await saveCat();setTimeout(()=>toast("Eje de "+nue.map(p=>p.maq).join(", ")+" apuntado para preparar (falta poner su número)"),2700);}
@@ -2276,22 +2291,22 @@ async function resolverPend(ejeCod,pendId){const L=ejePend();if(!L.length)return
 async function quitarPendPist(pistId){if(!pistId||!ejePend().some(p=>p.pist===pistId))return;cat.ejePend=ejePend().filter(p=>p.pist!==pistId);await saveCat();}
 function prepararPend(p){const cs=new Set();(p.mods||[]).forEach(c=>{const m=modelo(c);if(m)grupoEje(m).forEach(x=>cs.add(x.cod));});
   const lista=ejes.filter(e=>e.estado==="planta"&&(!cs.size||cs.has(e.mod))).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
-  const ag=p.motivo===AGARR;const puesto=ejeEnMaq(p.maq);const f={eje:puesto?puesto.cod:"",desp:ag?"":"ROTURA DE PISTÓN"};
+  const ag=p.motivo===AGARR;const puesto=ejeEnMaq(p.maq);const f={eje:puesto?puesto.cod:"",desp:ag?"":(!p.motivo||p.motivo==="ROTURA")?"ROTURA DE PISTÓN":p.motivo==="OTRO"?String(p.nota||"").toUpperCase():p.motivo+(p.nota?" ("+String(p.nota).toUpperCase()+")":"")};
   const cuenta={};todasRep().forEach(r=>{const d=String(r.desp||"").trim().toUpperCase();if(d&&d!=="—")cuenta[d]=(cuenta[d]||0)+1;});
   const dlD=el("datalist",{id:"lPendD"},Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,40).map(d=>el("option",{value:d})));const dl=el("datalist",{id:"lPendE"},lista.map(e=>el("option",{value:e.cod})));
-  dlg((ag?"Eje con pistón agarrotado de la ":"Eje roto de la ")+p.maq,[el("p",{class:"sub",text:"Cambio de pistón por "+(ag?"pistón agarrotado":"rotura")+" el "+fmtF(p.f)+(p.diam?" ("+p.diam+")":"")+". Modelo: "+((p.mods||[]).map(c=>{const m=modelo(c);return m?m.ref+" ("+c+")":c;}).join(" o ")||"no se sabe (la máquina no tiene eje en la ficha)")+"."}),
+  dlg((p.manual?"Eje en cuarentena de la ":ag?"Eje con pistón agarrotado de la ":"Eje roto de la ")+p.maq,[el("p",{class:"sub",text:(p.manual?"En cuarentena desde el "+fmtF(p.f)+" por "+motTxt(p).toLowerCase():"Cambio de pistón por "+(ag?"pistón agarrotado":"rotura")+" el "+fmtF(p.f)+(p.diam?" ("+p.diam+")":""))+". Modelo: "+((p.mods||[]).map(c=>{const m=modelo(c);return m?m.ref+" ("+c+")":c;}).join(" o ")||"no se sabe (la máquina no tiene eje en la ficha)")+"."}),
     puesto?el("p",{class:"hint",text:"La app tenía apuntado que en la "+p.maq+" estaba el "+puesto.cod+". Cámbialo si no es ese."}):null,fld("Número del eje que se ha quitado",inp("pdE",f.eje,v=>f.eje=v.trim(),{list:"lPendE",autocomplete:"off",placeholder:lista[0]?"p. ej. "+lista[0].cod:"código del eje"})),dl,
     fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off",list:"lPendD",placeholder:"p. ej. NO SE PUEDE SACAR EL PISTÓN, FUGA DE AGUA, POROS…"})),dlD],
     [{t:"Cancelar",cls:"sec"},{t:"Preparar para enviar",fn:async()=>{const e=ejes.find(x=>norm(x.cod)===norm(f.eje));if(!e){toast("Ese eje no existe");return false;}
       if(e.estado!=="planta"){toast(e.cod+" no está en planta");return false;}if(!f.desp.trim()){toast("Pon el desperfecto");return false;}
       await addRep({eje:e.cod,desp:f.desp.trim().toUpperCase(),alta:p.f||hoy(),env:null},p.id);await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}}]);}
 function tarjetaPend(){const L=ejePend();if(!L.length)return null;
-  return el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Ejes quitados sin número ("+L.length+")"})),
+  return el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Ejes en cuarentena ("+L.length+")"})),
     el("div",{class:"lst"},L.slice().sort((a,b)=>a.f.localeCompare(b.f)).map(p=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(p.motivo===AGARR?"warn":"bad")}),
-      el("div",{class:"ppal"},[el("div",{class:"t1",text:p.maq+" · "+((p.mods||[]).join(" / ")||"modelo sin saber")}),el("div",{class:"t2",text:(p.motivo===AGARR?"Pistón agarrotado":"Rotura de pistón")+" el "+fmtF(p.f)+" · ya se ha puesto otro eje de planta"})]),
+      el("div",{class:"ppal"},[el("div",{class:"t1",text:p.maq+" · "+((p.mods||[]).join(" / ")||"modelo sin saber")}),el("div",{class:"t2",text:motTxt(p)+(p.nota&&p.motivo!=="OTRO"?" · "+p.nota:"")+" · desde el "+fmtF(p.f)+(p.manual?" · sin número todavía":" · ya se ha puesto otro eje de planta")})]),
       el("div",{style:"display:flex;gap:6px;width:100%;margin-top:4px;justify-content:flex-end"},[el("button",{type:"button",class:"btn sec peq",text:p.motivo===AGARR?"Recuperado en planta":"No hay que repararlo",onclick:()=>confirmar(p.motivo===AGARR?"¿Recuperado en planta?":"¿Quitar de la lista?",p.motivo===AGARR?"El eje de la "+p.maq+" se ha recuperado y vuelve a contar como disponible en planta.":"El eje de la "+p.maq+" no se manda a reparar.",p.motivo===AGARR?"Recuperado":"Quitar",async()=>{if(p.motivo===AGARR){await contarAgarr("rec");cat.ejeRecup=ejeRecup().concat([{id:uid(),f:hoy(),fPist:p.f,maq:p.maq,mods:p.mods||[]}]);}cat.ejePend=ejePend().filter(x=>x.id!==p.id);await saveCat();render(true);})}),
         el("button",{type:"button",class:"btn peq",text:"Poner número y preparar",onclick:()=>prepararPend(p)})])]))),
-    el("p",{class:"hint",style:"padding:8px 14px",text:"Salen solos al apuntar un cambio de pistón por rotura, por pistón agarrotado o cuando el pistón queda puesto en el eje. Mientras estén aquí cuentan como un eje menos en planta. De los agarrotados se recupera en planta un "+Math.round(tasaRecup()*100)+" % (se va ajustando con lo que marcas)."})]);}
+    el("p",{class:"hint",style:"padding:8px 14px",text:"Los pones tú con «Poner eje en cuarentena» o salen solos al apuntar un cambio de pistón por rotura, por pistón agarrotado o cuando el pistón queda puesto en el eje. Mientras estén aquí cuentan como un eje menos en planta. De los agarrotados se recupera en planta un "+Math.round(tasaRecup()*100)+" % (se va ajustando con lo que marcas)."})]);}
 async function updReps(list){const g={};list.forEach(([r,p])=>{(g[r.y]=g[r.y]||[]).push([r.id,p]);});
   for(const y of Object.keys(g)){const ref=db.doc("rep/"+y),sn=await ref.get();if(!sn.exists)continue;const m=new Map(g[y]);
     await ref.set({items:(sn.data().items||[]).map(x=>m.has(x.id)?Object.assign({},x,m.get(x.id)):x)});}}
@@ -2306,7 +2321,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   v.appendChild(el("div",{class:"acciones"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
-    el("button",{type:"button",class:"btn sec",text:"Revisar ejes",onclick:()=>revisionEjes()}),
+    el("button",{type:"button",class:"btn sec",text:"Poner eje en cuarentena",onclick:()=>formCuarentena()}),el("button",{type:"button",class:"btn sec",text:"Revisar ejes",onclick:()=>revisionEjes()}),
     el("button",{type:"button",class:"btn sec",text:"Nuevo eje",onclick:()=>formEje()})]));
   const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
   v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
@@ -3036,6 +3051,7 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
     el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"},docs.length?docs.map(d=>docThumb(d,async()=>{const x=maqDe(m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaIny(m);})):[el("p",{class:"hint",text:"Placa de la máquina, manual, fotos del horno o de la canaleta…"})]),
     subirDoc(async d=>{const x=maqDe(m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Guardado");cerrarDlgs();fichaIny(m);},"Subir foto o documento (PDF o imagen)")],
    [{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},
+    {t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
     {t:"Cambio de pistón",cls:"sec",fn:()=>{Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});setTimeout(()=>{irA("pist");const f=document.getElementById("pForm");if(f)f.scrollIntoView();},0);}},
     {t:"Cerrar",cls:"sec"}]);
   const bx=document.querySelectorAll(".dlg");if(bx.length)bx[bx.length-1].style.maxWidth="680px";}
