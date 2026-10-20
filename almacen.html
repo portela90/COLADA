@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261020105354"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261020132606"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -548,7 +548,7 @@ function ajBajarHoy(){const B=cat.bajarAj;return(B&&B.dia===hoy()&&B.m)?B.m:{};}
 function guardaBajar(k,val){const hy=hoy();const cur=cat.bajarAj&&cat.bajarAj.dia===hy?cat.bajarAj.m:{};cat.bajarAj={dia:hy,m:Object.assign({},cur,{[k]:val})};return saveCat();}
 function cambiarBajar(f){const campo=el("input",{type:"text",inputmode:"numeric",value:String(f.falta),"aria-label":"Cantidad a reponer"});
   dlg("Cantidad a reponer",el("div",null,[el("p",{class:"hint",text:f.a.desc+" · "+corto(f.l)}),campo]),[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const n=parseInt(campo.value,10);if(!(n>=0)){toast("Pon un número (0 o más)");return false;}await guardaBajar(f.k,{cant:n});render(true);toast("Cantidad guardada");}}]);}
-function quitarBajar(f){confirmar("Quitar de la lista",f.a.desc+" · "+corto(f.l)+": ahora hay "+fmtN(f.st)+". Deja de salir para bajar y no vuelve hasta que se gaste alguno más; entonces sale solo lo que se haya gastado.","Quitar",async()=>{cat.bajarOk=Object.assign({},cat.bajarOk,{[f.k]:{st:f.st,f:hoy()}});await saveCat();render(true);toast("Quitado: vuelve si se gasta más");});}
+function quitarBajar(f){confirmar("Quitar de la lista",f.a.desc+" · "+corto(f.l)+": ahora hay "+fmtN(f.st)+". Deja de salir para bajar y no vuelve hasta que se gaste alguno más; entonces sale solo lo que se haya gastado.","Quitar",async()=>{cat.bajarOk=Object.assign({},cat.bajarOk,{[f.k]:{st:f.st,f:hoy(),ts:Date.now()}});await saveCat();render(true);toast("Quitado: vuelve si se gasta más");});}
 function bajarEditor(L){return el("div",{class:"lst",style:"margin-top:8px"},L.map(f=>el("div",{class:"sub",style:"display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:4px 0"},[
   el("span",{text:f.a.desc+" · "+corto(f.l)+" · reponer "+f.falta}),
   el("span",{style:"display:flex;gap:6px"},[el("button",{type:"button",class:"btn peq sec",text:"✏️ Cantidad",onclick:()=>cambiarBajar(f)}),el("button",{type:"button",class:"btn peq sec",text:"🗑 Quitar",onclick:()=>quitarBajar(f)})])])));}
@@ -1632,8 +1632,11 @@ const almById=id=>cat.almacenes.find(l=>l.id===id);
 /* «Quitar» de la lista de bajar: se guarda cuánto había en planta ese día. No vuelve a salir mientras
    no se gaste más; si se gasta, sale solo lo gastado desde entonces. */
 const okBajar=()=>cat.bajarOk||{};
+/* un «Quitar» deja de valer en cuanto entra material a ese almacén (se ha repuesto): desde ahí vuelve a contar la dotación normal */
+function okVigente(ok,almId,artId){if(!ok)return null;const des=x=>ok.ts?(+x.ts||0)>ok.ts:x.f>ok.f;
+  const entra=todosMov().some(x=>x.art===artId&&des(x)&&((x.tipo==="entrada"&&x.alm===almId)||(x.tipo==="traslado"&&x.dest===almId)||(x.tipo==="ajuste"&&x.alm===almId&&(+x.cant||0)>0)));return entra?null:ok;}
 function faltas(almId){const d=(cat.dot||{})[almId]||{};const OK=okBajar();return Object.keys(d).map(id=>{const a=art(id);if(!a||a.activo===false||a.limp)return null;const obj=+d[id]||0;const st=stockDe(id,almId);const org=ppalDe(a);
-  let falta=Math.max(0,Math.ceil(obj-st));const ok=OK[almId+"|"+id];if(ok&&falta>0)falta=Math.max(0,Math.min(falta,Math.ceil((+ok.st||0)-st)));
+  let falta=Math.max(0,Math.ceil(obj-st));const ok=okVigente(OK[almId+"|"+id],almId,id);if(ok&&falta>0)falta=Math.max(0,Math.min(falta,Math.ceil((+ok.st||0)-st)));
   return{a,obj,st,org:org!==almId?org:null,falta,quitado:!!ok};}).filter(Boolean);}
 function vRepo(v){draft.rv=draft.rv||"hoy";
   v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"],["prev","Previsión"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
