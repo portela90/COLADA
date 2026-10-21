@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261021153355"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261021160639"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -428,7 +428,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 (function(){
 "use strict";
 const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["mas","Más"]];
-const SUB=[["consultas","Consultas"],["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
+const SUB=[["consultas","Análisis y consultas"],["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
 const PADRE={consultas:"mas",pist:"mas",ejes:"mas",bt:"mas",cat:"mas"};
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t);
 const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
@@ -540,7 +540,7 @@ function render(force){const a=document.activeElement;
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"btn sec peq",text:"← Más",onclick:()=>irA("mas")}));
-  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vConsultas})[tab](v);
+  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vAnalisis})[tab](v);
   document.querySelector("main").scrollTop=sc;}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
@@ -649,6 +649,100 @@ function preciosPist(){const P=DIAM.map(d=>({d,a:pistArt(d)})).filter(x=>x.a);co
     el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:8px"},P.map(x=>fld(x.d,inp("pp"+x.a.id,val[x.a.id],v=>val[x.a.id]=v,{inputmode:"decimal",class:"num",placeholder:"€"}))))],
    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{let n=0;for(const x of P){const s=String(val[x.a.id]||"").trim();const p=s?parseN(s):NaN;if(s&&!(p>=0)){toast("Precio no válido en "+x.d);return false;}const a=art(x.a.id);const nue=s?String(p):null;if((a.precio||null)!==nue){a.precio=nue;n++;}}
      if(n)await saveCat();toast(n?"Precios guardados":"Sin cambios");render(true);}}]);}
+
+/* ===== ANÁLISIS: asistente + lo importante ahora + tendencias ===== */
+const sumaN=(L,f)=>L.reduce((t,x)=>t+(f?f(x):x),0);
+/* alertas que se calculan solas con los datos */
+function alertasAnalisis(){const hy=hoy(),d30=sumaDias(hy,-30),d120=sumaDias(hy,-120),d365=sumaDias(hy,-365),out=[];
+  const P=qHechos("pist");const porM={};P.forEach(h=>{if(!h.maq)return;const x=porM[h.maq]=porM[h.maq]||{u30:0,ant:0,rot:0,d90:0};if(h.f>=d30){x.u30+=h.cant;if(/rotura|agarrot/i.test(h.motivo))x.rot+=h.cant;}else if(h.f>=d120)x.ant+=h.cant;if(h.f>=sumaDias(hy,-90))x.d90+=h.cant;});
+  const v90=Object.values(porM).map(x=>x.d90).filter(n=>n>0).sort((a,b)=>a-b);const med=v90.length?v90[Math.floor(v90.length/2)]:0;
+  Object.entries(porM).forEach(([m,x])=>{const ritmo=x.ant/3;
+    if(x.u30>=3&&x.u30>=2*Math.max(ritmo,0.5))out.push({niv:"bad",t:m+" gasta pistones de más",d:x.u30+" pistones en 30 días; antes llevaba "+fmtN(Math.round(ritmo*10)/10)+" al mes",q:{que:"pist",per:"3m",maq:m,grp:"motivo",ord:"cant"}});
+    else if(med&&x.d90>=4&&x.d90>=2.5*med)out.push({niv:"warn",t:m+" muy por encima del resto",d:x.d90+" pistones en 3 meses; la máquina típica lleva "+med,q:{que:"pist",per:"3m",maq:m,grp:"motivo",ord:"cant"}});
+    if(x.rot>=2)out.push({niv:"bad",t:m+": "+x.rot+" roturas o agarrotados en 30 días",d:"Revisar eje, refrigeración y pistonwax de esa máquina",q:{que:"pist",per:"3m",maq:m,grp:"det",ord:"n"}});});
+  const R=qHechos("rep").filter(h=>h.f>=d365);const porE={};R.forEach(h=>{(porE[h.eje]=porE[h.eje]||[]).push(h.f);});
+  Object.entries(porE).filter(([,fs])=>fs.length>=3).sort((a,b)=>b[1].length-a[1].length).slice(0,5).forEach(([e,fs])=>{fs.sort();const int=Math.round(dias(fs[0],fs[fs.length-1])/(fs.length-1));
+    out.push({niv:"warn",t:"El eje "+e+" vuelve al taller cada "+int+" días",d:fs.length+" reparaciones en 12 meses. Puede que no se repare bien o que la máquina lo castigue",q:{que:"rep",per:"12m",txt:e,grp:"det",ord:"clave"}});});
+  const tall=todasRep().filter(r=>r.env&&!r.res&&r.res!=="anulada").map(r=>({r,d:dias(r.env,hy)})).filter(x=>x.d>30).sort((a,b)=>b.d-a.d);
+  if(tall.length)out.push({niv:"warn",t:tall.length+(tall.length===1?" eje lleva":" ejes llevan")+" más de 30 días en el taller",d:tall.slice(0,6).map(x=>x.r.eje+" ("+x.d+" d)").join(", "),ir:"ejes"});
+  const cu=ejePend().filter(p=>dias(p.f,hy)>7);if(cu.length)out.push({niv:"warn",t:cu.length+(cu.length===1?" eje en cuarentena":" ejes en cuarentena")+" desde hace más de una semana",d:cu.map(p=>p.maq+" ("+dias(p.f,hy)+" d)").join(", "),ir:"ejes"});
+  artsActivos().filter(a=>["piston","horno","barra","tornillo","consumible"].includes(a.fam)&&!a.limp).forEach(a=>{const c=consDia(a),st=stockDe(a.id);if(!(c>0))return;const cob=Math.floor(st/c),pl=plazoDe(a);
+    if(cob<pl)out.push({niv:st<=0?"bad":"warn",t:(TEC(a.fam)?nomBT(a):a.desc)+(st<=0?": no queda":": se acaba en "+cob+" días"),d:"Hay "+fmtN(st)+" "+a.ud+", se gasta "+fmtN(Math.round(c*300)/10)+" al mes y el proveedor tarda "+pl+" días"+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""),ir:"stock"});});
+  return out.sort((a,b)=>(a.niv==="bad"?0:1)-(b.niv==="bad"?0:1));}
+function tendencias(){const hy=hoy(),m0=hy.slice(0,7);const meses=[];let d=m0+"-01";for(let i=0;i<12;i++){meses.unshift(d.slice(0,7));d=sumaDias(d,-1).slice(0,7)+"-01";}
+  const P=qHechos("pist"),R=qHechos("rep"),M=qHechos("mat");const by=(L,f)=>meses.map(m=>sumaN(L.filter(h=>h.f.slice(0,7)===m),f));
+  return{meses,pist:by(P,h=>h.cant),rep:by(R,()=>1),eur:meses.map((m,i)=>sumaN(P.concat(R,M).filter(h=>h.f.slice(0,7)===m),h=>h.eur))};}
+function barras(meses,vals,fmt){const mx=Math.max(...vals,1);return el("div",{style:"display:grid;grid-template-columns:repeat("+meses.length+",1fr);gap:3px;align-items:end;height:110px;padding:6px 2px 0"},
+  meses.map((m,i)=>el("div",{title:cap(fmtMes(m))+": "+fmt(vals[i]),style:"display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px"},[
+    el("div",{class:"num",style:"font-size:10px;color:var(--ink2)",text:vals[i]?fmt(vals[i]):""}),
+    el("div",{style:"width:100%;border-radius:3px 3px 0 0;background:var(--acc,#2F5D46);opacity:"+(i===meses.length-1?".55":".85")+";height:"+Math.max(vals[i]?3:0,Math.round(vals[i]/mx*80))+"px"}),
+    el("div",{style:"font-size:10px;color:var(--ink2)",text:MESES[+m.slice(5)-1].slice(0,3)})])));}
+function vAnalisis(v){const re=()=>render(true);
+  /* asistente */
+  const A=draft.ia=draft.ia||{preg:"",cargando:false,res:null,err:""};
+  const ta=el("textarea",{id:"iaP",rows:"2",placeholder:"Pregunta lo que quieras: «¿Qué máquinas han roto pistón más de 2 veces en un mes este año y qué eje llevaban?»",style:"width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:inherit;resize:vertical"});ta.value=A.preg;ta.addEventListener("input",()=>{A.preg=ta.value;});
+  const ej=["¿Qué máquina gasta más pistones y por qué motivo?","¿Qué ejes se reparan más y cada cuánto?","Compara Nave 1A, 1B y 2 en pistones este año","¿Cuándo me quedo sin pistones de cada medida?"];
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Pregúntale a la app"})),el("div",{class:"bd frm",style:"gap:8px"},[ta,
+    el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},ej.map(t=>el("button",{type:"button",class:"chip",style:"white-space:normal;text-align:left;flex:0 1 auto;max-width:100%",text:t,onclick:()=>{A.preg=t;preguntarIA();}}))),
+    el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:A.cargando?"Pensando…":"Preguntar",disabled:A.cargando,onclick:()=>{A.preg=ta.value;preguntarIA();}}),A.res?el("button",{type:"button",class:"btn sec",text:"Borrar respuesta",onclick:()=>{A.res=null;A.err="";re();}}):null]),
+    el("p",{class:"hint",text:"Usa Claude para entender la pregunta (unos céntimos cada una). Las cifras las calcula la app con tus datos reales."}),
+    A.err?el("div",{class:"banner b",text:A.err}):null,A.res?respIA(A.res):null])]));
+  /* lo importante ahora */
+  const AL=alertasAnalisis();
+  v.appendChild(el("section",{class:"card"+(AL.some(a=>a.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},el("h2",{text:"Lo importante ahora ("+AL.length+")"})),
+    AL.length?el("div",{class:"lst"},AL.slice(0,15).map(a=>el("button",{type:"button",class:"it",onclick:()=>{if(a.ir){irA(a.ir);return;}draft.q=Object.assign(Q0(),a.q);const b=document.getElementById("qBuilder");render(true);setTimeout(()=>{const x=document.getElementById("qBuilder");if(x)x.scrollIntoView({behavior:"smooth"});},50);}},[
+      el("span",{class:"stripe "+a.niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.t}),el("div",{class:"t2",text:a.d})]),el("div",{class:"cant"},el("small",{text:"ver ›"}))]))):el("p",{class:"hint",style:"padding:10px 14px",text:"Nada fuera de lo normal."})]));
+  /* tendencias */
+  const T=tendencias(),n=T.meses.length-1,hy=hoy();const dm=+hy.slice(8),dmes=new Date(+hy.slice(0,4),+hy.slice(5,7),0).getDate();const proy=Math.round(T.pist[n]/Math.max(1,dm)*dmes);
+  v.appendChild(el("dl",{class:"kpis num"},[["Pistones este mes",fmtN(T.pist[n])+" (va a ~"+proy+")"],["Mes pasado",fmtN(T.pist[n-1])],["Ejes al taller este mes",fmtN(T.rep[n])],["Gasto este mes",T.eur[n]?eur(T.eur[n]):"—"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Tendencia · 12 meses"})),el("div",{class:"bd",style:"display:grid;gap:14px"},[
+    el("div",{},[el("div",{class:"sub",text:"Pistones cambiados por mes"}),barras(T.meses,T.pist,fmtN)]),
+    el("div",{},[el("div",{class:"sub",text:"Ejes mandados al taller por mes"}),barras(T.meses,T.rep,fmtN)]),
+    T.eur.some(x=>x)?el("div",{},[el("div",{class:"sub",text:"Gasto por mes (lo que tiene precio)"}),barras(T.meses,T.eur,x=>Math.round(x)+"")]):null])]));
+  /* consultas a mano */
+  const box=el("div",{id:"qBuilder"});v.appendChild(box);vConsultas(box);}
+/* ---------- asistente: Claude hace el plan, la app calcula ---------- */
+function ctxConsulta(){const H=qHechos("gasto");return{
+  maquinas:cat.maquinas.map(m=>({cod:m.cod,zona:zonaDe(m),horno:hornoTxt(m)||"",modeloMaq:valFicha(m,"c-maq")||""})),
+  modelosEje:(cat.modelos||[]).map(x=>({cod:x.cod,ref:x.ref,maquinas:inyDe(x).join(",")})),
+  motivos:[...new Set(H.map(h=>h.motivo))].filter(x=>x&&x!=="—").slice(0,80),
+  articulos:artsActivos().map(a=>(TEC(a.fam)?nomBT(a):a.desc)).slice(0,250),
+  diametros:DIAM,zonas:[...new Set(cat.maquinas.map(zonaDe))],
+  datosDesde:H.reduce((m,h)=>h.f&&h.f<m?h.f:m,hoy()),precios:{pistones:DIAM.some(d=>precioDe(pistArt(d))),reparacionesEje:(cat.modelos||[]).some(x=>+x.precioRep>0)}};}
+function qPaso(p){/* ejecuta un paso del plan con el motor local */
+  if(p.que==="stock"){const t=norm(p.buscar||"");const L=artsActivos().filter(a=>!a.limp&&(!t||norm(a.desc+" "+(a.cod||"")+" "+(a.diam||"")).includes(t))&&(!p.familia||a.fam===p.familia)).map(a=>{const c=consDia(a),st=stockDe(a.id);const cob=c>0?Math.floor(st/c):null;
+      return{"Artículo":TEC(a.fam)?nomBT(a):a.desc,"Stock":st,"Gasto al mes":Math.round(c*30*10)/10,"Días que dura":cob==null?"sin consumo":cob,"Se acaba el":cob==null?"—":fmtF(sumaDias(hoy(),cob)),"Plazo proveedor (días)":plazoDe(a),"Pedido":a.pedido?fmtF(a.pedido):""};}).sort((x,y)=>(typeof x["Días que dura"]==="number"?x["Días que dura"]:1e9)-(typeof y["Días que dura"]==="number"?y["Días que dura"]:1e9));
+    return{cols:Object.keys(L[0]||{"Artículo":0}),rows:L.slice(0,p.top||60),total:L.length};}
+  if(p.que==="taller"){const hy=hoy();const L=todasRep().filter(r=>r.res!=="anulada"&&!r.res).map(r=>({"Eje":r.eje,"Modelo":(modelo(modeloDeEje(r.eje))||{}).ref||modeloDeEje(r.eje),"Estado":r.env?"En el taller":"Preparado","Desde":fmtF(r.env||r.alta),"Días":dias(r.env||r.alta,hy),"Desperfecto":r.desp||""})).sort((a,b)=>b["Días"]-a["Días"]);return{cols:Object.keys(L[0]||{"Eje":0}),rows:L.slice(0,p.top||60),total:L.length};}
+  const q={que:["pist","rep","mat","gasto"].includes(p.que)?p.que:"gasto",per:"rango",d:p.desde||"2000-01-01",h:p.hasta||hoy(),maq:"",zona:p.zona||"",motivo:"",txt:p.buscar||""};
+  let L=qFiltra(q);const ms=(p.maq||[]).filter(Boolean),mo=(p.motivo||[]).map(norm).filter(Boolean),zs=(p.zonas||[]).filter(Boolean);
+  if(ms.length)L=L.filter(h=>ms.includes(h.maq)||(h.varias&&h.maq.split("/").some(x=>ms.includes(x))));
+  if(mo.length)L=L.filter(h=>mo.some(m=>norm(h.motivo).includes(m)));if(zs.length)L=L.filter(h=>zs.includes(h.zona));
+  const G=(p.agrupar||[]).filter(g=>Q_GRP[g]&&g!=="det").slice(0,2);const med=["n","cant","eur"].includes(p.medida)?p.medida:"cant";
+  if(!G.length){const D=L.slice().sort((a,b)=>p.orden==="asc"?a.f.localeCompare(b.f):(b[med]-a[med])||b.f.localeCompare(a.f));
+    return{cols:["Fecha","Tipo","Máquina","Qué","Motivo","Cantidad","Gasto €"],rows:D.slice(0,p.top||60).map(h=>({"Fecha":fmtF(h.f),"Tipo":h.tipo,"Máquina":h.maq||h.zona,"Qué":h.eje?h.eje+" · "+h.art:h.art,"Motivo":h.motivo,"Cantidad":h.cant,"Gasto €":Math.round(h.eur*100)/100})),total:L.length,
+      resumen:{registros:L.length,cantidad:sumaN(L,h=>h.cant),gasto:Math.round(sumaN(L,h=>h.eur)),sinPrecio:L.filter(h=>h.sinP).length}};}
+  const R={};L.forEach(h=>{const ks=G.map(g=>qClave(h,g));const k=ks.join(" · ");const x=R[k]=R[k]||{ks,n:0,cant:0,eur:0};x.n++;x.cant+=h.cant;x.eur+=h.eur;});
+  let rows=Object.values(R);const c=p.condicion;if(c&&["n","cant","eur"].includes(c.medida)&&isFinite(+c.valor)){const v=+c.valor,op=c.op;rows=rows.filter(r=>op===">"?r[c.medida]>v:op===">="?r[c.medida]>=v:op==="<"?r[c.medida]<v:op==="<="?r[c.medida]<=v:r[c.medida]===v);}
+  rows.sort((a,b)=>p.orden==="clave"?a.ks.join("|").localeCompare(b.ks.join("|"),"es",{numeric:true}):p.orden==="asc"?a[med]-b[med]:b[med]-a[med]);
+  return{cols:G.map(g=>Q_GRP[g]).concat(["Veces","Cantidad","Gasto €"]),rows:rows.slice(0,p.top||60).map(r=>{const o={};G.forEach((g,i)=>o[Q_GRP[g]]=g==="mes"?cap(fmtMes(r.ks[i])):r.ks[i]);o["Veces"]=r.n;o["Cantidad"]=Math.round(r.cant*100)/100;o["Gasto €"]=Math.round(r.eur*100)/100;return o;}),total:rows.length,
+    resumen:{registros:L.length,cantidad:sumaN(L,h=>h.cant),gasto:Math.round(sumaN(L,h=>h.eur)),sinPrecio:L.filter(h=>h.sinP).length}};}
+async function preguntarIA(){const A=draft.ia;const pr=(A.preg||"").trim();if(!pr){toast("Escribe una pregunta");return;}A.cargando=true;A.err="";render(true);
+  try{const plan=await llamarFn("consulta-almacen",{modo:"plan",pregunta:pr,hoy:hoy(),contexto:ctxConsulta()});
+    const pasos=(plan.pasos||[]).slice(0,5).map(p=>{let r;try{r=qPaso(p);}catch(e){r={cols:["Error"],rows:[{"Error":"No se pudo calcular"}],total:0};}return{p,r};});
+    let txt="";try{const ex=await llamarFn("consulta-almacen",{modo:"respuesta",pregunta:pr,hoy:hoy(),entendido:plan.entendido||"",resultados:pasos.map(x=>({titulo:x.p.titulo,filtros:x.p,total:x.r.total,resumen:x.r.resumen||null,filas:x.r.rows.slice(0,40)})),precios:ctxConsulta().precios});txt=ex.respuesta||"";}catch(e){txt="";}
+    A.res={preg:pr,entendido:plan.entendido||"",pasos,txt,aviso:plan.aviso||""};}
+  catch(e){A.err="No se pudo responder: "+(e&&e.message||"error");}
+  A.cargando=false;render(true);}
+function respIA(R){return el("div",{style:"display:grid;gap:10px;margin-top:6px"},[
+  R.txt?el("div",{style:"white-space:pre-wrap;line-height:1.45;padding:12px;border-radius:8px;background:var(--surf2)",text:R.txt}):null,
+  R.aviso?el("p",{class:"hint",text:R.aviso}):null,
+  ...R.pasos.map(({p,r})=>el("details",{class:"card",open:R.pasos.length===1},[el("summary",{class:"gh",style:"cursor:pointer",text:(p.titulo||"Datos")+" · "+r.total+(r.total===1?" fila":" filas")}),
+    r.rows.length?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},r.cols.map(c=>el("th",{text:c})))),el("tbody",{},r.rows.map(o=>el("tr",{},r.cols.map(c=>el("td",{class:typeof o[c]==="number"?"r num":"",text:typeof o[c]==="number"?fmtN(o[c]):String(o[c]==null?"":o[c])})))))])):el("p",{class:"hint",style:"padding:8px 14px",text:"Sin datos."}),
+    el("div",{class:"acciones",style:"padding:6px 10px"},el("button",{type:"button",class:"btn sec peq",text:"Excel",onclick:e=>excelPaso(p,r,e.currentTarget)}))])),
+  el("p",{class:"hint",text:"Entendido como: "+(R.entendido||R.preg)})]);}
+async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();X.utils.book_append_sheet(wb,X.utils.json_to_sheet(r.rows.length?r.rows:[{"Sin datos":""}]),"Datos");
+  await downloads.save({filename:(p.titulo||"Consulta").replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
 
 function vMas(v){
   v.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Más herramientas"})]),el("div",{class:"bd"},[el("div",{class:"lst"},SUB.map(([id,t])=>el("button",{type:"button",class:"it",text:t,onclick:()=>irA(id)})))])]));
