@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261021113317"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261021153355"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -428,8 +428,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 (function(){
 "use strict";
 const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["mas","Más"]];
-const SUB=[["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
-const PADRE={pist:"mas",ejes:"mas",bt:"mas",cat:"mas"};
+const SUB=[["consultas","Consultas"],["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
+const PADRE={consultas:"mas",pist:"mas",ejes:"mas",bt:"mas",cat:"mas"};
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t);
 const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
 const TEC=f=>f==="barra"||f==="tornillo";
@@ -540,11 +540,115 @@ function render(force){const a=document.activeElement;
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"btn sec peq",text:"← Más",onclick:()=>irA("mas")}));
-  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas})[tab](v);
+  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vConsultas})[tab](v);
   document.querySelector("main").scrollTop=sc;}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id||PADRE[tab]===id),text:t,onclick:()=>irA(id)})));const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
+
+/* ===== CONSULTAS: preguntas con filtros sobre pistones, ejes y material ===== */
+const Q_QUE=[["pist","Cambios de pistón"],["rep","Reparaciones de ejes"],["mat","Consumo de material"],["gasto","Todo el gasto"]];
+const Q_PER=[["mes","Este mes"],["mesant","Mes pasado"],["3m","3 meses"],["ano","Este año"],["12m","12 meses"],["todo","Todo"],["rango","Fechas…"]];
+const Q_GRP={maq:"Máquina",zona:"Zona",mes:"Mes",motivo:"Motivo",modelo:"Modelo de eje",eje:"Eje",diam:"Diámetro de pistón",art:"Artículo",resp:"Responsable",tipo:"Tipo",det:"Sin agrupar (cada registro)"};
+const Q_ORD={n:"Más veces",cant:"Más cantidad",eur:"Más gasto",clave:"Por nombre / fecha"};
+const Q_PRE=[
+  {nom:"Pistones por máquina",q:{que:"pist",per:"12m",grp:"maq",ord:"cant"}},
+  {nom:"Reparaciones más caras",q:{que:"rep",per:"todo",grp:"det",ord:"eur"}},
+  {nom:"Ejes que más se reparan",q:{que:"rep",per:"todo",grp:"eje",ord:"n"}},
+  {nom:"Cambios por CAMBIO REF",q:{que:"pist",per:"12m",grp:"maq",ord:"cant",motivo:"Cambio ref"}},
+  {nom:"Gasto en ejes por máquina",q:{que:"rep",per:"ano",grp:"maq",ord:"eur"}},
+  {nom:"Pistones por motivo",q:{que:"pist",per:"12m",grp:"motivo",ord:"cant"}},
+  {nom:"Gasto por mes",q:{que:"gasto",per:"12m",grp:"mes",ord:"clave"}}];
+const Q0=()=>({que:"pist",per:"12m",d:"",h:"",maq:"",zona:"",motivo:"",txt:"",grp:"maq",ord:"cant"});
+function qPer(q){const hy=hoy(),y=hy.slice(0,4),m=hy.slice(0,7);
+  if(q.per==="mes")return{d:m+"-01",h:hy};
+  if(q.per==="mesant"){const p=sumaDias(m+"-01",-1);return{d:p.slice(0,7)+"-01",h:p};}
+  if(q.per==="3m")return{d:sumaDias(hy,-91),h:hy};
+  if(q.per==="ano")return{d:y+"-01-01",h:hy};
+  if(q.per==="12m")return{d:sumaDias(hy,-365),h:hy};
+  if(q.per==="rango")return{d:q.d||"2000-01-01",h:q.h||hy};
+  return{d:"2000-01-01",h:"2999-12-31"};}
+function qPerTxt(q){const P=qPer(q);if(q.per==="todo")return"todo el histórico";return fmtF(P.d)+" a "+fmtF(P.h);}
+const maqCod=id=>{const m=cat.maquinas.find(x=>x.id===id||x.cod===id);return m?m.cod:(id||"");};
+const zonaCod=cod=>{const m=cat.maquinas.find(x=>x.cod===cod);return m?zonaDe(m):"";};
+/* todos los registros convertidos a una misma forma */
+function qHechos(que){const out=[];
+  if(que==="pist"||que==="gasto")todosPist().forEach(p=>{const c=+p.cant||1,pa=pistArt(p.diam),pr=precioDe(pa),mc=maqCod(p.maq);
+    out.push({tipo:"Cambio de pistón",f:p.f,maq:mc,zona:zonaCod(mc),motivo:cap(p.motivo||"")||"—",diam:p.diam||"",art:"Pistón "+(p.diam||"?"),modelo:"",eje:"",resp:p.resp?respTxt(p.resp):"",cant:c,ud:"ud",eur:c*pr,sinP:!pr,nota:p.nota||""});});
+  if(que==="rep"||que==="gasto")todasRep().filter(r=>r.res!=="anulada"&&!r.recuento).forEach(r=>{const mod=modeloDeEje(r.eje),md=modelo(mod);let mc=r.maq?maqCod(r.maq):"",varias=false;
+    if(!mc&&md){const ii=inyDe(md);if(ii.length===1)mc=ii[0];else if(ii.length>1){mc=ii.join("/");varias=true;}}
+    const c=costeRep(r);const est=r.res==="ok"?"Reparado":r.res?cap(r.res):r.env?"En el taller":"Preparado para enviar";
+    out.push({tipo:"Reparación de eje",f:r.env||r.alta||"",maq:mc,varias,zona:varias?"":zonaCod(mc),motivo:cap(String(r.desp||"").trim())||"—",diam:md&&md.diamP?"Ø "+md.diamP:"",art:md?md.ref:mod,modelo:md?md.ref+" ("+mod+")":mod,eje:r.eje,resp:"",cant:1,ud:"eje",eur:c.v,sinP:!c.v,estado:est,origen:c.o,nota:r.obs||""});});
+  if(que==="mat"||que==="gasto")todosMov().filter(x=>x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art),c=+x.cant||0,pr=precioDe(a),mc=x.maq?maqCod(x.maq):"";
+    out.push({tipo:"Consumo de material",f:x.f,maq:mc,zona:mc?zonaCod(mc):(x.nave||""),motivo:cap(x.motivo||"")||"—",diam:a&&a.diam||"",art:a?(TEC(a.fam)?nomBT(a):a.desc):"(artículo borrado)",modelo:"",eje:"",resp:x.resp?respTxt(x.resp):"",cant:c,ud:a?a.ud:"",eur:c*pr,sinP:!pr,fam:a?FAM[a.fam]:"",nota:x.nota||""});});
+  return out;}
+function qFiltra(q){const P=qPer(q),t=norm(q.txt||"");
+  return qHechos(q.que).filter(h=>h.f>=P.d&&h.f<=P.h&&(!q.maq||h.maq===q.maq||(h.varias&&h.maq.split("/").includes(q.maq)))&&(!q.zona||h.zona===q.zona)&&(!q.motivo||h.motivo===q.motivo)
+    &&(!t||norm([h.art,h.modelo,h.eje,h.motivo,h.resp,h.nota,h.maq].join(" ")).includes(t)));}
+function qClave(h,g){if(g==="mes")return h.f.slice(0,7);if(g==="det")return null;return h[g]||"(sin dato)";}
+function qAgrupa(L,q){const G={};L.forEach(h=>{const k=qClave(h,q.grp);const x=G[k]=G[k]||{k,n:0,cant:0,eur:0,sinP:0,varias:0,L:[]};x.n++;x.cant+=h.cant;x.eur+=h.eur;if(h.sinP)x.sinP++;if(h.varias)x.varias++;x.L.push(h);});
+  const R=Object.values(G);const o=q.ord;R.sort((a,b)=>o==="clave"?String(a.k).localeCompare(String(b.k),"es",{numeric:true}):(b[o]-a[o])||(b.n-a.n));return R;}
+function qOrdDet(L,q){const o=q.ord;return L.slice().sort((a,b)=>o==="clave"?a.f.localeCompare(b.f):o==="n"?b.f.localeCompare(a.f):(b[o]-a[o])||b.f.localeCompare(a.f));}
+const qEur=v=>v?eur(v):"—";
+function qNomGrupo(k,g){return g==="mes"?cap(fmtMes(k)):k;}
+function vConsultas(v){const q=draft.q=draft.q||Q0();const re=()=>render(true);
+  const guard=cat.consultas||[];
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Consultas rápidas"})),el("div",{class:"bd"},[
+    el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},Q_PRE.map(p=>el("button",{type:"button",class:"chip",text:p.nom,onclick:()=>{draft.q=Object.assign(Q0(),p.q);re();}}))
+      .concat(guard.map(p=>el("span",{style:"display:inline-flex;gap:2px"},[el("button",{type:"button",class:"chip","aria-pressed":"true",text:"★ "+p.nom,onclick:()=>{draft.q=Object.assign(Q0(),p.q);re();}}),
+        el("button",{type:"button",class:"chip","aria-label":"Borrar «"+p.nom+"»",text:"×",onclick:()=>confirmar("¿Borrar la consulta?","«"+p.nom+"» deja de salir en Consultas rápidas.","Borrar",async()=>{cat.consultas=(cat.consultas||[]).filter(x=>x.id!==p.id);await saveCat();re();})})]))))])]));
+  /* formulario */
+  const todos=qHechos(q.que);const motivos=[...new Set(todos.map(h=>h.motivo))].filter(x=>x&&x!=="—").sort((a,b)=>a.localeCompare(b,"es"));
+  const zonas=[...new Set(cat.maquinas.map(m=>zonaDe(m)))].sort();
+  const grps=Object.keys(Q_GRP).filter(g=>q.que==="gasto"||!({pist:["modelo","eje"],rep:["resp","diam"],mat:["modelo","eje"]}[q.que]||[]).includes(g));
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Consulta"})),el("div",{class:"bd frm",style:"gap:12px"},[
+    el("div",{class:"seg",role:"group","aria-label":"Qué consultar"},Q_QUE.map(([k,t])=>el("button",{type:"button","aria-pressed":String(q.que===k),text:t,onclick:()=>{q.que=k;q.motivo="";if(!grps.includes(q.grp))q.grp="maq";re();}}))),
+    el("div",{class:"chips",role:"group","aria-label":"Periodo"},Q_PER.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(q.per===k),text:t,onclick:()=>{q.per=k;re();}}))),
+    q.per==="rango"?el("div",{class:"row"},[fld("Desde",inp("qD",q.d,x=>{q.d=x;render();},{type:"date"})),fld("Hasta",inp("qH",q.h,x=>{q.h=x;render();},{type:"date"}))]):null,
+    el("div",{class:"row"},[fld("Máquina",sel("qM",cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>[m.cod,m.cod]),q.maq,x=>{q.maq=x;re();},"Todas")),
+      fld("Zona",sel("qZ",zonas.map(z=>[z,z]),q.zona,x=>{q.zona=x;re();},"Todas")),
+      fld("Motivo",sel("qMo",motivos.map(z=>[z,z]),q.motivo,x=>{q.motivo=x;re();},"Todos"))]),
+    fld("Buscar (artículo, eje, responsable…)",inp("qT",q.txt,x=>{q.txt=x;render();},{type:"search",autocomplete:"off",placeholder:"p. ej. 90 esp, 2.8.J, Josu"})),
+    el("div",{class:"row"},[fld("Agrupar por",sel("qG",grps.map(g=>[g,Q_GRP[g]]),q.grp,x=>{q.grp=x;re();})),fld("Ordenar",sel("qO",Object.entries(Q_ORD),q.ord,x=>{q.ord=x;re();}))])])]));
+  /* resultado */
+  const L=qFiltra(q);const tot={n:L.length,cant:L.reduce((t,h)=>t+h.cant,0),eur:L.reduce((t,h)=>t+h.eur,0),sinP:L.filter(h=>h.sinP).length,varias:L.filter(h=>h.varias).length};
+  const titulo=(Q_QUE.find(x=>x[0]===q.que)||[])[1]+(q.maq?" · "+q.maq:"")+(q.zona?" · "+q.zona:"")+(q.motivo?" · "+q.motivo:"")+(q.txt?" · «"+q.txt+"»":"");
+  v.appendChild(el("dl",{class:"kpis num"},[["Registros",fmtN(tot.n)],[q.que==="rep"?"Ejes":"Cantidad",fmtN(tot.cant)],["Gasto",qEur(tot.eur)],["Media",tot.n&&tot.eur?eur(tot.eur/tot.n):"—"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  if(tot.sinP)v.appendChild(el("div",{class:"banner",style:"display:grid;gap:6px"},[el("span",{text:tot.sinP+" de "+tot.n+" registros no tienen precio y no suman en el gasto."+(L.some(h=>h.sinP&&h.tipo==="Cambio de pistón")?" Los pistones no tienen precio puesto.":"")}),
+    L.some(h=>h.sinP&&h.tipo==="Cambio de pistón")?el("div",{},el("button",{type:"button",class:"btn sec peq",text:"Poner precios de pistones",onclick:preciosPist})):null]));
+  if(tot.varias)v.appendChild(el("p",{class:"hint",text:tot.varias+" reparaciones son de un modelo de eje que llevan varias máquinas (salen como «F27/F56»). Desde ahora cada reparación guarda de qué máquina sale el eje."}));
+  const acc=el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>qExcel(q,L,titulo,e.currentTarget)}),
+    el("button",{type:"button",class:"btn sec",text:"Guardar consulta",onclick:()=>{const i=el("input",{type:"text",value:titulo,"aria-label":"Nombre"});dlg("Guardar consulta",[el("p",{class:"hint",text:"Saldrá en Consultas rápidas, siempre con los datos del día."}),i],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const nom=i.value.trim();if(!nom){toast("Ponle un nombre");return false;}const qq=Object.assign({},q);cat.consultas=(cat.consultas||[]).concat([{id:uid(),nom,q:qq}]);await saveCat();toast("Consulta guardada");re();}}]);}})]);
+  v.appendChild(acc);
+  if(!L.length){v.appendChild(el("p",{class:"empty",text:"No hay nada con estos filtros en "+qPerTxt(q)+"."}));return;}
+  const sub=el("p",{class:"sub",text:titulo+" · "+qPerTxt(q)});
+  if(q.grp==="det"){const D=qOrdDet(L,q).slice(0,300);
+    v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Detalle ("+L.length+")"})),el("div",{style:"padding:0 14px"},sub),qTablaDet(D),L.length>300?el("p",{class:"hint",style:"padding:8px 14px",text:"Se ven los 300 primeros; el Excel lleva todos."}):null]));return;}
+  const R=qAgrupa(L,q);const mx=Math.max(...R.map(r=>q.ord==="eur"?r.eur:q.ord==="n"?r.n:r.cant),1);
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Por "+Q_GRP[q.grp].toLowerCase()+" ("+R.length+")"})]),el("div",{style:"padding:0 14px"},sub),
+    el("div",{class:"lst"},R.slice(0,100).map(r=>{const val=q.ord==="eur"?r.eur:q.ord==="n"?r.n:r.cant;
+      return el("button",{type:"button",class:"it",onclick:()=>qDetDlg(qNomGrupo(r.k,q.grp)+" · "+titulo,r.L,q)},[
+        el("div",{class:"ppal"},[el("div",{class:"t1",text:qNomGrupo(r.k,q.grp)}),
+          el("div",{style:"height:6px;border-radius:3px;background:var(--acc,#2F5D46);opacity:.75;margin:4px 0;width:"+Math.max(2,Math.round(val/mx*100))+"%"}),
+          el("div",{class:"t2",text:[r.n+(r.n===1?" vez":" veces"),q.que!=="rep"?fmtN(r.cant)+" "+(r.L[0].ud||"ud"):null,r.sinP?r.sinP+" sin precio":null].filter(Boolean).join(" · ")})]),
+        el("div",{class:"cant num"},[el("b",{text:q.ord==="eur"||q.que==="rep"?qEur(r.eur):fmtN(r.cant)}),el("small",{text:q.ord==="eur"||q.que==="rep"?(r.n+" reg."):qEur(r.eur)})])]);}))]));}
+function qTablaDet(D){return el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Máquina"}),el("th",{text:"Qué"}),el("th",{text:"Motivo"}),el("th",{class:"r",text:"Cant."}),el("th",{class:"r",text:"€"})])),
+  el("tbody",{},D.map(h=>el("tr",{},[el("td",{class:"num",text:fmtF(h.f)}),el("td",{text:h.maq||(h.zona||"—")}),el("td",{text:h.tipo==="Reparación de eje"?h.eje+" · "+h.art+(h.estado&&h.estado!=="Reparado"?" ("+h.estado.toLowerCase()+")":""):h.art}),el("td",{text:h.motivo}),el("td",{class:"r num",text:fmtN(h.cant)}),el("td",{class:"r num",text:qEur(h.eur)})])))]));}
+function qDetDlg(t,L,q){dlg(t,[el("p",{class:"sub",text:L.length+" registros · "+fmtN(L.reduce((s,h)=>s+h.cant,0))+" · "+qEur(L.reduce((s,h)=>s+h.eur,0))}),qTablaDet(qOrdDet(L,q).slice(0,300))],[{t:"Cerrar",cls:"sec"}]);
+  const bx=document.querySelectorAll(".dlg");if(bx.length)bx[bx.length-1].style.maxWidth="760px";}
+async function qExcel(q,L,titulo,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
+  try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const r2=v=>Math.round(v*100)/100;
+    const cab=[["Consulta",titulo],["Periodo",qPerTxt(q)],["Agrupado por",Q_GRP[q.grp]],["Registros",L.length],["Gasto (€)",r2(L.reduce((t,h)=>t+h.eur,0))],["Sin precio (no suman)",L.filter(h=>h.sinP).length]];
+    const w0=X.utils.aoa_to_sheet(cab);w0["!cols"]=[{wch:24},{wch:60}];X.utils.book_append_sheet(wb,w0,"Consulta");
+    if(q.grp!=="det")X.utils.book_append_sheet(wb,X.utils.json_to_sheet(qAgrupa(L,q).map(r=>({[Q_GRP[q.grp]]:qNomGrupo(r.k,q.grp),"Veces":r.n,"Cantidad":r2(r.cant),"Gasto (€)":r2(r.eur),"Sin precio":r.sinP}))),"Resumen");
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(qOrdDet(L,q).map(h=>({"Fecha":h.f,"Tipo":h.tipo,"Máquina":h.maq,"Zona":h.zona,"Artículo / modelo":h.art,"Eje":h.eje,"Ø":h.diam,"Motivo":h.motivo,"Responsable":h.resp,"Cantidad":h.cant,"Unidad":h.ud,"Gasto (€)":r2(h.eur),"Estado":h.estado||"","Notas":h.nota}))),"Detalle");
+    await downloads.save({filename:"Consulta "+titulo.replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}
+  catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
+function preciosPist(){const P=DIAM.map(d=>({d,a:pistArt(d)})).filter(x=>x.a);const val={};P.forEach(x=>{val[x.a.id]=x.a.precio||"";});
+  dlg("Precios de pistones (€ por unidad)",[el("p",{class:"hint",text:"Con el precio puesto, las consultas y los informes calculan el gasto en euros."}),
+    el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:8px"},P.map(x=>fld(x.d,inp("pp"+x.a.id,val[x.a.id],v=>val[x.a.id]=v,{inputmode:"decimal",class:"num",placeholder:"€"}))))],
+   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{let n=0;for(const x of P){const s=String(val[x.a.id]||"").trim();const p=s?parseN(s):NaN;if(s&&!(p>=0)){toast("Precio no válido en "+x.d);return false;}const a=art(x.a.id);const nue=s?String(p):null;if((a.precio||null)!==nue){a.precio=nue;n++;}}
+     if(n)await saveCat();toast(n?"Precios guardados":"Sin cambios");render(true);}}]);}
 
 function vMas(v){
   v.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Más herramientas"})]),el("div",{class:"bd"},[el("div",{class:"lst"},SUB.map(([id,t])=>el("button",{type:"button",class:"it",text:t,onclick:()=>irA(id)})))])]));
@@ -2266,7 +2370,7 @@ const unoPorGrupo=(x,i,a)=>a.findIndex(y=>grupoKey(y.m)===grupoKey(x.m))===i;
 function todasRep(){const o=[];Object.keys(reps).forEach(y=>(reps[y]||[]).forEach(r=>o.push(Object.assign({y},r))));return o;}
 function repsDe(cod){return todasRep().filter(r=>r.eje===cod).sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||""));}
 function abiertaDe(cod){const r=repsDe(cod).filter(x=>!x.res);return r[r.length-1];}
-async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();const y=(rec.env||rec.alta).slice(0,4);const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});
+async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();if(!rec.maq){const e=ejes.find(x=>x.cod===rec.eje);if(e&&e.maq)rec.maq=e.maq;}const y=(rec.env||rec.alta).slice(0,4);const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});
   if(!rec.recuento)try{await resolverPend(rec.eje,pendId);}catch(e){}}
 /* --- ejes rotos sin identificar: un cambio de pistón por ROTURA en una máquina deja un eje de su modelo pendiente de preparar --- */
 const MOT_EJE=["ROTURA","PISTÓN AGARROTADO"];
@@ -2310,7 +2414,7 @@ function prepararPend(p){const cs=new Set();(p.mods||[]).forEach(c=>{const m=mod
     fld("Desperfecto",inp("pdD",f.desp,v=>f.desp=v,{autocomplete:"off",list:"lPendD",placeholder:"p. ej. NO SE PUEDE SACAR EL PISTÓN, FUGA DE AGUA, POROS…"})),dlD],
     [{t:"Cancelar",cls:"sec"},{t:"Preparar para enviar",fn:async()=>{const e=ejes.find(x=>norm(x.cod)===norm(f.eje));if(!e){toast("Ese eje no existe");return false;}
       if(e.estado!=="planta"){toast(e.cod+" no está en planta");return false;}if(!f.desp.trim()){toast("Pon el desperfecto");return false;}
-      await addRep({eje:e.cod,desp:f.desp.trim().toUpperCase(),alta:p.f||hoy(),env:null},p.id);await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}}]);}
+      await addRep({eje:e.cod,desp:f.desp.trim().toUpperCase(),alta:p.f||hoy(),env:null,maq:p.maq||null},p.id);await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}}]);}
 function tarjetaPend(){const L=ejePend();if(!L.length)return null;
   return el("section",{class:"card alerta"},[el("div",{class:"hd"},el("h2",{text:"Ejes en cuarentena ("+L.length+")"})),
     el("div",{class:"lst"},L.slice().sort((a,b)=>a.f.localeCompare(b.f)).map(p=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(p.motivo===AGARR?"warn":"bad")}),
@@ -3225,7 +3329,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.bajarOk)cat.bajarOk=JSON.parse(JSON.stringify(c.bajarOk));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");if(c.bajarAj)cat.bajarAj=JSON.parse(JSON.stringify(c.bajarAj));}listo("cat");},()=>listo("cat"));
+  db.doc("cat/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.bajarOk)cat.bajarOk=JSON.parse(JSON.stringify(c.bajarOk));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");if(c.bajarAj)cat.bajarAj=JSON.parse(JSON.stringify(c.bajarAj));if(c.consultas)cat.consultas=JSON.parse(JSON.stringify(c.consultas));}listo("cat");},()=>listo("cat"));
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("mlog").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});mlogAnos=m;if(ready)render();},()=>{});
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
