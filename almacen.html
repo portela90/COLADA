@@ -427,7 +427,10 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 <script>
 (function(){
 "use strict";
-const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
+const TABS=[["res","Resumen"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mov","Movs"],["mas","Más"]];
+const SUB=[["pist","Pistones"],["ejes","Ejes"],["bt","Recambios"],["cat","Catálogo"]];
+const PADRE={pist:"mas",ejes:"mas",bt:"mas",cat:"mas"};
+const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t);
 const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
 const TEC=f=>f==="barra"||f==="tornillo";
 const UDS=["ud","kg","l","m","caja","rollo"];
@@ -536,11 +539,16 @@ function render(force){const a=document.activeElement;
   const v=$("view");const sc=document.querySelector("main").scrollTop;v.textContent="";
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
-  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat})[tab](v);
+  if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"btn sec peq",text:"← Más",onclick:()=>irA("mas")}));
+  ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas})[tab](v);
   document.querySelector("main").scrollTop=sc;}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
-function irA(t){if(!TABS.some(x=>x[0]===t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
-function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id),text:t,onclick:()=>irA(id)})));const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
+function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
+function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id||PADRE[tab]===id),text:t,onclick:()=>irA(id)})));const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
+
+function vMas(v){
+  v.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Más herramientas"})]),el("div",{class:"bd"},[el("div",{class:"lst"},SUB.map(([id,t])=>el("button",{type:"button",class:"it",text:t,onclick:()=>irA(id)})))])]));
+}
 
 /* ===== RESUMEN: todo de un vistazo para decidir rápido ===== */
 /* Ajustes de la lista «Bajar a planta» de HOY: cantidad cambiada o artículo quitado. Se borran solos al día siguiente. */
@@ -3209,7 +3217,7 @@ document.getElementById("lupa").addEventListener("click",abrirBuscador);
 
 /* ---------- boot ---------- */
 draft.p.resp=lsGet("alm.resp");draft.p.dest=lsGet("alm.dp");window.addEventListener("colada-refresh",()=>render());
-try{const t=localStorage.getItem((window.APP_ID||"almacen")+".tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
+try{const t=localStorage.getItem((window.APP_ID||"almacen")+".tab");if(t&&esTab(t))tab=t;}catch(e){}
 tabsUI();render(true);
 (async()=>{
   try{db=await claude.use("db");}catch(e){db=null;}
