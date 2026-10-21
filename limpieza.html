@@ -1304,11 +1304,13 @@ const porNave=R=>{const g={};R.forEach(r=>{(g[r.nave||""]=g[r.nave||""]||[]).pus
 function textoConsumos(C){const f=C.fecha,L=C.lineas||[],R=C.resumen||[];const tot=R.reduce((s,r)=>s+(+r.total||0),0);
   const T=["CONSUMOS DE ACEITES Y TALADRINAS · LIMPIEZA","Día: "+fLarga(f)+" de "+f.slice(0,4),""];
   if(!L.length){T.push("Hoy no se ha registrado ningún consumo.");return T.join("\n");}
+  const arr=L.filter(x=>x.fecha&&x.fecha<f);
+  if(arr.length)T.push("Incluye "+arr.length+" consumo"+(arr.length===1?"":"s")+" pendiente"+(arr.length===1?"":"s")+" de días anteriores (desde el "+fDMA(arr.map(x=>x.fecha).sort()[0])+"), que no se habían informado.");
   T.push("TOTAL: "+L.length+" cambio"+(L.length===1?"":"s")+" · "+kgTxt(tot)+" kg");
   porNave(R).forEach(([n,rs])=>{T.push("",(n||"SIN NAVE").toUpperCase()+" ("+kgTxt(rs.reduce((a,r)=>a+(+r.total||0),0))+" kg):");
     rs.forEach(r=>T.push("- "+r.articulo+": "+kgTxt(r.total)+" "+r.ud+" ("+r.tareas+" cambio"+(r.tareas==1?"":"s")+")"));});
   T.push("","DETALLE:");
-  L.forEach((x,i)=>{T.push((i+1)+". "+hora(x.cuando)+" · "+(x.nave||"SIN NAVE")+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
+  L.forEach((x,i)=>{T.push((i+1)+". "+(x.fecha&&x.fecha!==f?fDM(x.fecha)+" ":"")+hora(x.cuando)+" · "+(x.nave||"SIN NAVE")+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
   return T.join("\n");}
 async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14,AZ=[31,78,121];const f=C.fecha,L=C.lineas||[],R=C.resumen||[];
   doc.setFillColor(...AZ);doc.rect(0,0,W,24,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfTxt("Consumos de aceites y taladrinas"),M,11);
@@ -1325,7 +1327,7 @@ async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const do
 function formDestConsumos(d,re){const x=Object.assign({nom:"",email:"",tel:""},d||{});
   dlg("¿A quién va el informe?",el("div",null,[fld("Nombre",inp(x.nom,v=>x.nom=v)),fld("Correo",inp(x.email,v=>x.email=v,{type:"email",autocomplete:"off"})),fld("Teléfono (WhatsApp)",inp(x.tel,v=>x.tel=v,{type:"tel",autocomplete:"off"}))]),
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("consumos_dest_guardar",{p_tok:S.tok,p:x});toast("Guardado");re();}}]);}
-function informeConsumos(C){const d=C.dest||{};const txt=textoConsumos(C);const asunto="Consumos de aceites y taladrinas · "+fDMA(C.fecha);
+function informeConsumos(C,re){const d=C.dest||{};const txt=textoConsumos(C);const asunto="Consumos de aceites y taladrinas · "+fDMA(C.fecha);
   const ta=el("textarea",{rows:12,style:"width:100%;font:13px/1.4 ui-monospace,Menlo,monospace"});ta.value=txt;
   const tel=String(d.tel||"").replace(/\D/g,"");const telWa=tel?(tel.length===9?"34"+tel:tel):"";
   const copiar=async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Informe copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}};
@@ -1336,7 +1338,8 @@ function informeConsumos(C){const d=C.dest||{};const txt=textoConsumos(C);const 
       el("button",{class:"btn",text:"✉ Correo",onclick:()=>{location.href="mailto:"+encodeURIComponent(d.email||"")+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(ta.value);}}),
       el("button",{class:"btn",text:"WhatsApp",onclick:()=>{window.open("https://wa.me/"+telWa+"?text="+encodeURIComponent(ta.value),"_blank","noopener");}})]),
     el("div",{class:"row",style:"margin-top:8px"},[el("button",{class:"btn sec",text:"Copiar texto",onclick:copiar}),el("button",{class:"btn sec",text:"📄 PDF",onclick:pdf})]),
-    el("p",{class:"hint",style:"margin-top:8px",text:"Si cambias el texto aquí, usa «Copiar texto» y pégalo donde quieras."})]),[{t:"Cerrar",cls:"sec"}]);}
+    el("p",{class:"hint",style:"margin-top:8px",text:"Si cambias el texto aquí, usa «Copiar texto» y pégalo donde quieras. Los consumos que no marques como enviados se siguen arrastrando al día siguiente."})]),
+    [{t:"Cerrar",cls:"sec"},{t:"✔ Ya lo he enviado",cls:"ok",fn:async()=>{try{const n=await rpc("consumos_marcar_informado",{p_tok:S.tok,p_fecha:C.fecha});toast(n?"Informe marcado como enviado ("+n+" consumos)":"No había consumos pendientes");if(re)re();}catch(e){toast(e.message);return false;}}}]);}
 async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
   try{C=await rpc("consumos_dia",{p_tok:S.tok,p_fecha:f});}catch(e){box.textContent="";return;}
   box.textContent="";const L=C.lineas||[],R=C.resumen||[],hoy=f===hoyISO();
@@ -1353,7 +1356,7 @@ async function bloqueConsumos(box,f){const re=()=>bloqueConsumos(box,f);let C;
     L.length?el("div",{style:"margin-top:8px"},L.filter(x=>!mal.includes(x)).map(fila)):null,
     mal.length?el("div",{style:"margin-top:10px"},[el("div",{class:"aviso"},[(mal.length===1?"1 consumo no ha llegado":mal.length+" consumos no han llegado")+" al Almacén",el("small",{text:"Están en el registro y salen en el informe, pero no han descontado stock."})]),
       mal.map(fila),hoy?el("button",{class:"btn sec peq",style:"margin-top:8px",text:"↻ Reintentar envío al Almacén",onclick:async e=>{e.target.disabled=true;try{const n=await rpc("consumos_reenviar",{p_tok:S.tok});toast(n?"Reenviados "+n:"Nada que reenviar");setTimeout(re,2500);}catch(er){toast(er.message);e.target.disabled=false;}}}):el("p",{class:"hint",text:"Solo se pueden reenviar los de hoy. Los de otros días, apúntalos a mano en el Almacén si hace falta."})]):null,
-    el("div",{class:"row",style:"margin-top:12px"},[hoy?el("button",{class:"btn",text:"📝 Generar informe del día",onclick:()=>informeConsumos(C)}):null,
+    el("div",{class:"row",style:"margin-top:12px"},[hoy?el("button",{class:"btn",text:"📝 Generar informe del día",onclick:()=>informeConsumos(C,re)}):null,
       el("button",{class:"btn sec peq",text:"Para: "+((C.dest&&C.dest.nom)||"elegir"),onclick:()=>formDestConsumos(C.dest,re)})])]);
   const det=el("details",{class:"card",open:S.consAb?true:null,ontoggle:e=>{S.consAb=e.target.open;}},[
     el("summary",{class:"hd",style:"cursor:pointer;list-style:none"},[el("h2",{text:"🛢 Aceites y taladrinas"}),
