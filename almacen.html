@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261021160639"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261021163421"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1926,7 +1926,7 @@ function vMov(v){const d=draft.m;
   if(!d.alm&&cat.almacenes[0])d.alm=cat.almacenes[0].id;
   const t=d.tipo;
   const calc=el("div",{class:"calc",id:"mCalc"});
-  const fileI=el("input",{id:"mFoto",type:"file",accept:"image/*",capture:"environment"});fileI.addEventListener("change",()=>{draft.mFile=fileI.files[0]||null;});
+  const fileI=el("input",{id:"mFoto",type:"file",accept:"image/*"});fileI.addEventListener("change",()=>{draft.mFile=fileI.files[0]||null;});
   const form=el("form",{},[
     el("div",{class:"seg",role:"group","aria-label":"Tipo de movimiento"},Object.entries(TIPOS).map(([k,l])=>el("button",{type:"button","aria-pressed":String(t===k),text:l,onclick:()=>{d.tipo=k;almDefecto();render(true);}}))),
     el("div",{class:"row"},[fld("Fecha",inp("mF",d.f,x=>d.f=x,{type:"date"})),fld("Artículo",sel("mArt",artOpts(),d.art,x=>{d.art=x;almDefecto();render(true);},"Elige artículo…"))]),
@@ -1935,7 +1935,7 @@ function vMov(v){const d=draft.m;
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
     t==="salida"?el("div",{class:"row"},[fld("Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—"))]):null,
     t==="entrada"?el("div",{class:"row"},[fld("Proveedor",sel("mProv",provOpts(),d.prov,x=>d.prov=x,"—")),fld("Nº albarán",inp("mAlb",d.alb,x=>d.alb=x,{autocomplete:"off"}))]):null,
-    t==="entrada"&&assets?fld("Foto del albarán",fileI):null,
+    t==="entrada"&&assets?fld("Foto del albarán (hazla o elige una de la galería)",fileI):null,
     t==="entrada"&&draft.mFile?el("p",{class:"hint",text:"Foto elegida: "+draft.mFile.name}):null,
     fld("Nota",inp("mNota",d.nota,x=>d.nota=x,{autocomplete:"off",placeholder:t==="ajuste"?"Recuento físico":""})),
     calc,
