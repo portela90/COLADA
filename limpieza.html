@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261018200709">
+<meta name="build" content="20261021173906">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -143,7 +143,7 @@ const CHECK_FIN=["Espátulas","Palas","Martillo","Aspiradora","Hidrolimpiadora",
 const DIAS=[["lunes","L"],["martes","M"],["miercoles","X"],["jueves","J"],["viernes","V"],["sabado","S"],["domingo","D"]];
 const TURNOS_S=["Partido","Tarde","Refuerzo"],TURNOS_F=["Mañana finde"];
 const EST={pendiente:["Pendiente","warn"],en_curso:["En curso","info"],hecha:["Hecha","ok"],no_hecha:["No hecha","bad"]};
-const ERR={FALTA_FOTO:"Haz una foto de cómo está el trabajo",YA_PEDIDO:"Ya has pedido quedarte para este trabajo. Espera la respuesta.",FALTA_MOTIVO:"Escribe por qué tienes que quedarte",YA_RESPONDIDA:"Esa petición ya está respondida",NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
+const ERR={FALTA_ALTA:"Todavía no tienes PIN. Pide al jefe tu código de alta.",PIDE_CODIGO:"Escribe el código de alta que te ha dado el jefe",CODIGO_MAL:"Código de alta incorrecto",YA_TIENE_PIN:"Ya tienes PIN: vuelve atrás y entra con él",FALTA_FOTO:"Haz una foto de cómo está el trabajo",YA_PEDIDO:"Ya has pedido quedarte para este trabajo. Espera la respuesta.",FALTA_MOTIVO:"Escribe por qué tienes que quedarte",YA_RESPONDIDA:"Esa petición ya está respondida",NO_EXISTE_EL:"Ese código no está dado de alta",CODIGO_REPETIDO:"Ya hay otro con ese código",NO_HECHA:"Ese trabajo no está terminado",SESION:"Tu sesión ha caducado. Vuelve a entrar.",PIN_MAL:"PIN incorrecto",BLOQUEADO:"Demasiados intentos. Espera 10 minutos.",PIN_FORMATO:"El PIN son 4 números",NO_PERMISO:"No tienes permiso",NO_ADMIN:"Solo el administrador",FALTA_TITULO:"Pon un título",FOTO_MAL:"La foto no vale",NO_TE_QUITES_ADMIN:"No puedes quitarte a ti mismo de administrador",FALTAN_DATOS:"Faltan datos",MISMA_PERSONA:"No puede cubrirse a sí mismo",FECHAS_MAL:"Las fechas están al revés",DEMASIADAS:"Demasiadas fotos a la vez",HORARIO_MAL:"El horario no es correcto",TIEMPO_MAL:"El tiempo estimado no es correcto"};
 const $=id=>document.getElementById(id);
 function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(v==null||v===false)continue;if(x==="text")e.textContent=v;else if(x==="html")e.innerHTML=v;else if(x.startsWith("on"))e[x]=v;else e.setAttribute(x,v===true?"":v);}
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
@@ -197,13 +197,16 @@ async function vEntrar(v){v.appendChild(el("p",{class:"hint",style:"font-size:16
   const box=el("div",{class:"names"},el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);
   try{const L=await rpc("lista_trabajadores");box.textContent="";L.forEach(w=>box.appendChild(el("button",{text:w.nombre,onclick:()=>pinPad(w)})));}
   catch(e){box.textContent="";box.appendChild(el("div",{class:"empty",text:"No se puede conectar. Revisa la conexión. ("+e.message+")"}));}}
-function pinPad(w){let pin="",pin1=null;const nuevo=!w.tiene_pin;const msg=el("p",{class:"hint",style:"text-align:center;font-size:15px"});const dots=el("div",{class:"dots"});
-  const pintaDots=()=>{dots.textContent="";for(let i=0;i<Math.max(4,pin.length);i++)dots.appendChild(el("span",{class:i<pin.length?"on":""}));msg.textContent=nuevo?(pin1==null?"Es tu primera vez: inventa un PIN de 4 números":"Repite el PIN para confirmarlo"):"Pon tu PIN";};
+function pinPad(w){let pin="",pin1=null,alta=null;const nuevo=!w.tiene_pin;const msg=el("p",{class:"hint",style:"text-align:center;font-size:15px"});const dots=el("div",{class:"dots"});
+  const fase=()=>nuevo&&alta==null?"codigo":"pin";
+  const pintaDots=()=>{dots.textContent="";const n=fase()==="codigo"?6:Math.max(4,pin.length);for(let i=0;i<n;i++)dots.appendChild(el("span",{class:i<pin.length?"on":""}));
+    msg.textContent=!nuevo?"Pon tu PIN":fase()==="codigo"?"Es tu primera vez: escribe el código de alta de 6 números que te da el jefe":pin1==null?"Ahora inventa tu PIN de 4 números":"Repite el PIN para confirmarlo";};
   const pad=el("div",{class:"pad"});let cerrar;
-  const listo=async()=>{if(pin.length<4)return;if(nuevo&&pin1==null){pin1=pin;pin="";pintaDots();return;}if(nuevo&&pin!==pin1){toast("No coinciden, vuelve a empezar");pin1=null;pin="";pintaDots();return;}
-    try{const r=await rpc("entrar",{p_id:w.id,p_pin:pin});S.tok=r.token;S.yo=r.yo;ls.set("limp.tok",r.token);ls.set("limp.yo",JSON.stringify(r.yo));cerrar();S.tab="hoy";S.fecha=hoyISO();pinta();pushSync();}
-    catch(e){toast(e.message);pin="";pintaDots();}};
-  ["1","2","3","4","5","6","7","8","9","⌫","0","✓"].forEach(k=>pad.appendChild(el("button",{text:k,"aria-label":k==="⌫"?"Borrar":k==="✓"?"Entrar":k,onclick:()=>{if(k==="⌫")pin=pin.slice(0,-1);else if(k==="✓"){listo();return;}else if(pin.length<8)pin+=k;pintaDots();if(pin.length===4&&!nuevo)listo();}})));
+  const listo=async()=>{if(fase()==="codigo"){if(pin.length!==6){toast("El código tiene 6 números");return;}alta=pin;pin="";pintaDots();return;}
+    if(pin.length<4)return;if(nuevo&&pin1==null){pin1=pin;pin="";pintaDots();return;}if(nuevo&&pin!==pin1){toast("No coinciden, vuelve a empezar");pin1=null;pin="";pintaDots();return;}
+    try{const r=await (nuevo?rpc("entrar_alta",{p_id:w.id,p_alta:alta,p_pin:pin}):rpc("entrar",{p_id:w.id,p_pin:pin}));S.tok=r.token;S.yo=r.yo;ls.set("limp.tok",r.token);ls.set("limp.yo",JSON.stringify(r.yo));cerrar();S.tab="hoy";S.fecha=hoyISO();pinta();pushSync();}
+    catch(e){toast(e.message);pin="";if(nuevo){pin1=null;if(e.message===ERR.CODIGO_MAL||e.message===ERR.FALTA_ALTA)alta=null;}pintaDots();}};
+  ["1","2","3","4","5","6","7","8","9","⌫","0","✓"].forEach(k=>pad.appendChild(el("button",{text:k,"aria-label":k==="⌫"?"Borrar":k==="✓"?"Entrar":k,onclick:()=>{if(k==="⌫")pin=pin.slice(0,-1);else if(k==="✓"){listo();return;}else if(pin.length<8)pin+=k;pintaDots();if(fase()==="codigo"&&pin.length===6)listo();else if(pin.length===4&&!nuevo)listo();}})));
   pintaDots();cerrar=dlg(w.nombre,el("div",null,[msg,dots,pad]),[{t:"Cancelar",cls:"sec"}]);}
 
 /* visor de fotos dentro de la app (los móviles no dejan abrir la foto en otra pestaña) */
@@ -1253,6 +1256,10 @@ function cardReparto(L){const card=el("div",{class:"card"},[el("div",{class:"hd"
       el("h4",{text:"Lo que ha repartido la app (últimos 7 días)"}),
       E.ultimos.length?el("div",null,E.ultimos.map(x=>el("div",{class:"linea",style:"cursor:default"},[el("span",{style:"flex:1",text:x.titulo+" · "+fecha(x.fecha)}),el("small",{class:"hint",style:"margin:0",text:x.detalle.replace("Automático: ","→ ")})]))):el("p",{class:"hint",text:"Todavía no ha tenido que repartir nada."})]));}).catch(e=>{card.lastChild.textContent=e.message;});
   return card;}
+async function codigoAlta(w){dlg(w.tiene_pin?"¿Darle un código nuevo a "+w.nombre+"?":"Código de alta de "+w.nombre,el("p",{class:"hint",text:w.tiene_pin?"Su PIN actual deja de valer y se cierra su sesión. Entrará con el código y pondrá un PIN nuevo.":"Se genera un código de 6 números que vale 7 días y una sola vez."}),[{t:"Cancelar",cls:"sec"},{t:"Generar",fn:async()=>{
+  try{const r=await rpc("trabajador_codigo_alta",{p_tok:S.tok,p_trab:w.id});w.tiene_pin=false;TRAB=null;
+    dlg("Código de alta",el("div",null,[el("p",{class:"hint",text:"Dáselo a "+r.nombre+" en persona o por mensaje privado. Vale hasta el "+fCorta(String(r.hasta).slice(0,10))+" y una sola vez."}),el("div",{style:"font-size:40px;font-weight:700;letter-spacing:.2em;text-align:center;font-variant-numeric:tabular-nums;margin:10px 0",text:r.codigo}),el("p",{class:"hint",text:"Al entrar en la app toca su nombre, escribe este código y luego inventa su PIN."})]),[{t:"Hecho"}]);}
+  catch(e){toast(e.message);}}}]);}
 async function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"operario",activo:true},JSON.parse(JSON.stringify(w0)));let reset=false;const ed=editorHorario(w.horario);
   /* responsable de hornos: a qué operarios de hornos puede asignar OT (solo admin) */
   const TODOS=await trabajadores().catch(()=>[]);const RL=await rpc("resp_hornos_admin",{p_tok:S.tok}).catch(()=>[]);
@@ -1268,7 +1275,8 @@ async function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"op
     fld("Horario de cada día",ed),
     fld("Papel",sel([["operario","Operario"],["admin","Administrador"]],w.rol,v=>w.rol=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 8px"},[el("input",{type:"checkbox",checked:w.activo,onchange:e=>w.activo=e.target.checked}),"En activo"]),
-    w.id&&w.tiene_pin?el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",onchange:e=>reset=e.target.checked}),"Ha olvidado el PIN: borrarlo para que ponga uno nuevo"]):null]),
+    w.id?el("div",{style:"display:flex;flex-direction:column;gap:6px;margin:4px 0 0"},[el("button",{type:"button",class:"btn sec",text:w.tiene_pin?"Ha olvidado el PIN: darle un código nuevo":"Darle el código de alta",onclick:()=>codigoAlta(w)}),
+      el("p",{class:"hint",style:"margin:0",text:w.tiene_pin?"El PIN actual deja de valer y tendrá que entrar con el código.":"Sin el código nadie puede entrar con su nombre. Vale 7 días y una sola vez."})]):el("p",{class:"hint",text:"Al guardarlo, vuelve a abrir su ficha y dale el código de alta."})]),
    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("trabajador_guardar",{p_tok:S.tok,p:{id:w.id||null,nombre:w.nombre,equipos:w.equipos,naves:w.naves||[],turno_semana:w.turno_semana,turno_finde:w.turno_finde,rol:w.rol,activo:w.activo,telefono:w.telefono||null,horario:ed.val(),reset_pin:reset,categoria:w.categoria||null,jornada:w.jornada||null,horas_contrato:w.horas_contrato||null,email:w.email||null,notas:w.notas||null}});toast("Guardado");TRAB=null;if(!w.id){const nu=(await trabajadores(true).catch(()=>[])).find(x=>x.nombre===w.nombre);if(nu)w.id=nu.id;}if(w.id)await rpc("resp_hornos_guardar",{p_tok:S.tok,p_resp:w.id,p_operarios:[...opsR]}).catch(e=>toast(e.message));re();}}]);}
 async function vAvisos(v){const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(el("button",{class:"btn",style:"width:100%;margin:0 0 12px",text:"＋ Nuevo aviso",onclick:()=>formAviso({},()=>pinta())}));v.appendChild(box);
   try{const A=await rpc("avisos_todos",{p_tok:S.tok});box.textContent="";box.appendChild(el("div",{class:"card"},A.length?A.map(a=>el("div",{class:"ot",style:"cursor:pointer",onclick:()=>formAviso(a,()=>pinta())},[el("div",{class:"t",text:a.titulo}),a.descripcion?el("div",{class:"d",text:a.descripcion}):null,el("div",{class:"meta"},[el("span",{text:"📅 "+fCorta(a.fecha)}),el("span",{class:"pill "+(a.activo?"ok":""),text:a.activo?"Visible":"Oculto"})])])):el("div",{class:"empty",text:"Sin avisos. Los avisos salen arriba en la pantalla de todos."})));}catch(e){box.textContent=e.message;}}
