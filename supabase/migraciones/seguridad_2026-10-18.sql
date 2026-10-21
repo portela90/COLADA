@@ -12,3 +12,6 @@ revoke execute on function public.docs_hist_limpia() from public, anon, authenti
 -- alter function public._hoy() set search_path = public, extensions, pg_temp;
 -- alter function public._titulo_horno(text) set search_path = public, extensions, pg_temp;
 -- alter function public._tramos_dia(jsonb,text) set search_path = public, extensions, pg_temp;
+
+-- 21/10/2026 · colada-mapri: borrar y modificar apuntes por id (sin leer y reescribir el documento entero)
+-- docs_items_del_id(p_col,p_id,p_ids jsonb) y docs_items_patch_id(p_col,p_id,p_items jsonb): ver migración docs_items_por_id
