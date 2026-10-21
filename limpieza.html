@@ -1301,16 +1301,13 @@ async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=
 const kgTxt=n=>(Math.round((+n||0)*100)/100).toLocaleString("es-ES",{maximumFractionDigits:2});
 const ENVIO={enviado:["Enviado al Almacén","ok"],pendiente:["Enviando…","info"],fallo:["Sin enviar al Almacén","bad"],sin_enviar:["Sin enviar al Almacén","bad"]};
 const porNave=R=>{const g={};R.forEach(r=>{(g[r.nave||""]=g[r.nave||""]||[]).push(r);});return Object.keys(g).sort((a,b)=>(a||"z").localeCompare(b||"z")).map(k=>[k,g[k]]);};
-function textoConsumos(C){const f=C.fecha,L=C.lineas||[],R=C.resumen||[];const tot=R.reduce((s,r)=>s+(+r.total||0),0);
-  const T=["CONSUMOS DE ACEITES Y TALADRINAS · LIMPIEZA","Día: "+fLarga(f)+" de "+f.slice(0,4),""];
-  if(!L.length){T.push("Hoy no se ha registrado ningún consumo.");return T.join("\n");}
-  const arr=L.filter(x=>x.fecha&&x.fecha<f);
-  if(arr.length)T.push("Incluye "+arr.length+" consumo"+(arr.length===1?"":"s")+" pendiente"+(arr.length===1?"":"s")+" de días anteriores (desde el "+fDMA(arr.map(x=>x.fecha).sort()[0])+"), que no se habían informado.");
-  T.push("TOTAL: "+L.length+" cambio"+(L.length===1?"":"s")+" · "+kgTxt(tot)+" kg");
-  porNave(R).forEach(([n,rs])=>{T.push("",(n||"SIN NAVE").toUpperCase()+" ("+kgTxt(rs.reduce((a,r)=>a+(+r.total||0),0))+" kg):");
-    rs.forEach(r=>T.push("- "+r.articulo+": "+kgTxt(r.total)+" "+r.ud+" ("+r.tareas+" cambio"+(r.tareas==1?"":"s")+")"));});
-  T.push("","DETALLE:");
-  L.forEach((x,i)=>{T.push((i+1)+". "+(x.fecha&&x.fecha!==f?fDM(x.fecha)+" ":"")+hora(x.cuando)+" · "+(x.nave||"SIN NAVE")+" · "+(x.ot||x.tarea));T.push("   Artículo: "+x.articulo);T.push("   Cantidad: "+(x.cant!=null?kgTxt(x.cant)+" "+x.ud:"sin cantidad"));T.push("   Responsable: "+(x.quien||"sin indicar"));});
+function textoConsumos(C){const f=C.fecha,L=C.lineas||[];
+  const T=["CONSUMOS DE ACEITES Y TALADRINAS · "+fLarga(f),""];
+  if(!L.length){T.push("Hoy no se ha consumido ningún aceite ni taladrina.");return T.join("\n");}
+  const G={};L.forEach(x=>{const k=x.articulo||"";const g=G[k]=G[k]||{t:0,ud:x.ud||"kg",p:[]};if(x.cant!=null)g.t+=+x.cant;
+    const lug=x.lugar||x.nave||"sin lugar";g.p.push(lug+(x.fecha&&x.fecha!==f?" ("+fDM(x.fecha)+")":""));});
+  Object.keys(G).sort().forEach(k=>{const g=G[k];T.push(k+": "+kgTxt(g.t)+" "+g.ud);[...new Set(g.p)].forEach(p=>T.push("   · "+p));});
+  if(L.some(x=>x.fecha&&x.fecha<f))T.push("","Incluye consumos pendientes de días anteriores.");
   return T.join("\n");}
 async function pdfConsumos(C){await libPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14,AZ=[31,78,121];const f=C.fecha,L=C.lineas||[],R=C.resumen||[];
   doc.setFillColor(...AZ);doc.rect(0,0,W,24,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfTxt("Consumos de aceites y taladrinas"),M,11);
