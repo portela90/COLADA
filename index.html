@@ -394,7 +394,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
-  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","inyectoras.html","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
+  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
   box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
   box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));

@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022183950"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022205406"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -404,7 +404,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
-  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","inyectoras.html","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
+  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny"))
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
   box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
   box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));
@@ -528,9 +528,11 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
 (function(){
 "use strict";
 const TABS=[["res","Hoy"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mas","Más"]];
-const SUB=[["pist","Pistones"],["ejes","Ejes"],["mov","Movimientos"],["consultas","Análisis"],["bt","Recambios"],["cat","Catálogo"]];
-const PADRE={consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",cat:"mas"};
-const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t);
+const SUB=[["pist","Pistones"],["ejes","Ejes"],["iny","Inyectoras"],["mov","Movimientos"],["consultas","Análisis"],["bt","Recambios"],["cat","Catálogo"]];
+const PADRE={consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",cat:"mas",iny:"mas",mat:"mas",cons:"mas",mol:"mas"};
+/* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
+const INY_SUB=[["iny","Plano"],["mat","Material"],["cons","Consumos"],["mol","Moldes"]];
+const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t)||INY_SUB.some(x=>x[0]===t);
 const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
 const TEC=f=>f==="barra"||f==="tornillo";
 const UDS=["ud","kg","l","m","caja","rollo"];
@@ -643,12 +645,13 @@ function render(force){const a=document.activeElement;
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(!catOk){v.appendChild(el("div",{class:"banner b",text:"No se ha podido cargar el catálogo (¿sin cobertura?). Cierra y vuelve a abrir la app. Mientras tanto no se guarda nada en el catálogo para no borrarlo."}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
+  if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
   ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vAnalisis})[tab](v);
   document.querySelector("main").scrollTop=sc;}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};
-const nomTab=t=>{const x=TABS.concat(SUB).find(z=>z[0]===t);return x?x[1]:"Almacén";};
+const nomTab=t=>{const x=TABS.concat(SUB).find(z=>z[0]===t)||INY_SUB.find(z=>z[0]===t);return x?x[1]:"Almacén";};
 function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent=nomTab(tab);const sb=$("hSub");
   sb.textContent=tab==="res"?cap(new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})):"";
   const c=$("hChips");c.textContent="";if(!ready||tab!=="res")return;
@@ -856,7 +859,7 @@ async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite de
   await downloads.save({filename:(p.titulo||"Consulta").replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
 
 function vMas(v){
-  const D={pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos y piezas de horno",cat:"Artículos, almacenes, máquinas y copias"};
+  const D={iny:"Plano de máquinas, material, consumos y moldes",pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos y piezas de horno",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
   v.appendChild(el("div",{class:"tiles"},SUB.map(([id,t])=>el("button",{type:"button",class:"tile",onclick:()=>irA(id)},[el("span",{class:"tt",text:t}),el("span",{class:"td",text:D[id]||""}),av[id]?el("span",{class:"tav "+av[id][1],text:av[id][0]}):null]))));
 }
@@ -3447,7 +3450,7 @@ function vMat(v){draft.mf=draft.mf||"";const L=materialJusto();const n=k=>L.filt
   const valor=L.reduce((t,r)=>t+r.st*r.precio,0);
   v.appendChild(el("dl",{class:"kpis num"},[["Faltan",String(n("falta").length)],["Sobran",String(n("sobra").length)+(exE?" · "+eur(exE):"")],["Justos",String(n("justo").length)],[hayP?"Valor del stock":"Sin datos de consumo",hayP?eur(valor):String(n("sin").length)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   v.appendChild(el("p",{class:"hint",text:"Mínimo = lo que se gasta mientras llega un pedido más un margen; máximo = mínimo + lo que se gasta hasta final del mes que viene. Se calcula con lo que se saca de verdad para las máquinas, así que mejora con el tiempo."+(hayP?"":" Cuando metas precios en los artículos, aquí saldrá también el dinero que hay de más.")}));
-  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Fijar estos mínimos",onclick:()=>{try{aplicarPrev(prevTodo());}catch(e){toast("No hay datos suficientes todavía");}}}),el("button",{type:"button",class:"btn sec",text:"Ir a Reponer (Almacén)",onclick:()=>irA("repo")})]));
+  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Fijar estos mínimos",onclick:()=>{try{aplicarPrev(prevTodo());}catch(e){toast("No hay datos suficientes todavía");}}}),el("button",{type:"button",class:"btn sec",text:"Ir a Reponer",onclick:()=>irA("repo")})]));
   v.appendChild(el("div",{class:"chips"},[["","Todo"],["falta","Faltan"],["sobra","Sobran"],["justo","Justos"],["sin","Sin datos"]].map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(draft.mf===k),text:t,onclick:()=>{draft.mf=k;render(true);}}))));
   const EST={falta:["Falta","bad"],sobra:["Sobra","warn"],justo:["Justo","ok"],sin:["Sin datos",""]};
   const F=L.filter(r=>!draft.mf||r.est===draft.mf);
@@ -3698,6 +3701,7 @@ document.getElementById("lupa").addEventListener("click",abrirBuscador);
 /* ---------- boot ---------- */
 draft.p.resp=lsGet("alm.resp");draft.p.dest=lsGet("alm.dp");window.addEventListener("colada-refresh",()=>render());
 try{const t=localStorage.getItem((window.APP_ID||"almacen")+".tab");if(t&&esTab(t))tab=t;}catch(e){}
+try{const q=new URLSearchParams(location.search).get("t");if(q&&esTab(q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
 tabsUI();render(true);
 (async()=>{
   try{db=await claude.use("db");}catch(e){db=null;}
