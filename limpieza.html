@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261022102238">
+<meta name="build" content="20261022132709">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -181,6 +181,19 @@ nav button{font-weight:500;color:var(--mut)}
 nav button[aria-selected=true]{background:none;box-shadow:inset 0 3px 0 var(--acc2);border-radius:0;color:var(--acc);font-weight:600}
 td.c.equipo{background:var(--infobg)!important;color:var(--acc)}
 header a{background:none!important;color:var(--acc)!important;border:1px solid var(--btnb);border-radius:8px!important;font-weight:600}
+
+/* pantalla del operario */
+.prog{padding:12px 14px}.prog-f{display:flex;align-items:center;gap:8px}.prog-f b{flex:1;text-align:center;font-size:16px;font-weight:600}.prog-f .btn{min-height:36px;padding:4px 10px}
+.prog-n{display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:13px;color:var(--mut)}.prog-n b{color:var(--ink);font-weight:600}
+.prog-b{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:6px}.prog-b i{display:block;height:100%;background:var(--acc2);border-radius:4px}
+.ahora{border-top:4px solid var(--acc2)}.ahora .ahk{padding:12px 16px 0;font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.ahora .ot{border:0;padding-top:6px}.ahora .ot .t{font-size:20px}.ahora .btn.grande{min-height:56px;font-size:18px}
+.sig{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer}
+.sig:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.sig-n{width:28px;height:28px;border-radius:50%;background:var(--surf2);color:var(--mut);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+.sig-m{flex:1;min-width:0;display:flex;flex-direction:column}.sig-m b{font-weight:600;font-size:15px}.sig-m small{color:var(--mut);font-size:13px}
+.pie{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surf);box-shadow:0 -1px 0 var(--line),0 -2px 6px rgba(34,53,72,.06)}
+.pie .btn{margin:0;min-height:48px;padding:8px 6px;font-size:15px}
 </style>
 </head>
 <body>
@@ -467,14 +480,16 @@ async function verFotos(o,re){const box=el("div",{class:"fotos"},el("div",{class
 
 /* ---------- vista del día (operario y admin) ---------- */
 async function vHoy(v){const admin=esAdm();const f=S.fecha;
-  v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:f===hoyISO()?"Hoy · "+fLarga(f):fLargaM(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
+  /* operario viendo lo suyo: pantalla «Siguiente trabajo» */
+  const nuevo=!admin&&S.soloMios!==false&&!S.resp;const prog=el("div");
+  if(nuevo)v.appendChild(prog);else v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),el("b",{text:f===hoyISO()?"Hoy · "+fLarga(f):fLargaM(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]));
   const re=()=>pinta();
   if(admin)v.appendChild(el("button",{class:"btn grande",text:"＋ Abrir OT",onclick:()=>abrirOT(re)}));
-  else{/* operario: dos botones grandes: abrir un trabajo, y ver solo los suyos o todos */
+  else if(!nuevo){/* operario: dos botones grandes: abrir un trabajo, y ver solo los suyos o todos */
     const soloM=S.soloMios!==false;
     v.appendChild(el("div",{class:"row",style:"margin-bottom:10px"},[el("button",{class:"btn grande",text:"＋ Abrir trabajo",onclick:()=>abrirOT(re)}),
       el("button",{class:"btn grande sec",text:soloM?"Ver todos":"Solo mis trabajos",onclick:()=>{S.soloMios=!soloM;pinta();}})]));}
-  if(!admin)v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"Inyectoras y hornos mantenedores",onclick:()=>listaElementos(re)}));
+  if(!admin&&!nuevo)v.appendChild(el("button",{class:"btn sec",style:"width:100%;margin:-4px 0 12px",text:"Inyectoras y hornos mantenedores",onclick:()=>listaElementos(re)}));
   const avp=el("div");v.appendChild(avp);bloqueAvisos(avp);
   if(admin){const cb=el("div");v.appendChild(cb);bloqueConsumos(cb,f);}
   const pbx=el("div");v.appendChild(pbx);
@@ -486,7 +501,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   /* el responsable de hornos ya recibe solo los trabajos de su operario (lo filtra el servidor): los ve todos */
   const Df=admin?D.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?A.filter(esMio):A);
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
-  if(!admin)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
+  if(!admin&&!nuevo)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
     if(R.espacio!=null&&R.espacio>=80)box.appendChild(el("div",{class:"aviso"},["La base de datos está al "+R.espacio+" %",el("small",{text:"Haz una copia en Resumen y libera espacio."})]));
     box.appendChild(el("div",{class:"kpis"},[["Total",D.length],["Por hacer",n("pendiente")],["En curso",n("en_curso")],["Hechas",n("hecha")]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
@@ -524,12 +539,42 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
         cubiertos=D.filter(o=>(o.cubre||[]).some(c=>c.sustituto===S.yo.nombre));
       const tp=sum(propios),tc=sum(cubiertos);
       if(tp+tc>0)box.appendChild(el("div",{class:"aviso"},["Hoy tienes "+durTxt(tp+tc)+" de trabajo: "+durTxt(tp)+" tuyos y "+durTxt(tc)+" de los que cubres.",el("small",{text:"Si no te da tiempo, avisa a tu encargado para que reparta tus trabajos propios."})]));}}
+  if(nuevo)return vOperario(v,box,prog,f,R,Df,Af,re);
   if(Af.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Atrasadas ("+Af.length+")"})]),Af.map(o=>tarjeta(o,re))]));
   const vis=(admin||esEnc())?Df.filter(o=>!sinAsignar(o)):Df;
   const cur=vis.filter(o=>o.estado==="en_curso"),pend=vis.filter(o=>o.estado==="pendiente"),hechas=vis.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
   if(cur.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"En curso ("+cur.length+")"})),cur.map(o=>tarjeta(o,re))]));
   box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:admin&&hayFiltro()?"Nada con este filtro.":D.length?"Nada pendiente ":"No hay trabajos para este día."})]));
   if(hechas.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Terminadas ("+hechas.length+")"})),hechas.map(o=>tarjeta(o,re))]));}
+/* Pantalla del operario: progreso del día, el trabajo que toca ahora en grande y el resto en una lista corta */
+function vOperario(v,box,prog,f,R,Df,Af,re){
+  const hechas=Df.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
+  const cur=Df.filter(o=>o.estado==="en_curso");
+  const ordP=(a,b)=>(a.prioridad==="alta"?0:1)-(b.prioridad==="alta"?0:1);
+  const cola=cur.concat(Af.filter(o=>o.estado==="pendiente"||o.estado==="en_curso").filter(o=>!cur.includes(o)).sort(ordP),Df.filter(o=>o.estado==="pendiente").sort(ordP));
+  const tot=Df.length,nh=hechas.length,pct=tot?Math.round(nh*100/tot):0;
+  /* cabecera: fecha, progreso y turno */
+  prog.appendChild(el("div",{class:"card prog"},[el("div",{class:"prog-f"},[el("button",{class:"btn sec peq","aria-label":"Día anterior",text:"◀",onclick:()=>{S.fecha=sumaD(f,-1);pinta();}}),
+      el("b",{text:f===hoyISO()?"Hoy · "+fLarga(f):fLargaM(f)}),el("button",{class:"btn sec peq","aria-label":"Día siguiente",text:"▶",onclick:()=>{S.fecha=sumaD(f,1);pinta();}})]),
+    el("div",{class:"prog-n"},[el("span",{text:R.mi_horario==null?"":R.mi_horario.length?"Tu turno: "+horTxt(R.mi_horario):"Hoy libras"}),el("b",{text:tot?nh+" de "+tot+" hechos":"Sin trabajos"})]),
+    el("div",{class:"prog-b",role:"progressbar","aria-valuenow":String(pct),"aria-valuemin":"0","aria-valuemax":"100"},el("i",{style:"width:"+pct+"%"}))]));
+  /* el trabajo que toca */
+  if(cola.length){const o=cola[0];
+    box.appendChild(el("div",{class:"card ahora"},[el("div",{class:"ahk",text:o.estado==="en_curso"?"Estás con":"Siguiente trabajo"}),tarjeta(o,re)]));}
+  else box.appendChild(el("div",{class:"card ahora vacio"},[el("div",{class:"ahk",text:"Siguiente trabajo"}),el("div",{class:"empty",text:tot?"Has terminado tus trabajos de hoy.":"Hoy no tienes trabajos asignados."}),
+    el("p",{class:"hint",style:"padding:0 16px 14px;text-align:center",text:"Si haces algo más, apúntalo con «Abrir trabajo»."})]));
+  /* después */
+  const resto=cola.slice(1);
+  if(resto.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Después ("+resto.length+")"})),...resto.map((o,i)=>{
+    const [et,ec]=EST[o.estado]||["?",""];const row=el("button",{type:"button",class:"sig"},[el("span",{class:"sig-n",text:String(i+2)}),
+      el("span",{class:"sig-m"},[el("b",{text:o.titulo}),el("small",{text:[o.fecha!==S.fecha?"Atrasada · "+fCorta(o.fecha):null,o.lugar,o.minutos_est?"unos "+durTxt(o.minutos_est):null].filter(Boolean).join(" · ")})]),
+      el("span",{class:"pill "+(o.prioridad==="alta"?"bad":ec),text:o.prioridad==="alta"?"Urgente":et})]);
+    row.onclick=()=>{row.replaceWith(tarjeta(o,re));};return row;})]));
+  /* hechos */
+  if(hechas.length)box.appendChild(el("details",{class:"card"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Hechos hoy ("+hechas.length+")"}),el("span",{class:"mas",text:"▾"})]),...hechas.map(o=>tarjeta(o,re))]));
+  /* botones fijos abajo */
+  v.appendChild(el("div",{class:"pie"},[el("button",{class:"btn sec",text:"Máquinas",title:"Inyectoras y hornos mantenedores",onclick:()=>listaElementos(re)}),
+    el("button",{class:"btn sec",text:"Ver todos",onclick:()=>{S.soloMios=false;pinta();}}),el("button",{class:"btn",text:"＋ Abrir trabajo",onclick:()=>abrirOT(re)})]));}
 /* abrir OT: pensado para el móvil, 3 toques. Con las tareas habituales arriba para no escribir */
 /* ---------- zonas (lista desplegable de «Dónde») ---------- */
 let ZONAS=null;async function zonasL(force){if(!ZONAS||force){try{ZONAS=await rpc("zonas",{p_tok:S.tok});}catch(e){ZONAS=ZONAS||[];}}return ZONAS;}
