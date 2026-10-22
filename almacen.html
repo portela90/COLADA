@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022143639"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022164258"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -280,6 +280,7 @@ nav button[aria-selected="true"]{background:none;box-shadow:inset 0 3px 0 var(--
 .stripe{width:3px}
 
 /* menú de usuario y arreglos para iPhone */
+.pu{table-layout:fixed;width:100%;min-width:0!important}.pu td,.pu th{padding:9px 6px!important;white-space:normal!important}.pu th{font-size:11px;line-height:1.2}.pu th:first-child,.pu td:first-child{width:58px;padding-left:14px!important}
 .usr-av{appearance:none;width:36px;height:36px;flex:none;border-radius:50%;border:0;background:#0070F2;color:#fff;font:600 13px Inter,system-ui,sans-serif;cursor:pointer;align-self:center}
 .usr-fila{appearance:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--ink);font:inherit;cursor:pointer}
 .usr-fila b{font-weight:600;color:var(--acc)}.usr-fila small{color:var(--ink2);font-size:13px}
@@ -2107,6 +2108,83 @@ function statsPist(){const hy=hoy(),all=todosPist();const first=all.length?all[0
       usados:desdeC.filter(p=>p.dest===DESTINOS[0]).reduce((s,p)=>s+(+p.cant||1),0),agarr:desdeC.filter(p=>p.dest===DESTINOS[1]).reduce((s,p)=>s+(+p.cant||1),0)};});
   return out;}
 const NIVP={bad:"Crítico",warn:"Ajustado",ok:"OK",na:"—"};
+/* ===== PISTONES USADOS: zona → seleccionar → para recuperar (MEYUSA) o cajón de chatarra =====
+   Se guarda en cat.pusados.ev. Los cambios de pistón con destino «Zona de pistones usados» entran solos en «Sin seleccionar»
+   desde el primer recuento. Cuentas: Z sin seleccionar, R para recuperar, M en MEYUSA, C cajón de chatarra. */
+const PU_REC="MEYUSA",PU_B=[["Z","Sin seleccionar"],["R","Para recuperar"],["M","En "+PU_REC],["C","Cajón chatarra"]];
+const puEv=()=>((cat.pusados&&cat.pusados.ev)||[]);
+function puEstado(){const ev=puEv();const c0=ev.filter(e=>e.t==="cuenta").sort((a,b)=>a.f.localeCompare(b.f)||a.ts-b.ts)[0];if(!c0)return null;
+  const S={};DIAM.forEach(d=>S[d]={Z:0,R:0,M:0,C:0});const add=(b,o,sg)=>Object.entries(o||{}).forEach(([d,n])=>{if(S[d])S[d][b]+=sg*(+n||0);});
+  const cams=todosPist().filter(p=>p.dest===DESTINOS[0]&&(p.f>c0.f||(p.f===c0.f&&(+p.ts||0)>c0.ts))).map(p=>({t:"cambio",f:p.f,ts:+p.ts||0,d:p.diam,n:+p.cant||1}));
+  ev.concat(cams).slice().sort((a,b)=>a.f.localeCompare(b.f)||(a.ts||0)-(b.ts||0)).forEach(e=>{
+    if(e.t==="cuenta")PU_B.forEach(([b])=>{if(e.b&&e.b[b])DIAM.forEach(d=>{if(e.b[b][d]!=null)S[d][b]=+e.b[b][d]||0;});});
+    else if(e.t==="cambio"){if(S[e.d])S[e.d].Z+=e.n;}
+    else if(e.t==="clasif"){add("Z",e.rec,-1);add("Z",e.des,-1);add("R",e.rec,1);add("C",e.des,1);}
+    else if(e.t==="envio"){add("R",e.c,-1);add("M",e.c,1);}
+    else if(e.t==="recep"){add("M",e.ok,-1);add("M",e.mal,-1);add("C",e.mal,1);}
+    else if(e.t==="chat"){add("C",e.c,-1);}});
+  const tot={Z:0,R:0,M:0,C:0};DIAM.forEach(d=>PU_B.forEach(([b])=>tot[b]+=S[d][b]));return{S,tot,desde:c0.f};}
+function puUrge(E){return DIAM.filter(d=>{const a=pistArt(d);if(!a)return false;const n=nivel(a);return(n==="bad"||n==="warn")&&(E.S[d].Z+E.S[d].R)>0;});}
+async function puGuarda(e){e.id=uid();e.ts=Date.now();e.por=(window.yoNombre&&window.yoNombre())||"";const prev=cat.pusados;cat.pusados={ev:puEv().concat([e])};
+  try{await saveCat();}catch(er){cat.pusados=prev;throw er;}render(true);}
+/* formulario con una fila por diámetro y una o varias columnas de cantidades */
+function puForm(titulo,intro,cols,extra,boton,onOk){const E=puEstado();const val={};cols.forEach(c=>val[c.k]={});
+  const filas=DIAM.filter(d=>cols[0].mostrar?cols[0].mostrar(E,d):true);
+  const tb=el("tbody",{},filas.map(d=>el("tr",{},[el("td",{},el("b",{text:d})),el("td",{class:"r num sub",text:cols[0].info?cols[0].info(E,d):""})].concat(cols.map(c=>{const pre=c.pre?c.pre(E,d):"";if(pre)val[c.k][d]=pre;
+    return el("td",{},inp("pu"+c.k+d.replace(/\W/g,""),pre?String(pre):"",v=>{const n=parseN(v);if(isFinite(n)&&n>0)val[c.k][d]=n;else delete val[c.k][d];},{inputmode:"numeric",class:"num",placeholder:"0",style:"width:64px;padding:7px 8px;font-size:16px"}));})))));
+  dlg(titulo,[intro?el("p",{class:"hint",text:intro}):null,
+    filas.length?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:cols[0].infoT||""})].concat(cols.map(c=>el("th",{text:c.t}))))),tb])):el("p",{class:"empty",text:"No hay pistones en este paso."}),
+    ...(extra||[]).map(x=>x.node)],[{t:"Cancelar",cls:"sec"},{t:boton,fn:async()=>{const tot=cols.reduce((t,c)=>t+Object.values(val[c.k]).reduce((a,b)=>a+b,0),0);if(!tot){toast("Pon alguna cantidad");return false;}
+      const err=await onOk(val,E,true);if(err){toast(err);return false;}try{await onOk(val,E,false);toast("Guardado");}catch(e){return false;}}}]);}
+const puFecha=()=>{const o={v:hoy()};o.node=fld("Fecha",inp("puF",o.v,x=>o.v=x,{type:"date"}));return o;};
+const puTxt=(l,ph,extra)=>{const o={v:""};o.node=fld(l,inp("puT"+l.replace(/\W/g,""),"",x=>o.v=x,Object.assign({autocomplete:"off",placeholder:ph||""},extra||{})));return o;};
+const supera=(val,k,E,b,txt)=>{for(const d in val[k]){if(val[k][d]>E.S[d][b])return"En "+d+" solo hay "+E.S[d][b]+" "+txt+". Si no cuadra, haz un recuento.";}return"";};
+function puClasif(){const F=puFecha();puForm("Seleccionar pistones usados","Separa los que se pueden recuperar (van a "+PU_REC+") y los que van al cajón de chatarra.",
+  [{k:"rec",t:"Recuperar",infoT:"Hay",info:(E,d)=>E.S[d].Z||"·",mostrar:(E,d)=>E.S[d].Z>0},{k:"des",t:"Chatarra"}],[F],"Guardar selección",
+  (v,E,chk)=>{if(chk){for(const d of DIAM){const n=(v.rec[d]||0)+(v.des[d]||0);if(n>E.S[d].Z)return"En "+d+" solo hay "+E.S[d].Z+" sin seleccionar. Si no cuadra, haz un recuento.";}return"";}
+    return puGuarda({t:"clasif",f:F.v,rec:v.rec,des:v.des});});}
+function puEnvio(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");puForm("Enviar a "+PU_REC,"Viene puesto todo lo que tienes para recuperar. Cambia las cantidades si no mandas todo.",
+  [{k:"c",t:"Enviar",infoT:"Para recup.",info:(E,d)=>E.S[d].R||"·",pre:(E,d)=>E.S[d].R>0?E.S[d].R:"",mostrar:(E,d)=>E.S[d].R>0}],[F,A],"Registrar envío",
+  (v,E,chk)=>chk?supera(v,"c",E,"R","para recuperar"):puGuarda({t:"envio",f:F.v,c:v.c,alb:A.v.trim()}));}
+function puRecep(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");const pa=pistArt("Ø 80");const L={v:(pa&&almDe(pa.id))||(cat.almacenes[0]||{}).id||""};L.node=fld("Entran en el almacén",sel("puAlm",almOpts(),L.v,x=>L.v=x));
+  puForm("Recibir de "+PU_REC,"Los que vuelven bien entran en el stock de pistones. Los que no se han podido recuperar pasan al cajón de chatarra.",
+  [{k:"ok",t:"Vuelven bien",infoT:"En "+PU_REC,info:(E,d)=>E.S[d].M||"·",pre:(E,d)=>E.S[d].M>0?E.S[d].M:"",mostrar:(E,d)=>E.S[d].M>0},{k:"mal",t:"No sirven"}],[F,A,L],"Registrar recepción",
+  async(v,E,chk)=>{if(chk){for(const d of DIAM){const n=(v.ok[d]||0)+(v.mal[d]||0);if(n>E.S[d].M)return"De "+d+" solo hay "+E.S[d].M+" en "+PU_REC+".";if(v.ok[d]&&!pistArt(d))return"No hay artículo de pistón "+d+" en el catálogo.";}return"";}
+    const movs=Object.entries(v.ok).map(([d,n])=>({tipo:"entrada",f:F.v,art:pistArt(d).id,alm:L.v,cant:n,alb:A.v.trim()||undefined,nota:"Recuperado por "+PU_REC}));
+    if(movs.length)await addMovs(movs);return puGuarda({t:"recep",f:F.v,ok:v.ok,mal:v.mal,alb:A.v.trim(),alm:L.v,movs:movs.map(m=>({id:m.id,f:m.f}))});});}
+function puChat(){const F=puFecha(),K=puTxt("Kilos (opcional)","",{inputmode:"decimal"}),I=puTxt("Importe que pagan, € (opcional)","",{inputmode:"decimal"});
+  puForm("Llevar a la chatarrería","Viene puesto todo lo que hay en el cajón.",[{k:"c",t:"Se llevan",infoT:"En cajón",info:(E,d)=>E.S[d].C||"·",pre:(E,d)=>E.S[d].C>0?E.S[d].C:"",mostrar:(E,d)=>E.S[d].C>0}],[F,K,I],"Registrar",
+  (v,E,chk)=>chk?supera(v,"c",E,"C","en el cajón"):puGuarda({t:"chat",f:F.v,c:v.c,kg:parseN(K.v)||null,eur:parseN(I.v)||null}));}
+function puCuenta(){const E=puEstado();const F=puFecha();const b={};PU_B.forEach(([k])=>b[k]={});
+  const tb=el("tbody",{},DIAM.map(d=>el("tr",{},[el("td",{},el("b",{text:d}))].concat(PU_B.map(([k])=>{const pre=E?E.S[d][k]:"";if(E)b[k][d]=pre;
+    return el("td",{},inp("puc"+k+d.replace(/\W/g,""),pre===""?"":String(pre),v=>{const n=parseN(v);b[k][d]=isFinite(n)&&n>=0?n:0;},{inputmode:"numeric",class:"num",placeholder:"0",style:"width:54px;padding:7px 6px;font-size:16px"}));})))));
+  dlg(E?"Recuento de pistones usados":"Primer recuento de pistones usados",[el("p",{class:"hint",text:E?"Corrige lo que no cuadre. Lo que pongas aquí sustituye a lo que calcula la app.":"Cuenta lo que hay ahora en cada sitio. A partir de aquí, los cambios de pistón con destino «Zona de pistones usados» se suman solos en «Sin seleccionar»."}),
+    el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(PU_B.map(([,t])=>el("th",{text:t}))))),tb])),F.node],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{PU_B.forEach(([k])=>DIAM.forEach(d=>{if(b[k][d]==null)b[k][d]=0;}));try{await puGuarda({t:"cuenta",f:F.v,b});toast("Recuento guardado");}catch(e){return false;}}}]);}
+function puTxtEv(e){const s=o=>Object.entries(o||{}).filter(([,n])=>n).map(([d,n])=>d+" ×"+n).join(", ")||"—";
+  return e.t==="cuenta"?"Recuento":e.t==="clasif"?"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):e.t==="envio"?"Enviado a "+PU_REC+": "+s(e.c)+(e.alb?" · alb. "+e.alb:""):
+    e.t==="recep"?"Recibido de "+PU_REC+" · bien: "+s(e.ok)+(Object.keys(e.mal||{}).length?" · no sirven: "+s(e.mal):"")+(e.alb?" · alb. "+e.alb:""):"Chatarrería: "+s(e.c)+(e.kg?" · "+fmtN(e.kg)+" kg":"")+(e.eur?" · "+fmtN(e.eur)+" €":"");}
+async function puBorra(e){const prev=cat.pusados;cat.pusados={ev:puEv().filter(x=>x.id!==e.id)};try{await saveCat();for(const m of e.movs||[])await delMov(m.id,m.f);toast("Deshecho");}catch(er){cat.pusados=prev;}render(true);}
+function cardUsados(){const E=puEstado();
+  if(!E)return el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Pistones usados"})),el("div",{class:"bd",style:"display:grid;gap:10px"},[
+    el("p",{class:"hint",style:"margin:0",text:"Lleva la cuenta de los usados: los que esperan a ser seleccionados, los que van a "+PU_REC+" para recuperar y los del cajón de chatarra. Para empezar, cuenta lo que hay ahora."}),
+    el("button",{type:"button",class:"btn",text:"Contar pistones usados",onclick:puCuenta})])]);
+  const U=puUrge(E),ev=puEv().slice().sort((a,b)=>b.f.localeCompare(a.f)||b.ts-a.ts);
+  const filas=DIAM.filter(d=>PU_B.some(([b])=>E.S[d][b]));
+  return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pistones usados"}),el("span",{class:"der sub",text:E.tot.Z+E.tot.R+E.tot.M+E.tot.C+" en total"})]),
+    U.length?el("div",{class:"banner",style:"margin:10px 14px 0"},[el("b",{text:"Urge recuperar: "}),U.map(d=>{const a=pistArt(d);return d+" (quedan "+fmtN(stockDe(a.id))+" nuevos, mín "+fmtN(+a.min||0)+"; tienes "+(E.S[d].Z+E.S[d].R)+" usados)";}).join(" · ")]):null,
+    filas.length?el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(["Sin selec.","Recuperar",PU_REC,"Chatarra"].map(t=>el("th",{class:"r",text:t}))))),
+      el("tbody",{},filas.map(d=>el("tr",{style:U.includes(d)?"background:var(--bad-bg)":""},[el("td",{},el("b",{text:d}))].concat(PU_B.map(([b])=>el("td",{class:"r num"+(E.S[d][b]<0?" neg":""),text:E.S[d][b]?fmtN(E.S[d][b]):"·"})))))),
+      el("tfoot",{},el("tr",{},[el("td",{},el("b",{text:"Total"}))].concat(PU_B.map(([b])=>el("td",{class:"r num"},el("b",{text:fmtN(E.tot[b])}))))))])):el("div",{class:"empty",text:"No hay pistones usados."}),
+    el("div",{class:"bd"},el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Seleccionar usados",disabled:!E.tot.Z,onclick:puClasif}),
+      el("button",{type:"button",class:"btn sec",text:"Enviar a "+PU_REC,disabled:!E.tot.R,onclick:puEnvio}),el("button",{type:"button",class:"btn sec",text:"Recibir de "+PU_REC,disabled:!E.tot.M,onclick:puRecep}),
+      el("button",{type:"button",class:"btn sec",text:"Llevar a chatarrería",disabled:!E.tot.C,onclick:puChat}),el("button",{type:"button",class:"btn sec",text:"Recuento",onclick:puCuenta})])),
+    ev.length?el("details",{style:"border-top:1px solid var(--line2)"},[el("summary",{class:"gh",style:"cursor:pointer",text:"Movimientos de usados ("+ev.length+")"}),el("div",{class:"lst"},ev.slice(0,30).map(e=>el("div",{class:"it",style:"cursor:default"},[
+      el("div",{class:"ppal"},[el("div",{class:"t1",style:"font-weight:500",text:puTxtEv(e)}),el("div",{class:"t2",text:fmtF(e.f)+(e.por?" · "+e.por:"")})]),
+      el("button",{type:"button",class:"btn txt peq",text:"Deshacer",onclick:()=>confirmar("¿Deshacer?",puTxtEv(e)+(e.movs&&e.movs.length?". También se quita la entrada de esos pistones en el stock.":""),"Deshacer",()=>puBorra(e))})])))]):null]);}
+function textoUsados(){const E=puEstado();if(!E)return"PISTONES USADOS: sin recuento todavía.";const L=["PISTONES USADOS (a "+fmtF(hoy())+"):"];
+  DIAM.forEach(d=>{const x=E.S[d];if(x.Z||x.R||x.M||x.C)L.push("- Pistón "+d+": "+[x.Z?x.Z+" sin seleccionar":"",x.R?x.R+" para recuperar":"",x.M?x.M+" en "+PU_REC:"",x.C?x.C+" en chatarra":""].filter(Boolean).join(" · "));});
+  L.push("Total: "+E.tot.Z+" sin seleccionar · "+E.tot.R+" para recuperar · "+E.tot.M+" en "+PU_REC+" · "+E.tot.C+" en chatarra");return L.join("\n");}
 function vPist(v){const d=draft.p;
   {const u=(cat.ajustes||{}).ultInfPist;const pend=pistPend();if(pend.length)v.appendChild(el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:180px",text:pend.reduce((a,p)=>a+(+p.cant||1),0)+" pistones consumidos sin informar a "+destPist().nom.split(" ")[0]+(u?" desde el "+fmtF(sumaDias(u,1)):"")}),el("button",{type:"button",class:"btn peq",text:"Preparar informe",onclick:informePist})]));}
   const S=statsPist();
@@ -2136,6 +2214,7 @@ function vPist(v){const d=draft.p;
   form.addEventListener("submit",e=>{e.preventDefault();guardarPist();});
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Cambio de pistón"})),el("div",{class:"bd"},form)]));
   ["#pAcc","#pStockCard"].forEach(q=>{const sc=v.querySelector(q);if(sc)v.appendChild(sc);});
+  v.appendChild(cardUsados());
   const all=todosPist(),hy=hoy();
   /* análisis por inyectora, últimos 3 meses */
   const d3=sumaDias(hy,-91);const cnt={};all.filter(p=>p.f>=d3).forEach(p=>{cnt[p.maq]=(cnt[p.maq]||0)+(+p.cant||1);});
@@ -2243,7 +2322,8 @@ function datosInforme(desde,hasta){const en=f=>f>=desde&&f<=hasta;const cam=todo
   const porD={};cam.forEach(p=>{porD[p.diam]=(porD[p.diam]||0)+(+p.cant||1);});return{cam,aj,ent,porD,pids};}
 function respTxt(r){if(!r)return"sin indicar";const t=String(r).trim();const o=(cat.operarios||[]).find(x=>(x.num&&String(x.num)===t)||(x.nom&&norm(x.nom)===norm(t)));if(o&&o.num&&o.nom)return"Nº "+o.num+" · "+o.nom;return /^\d+$/.test(t)?"Nº "+t:t;}
 function almDeCambio(p){if(!p.movId)return"";const m=todosMov().find(x=>x.id===p.movId);return m?almN(m.alm):"";}
-function textoInforme(desde,hasta,s){s=s||incluirSel("pist",OPS_PIST);const{cam,porD}=datosInforme(desde,hasta);const tot=Object.values(porD).reduce((a,b)=>a+b,0);
+function textoInforme(desde,hasta,s,u){const t=textoInforme0(desde,hasta,s);return u?t+"\n\n"+textoUsados():t;}
+function textoInforme0(desde,hasta,s){s=s||incluirSel("pist",OPS_PIST);const{cam,porD}=datosInforme(desde,hasta);const tot=Object.values(porD).reduce((a,b)=>a+b,0);
   const L=["CAMBIOS DE PISTÓN · MAPRI",desde===hasta?"Día "+fmtF(desde):"Del "+fmtF(desde)+" al "+fmtF(hasta),""];
   if(!cam.length){L.push("No se ha cambiado ningún pistón en este periodo.");return L.join("\n");}
   if(s.res){L.push("RESUMEN ("+tot+" pistones):");DIAM.forEach(x=>{if(porD[x]){const a=pistArt(x);L.push("- "+(a&&a.cod?"["+a.cod+"] ":"")+"Pistón "+x+": "+porD[x]+" ud");}});}
@@ -2274,7 +2354,8 @@ function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj
   const mail=el("a",{class:"btn",target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por correo a "+pn});
   const wa=el("a",{class:"btn sec",target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por WhatsApp"+(D.tel?" a "+pn:"")});
   const chP=incluirChips("pist",OPS_PIST,()=>pinta());
-  const pinta=()=>{if(f.desde>f.hasta)f.desde=f.hasta;ta.value=textoInforme(f.desde,f.hasta,chP.sel);
+  const usC=el("input",{type:"checkbox",onchange:()=>pinta()});const usL=el("label",{class:"chk"},[usC," Añadir los pistones usados (zona, "+PU_REC+" y chatarra)"]);
+  const pinta=()=>{if(f.desde>f.hasta)f.desde=f.hasta;ta.value=textoInforme(f.desde,f.hasta,chP.sel,usC.checked);
     const per=f.desde===f.hasta?fmtF(f.desde):fmtF(f.desde)+" al "+fmtF(f.hasta);
     mail.href="mailto:"+encodeURIComponent(D.email||"")+"?subject="+encodeURIComponent("Consumo de pistones MAPRI · "+per)+"&body="+encodeURIComponent("Hola "+pn+",\n\nTe paso el consumo de pistones"+(f.desde===f.hasta?" del "+fmtF(f.desde):" del "+per)+".\n\n"+ta.value+"\n\nUn saludo.");
     wa.href="https://wa.me/"+(telWA(D.tel)||"")+"?text="+encodeURIComponent(ta.value);};pinta();
@@ -2286,7 +2367,7 @@ function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj
   cerrar=dlg("Informe diario de pistones",[el("p",{class:"sub"},["Para: ",el("b",{text:D.nom}),D.email?" · "+D.email:" · sin correo guardado"," ",el("button",{type:"button",class:"btn txt peq",style:"color:var(--acc)",text:"Cambiar",onclick:()=>{if(cerrar)cerrar();formDestPist(informePist);}})]),
     el("div",{class:"row"},[fld("Desde",inp("ipD",f.desde,v=>{f.desde=v;pinta();},{type:"date"})),fld("Hasta",inp("ipH",f.hasta,v=>{f.hasta=v;pinta();},{type:"date"}))]),
     el("p",{class:"hint",text:aj.ultInfPist?"Último informe enviado: hasta el "+fmtF(aj.ultInfPist)+". Por defecto empieza el día siguiente para no dejar huecos ni repetir."+(tarde.length?" Ojo: hay "+tarde.length+" cambio"+(tarde.length===1?"":"s")+" apuntado"+(tarde.length===1?"":"s")+" después del último envío con fecha "+[...new Set(tarde.map(p=>fmtF(p.f)))].join(", ")+", por eso empieza en esa fecha.":""):"Es el primer informe: elige desde qué día."}),
-    chP.node,ta,mail,wa,
+    chP.node,usL,ta,mail,wa,
     el("p",{class:"hint",text:"«Enviar por correo» abre tu aplicación de correo con el informe ya escrito"+(D.email?" para "+D.email:"; como no hay correo guardado tendrás que ponerlo tú (guárdalo con «Cambiar»)")+". Después pulsa «Marcar como enviado» para que el siguiente informe empiece donde acaba este."}),
     el("p",{class:"hint",text:"Si los pistones tienen el código de material de SAP en su ficha (campo Código), sale entre corchetes."})],acts);}
 async function excelInforme(desde,hasta){try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const{cam,porD}=datosInforme(desde,hasta);
@@ -3523,7 +3604,7 @@ tabsUI();render(true);
   try{downloads=await claude.use("downloads");}catch(e){downloads=null;}
   if(!db){ready=true;render(true);return;}
   let got={cat:false,mov:false,pist:false,ejes:false,rep:false};const listo=k=>{got[k]=true;if(Object.values(got).every(Boolean))ready=true;render();};
-  db.doc("cat/app").onSnapshot(sn=>{catOk=true;if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.bajarOk)cat.bajarOk=JSON.parse(JSON.stringify(c.bajarOk));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");if(c.bajarAj)cat.bajarAj=JSON.parse(JSON.stringify(c.bajarAj));if(c.consultas)cat.consultas=JSON.parse(JSON.stringify(c.consultas));}listo("cat");},()=>{listo("cat");});
+  db.doc("cat/app").onSnapshot(sn=>{catOk=true;if(sn.exists){const c=sn.data();const cp=k=>(c[k]||[]).map(a=>Object.assign({},a));cat={articulos:cp("articulos"),almacenes:cp("almacenes"),maquinas:cp("maquinas"),proveedores:cp("proveedores"),operarios:cp("operarios"),modelos:cp("modelos"),ajustes:Object.assign({},c.ajustes||{}),dot:JSON.parse(JSON.stringify(c.dot||{}))};if(c.prev)cat.prev=Object.assign({},c.prev);if(c.ejePend)cat.ejePend=JSON.parse(JSON.stringify(c.ejePend));if(c.bajarOk)cat.bajarOk=JSON.parse(JSON.stringify(c.bajarOk));if(c.pedidosBT)cat.pedidosBT=JSON.parse(JSON.stringify(c.pedidosBT));if(c.informes)cat.informes=JSON.parse(JSON.stringify(c.informes));if(c.revEjes)cat.revEjes=Object.assign({},c.revEjes);if(c.ejeRecup)cat.ejeRecup=JSON.parse(JSON.stringify(c.ejeRecup));if(c.ejeStat)cat.ejeStat=JSON.parse(JSON.stringify(c.ejeStat));if(c.fichaIny)cat.fichaIny=JSON.parse(JSON.stringify(c.fichaIny));if(c.moldes)cat.moldes=cp("moldes");if(c.contens)cat.contens=cp("contens");if(c.bajarAj)cat.bajarAj=JSON.parse(JSON.stringify(c.bajarAj));if(c.consultas)cat.consultas=JSON.parse(JSON.stringify(c.consultas));if(c.pusados)cat.pusados=JSON.parse(JSON.stringify(c.pusados));;for(const k in c)if(!(k in cat))cat[k]=JSON.parse(JSON.stringify(c[k]));}listo("cat");},()=>{listo("cat");});
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;listo("mov");},()=>listo("mov"));
   db.collection("mlog").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});mlogAnos=m;if(ready)render();},()=>{});
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
