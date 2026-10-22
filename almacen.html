@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022171028"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022171345"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -280,7 +280,7 @@ nav button[aria-selected="true"]{background:none;box-shadow:inset 0 3px 0 var(--
 .stripe{width:3px}
 
 /* menú de usuario y arreglos para iPhone */
-.pu{table-layout:fixed;width:100%;min-width:0!important}.pu td,.pu th{padding:9px 6px!important;white-space:normal!important}.pu th{font-size:11px;line-height:1.2}.pu th:first-child,.pu td:first-child{width:58px;padding-left:14px!important}.pu input{width:100%!important;max-width:72px}.pu select{width:100%;min-width:0;padding:8px 2px;font-size:15px}
+.pu{table-layout:fixed;width:100%;min-width:0!important}.pu td,.pu th{padding:9px 6px!important;white-space:normal!important}.pu th{font-size:11px;line-height:1.2}.pu th:first-child,.pu td:first-child{width:58px;padding-left:14px!important}.pu input{width:100%!important;max-width:72px}.pu select{width:100%;min-width:0;padding:8px 2px;font-size:15px}.pu th:nth-child(2){width:54px}
 .usr-av{appearance:none;width:36px;height:36px;flex:none;border-radius:50%;border:0;background:#0070F2;color:#fff;font:600 13px Inter,system-ui,sans-serif;cursor:pointer;align-self:center}
 .usr-fila{appearance:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--ink);font:inherit;cursor:pointer}
 .usr-fila b{font-weight:600;color:var(--acc)}.usr-fila small{color:var(--ink2);font-size:13px}
@@ -2118,6 +2118,11 @@ const PU_N=["Ø 60","Ø 70","Ø 80","Ø 90","Ø 100"];
 /* a qué diámetros puede volver: cualquiera más pequeño (normalmente el inmediato inferior); el 100 esp solo a 90 esp */
 const puOpc=d=>d==="Ø 100 esp"?["Ø 90 esp"]:PU_N.includes(d)?PU_N.slice(0,PU_N.indexOf(d)).reverse():[];
 const puRecup=d=>puOpc(d)[0]||null;
+const puFalta=d=>{const a=pistArt(d);if(!a)return"";const n=nivel(a);return n==="bad"?"bajo mín.":n==="warn"?"pedir":"";};
+/* al enviar: primero el diámetro más grande de los que faltan; si no falta ninguno, uno menos */
+const puOpcEnv=d=>{const o=puOpc(d);const f=o.filter(x=>puFalta(x));return f.length?[f[0]].concat(o.filter(x=>x!==f[0])):o;};
+/* al recibir: primero lo que se pidió en el último envío de ese diámetro */
+const puOpcRec=d=>{const o=puOpc(d);const e=puEv().filter(x=>x.t==="envio"&&x.a&&x.a[d]).sort((a,b)=>b.f.localeCompare(a.f)||b.ts-a.ts)[0];const p=e&&e.a[d];return p&&o.includes(p)?[p].concat(o.filter(x=>x!==p)):o;};
 function puEstado(){const ev=puEv();const c0=ev.filter(e=>e.t==="cuenta").sort((a,b)=>a.f.localeCompare(b.f)||a.ts-b.ts)[0];if(!c0)return null;
   const S={};DIAM.forEach(d=>S[d]={Z:0,R:0,M:0,C:0});const add=(b,o,sg)=>Object.entries(o||{}).forEach(([d,n])=>{if(S[d])S[d][b]+=sg*(+n||0);});
   const cams=todosPist().filter(p=>p.dest===DESTINOS[0]&&(p.f>c0.f||(p.f===c0.f&&(+p.ts||0)>c0.ts))).map(p=>({t:"cambio",f:p.f,ts:+p.ts||0,d:p.diam,n:+p.cant||1}));
@@ -2138,7 +2143,7 @@ function puForm(titulo,intro,cols,extra,boton,onOk){const E=puEstado();const val
   const filas=DIAM.filter(d=>cols[0].mostrar?cols[0].mostrar(E,d):true);
   const tb=el("tbody",{},filas.map(d=>el("tr",{},[el("td",{},[el("b",{text:d}),null]),el("td",{class:"r num sub",text:cols[0].info?cols[0].info(E,d):""})].concat(cols.map(c=>{const pre=c.pre?c.pre(E,d):"";if(pre)val[c.k][d]=pre;
     if(c.no&&c.no(d))return el("td",{class:"sub",style:"font-size:12px",text:"no se recupera"});
-    if(c.opc){const o=c.opc(d);val[c.k][d]=o[0]||"";return el("td",{},o.length>1?sel("pu"+c.k+d.replace(/\W/g,""),o.map(x=>[x,x.replace("Ø ","")]),o[0],x=>val[c.k][d]=x):el("span",{text:o[0]||"—"}));}
+    if(c.opc){const o=c.opc(d);val[c.k][d]=o[0]||"";const lb=x=>x.replace("Ø ","")+(c.falta&&puFalta(x)?" · "+puFalta(x):"");return el("td",{},o.length>1?sel("pu"+c.k+d.replace(/\W/g,""),o.map(x=>[x,lb(x)]),o[0],x=>val[c.k][d]=x):el("span",{text:o[0]?lb(o[0]):"—"}));}
     return el("td",{},inp("pu"+c.k+d.replace(/\W/g,""),pre?String(pre):"",v=>{const n=parseN(v);if(isFinite(n)&&n>0)val[c.k][d]=n;else delete val[c.k][d];},{inputmode:"numeric",class:"num",placeholder:"0",style:"width:64px;padding:7px 8px;font-size:16px"}));})))));
   dlg(titulo,[intro?el("p",{class:"hint",text:intro}):null,
     filas.length?el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:cols[0].infoT||""})].concat(cols.map(c=>el("th",{text:c.t}))))),tb])):el("p",{class:"empty",text:"No hay pistones en este paso."}),
@@ -2151,12 +2156,12 @@ function puClasif(){const F=puFecha();puForm("Seleccionar pistones usados","Sepa
   [{k:"rec",t:"Recuperar",infoT:"Hay",info:(E,d)=>E.S[d].Z||"·",mostrar:(E,d)=>E.S[d].Z>0,no:d=>!puRecup(d)},{k:"des",t:"Chatarra",pre:(E,d)=>!puRecup(d)&&E.S[d].Z>0?E.S[d].Z:""}],[F],"Guardar selección",
   (v,E,chk)=>{if(chk){for(const d of DIAM){if(v.rec[d]&&!puRecup(d))return d+" no se puede recuperar: va a chatarra.";const n=(v.rec[d]||0)+(v.des[d]||0);if(n>E.S[d].Z)return"En "+d+" solo hay "+E.S[d].Z+" sin seleccionar. Si no cuadra, haz un recuento.";}return"";}
     return puGuarda({t:"clasif",f:F.v,rec:v.rec,des:v.des});});}
-function puEnvio(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");puForm("Enviar a "+PU_REC,"Viene puesto todo lo que tienes para recuperar. Cambia las cantidades si no mandas todo.",
-  [{k:"c",t:"Enviar",infoT:"Para recup.",info:(E,d)=>E.S[d].R||"·",pre:(E,d)=>E.S[d].R>0?E.S[d].R:"",mostrar:(E,d)=>E.S[d].R>0}],[F,A],"Registrar envío",
-  (v,E,chk)=>chk?supera(v,"c",E,"R","para recuperar"):puGuarda({t:"envio",f:F.v,c:v.c,alb:A.v.trim()}));}
+function puEnvio(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");puForm("Enviar a "+PU_REC,"Viene puesto todo lo que tienes para recuperar. En «Rebajar a» elige el diámetro que le pides a "+PU_REC+": sale primero el que te falta. Si de un mismo diámetro quieres unos a un tamaño y otros a otro, regístralo en dos envíos.",
+  [{k:"c",t:"Enviar",infoT:"Para recup.",info:(E,d)=>E.S[d].R||"·",pre:(E,d)=>E.S[d].R>0?E.S[d].R:"",mostrar:(E,d)=>E.S[d].R>0},{k:"a",t:"Rebajar a",opc:puOpcEnv,falta:true}],[F,A],"Registrar envío",
+  (v,E,chk)=>{if(chk)return supera(v,"c",E,"R","para recuperar");const a={};Object.keys(v.c).forEach(d=>a[d]=v.a[d]||puRecup(d));return puGuarda({t:"envio",f:F.v,c:v.c,a,alb:A.v.trim()});});}
 function puRecep(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");const pa=pistArt("Ø 80");const L={v:(pa&&almDe(pa.id))||(cat.almacenes[0]||{}).id||""};L.node=fld("Entran en el almacén",sel("puAlm",almOpts(),L.v,x=>L.v=x));
-  puForm("Recibir de "+PU_REC,"Los que vuelven bien entran en el stock con el diámetro al que los han rebajado (viene puesto uno menos; cámbialo en «Como» si es otro). Si de un mismo diámetro vuelven unos a un tamaño y otros a otro, regístralo en dos veces. Los que no se han podido recuperar pasan al cajón de chatarra.",
-  [{k:"ok",t:"Vuelven bien",infoT:"En "+PU_REC,info:(E,d)=>E.S[d].M||"·",pre:(E,d)=>E.S[d].M>0?E.S[d].M:"",mostrar:(E,d)=>E.S[d].M>0},{k:"como",t:"Como",opc:puOpc},{k:"mal",t:"No sirven"}],[F,A,L],"Registrar recepción",
+  puForm("Recibir de "+PU_REC,"Los que vuelven bien entran en el stock con el diámetro al que los han rebajado (viene puesto el que pediste al enviarlos; cámbialo solo si te los devuelven distintos). Si de un mismo diámetro vuelven unos a un tamaño y otros a otro, regístralo en dos veces. Los que no se han podido recuperar pasan al cajón de chatarra.",
+  [{k:"ok",t:"Vuelven bien",infoT:"En "+PU_REC,info:(E,d)=>E.S[d].M||"·",pre:(E,d)=>E.S[d].M>0?E.S[d].M:"",mostrar:(E,d)=>E.S[d].M>0},{k:"como",t:"Vuelven a",opc:puOpcRec},{k:"mal",t:"No sirven"}],[F,A,L],"Registrar recepción",
   async(v,E,chk)=>{if(chk){for(const d of DIAM){const n=(v.ok[d]||0)+(v.mal[d]||0);if(n>E.S[d].M)return"De "+d+" solo hay "+E.S[d].M+" en "+PU_REC+".";if(v.ok[d]&&!puRecup(d))return d+" no se puede recuperar.";if(v.ok[d]&&!pistArt(v.como[d]||puRecup(d)))return"No hay artículo de pistón "+(v.como[d]||puRecup(d))+" en el catálogo.";}return"";}
     const movs=Object.entries(v.ok).map(([d,n])=>({tipo:"entrada",f:F.v,art:pistArt(v.como[d]||puRecup(d)).id,alm:L.v,cant:n,alb:A.v.trim()||undefined,nota:"Recuperado por "+PU_REC+" (era "+d+")"}));
     if(movs.length)await addMovs(movs);const como={};Object.keys(v.ok).forEach(d=>como[d]=v.como[d]||puRecup(d));return puGuarda({t:"recep",f:F.v,ok:v.ok,como,mal:v.mal,alb:A.v.trim(),alm:L.v,movs:movs.map(m=>({id:m.id,f:m.f}))});});}
@@ -2170,7 +2175,7 @@ function puCuenta(){const E=puEstado();const F=puFecha();const b={};PU_B.forEach
     el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(["Sin selec.","Recup.",PU_REC,"Chatarra"].map(t=>el("th",{text:t}))))),tb])),F.node],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{PU_B.forEach(([k])=>DIAM.forEach(d=>{if(b[k][d]==null)b[k][d]=0;}));try{await puGuarda({t:"cuenta",f:F.v,b});toast("Recuento guardado");}catch(e){return false;}}}]);}
 function puTxtEv(e){const s=o=>Object.entries(o||{}).filter(([,n])=>n).map(([d,n])=>d+" ×"+n).join(", ")||"—";
-  return e.t==="cuenta"?"Recuento":e.t==="clasif"?"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):e.t==="envio"?"Enviado a "+PU_REC+": "+s(e.c)+(e.alb?" · alb. "+e.alb:""):
+  return e.t==="cuenta"?"Recuento":e.t==="clasif"?"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):e.t==="envio"?"Enviado a "+PU_REC+": "+Object.entries(e.c||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.a||{})[d]||"?").replace("Ø ","")+" ×"+n).join(", ")+(e.alb?" · alb. "+e.alb:""):
     e.t==="recep"?"Recibido de "+PU_REC+" · bien: "+Object.entries(e.ok||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.como||{})[d]||puRecup(d)||"?")+" ×"+n).join(", ")+(Object.keys(e.mal||{}).length?" · no sirven: "+s(e.mal):"")+(e.alb?" · alb. "+e.alb:""):"Chatarrería: "+s(e.c)+(e.kg?" · "+fmtN(e.kg)+" kg":"")+(e.eur?" · "+fmtN(e.eur)+" €":"");}
 async function puBorra(e){const prev=cat.pusados;cat.pusados={ev:puEv().filter(x=>x.id!==e.id)};try{await saveCat();for(const m of e.movs||[])await delMov(m.id,m.f);toast("Deshecho");}catch(er){cat.pusados=prev;}render(true);}
 function cardUsados(){const E=puEstado();
