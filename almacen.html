@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022171345"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022175653"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -2129,11 +2129,15 @@ function puEstado(){const ev=puEv();const c0=ev.filter(e=>e.t==="cuenta").sort((
   ev.concat(cams).slice().sort((a,b)=>a.f.localeCompare(b.f)||(a.ts||0)-(b.ts||0)).forEach(e=>{
     if(e.t==="cuenta")PU_B.forEach(([b])=>{if(e.b&&e.b[b])DIAM.forEach(d=>{if(e.b[b][d]!=null)S[d][b]=+e.b[b][d]||0;});});
     else if(e.t==="cambio"){if(S[e.d])S[e.d].Z+=e.n;}
-    else if(e.t==="clasif"){add("Z",e.rec,-1);add("Z",e.des,-1);add("R",e.rec,1);add("C",e.des,1);}
+    else if(e.t==="clasif"){if(e.esp){add("Z",e.esp,-1);}else{add("Z",e.rec,-1);add("Z",e.des,-1);}add("R",e.rec,1);add("C",e.des,1);}
     else if(e.t==="envio"){add("R",e.c,-1);add("M",e.c,1);}
     else if(e.t==="recep"){add("M",e.ok,-1);add("M",e.mal,-1);add("C",e.mal,1);}
     else if(e.t==="chat"){add("C",e.c,-1);}});
   const tot={Z:0,R:0,M:0,C:0};DIAM.forEach(d=>PU_B.forEach(([b])=>tot[b]+=S[d][b]));return{S,tot,desde:c0.f};}
+/* cambios de pistón que dicen haber dejado el usado en la zona desde la última retirada (o desde el primer recuento) */
+function puCambiosZona(){const ev=puEv();const marca=ev.filter(e=>e.t==="cuenta"||(e.t==="clasif"&&e.esp)).sort((a,b)=>b.f.localeCompare(a.f)||b.ts-a.ts)[0];if(!marca)return[];
+  return todosPist().filter(p=>p.dest===DESTINOS[0]&&(p.f>marca.f||(p.f===marca.f&&(+p.ts||0)>marca.ts))).sort((a,b)=>a.f.localeCompare(b.f)||(+a.ts||0)-(+b.ts||0));}
+function puFaltasAno(){const y=hoy().slice(0,4);let n=0;puEv().forEach(e=>{if(e.t==="clasif"&&e.falta&&String(e.f).startsWith(y))Object.values(e.falta).forEach(x=>{if(x>0)n+=x;});});return n;}
 function puUrge(E){const out=[];DIAM.forEach(d=>{const a=pistArt(d);if(!a)return;const n=nivel(a);if(n!=="bad"&&n!=="warn")return;
     const fuentes=DIAM.filter(src=>puOpc(src).includes(d)&&(E.S[src].Z+E.S[src].R)>0).map(src=>({src,u:E.S[src].Z+E.S[src].R}));if(fuentes.length)out.push({d,a,fuentes});});return out;}
 async function puGuarda(e){e.id=uid();e.ts=Date.now();e.por=(window.yoNombre&&window.yoNombre())||"";const prev=cat.pusados;cat.pusados={ev:puEv().concat([e])};
@@ -2152,10 +2156,37 @@ function puForm(titulo,intro,cols,extra,boton,onOk){const E=puEstado();const val
 const puFecha=()=>{const o={v:hoy()};o.node=fld("Fecha",inp("puF",o.v,x=>o.v=x,{type:"date"}));return o;};
 const puTxt=(l,ph,extra)=>{const o={v:""};o.node=fld(l,inp("puT"+l.replace(/\W/g,""),"",x=>o.v=x,Object.assign({autocomplete:"off",placeholder:ph||""},extra||{})));return o;};
 const supera=(val,k,E,b,txt)=>{for(const d in val[k]){if(val[k][d]>E.S[d][b])return"En "+d+" solo hay "+E.S[d][b]+" "+txt+". Si no cuadra, haz un recuento.";}return"";};
-function puClasif(){const F=puFecha();puForm("Seleccionar pistones usados","Separa los que se pueden recuperar (van a "+PU_REC+" y vuelven con un diámetro más pequeño) y los que van al cajón de chatarra. Ø 60, Ø 70 esp y Ø 90 esp no se recuperan: vienen puestos en chatarra.",
-  [{k:"rec",t:"Recuperar",infoT:"Hay",info:(E,d)=>E.S[d].Z||"·",mostrar:(E,d)=>E.S[d].Z>0,no:d=>!puRecup(d)},{k:"des",t:"Chatarra",pre:(E,d)=>!puRecup(d)&&E.S[d].Z>0?E.S[d].Z:""}],[F],"Guardar selección",
-  (v,E,chk)=>{if(chk){for(const d of DIAM){if(v.rec[d]&&!puRecup(d))return d+" no se puede recuperar: va a chatarra.";const n=(v.rec[d]||0)+(v.des[d]||0);if(n>E.S[d].Z)return"En "+d+" solo hay "+E.S[d].Z+" sin seleccionar. Si no cuadra, haz un recuento.";}return"";}
-    return puGuarda({t:"clasif",f:F.v,rec:v.rec,des:v.des});});}
+function puClasif(){const E=puEstado();const F=puFecha();const hay={};const filas=DIAM.filter(d=>E.S[d].Z>0||d!=="Ø 50");
+  const cam=puCambiosZona();const esp=d=>E.S[d].Z;const totE=DIAM.reduce((t,d)=>t+Math.max(0,esp(d)),0);
+  const dif=el("td",{class:"r num"});const totH=el("td",{class:"r num"});
+  const pinta=()=>{let th=0,cnt=0;filas.forEach(d=>{const c=document.getElementById("pudf"+d.replace(/\W/g,""));const h=hay[d];if(h!=null){th+=h;cnt++;}
+      if(c){const df=h==null?null:h-esp(d);c.textContent=df==null?"":df===0?"✓":(df>0?"+":"−")+Math.abs(df);c.className="r num"+(df<0?" neg":df>0?" warn":"");}});
+    totH.textContent=fmtN(th);const df=th-totE;dif.textContent=cnt?(df===0?"✓":(df>0?"+":"−")+Math.abs(df)):"";dif.className="r num"+(df<0&&cnt?" neg":"");};
+  const tb=el("tbody",{},filas.map(d=>el("tr",{},[el("td",{},el("b",{text:d})),el("td",{class:"r num",text:esp(d)>0?String(esp(d)):"·"}),
+    el("td",{},inp("puh"+d.replace(/\W/g,""),"",v=>{const n=parseN(v);if(isFinite(n)&&n>=0)hay[d]=n;else delete hay[d];pinta();},{inputmode:"numeric",class:"num",placeholder:esp(d)>0?"?":"0"})),
+    el("td",{id:"pudf"+d.replace(/\W/g,""),class:"r num"})])));
+  const lista=cam.length?el("details",{},[el("summary",{class:"hint",style:"cursor:pointer;font-weight:600",text:"De dónde salen los que debe haber ("+cam.length+" cambio"+(cam.length===1?"":"s")+")"}),
+    el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},["Fecha","Iny.","Ø","Responsable"].map(t=>el("th",{text:t})))),
+      el("tbody",{},cam.map(p=>el("tr",{},[el("td",{text:fmtF(p.f).slice(0,5)}),el("td",{text:maqN(p.maq)}),el("td",{text:p.diam.replace("Ø ","")+((+p.cant||1)>1?" ×"+p.cant:"")}),el("td",{text:p.resp?respTxt(p.resp):"—"})])))]))]):
+    el("p",{class:"hint",text:"No hay cambios de pistón con destino a la zona desde la última retirada."});
+  dlg("Retirar de la zona · 1/2 contar",[el("p",{class:"hint",text:"Cuenta lo que hay de verdad en la zona de pistones usados y apúntalo en «Hay» (pon 0 si no hay ninguno). La diferencia sale sola: en rojo los que faltan."}),
+    el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:"Debe haber"}),el("th",{text:"Hay"}),el("th",{class:"r",text:"Dif."})])),tb,
+      el("tfoot",{},el("tr",{},[el("td",{},el("b",{text:"Total"})),el("td",{class:"r num"},el("b",{text:String(totE)})),totH,dif]))])),lista,F.node],
+    [{t:"Cancelar",cls:"sec"},{t:"Siguiente",fn:()=>{const sin=filas.filter(d=>esp(d)>0&&hay[d]==null);if(sin.length){toast("Pon cuántos hay de "+sin.join(", ")+" (0 si no hay)");return false;}
+      const tot=Object.values(hay).reduce((a,b)=>a+b,0);const falta={};let nf=0;filas.forEach(d=>{const df=(hay[d]||0)-Math.max(0,esp(d));if(df){falta[d]=-df;if(df<0)nf-=df;}});
+      setTimeout(()=>puClasif2(F.v,hay,falta,nf,tot),0);}}]);}
+function puClasif2(f,hay,falta,nf,tot){const ds=DIAM.filter(d=>hay[d]>0);const rec={},des={};
+  const tb=el("tbody",{},ds.map(d=>{const k=d.replace(/\W/g,"");const pr=puRecup(d)?0:hay[d];rec[d]=0;des[d]=hay[d];
+    const cD=el("td",{class:"r num",text:String(des[d])});
+    return el("tr",{},[el("td",{},el("b",{text:d})),el("td",{class:"r num",text:String(hay[d])}),
+      el("td",{},puRecup(d)?inp("pur"+k,"",v=>{let n=parseN(v);if(!(isFinite(n)&&n>=0))n=0;if(n>hay[d]){n=hay[d];}rec[d]=n;des[d]=hay[d]-n;cD.textContent=String(des[d]);},{inputmode:"numeric",class:"num",placeholder:"0"}):el("span",{class:"sub",style:"font-size:12px",text:"no se recupera"})),cD]);}));
+  const resumen=nf?el("div",{class:"banner",style:"background:var(--bad-bg);color:var(--ink)"},[el("b",{text:(nf===1?"Falta 1 pistón: ":"Faltan "+nf+" pistones: ")}),Object.entries(falta).filter(([,n])=>n>0).map(([d,n])=>n+" de "+d).join(", ")+". Quedará apuntado como desvío."]):
+    el("p",{class:"hint",text:"Cuadra con lo que debía haber."+(Object.values(falta).some(n=>n<0)?" (Hay alguno de más: se suma igual.)":"")});
+  dlg("Retirar de la zona · 2/2 separar",[resumen,el("p",{class:"hint",text:"De los "+tot+" que has encontrado, ¿cuántos van a recuperar ("+PU_REC+")? El resto va al cajón de chatarra."}),
+    ds.length?el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:"Hay"}),el("th",{text:"Recuperar"}),el("th",{class:"r",text:"Chatarra"})])),tb])):el("p",{class:"empty",text:"No has encontrado ninguno."})],
+    [{t:"Atrás",cls:"sec",fn:()=>{setTimeout(puClasif,0);}},{t:"Guardar retirada",fn:async()=>{const E=puEstado();const esp={};DIAM.forEach(d=>{if(E.S[d].Z>0)esp[d]=E.S[d].Z;});
+      const R0={},D0={};Object.keys(rec).forEach(d=>{if(rec[d])R0[d]=rec[d];if(des[d])D0[d]=des[d];});
+      try{await puGuarda({t:"clasif",f,esp,enc:hay,falta,rec:R0,des:D0});toast(nf?"Guardado · faltaban "+nf:"Guardado · cuadra");}catch(e){return false;}}}]);}
 function puEnvio(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");puForm("Enviar a "+PU_REC,"Viene puesto todo lo que tienes para recuperar. En «Rebajar a» elige el diámetro que le pides a "+PU_REC+": sale primero el que te falta. Si de un mismo diámetro quieres unos a un tamaño y otros a otro, regístralo en dos envíos.",
   [{k:"c",t:"Enviar",infoT:"Para recup.",info:(E,d)=>E.S[d].R||"·",pre:(E,d)=>E.S[d].R>0?E.S[d].R:"",mostrar:(E,d)=>E.S[d].R>0},{k:"a",t:"Rebajar a",opc:puOpcEnv,falta:true}],[F,A],"Registrar envío",
   (v,E,chk)=>{if(chk)return supera(v,"c",E,"R","para recuperar");const a={};Object.keys(v.c).forEach(d=>a[d]=v.a[d]||puRecup(d));return puGuarda({t:"envio",f:F.v,c:v.c,a,alb:A.v.trim()});});}
@@ -2175,7 +2206,7 @@ function puCuenta(){const E=puEstado();const F=puFecha();const b={};PU_B.forEach
     el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(["Sin selec.","Recup.",PU_REC,"Chatarra"].map(t=>el("th",{text:t}))))),tb])),F.node],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{PU_B.forEach(([k])=>DIAM.forEach(d=>{if(b[k][d]==null)b[k][d]=0;}));try{await puGuarda({t:"cuenta",f:F.v,b});toast("Recuento guardado");}catch(e){return false;}}}]);}
 function puTxtEv(e){const s=o=>Object.entries(o||{}).filter(([,n])=>n).map(([d,n])=>d+" ×"+n).join(", ")||"—";
-  return e.t==="cuenta"?"Recuento":e.t==="clasif"?"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):e.t==="envio"?"Enviado a "+PU_REC+": "+Object.entries(e.c||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.a||{})[d]||"?").replace("Ø ","")+" ×"+n).join(", ")+(e.alb?" · alb. "+e.alb:""):
+  return e.t==="cuenta"?"Recuento":e.t==="clasif"?(e.esp?"Retirada de la zona"+(Object.values(e.falta||{}).some(n=>n>0)?" · FALTABAN "+Object.entries(e.falta).filter(([,n])=>n>0).map(([d,n])=>d+" ×"+n).join(", "):" · cuadra")+" · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des)):e.t==="envio"?"Enviado a "+PU_REC+": "+Object.entries(e.c||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.a||{})[d]||"?").replace("Ø ","")+" ×"+n).join(", ")+(e.alb?" · alb. "+e.alb:""):
     e.t==="recep"?"Recibido de "+PU_REC+" · bien: "+Object.entries(e.ok||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.como||{})[d]||puRecup(d)||"?")+" ×"+n).join(", ")+(Object.keys(e.mal||{}).length?" · no sirven: "+s(e.mal):"")+(e.alb?" · alb. "+e.alb:""):"Chatarrería: "+s(e.c)+(e.kg?" · "+fmtN(e.kg)+" kg":"")+(e.eur?" · "+fmtN(e.eur)+" €":"");}
 async function puBorra(e){const prev=cat.pusados;cat.pusados={ev:puEv().filter(x=>x.id!==e.id)};try{await saveCat();for(const m of e.movs||[])await delMov(m.id,m.f);toast("Deshecho");}catch(er){cat.pusados=prev;}render(true);}
 function cardUsados(){const E=puEstado();
@@ -2185,11 +2216,14 @@ function cardUsados(){const E=puEstado();
   const U=puUrge(E),ev=puEv().slice().sort((a,b)=>b.f.localeCompare(a.f)||b.ts-a.ts);
   const filas=DIAM.filter(d=>PU_B.some(([b])=>E.S[d][b]));
   return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pistones usados"}),el("span",{class:"der sub",text:E.tot.Z+E.tot.R+E.tot.M+E.tot.C+" en total"})]),
+    el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"sub",style:"font-size:12px;font-weight:600"},"Debe haber en la zona de usados"),
+      el("div",{style:"font-size:17px;font-weight:600;margin-top:2px"},E.tot.Z>0?DIAM.filter(d=>E.S[d].Z>0).map(d=>d+": "+E.S[d].Z).join(" · ")+" · Total "+E.tot.Z:"Nada (vacía)"),
+      el("div",{class:"sub",style:"font-size:12px;margin-top:2px"},"Según los cambios de pistón apuntados"+(puCambiosZona().length?" ("+puCambiosZona().length+" desde la última retirada)":"")+"."+(puFaltasAno()?" En las retiradas de este año han faltado "+puFaltasAno()+(puFaltasAno()===1?" pistón.":" pistones."):""))]),
     U.length?el("div",{class:"banner",style:"margin:10px 14px 0"},[el("b",{text:"Urge recuperar: "}),U.map(x=>x.d+" está "+(nivel(x.a)==="bad"?"bajo mínimo":"para pedir")+" (quedan "+fmtN(stockDe(x.a.id))+", mín "+fmtN(+x.a.min||0)+"): puedes recuperar "+x.fuentes.map(f=>f.u+" de "+f.src).join(" y ")).join(" · ")]):null,
     filas.length?el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(["Sin selec.","Recuperar",PU_REC,"Chatarra"].map(t=>el("th",{class:"r",text:t}))))),
       el("tbody",{},filas.map(d=>el("tr",{style:U.some(x=>x.fuentes.some(f=>f.src===d))?"background:var(--bad-bg)":""},[el("td",{},[el("b",{text:d}),el("div",{class:"sub",style:"font-size:11px",text:puRecup(d)?"→ "+puRecup(d).replace("Ø ","")+(puOpc(d).length>1?"…":""):"no recup."})])].concat(PU_B.map(([b])=>el("td",{class:"r num"+(E.S[d][b]<0?" neg":""),text:E.S[d][b]?fmtN(E.S[d][b]):"·"})))))),
       el("tfoot",{},el("tr",{},[el("td",{},el("b",{text:"Total"}))].concat(PU_B.map(([b])=>el("td",{class:"r num"},el("b",{text:fmtN(E.tot[b])}))))))])):el("div",{class:"empty",text:"No hay pistones usados."}),
-    el("div",{class:"bd"},el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Seleccionar usados",disabled:!E.tot.Z,onclick:puClasif}),
+    el("div",{class:"bd"},el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Retirar de la zona",onclick:puClasif}),
       el("button",{type:"button",class:"btn sec",text:"Enviar a "+PU_REC,disabled:!E.tot.R,onclick:puEnvio}),el("button",{type:"button",class:"btn sec",text:"Recibir de "+PU_REC,disabled:!E.tot.M,onclick:puRecep}),
       el("button",{type:"button",class:"btn sec",text:"Llevar a chatarrería",disabled:!E.tot.C,onclick:puChat}),el("button",{type:"button",class:"btn sec",text:"Recuento",onclick:puCuenta})])),
     ev.length?el("details",{style:"border-top:1px solid var(--line2)"},[el("summary",{class:"gh",style:"cursor:pointer",text:"Movimientos de usados ("+ev.length+")"}),el("div",{class:"lst"},ev.slice(0,30).map(e=>el("div",{class:"it",style:"cursor:default"},[
