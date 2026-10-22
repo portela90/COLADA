@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022182037"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022183950"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -2911,7 +2911,8 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
   acts.unshift({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formEje(e),0);}});acts.forEach(x=>{if(x.cls==="sec"||x.t==="Editar")return;});
   const coste=hist.reduce((t,r)=>t+(r.res==="ok"?(costeRep(r).v||0):0),0);const m=modelo(e.mod);
   objPage({tipo:"Eje",ruta:["Ejes",m?m.ref:e.mod],titulo:e.cod,sub:[ejeRef(e),e.estado==="planta"&&e.maq?"Puesto en la "+e.maq:null].filter(Boolean).join(" · "),estado:[et,ec],
-    kpis:[["Reparaciones",String(hist.filter(r=>r.res==="ok").length)],ab&&ab.env?["Días fuera",String(diasAb(ab)||0),(diasAb(ab)||0)>30?"neg":""]:["Máquina",e.maq||"—"],["Coste reparaciones",coste?eur(coste):"—"],["Código grabado",e.marcado?"Sí":"No"]],
+    kpis:ab&&ab.env?[["Días en el taller",String(diasAb(ab)||0),(diasAb(ab)||0)>30?"neg":""],["Esta reparación",costeRep(ab).v?eur(costeRep(ab).v)+(+ab.imp>0?"":" (aprox.)"):"sin precio"],["Reparaciones hechas",String(hist.filter(r=>r.res==="ok").length)],["Coste total hecho",coste?eur(coste):"0 €"]]
+      :[["Reparaciones hechas",String(hist.filter(r=>r.res==="ok").length)],["Coste total",coste?eur(coste):"0 €"],["Máquina",e.maq||"—"],["Código grabado",e.marcado?"Sí":"No"]],
     tabs:[["General",[el("section",{class:"card"},el("div",{class:"bd",style:"display:grid;gap:12px"},body))]],["Reparaciones ("+hist.length+")",[el("section",{class:"card"},repN)]]],acts});}
 async function enviar(list,f){const ups=[];for(const e of list){const ab=abiertaDe(e.cod);if(ab&&!ab.env)ups.push([ab,{env:f}]);else await addRep({eje:e.cod,desp:"—",alta:f,env:f});}
   if(ups.length)await updReps(ups);for(const e of list)await updEje(e,{estado:"reparacion"});}
