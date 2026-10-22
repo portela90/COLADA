@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022205406"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022212826"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -404,7 +404,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
-  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny"))
+  [["inicio","inicio.html","Inicio","Resumen de todo en mosaicos"],["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny"))
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
   box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
   box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));
@@ -647,7 +647,7 @@ function render(force){const a=document.activeElement;
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
   ({res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vAnalisis})[tab](v);
-  document.querySelector("main").scrollTop=sc;}
+  document.querySelector("main").scrollTop=sc;kpiInicio();}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+".tab",t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};
@@ -858,6 +858,17 @@ function respIA(R){return el("div",{style:"display:grid;gap:10px;margin-top:6px"
 async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();X.utils.book_append_sheet(wb,X.utils.json_to_sheet(r.rows.length?r.rows:[{"Sin datos":""}]),"Datos");
   await downloads.save({filename:(p.titulo||"Consulta").replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
 
+/* números clave para la página Inicio (inicio.html): se guardan solo si cambian, como mucho cada 20 s */
+let _kpiT=null,_kpiU="";
+function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{
+  let bajar=0,uds=0;lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org){bajar++;uds+=f.falta;}}));
+  const A=artsActivos().filter(a=>!a.pedido),bad=A.filter(a=>nivel(a)==="bad").length,warn=A.filter(a=>nivel(a)==="warn").length;
+  const ped=artsActivos().filter(a=>a.pedido).length;
+  const pl=ejes.filter(e=>e.estado==="planta").length-ejePend().length,tall=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length;
+  const mes=hoy().slice(0,7),pm=todosPist().filter(p=>p.f.startsWith(mes)).reduce((t,p)=>t+(+p.cant||1),0);
+  const E=puEstado();const k={bajar,uds,pedir:bad+warn,bajoMin:bad,pedidos:ped,ejesTot:ejes.filter(e=>e.estado!=="baja").length,prep:ejes.filter(e=>e.estado==="preparado").length,ejesPlanta:pl,ejesTaller:tall,cuarentena:ejePend().length,
+    pistMes:pm,usadosZona:E?E.tot.Z:null,urgeRecup:E?puUrge(E).length:0,iny:(cat.maquinas||[]).length};
+  const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
   const D={iny:"Plano de máquinas, material, consumos y moldes",pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos y piezas de horno",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}

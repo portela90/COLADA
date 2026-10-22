@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022143639"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022212826"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -394,7 +394,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
-  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
+  [["inicio","inicio.html","Inicio","Resumen de todo en mosaicos"],["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
   box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
   box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));
@@ -2970,19 +2970,27 @@ function render(){
   if(fid){const n=$(fid);if(n&&n!==document.activeElement){try{n.focus({preventScroll:true});}catch(e){n.focus();}
     if(s0!=null){try{n.setSelectionRange(s0,s1);}catch(e){}}}}
 }
+/* números clave para la página Inicio (inicio.html): se guardan solo si cambian, como mucho cada 20 s */
+let _kpiT=null,_kpiU="";
+function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{const R=bloques();const nv={};
+  Object.values(R.B).forEach(b=>{const x=nv[b.nave]=nv[b.nave]||{kg:0,fa:0,kgN:0,kgE:0,cUd:0};x.kg+=b.kg;x.fa+=b.fa;x.kgN+=b.kgN;x.kgE+=b.kgE;x.cUd+=b.cUd;});
+  Object.values(nv).forEach(x=>{for(const k in x)x[k]=Math.round(x[k]);});
+  const k={naves:nv,kg:Object.values(nv).reduce((t,x)=>t+x.kg,0),fa:Object.values(nv).reduce((t,x)=>t+x.fa,0),ud:R.ud||null};
+  const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function pinta(){
   const v=$("view");v.textContent="";
   if(!ready){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"Cargando…"})]));return;}
   if(!db){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."})]));return;}
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
-  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);
+  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();
   if(tab==="stock"||tab==="hist")v.appendChild(el("div",{style:"display:flex;justify-content:flex-end"},[el("button",{type:"button",class:"btn",text:"Generar informe",onclick:()=>generarInforme()})]));
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
 function tabsUI(){const n=$("tabs");n.textContent="";
   TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id),text:t,onclick:()=>{tab=id;try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}})));}
 try{const t=localStorage.getItem("colada.tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
+try{const q=new URLSearchParams(location.search).get("t");if(q&&TABS.some(x=>x[0]===q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
 tabsUI();render();
 window.addEventListener("colada-refresh",()=>render());
 window.descCambio=(col,it)=>{if(col==="mov"){const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};const l=lotes.find(x=>x.id===it.o);
