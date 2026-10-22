@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261016154731">
+<meta name="build" content="20261022102238">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Calendario laboral · Limpieza CIE</title>
-<meta name="theme-color" content="#1F4E79">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="limpieza.webmanifest"><link rel="icon" href="limp-192.png"><link rel="apple-touch-icon" href="limp-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <style>
@@ -71,6 +71,54 @@ button.linea{all:unset;display:flex;gap:8px;align-items:center;padding:10px 14px
 .sigbox .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9AA9B8;pointer-events:none;font-size:15px}
 .modo{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 12px;margin:0 0 10px;font-weight:600;display:flex;gap:8px;align-items:center}
 .modo span{flex:1}
+
+/* ===== Tema SAP Fiori (Horizon) ===== */
+@font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
+:root{--bg:#F5F6F7;--surf:#FFFFFF;--surf2:#F5F6F7;--ink:#1D2D3E;--mut:#556B82;--line:#D9DEE3;--acc:#0064D9;--acc2:#0070F2;--accb:#0070F2;--ok:#256F3A;--okbg:#F5FAE5;--warn:#B44F00;--warnbg:#FFF8D6;--bad:#AA0808;--badbg:#FFEAF4;--info:#0064D9;--infobg:#E1F4FF;--btnb:#BCC3CA;--sh:0 0 0 1px rgba(85,107,130,.16),0 2px 4px rgba(34,53,72,.08);--r:12px}
+@media (prefers-color-scheme:dark){:root{--bg:#12171C;--surf:#1D232A;--surf2:#232A32;--ink:#EAECEE;--mut:#A9B4BE;--line:#3A4552;--acc:#4DB1FF;--acc2:#0070F2;--accb:#0070F2;--ok:#5DC122;--okbg:#1F3416;--warn:#FFB547;--warnbg:#3A2B0E;--bad:#FF8888;--badbg:#3C1B1B;--info:#4DB1FF;--infobg:#14283B;--btnb:#596775;--sh:0 0 0 1px rgba(255,255,255,.08)}}
+html,body,button,input,select,textarea{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+header{background:var(--surf)!important;color:var(--ink)!important;min-height:52px;padding:6px 16px!important;box-shadow:var(--sh)}
+header h1{font-size:17px!important;font-weight:600!important}
+header .who{font-size:13px;color:var(--mut);opacity:1}
+header button{background:none!important;color:var(--acc)!important;border:1px solid var(--btnb)!important;border-radius:8px!important;font-weight:600;font-size:14px;padding:6px 12px!important}
+.card{border:0;box-shadow:var(--sh)}
+.hd{padding:12px 16px;border-bottom-color:var(--line)}.hd h2{font-size:16px!important;font-weight:600!important}
+.ot{padding:12px 16px}.ot .t{font-weight:600}
+.btn{border-radius:8px;font-weight:600;background:var(--accb);color:#fff;min-height:44px}
+.btn.sec{background:var(--surf);color:var(--acc);border:1px solid var(--btnb)}
+.btn.ok,.btn.grande,.btn.wa{background:var(--accb);color:#fff}
+.btn.grande{font-size:17px;min-height:52px}
+.btn.grande.sec{background:var(--surf);color:var(--acc);border:1px solid var(--btnb)}
+.btn.bad{background:var(--badbg);color:var(--bad);border:1px solid rgba(170,8,8,.25)}
+.btn.quitar{color:var(--bad)}
+.pill{background:none!important;border:0!important;padding:0 0 0 13px;position:relative;font-weight:600;font-size:13px;color:var(--mut)}
+.pill::before{content:"";position:absolute;left:0;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:currentColor}
+.pill.info{color:var(--info)}
+.kpis div{text-align:left;border:0;box-shadow:var(--sh);padding:10px 12px}.kpis b{font-size:24px;font-weight:600}.kpis small{font-size:12px}
+.datebar b{font-size:16px;font-weight:600}
+.aviso{background:var(--warnbg);color:var(--ink);border:1px solid rgba(180,79,0,.25);border-radius:8px;font-weight:600}.aviso.mal{background:var(--badbg);border-color:rgba(170,8,8,.25)}
+.avisos-on{border:0;border-left:0;box-shadow:var(--sh);border-radius:var(--r)}
+.avisos-on .ic{display:none}
+.f{color:var(--mut);font-weight:500}
+.f input,.f select,.f textarea,input.bus,.fsel select,.tramo input{background:var(--surf);border:1px solid var(--btnb);border-radius:8px}
+.f input:focus,.f select:focus,.f textarea:focus,input.bus:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
+.seg button,.chip{background:var(--surf);border-color:var(--btnb);font-weight:600}
+.chip[aria-pressed=true],.seg.sel button[aria-pressed=true]{background:var(--infobg);color:var(--acc);border-color:var(--acc)}
+.names button,.pad button{border:0;box-shadow:var(--sh);font-weight:600}
+.filtros{border:0;box-shadow:var(--sh)}
+.toast{background:#1D2D3E;border-radius:8px}
+.mihor{color:var(--ink);font-weight:500}
+.ot.curso{background:var(--surf);box-shadow:inset 3px 0 0 var(--acc2)}
+.dlg h3{font-weight:600}
+nav{box-shadow:0 -1px 0 var(--line);border-top:0}
+nav button{font-weight:500;color:var(--mut)}
+nav button[aria-selected=true]{background:none;box-shadow:inset 0 3px 0 var(--acc2);border-radius:0;color:var(--acc);font-weight:600}
+td.c.equipo{background:var(--infobg)!important;color:var(--acc)}
+header a{background:none!important;color:var(--acc)!important;border:1px solid var(--btnb);border-radius:8px!important;font-weight:600}
 </style>
 </head>
 <body>
@@ -234,22 +282,22 @@ async function verFirma(id,volver){v.textContent="";v.appendChild(el("div",{clas
     it.length||vac.length?[it.map(x=>el("div",{class:"linea"},[el("i",{style:"width:14px;height:14px;border-radius:4px;background:"+TIPOS[x.tipo][1]}),el("span",{style:"flex:1",text:tramoTxt(x)+" · "+TIPOS[x.tipo][0]+(x.nombre?": "+x.nombre:"")+(x.horario?" ("+x.horario+")":"")})])),
       vac.map(x=>el("div",{class:"linea"},[el("i",{style:"width:14px;height:14px;border-radius:4px;background:"+VAC[1]}),el("b",{style:"flex:1",text:tramoTxt(x)+" · Tus vacaciones"+(x.nota?": "+x.nota:"")})]))]:el("div",{class:"empty",text:"No hay días señalados."})]));
   if(F.firmado_en){
-    v.appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px;font-weight:700;color:var(--ok)",text:"✔ Firmado el "+cuando(F.firmado_en)+(F.conforme?" · Recibido y conforme":" · Con observaciones")}),
+    v.appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{style:"margin:0 0 6px;font-weight:700;color:var(--ok)",text:"Firmado el "+cuando(F.firmado_en)+(F.conforme?" · Recibido y conforme":" · Con observaciones")}),
       F.comentario?el("p",{style:"margin:0 0 8px",text:"Observaciones: "+F.comentario}):null,
-      el("button",{class:"btn sec",text:"⬇ Descargar PDF",onclick:async()=>{try{guardaPDF(await pdfDe([F]),"Calendario-"+D.anio+"-"+limpio(D.nombre)+".pdf");}catch(e){toast(e.message);}}})])));return;}
+      el("button",{class:"btn sec",text:"Descargar PDF",onclick:async()=>{try{guardaPDF(await pdfDe([F]),"Calendario-"+D.anio+"-"+limpio(D.nombre)+".pdf");}catch(e){toast(e.message);}}})])));return;}
   if(!F.mio)return;
   /* firmar */
   let conforme=true,coment="";
   const sb=el("div",{class:"sigbox"},[el("canvas"),el("div",{class:"ph",text:"Firma aquí con el dedo"})]);
   const obs=el("div",{hidden:true},fld("¿Qué no te parece bien?",inp("",x=>coment=x,{placeholder:"Escríbelo aquí"})));
-  const bC=el("button",{type:"button",class:"chip","aria-pressed":"true",text:"✔ Recibido y conforme",onclick:()=>{conforme=true;bC.setAttribute("aria-pressed","true");bO.setAttribute("aria-pressed","false");obs.hidden=true;}});
+  const bC=el("button",{type:"button",class:"chip","aria-pressed":"true",text:"Recibido y conforme",onclick:()=>{conforme=true;bC.setAttribute("aria-pressed","true");bO.setAttribute("aria-pressed","false");obs.hidden=true;}});
   const bO=el("button",{type:"button",class:"chip","aria-pressed":"false",text:"Recibido, con observaciones",onclick:()=>{conforme=false;bO.setAttribute("aria-pressed","true");bC.setAttribute("aria-pressed","false");obs.hidden=false;}});
   v.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Firmar"})),el("div",{class:"bd"},[
     el("p",{class:"hint",style:"margin-top:0",text:"Revisa el calendario. Si estás de acuerdo, firma «Recibido y conforme». Si algo no está bien, elige «con observaciones» y explícalo."}),
     el("div",{class:"chips",style:"margin:0 0 10px"},[bC,bO]),obs,sb,
     el("div",{class:"row",style:"margin-top:10px"},[el("button",{class:"btn sec",text:"Borrar firma",onclick:()=>pad.limpiar()}),
-      el("button",{class:"btn ok",text:"✔ Firmar y enviar",onclick:async e=>{if(pad.vacio()){toast("Firma en el recuadro");return;}if(!conforme&&!coment.trim()){toast("Escribe qué no te parece bien");return;}
-        e.target.disabled=true;try{await rpc("cal_firmar",{p_tok:S.tok,p_id:F.id,p_conforme:conforme,p_comentario:coment,p_firma:pad.png()});toast("Firmado ✔ Gracias");verFirma(F.id,volver);}catch(er){toast(er.message);e.target.disabled=false;}}})])])]));
+      el("button",{class:"btn ok",text:"Firmar y enviar",onclick:async e=>{if(pad.vacio()){toast("Firma en el recuadro");return;}if(!conforme&&!coment.trim()){toast("Escribe qué no te parece bien");return;}
+        e.target.disabled=true;try{await rpc("cal_firmar",{p_tok:S.tok,p_id:F.id,p_conforme:conforme,p_comentario:coment,p_firma:pad.png()});toast("Firmado Gracias");verFirma(F.id,volver);}catch(er){toast(er.message);e.target.disabled=false;}}})])])]));
   const pad=sigPad(sb);}
 
 /* ---------------- JEFE ---------------- */
@@ -267,8 +315,8 @@ async function vJefe(){ls.set("cal.anio",String(A.anio));ls.set("cal.eq",A.eq);
   /* herramientas */
   cont.appendChild(el("div",{class:"row",style:"margin:0 0 10px"},[
     el("button",{class:"btn "+(A.modo?"on":"sec"),text:A.modo?"✋ Marcando varios días…":"✋ Marcar varios días",onclick:()=>{A.modo=!A.modo;A.ini=null;vJefe();}}),
-    el("button",{class:"btn sec",text:"🇪🇸 Festivos nacionales",onclick:()=>festivosNac()}),
-    el("button",{class:"btn sec",text:"📋 Copiar del equipo de "+nEq(otroEq),onclick:async()=>{if(!R.otro){toast("El equipo de "+nEq(otroEq)+" no tiene días marcados en "+A.anio);return;}
+    el("button",{class:"btn sec",text:"Festivos nacionales",onclick:()=>festivosNac()}),
+    el("button",{class:"btn sec",text:"Copiar del equipo de "+nEq(otroEq),onclick:async()=>{if(!R.otro){toast("El equipo de "+nEq(otroEq)+" no tiene días marcados en "+A.anio);return;}
       if(!confirm("Se borran los días marcados de este equipo en "+A.anio+" y se copian los "+R.otro+" del equipo de "+nEq(otroEq)+". ¿Seguir?"))return;
       try{const n=await rpc("cal_copiar",{p_tok:S.tok,p_anio:A.anio,p_de:otroEq,p_a:A.eq});toast(n+" días copiados");vJefe();}catch(e){toast(e.message);}}})]));
   if(A.modo)cont.appendChild(el("div",{class:"modo"},[el("span",{text:A.ini?"Ahora toca el último día (empezaste el "+fTxt(A.ini)+")":"Toca el primer día y luego el último (por ejemplo, todo agosto)"}),el("button",{class:"btn sec peq",text:"Cancelar",onclick:()=>{A.modo=false;A.ini=null;vJefe();}})]));
@@ -280,7 +328,7 @@ async function vJefe(){ls.set("cal.anio",String(A.anio));ls.set("cal.eq",A.eq);
   const it=listaDias(R.dias);
   cont.appendChild(el("div",{class:"card",style:"margin-top:12px"},[el("div",{class:"hd"},[el("h2",{text:"Días marcados"}),el("span",{class:"meta",text:R.dias.length+" días"})]),
     it.length?it.map(x=>el("button",{class:"linea",onclick:()=>editarDias(rango(x.desde,x.hasta).filter(f=>A.mapa[f]))},[el("i",{style:"width:14px;height:14px;border-radius:4px;background:"+TIPOS[x.tipo][1]}),
-      el("span",{style:"flex:1",text:tramoTxt(x)+" · "+TIPOS[x.tipo][0]+(x.nombre?": "+x.nombre:"")+(x.horario?" ("+x.horario+")":"")}),el("span",{class:"meta",text:"✏"})])):el("div",{class:"empty",text:"Todavía no hay días marcados. Empieza por «Festivos nacionales» y luego añade los de la fábrica."})]));
+      el("span",{style:"flex:1",text:tramoTxt(x)+" · "+TIPOS[x.tipo][0]+(x.nombre?": "+x.nombre:"")+(x.horario?" ("+x.horario+")":"")}),el("span",{class:"meta",text:"Corregir"})])):el("div",{class:"empty",text:"Todavía no hay días marcados. Empieza por «Festivos nacionales» y luego añade los de la fábrica."})]));
   /* vacaciones */
   cont.appendChild(vacCard());
   /* envío y firmas */
@@ -333,13 +381,13 @@ function firmasCard(){const R=A.R;const card=el("div",{class:"card"},el("div",{c
   bd.appendChild(el("p",{class:"hint",style:"margin-top:0",text:"Cada trabajador recibe un aviso en el móvil, ve su calendario (con sus vacaciones) y firma «Recibido y conforme». Si cambias algo después, vuelve a enviarlo: el que no haya firmado verá el nuevo."}));
   R.trabajadores.forEach(w=>{const f=ult[w.id];
     bd.appendChild(el("div",{class:"linea",style:"padding:8px 0;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:150px",text:w.nombre}),
-      !f?el("span",{class:"pill",text:"Sin enviar"}):!f.firmado_en?el("span",{class:"pill warn",text:"Enviado "+cuando(f.enviado).split(",")[0]+" · sin firmar"}):el("span",{class:"pill "+(f.conforme?"ok":"bad"),text:(f.conforme?"✔ Conforme":"Con observaciones")+" · "+cuando(f.firmado_en).split(",")[0]}),
+      !f?el("span",{class:"pill",text:"Sin enviar"}):!f.firmado_en?el("span",{class:"pill warn",text:"Enviado "+cuando(f.enviado).split(",")[0]+" · sin firmar"}):el("span",{class:"pill "+(f.conforme?"ok":"bad"),text:(f.conforme?"Conforme":"Con observaciones")+" · "+cuando(f.firmado_en).split(",")[0]}),
       f&&f.firmado_en?el("button",{class:"btn sec peq",text:"PDF",onclick:async()=>{try{const D=await rpc("cal_firmas_datos",{p_tok:S.tok,p_ids:[f.id]});guardaPDF(await pdfDe(D),"Calendario-"+A.anio+"-"+limpio(w.nombre)+".pdf");}catch(e){toast(e.message);}}}):null,
-      f&&!f.conforme&&f.comentario?el("div",{style:"flex-basis:100%;font-size:14px;color:var(--bad)",text:"💬 "+f.comentario}):null]));});
+      f&&!f.conforme&&f.comentario?el("div",{style:"flex-basis:100%;font-size:14px;color:var(--bad)",text:""+f.comentario}):null]));});
   const firmados=Object.values(ult).filter(f=>f.firmado_en);
   bd.appendChild(el("div",{class:"row",style:"margin-top:10px"},[
-    el("button",{class:"btn ok",text:"📲 Enviar a firmar",onclick:()=>enviar(ult)}),
-    el("button",{class:"btn sec",text:"⬇ PDF de todos los firmados ("+firmados.length+")",disabled:!firmados.length,onclick:async()=>{try{const D=await rpc("cal_firmas_datos",{p_tok:S.tok,p_ids:firmados.map(f=>f.id)});
+    el("button",{class:"btn ok",text:"Enviar a firmar",onclick:()=>enviar(ult)}),
+    el("button",{class:"btn sec",text:"PDF de todos los firmados ("+firmados.length+")",disabled:!firmados.length,onclick:async()=>{try{const D=await rpc("cal_firmas_datos",{p_tok:S.tok,p_ids:firmados.map(f=>f.id)});
       D.sort((a,b)=>(a.datos.nombre||"").localeCompare(b.datos.nombre||""));guardaPDF(await pdfDe(D),"Calendarios-"+A.anio+"-"+A.eq+".pdf");}catch(e){toast(e.message);}}})]));
   return card;}
 function enviar(ult){const R=A.R;if(!R.dias.length&&!confirm("No hay ningún día marcado en "+A.anio+". ¿Enviarlo igualmente?"))return;
@@ -348,7 +396,7 @@ function enviar(ult){const R=A.R;if(!R.dias.length&&!confirm("No hay ningún dí
     el("input",{type:"checkbox",checked:sel.has(w.id),style:"width:22px;height:22px",onchange:e=>{if(e.target.checked)sel.add(w.id);else sel.delete(w.id);}}),
     el("span",{style:"flex:1",text:w.nombre}),f&&f.firmado_en?el("span",{class:"pill ok",text:"ya firmó"}):null]));});
   dlg("Enviar el calendario "+A.anio,el("div",null,[el("p",{class:"hint",style:"margin-top:0",text:"Se manda tal y como está ahora, con las vacaciones de cada uno. Si alguien ya firmó y se lo vuelves a mandar, tendrá que firmar otra vez."}),box]),
-    [{t:"Cancelar",cls:"sec"},{t:"📲 Enviar",cls:"ok",fn:async()=>{if(!sel.size){toast("Elige al menos a uno");return false;}const n=await rpc("cal_enviar",{p_tok:S.tok,p_anio:A.anio,p_equipo:A.eq,p_trab:[...sel]});toast("Enviado a "+n+" trabajador"+(n>1?"es":""));vJefe();}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"Enviar",cls:"ok",fn:async()=>{if(!sel.size){toast("Elige al menos a uno");return false;}const n=await rpc("cal_enviar",{p_tok:S.tok,p_anio:A.anio,p_equipo:A.eq,p_trab:[...sel]});toast("Enviado a "+n+" trabajador"+(n>1?"es":""));vJefe();}}]);}
 })();
 </script>
 </body>
