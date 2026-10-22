@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022104400"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022143639"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -289,6 +289,14 @@ header .tot span,th,.card>.hd h2{text-transform:none!important;letter-spacing:0!
 header h1,header .tot span,nav button,.card>.hd h2,.sc .al,.sc dt,.pill,label,.calc span,.kpis dt,.maq-on span,.inc-g,.inf-gh,.inf-g,th,.gh{text-transform:none!important;letter-spacing:0!important}
 .chip-sel.on{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
 .banner.w{background:var(--warn-bg);color:var(--ink)}
+
+/* menú de usuario y arreglos para iPhone */
+.usr-av{appearance:none;width:36px;height:36px;flex:none;border-radius:50%;border:0;background:#0070F2;color:#fff;font:600 13px Inter,system-ui,sans-serif;cursor:pointer;align-self:center}
+.usr-fila{appearance:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:12px 14px;margin:0 0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--ink);font:inherit;cursor:pointer}
+.usr-fila b{font-weight:600;color:var(--acc)}.usr-fila small{color:var(--ink2);font-size:13px}
+:root{padding-bottom:0!important}
+input[type=date],input[type=time],input[type=datetime-local],input[type=month]{-webkit-appearance:none;appearance:none;display:block;width:100%;max-width:100%;min-width:0;min-height:46px;text-align:left}
+input::-webkit-date-and-time-value{text-align:left}
 </style>
 
 <div id="app">
@@ -380,10 +388,18 @@ function pantallaImportar(vacia){return new Promise(res=>{
 
 /* ---------- usuario en la cabecera y gestión de usuarios ---------- */
 function ponUsuario(){const hd=document.querySelector("header");if(!hd||document.getElementById("usr-btn"))return;
-  const APP=window.APP_ID||(P?"almacen":"colada");[["colada","./","⇄ Colada"],["almacen","almacen.html","⇄ Almacén"],["iny","inyectoras.html","⇄ Inyectoras"]].filter(x=>x[0]!==APP)
-    .forEach(([k,u,t],i)=>hd.appendChild(h("a",{id:i?"app-sw2":"app-sw",class:"usr-btn",href:u,style:"text-decoration:none",text:t})));
-  hd.appendChild(h("button",{id:"hist-btn",class:"usr-btn",type:"button",title:"Historial y deshacer","aria-label":"Historial y deshacer",text:"↶ Historial",onclick:panelHist}));
-  hd.appendChild(h("button",{id:"usr-btn",class:"usr-btn",type:"button",text:(yo.nombre||yo.email||"").split(" ")[0],onclick:panelUsuario}));}
+  const n=String(yo.nombre||yo.email||"?").trim(),ini=n.split(/[\s@.]+/).filter(Boolean).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+  const av=h("button",{id:"usr-btn",class:"usr-av",type:"button",title:n,"aria-label":"Menú de "+n+": otras apps, historial y usuario",text:ini,onclick:menuUsuario});const lu=hd.querySelector(".lupa");if(lu)lu.after(av);else hd.appendChild(av);}
+function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
+  const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
+  const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
+  box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
+  [["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","inyectoras.html","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP)
+    .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
+  box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
+  box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));
+  box.appendChild(h("button",{type:"button",class:"btn sec",style:"width:100%",text:"Cerrar",onclick:()=>ov.remove()}));
+  document.body.appendChild(ov);}
 async function panelUsuario(){
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   box.appendChild(h("h3",{text:(yo.nombre||"")+" · "+yo.email}));
