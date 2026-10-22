@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261022212826"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022215042"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -267,6 +267,26 @@ header .chip2{border-radius:8px;font-weight:500}header .chip2 b{font-weight:700}
 .pill::before{content:"";position:absolute;left:0;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:currentColor}
 .chip{border-radius:8px;background:var(--surf);border-color:var(--btnb);color:var(--ink);font-weight:500}
 .chip[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+/* camiones previstos: en el móvil cada fila es una tarjeta, sin desbordar */
+@media (max-width:600px){
+ table.plan-ent thead{display:none}
+ table.plan-ent,table.plan-ent tbody{display:block;width:100%}
+ table.plan-ent tr{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line2)}
+ table.plan-ent td{display:block;padding:0!important;border:0!important;text-align:left}
+ table.plan-ent td:nth-child(1){font-weight:600}
+ table.plan-ent td:nth-child(2) select{width:100%;max-width:100%}
+ table.plan-ent td:nth-child(4){text-align:right}
+ table.plan-ent td:nth-child(3){grid-column:1/3}
+ table.plan-ent td:nth-child(5){grid-column:1/-1}
+ table.plan-ent td:nth-child(5)>span{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;margin-right:6px}
+ table.plan-ent td:nth-child(5) .btn{margin:0!important}
+}
+nav button{flex:1 1 0}
+/* que los botones largos no se salgan: pasan a otra fila o parten el texto */
+.seg button{flex:1 1 auto;white-space:normal;line-height:1.25;max-width:100%;overflow-wrap:anywhere}
+nav{overflow-x:auto;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+nav button{min-width:0;padding-left:2px;padding-right:2px;white-space:nowrap}
+@media (max-width:430px){nav button{font-size:11px}}
 .seg button[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
 input,select,textarea{font-size:16px;background:var(--surf);border-color:var(--btnb)}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
@@ -2398,7 +2418,7 @@ function vPlan(){
       el("div",{class:"bd",style:"display:flex;gap:8px;flex-wrap:wrap;padding-bottom:0"},[
         el("button",{type:"button",class:"btn",text:"Completar plan automáticamente",onclick:()=>verPropuesta(m,cons,B,false)}),
         el("button",{type:"button",class:"btn sec",text:"Rehacer desde mañana",onclick:()=>verPropuesta(m,cons,B,true)})]),
-      ents.length?el("div",{class:"tw"},[el("table",{},[
+      ents.length?el("div",{class:"tw"},[el("table",{class:"plan-ent"},[
         el("thead",{},[el("tr",{},[el("th",{text:"Día"}),el("th",{text:"Destino"}),el("th",{text:"Origen"}),el("th",{class:"r",text:"Fardos"}),el("th",{})])]),
         el("tbody",{},filasE)])]):el("div",{class:"empty",text:"Sin entradas colocadas. La proyección sólo restará consumo."}),
       urgencia.length?el("div",{class:"bd"},[el("div",{class:"banner "+(urgencia[0].dias<=5?"b":"w"),
