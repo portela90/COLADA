@@ -1,0 +1,3 @@
+-- 22/10/2026 · Consumos que llegan de Limpieza (alm_consumo_limpieza):
+-- aceites, taladrinas y jabones → «Baldas aceites y taladrinas»; el resto → almacén principal del artículo o, si no tiene, Almacén general (antes: Consumibles N1).
+-- Aplicado en whemhkcrgwyjucpaswrm. Además se pasaron a «gen» las 2 salidas de saca blanca que habían ido a «cn1» (14/10 y 22/10).
