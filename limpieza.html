@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261022185239">
+<meta name="build" content="20261022185539">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -503,6 +503,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;setTimeout(revisaJornada,1200);}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   /* el responsable de hornos ya recibe solo los trabajos de su operario (lo filtra el servidor): los ve todos */
   const Df=admin?D.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?A.filter(esMio):A);
+  if(admin&&R.plantilla){try{const EXT=await externos();R.plantilla=R.plantilla.filter(x=>!EXT.has(x.id));}catch(e){}}
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin&&!nuevo)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
   if(admin){const n=k=>D.filter(o=>o.estado===k).length;
@@ -927,6 +928,7 @@ async function vSemana(v){S.semP=S.semP||lunesDe(hoyISO());const lun=S.semP;cons
     el("button",{class:"btn sec peq","aria-label":"Semana siguiente",text:"▶",onclick:()=>{S.semP=sumaD(lun,7);pinta();}})]));
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   let R;try{R=await rpc("semana",{p_tok:S.tok,p_lunes:lun});}catch(e){box.textContent=e.message;return;}
+  try{const EXT=await externos();R.gente=(R.gente||[]).filter(w=>!EXT.has(w.id));}catch(e){}
   const X=planSemana(R,lun),hoy=hoyISO();box.textContent="";
   const tot=Object.values(X.P).reduce((a,p)=>{Object.values(p.d).forEach(c=>{a.c+=c.carga;a.j+=c.jor;a.s+=c.sinT;a.r+=nivelCelda(c)==="bad"?1:0;});return a;},{c:0,j:0,s:0,r:0});
   const libT=Object.values(X.libre).reduce((t,x)=>t+x.n,0);
@@ -1214,6 +1216,7 @@ function bloqueCopia(){const box=el("div",{class:"card"},[el("div",{class:"hd"},
       el("div",{class:"row"},[el("button",{class:"btn",text:"Hacer copia",onclick:()=>hacerCopia(E)}),S.copiados&&S.copiados.length?el("button",{class:"btn bad",text:"Liberar espacio ("+S.copiados.length+" fotos)",onclick:()=>liberar()}):null])]));}).catch(e=>{box.lastChild.textContent=e.message;});
   return box;}
 
+async function externos(){return new Set((await trabajadores()).filter(w=>w.jornada==="externo").map(w=>w.id));}
 let TRAB=null;async function trabajadores(force){if(!TRAB||force)TRAB=await rpc(esAdm()?"trabajadores_admin":"trabajadores_gestor",{p_tok:S.tok});return TRAB;}
 function chipsTrab(L,sel0,multi){const s=new Set(sel0||[]);const box=el("div",{class:"chips"});const pint=()=>{box.textContent="";L.filter(w=>w.activo).forEach(w=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(s.has(w.id)),text:w.nombre,onclick:()=>{if(s.has(w.id))s.delete(w.id);else{if(!multi)s.clear();s.add(w.id);}pint();}})));};pint();box.val=()=>Array.from(s);return box;}
 async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habituales(),zonasL()]);const o=Object.assign({fecha:hoyISO(),equipo:"Semana",prioridad:"normal",asignados:[],todo_equipo:false},o0);
