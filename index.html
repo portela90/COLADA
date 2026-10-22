@@ -1,9 +1,6 @@
 <!doctype html><html><head>
-<meta name="build" content="20261015060105"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261022104400"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
   --bg:#E8ECEF; --surf:#FFFFFF; --surf2:#F4F6F8; --line:#D2DAE0; --line2:#E4E9ED;
@@ -241,6 +238,57 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .banner.w{background:var(--warn-bg);color:var(--warn)} .banner.b{background:var(--bad-bg);color:var(--bad)}
 @media (prefers-reduced-motion:no-preference){#toast{animation:pop .18s ease-out}@keyframes pop{from{opacity:0;transform:translate(-50%,8px)}}}
 @media (max-width:520px){header .tot{width:100%;margin-left:0}}
+
+/* ===== Tema SAP Fiori (Horizon) ===== */
+@font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
+:root{--bg:#F5F6F7;--surf:#FFFFFF;--surf2:#F5F6F7;--line:#D9DEE3;--line2:#E5E9ED;--ink:#1D2D3E;--ink2:#556B82;--mut:#6A7D90;--acc:#0064D9;--acc-ink:#FFFFFF;--acc-soft:#E1F4FF;--accb:#0070F2;--btnb:#BCC3CA;--ok:#256F3A;--ok-bg:#F5FAE5;--warn:#B44F00;--warn-bg:#FFF8D6;--bad:#AA0808;--bad-bg:#FFEAF4;--info:#0064D9;--info-bg:#E1F4FF;--shadow:0 0 0 1px rgba(85,107,130,.16),0 2px 4px rgba(34,53,72,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12171C;--surf:#1D232A;--surf2:#232A32;--line:#3A4552;--line2:#2E3742;--ink:#EAECEE;--ink2:#A9B4BE;--mut:#8D99A6;--acc:#4DB1FF;--acc-ink:#FFFFFF;--acc-soft:#14283B;--accb:#0070F2;--btnb:#596775;--ok:#5DC122;--ok-bg:#1F3416;--warn:#FFB547;--warn-bg:#3A2B0E;--bad:#FF8888;--bad-bg:#3C1B1B;--info:#4DB1FF;--info-bg:#14283B;--shadow:0 0 0 1px rgba(255,255,255,.08)}}
+:root[data-theme="dark"]{--bg:#12171C;--surf:#1D232A;--surf2:#232A32;--line:#3A4552;--line2:#2E3742;--ink:#EAECEE;--ink2:#A9B4BE;--mut:#8D99A6;--acc:#4DB1FF;--acc-ink:#FFFFFF;--acc-soft:#14283B;--accb:#0070F2;--btnb:#596775;--ok:#5DC122;--ok-bg:#1F3416;--warn:#FFB547;--warn-bg:#3A2B0E;--bad:#FF8888;--bad-bg:#3C1B1B;--info:#4DB1FF;--info-bg:#14283B;--shadow:0 0 0 1px rgba(255,255,255,.08)}
+body,button,input,select,textarea{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif!important}
+body{-webkit-font-smoothing:antialiased;font-size:15px}
+.num{font-family:Inter,system-ui,sans-serif!important;font-variant-numeric:tabular-nums}
+header{box-shadow:var(--shadow);border-bottom:0}
+header h1{font-size:20px;font-weight:600}
+header .chip2{border-radius:8px;font-weight:500}header .chip2 b{font-weight:700}
+.card{border:0;border-radius:12px;box-shadow:var(--shadow)}
+.card>.hd h2{font-size:16px;font-weight:600}
+.card.alerta{box-shadow:var(--shadow),inset 3px 0 0 var(--bad)}
+.card.alerta>.hd{background:none;color:var(--ink)}
+.card.alerta>.hd h2{color:var(--bad)}
+.btn{font-size:15px;font-weight:600;border-radius:8px;background:var(--accb);border-color:var(--accb);color:#fff;min-height:44px}
+.btn.sec{background:var(--surf);color:var(--acc);border-color:var(--btnb)}
+.btn.peq{font-size:14px;min-height:36px;padding:6px 12px;border-radius:8px}
+.btn.peligro{background:var(--bad-bg);border-color:rgba(170,8,8,.3);color:var(--bad)}
+.btn.txt{color:var(--acc)}
+.pill{background:none!important;text-transform:none;letter-spacing:0;font-size:13px;padding:0 0 0 13px;position:relative;border-radius:0}
+.pill::before{content:"";position:absolute;left:0;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:currentColor}
+.chip{border-radius:8px;background:var(--surf);border-color:var(--btnb);color:var(--ink);font-weight:500}
+.chip[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+.seg button[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+input,select,textarea{font-size:16px;background:var(--surf);border-color:var(--btnb)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
+.kpis{box-shadow:var(--shadow);border-radius:12px;overflow:hidden}
+.kpis dd{font-size:20px;font-weight:600}
+.gh{font-weight:600;background:var(--surf2)}
+.banner{background:var(--warn-bg);color:var(--ink);border-color:rgba(180,79,0,.3);border-radius:8px}
+.lupa{border-radius:8px;background:var(--surf);color:var(--acc);border-color:var(--btnb)}
+.rk{border:0;border-left:3px solid var(--line2);box-shadow:var(--shadow)}
+.tile{border:0;border-radius:12px;box-shadow:var(--shadow)}
+.tile .tt{font-weight:600}
+#toast{border-radius:8px;background:#1D2D3E;color:#fff}
+nav{box-shadow:0 -1px 0 var(--line);border-top:0}
+nav button{font-weight:500}
+nav button[aria-selected="true"]{background:none;box-shadow:inset 0 3px 0 var(--accb);border-radius:0;color:var(--acc);font-weight:600}
+.lg h2{text-transform:none!important;letter-spacing:0!important;font-weight:600}.lg{border:0!important;box-shadow:var(--shadow);border-radius:12px!important}
+.stripe{width:3px}
+header h1{text-transform:none!important;letter-spacing:0!important;font-size:18px!important;font-weight:600!important}
+header .tot span,th,.card>.hd h2{text-transform:none!important;letter-spacing:0!important}
+header h1,header .tot span,nav button,.card>.hd h2,.sc .al,.sc dt,.pill,label,.calc span,.kpis dt,.maq-on span,.inc-g,.inf-gh,.inf-g,th,.gh{text-transform:none!important;letter-spacing:0!important}
+.chip-sel.on{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+.banner.w{background:var(--warn-bg);color:var(--ink)}
 </style>
 
 <div id="app">
@@ -2913,7 +2961,7 @@ function pinta(){
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
   $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);
-  if(tab==="stock"||tab==="hist")v.appendChild(el("div",{style:"display:flex;justify-content:flex-end"},[el("button",{type:"button",class:"btn",text:"📄 Generar informe",onclick:()=>generarInforme()})]));
+  if(tab==="stock"||tab==="hist")v.appendChild(el("div",{style:"display:flex;justify-content:flex-end"},[el("button",{type:"button",class:"btn",text:"Generar informe",onclick:()=>generarInforme()})]));
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
 function tabsUI(){const n=$("tabs");n.textContent="";
