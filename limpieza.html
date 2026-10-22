@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261022143825">
+<meta name="build" content="20261022185239">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
@@ -802,7 +802,7 @@ async function horasSemana(desde,hasta,O){
   const FES=new Set(FE.map(x=>x.fecha));const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
   const dias=[];for(let f=desde<BOLSA_DESDE?BOLSA_DESDE:desde;f<=hasta;f=sumaD(f,1))dias.push(f);
   const cerrada=hasta<=hoyISO();const filas=[],fueraL=[];
-  W.filter(w=>w.activo&&w.rol!=="admin").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
+  W.filter(w=>w.activo&&w.rol!=="admin"&&w.jornada!=="externo").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const c=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:35;
     let Wt=0,paid=0,exc=0,fu=0;
     dias.forEach(f=>{const x=RH[w.id+"|"+f];const esF=FES.has(f);const esp=horasTramos((w.horario||{})[diaClave(f)]||[]);
@@ -1238,6 +1238,7 @@ const FALTAS_H=[["","Ninguna"],["baja","Baja"],["vacaciones","Vacaciones"],["per
 const numH=s=>{const n=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(n)?n:null;};
 /* Una fila por persona: lo guardado, o su horario normal si no hay nada guardado */
 async function formHorasDia(f,re){let L,FE;try{[L,FE]=await Promise.all([rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){toast(e.message);return;}
+  try{const EXT=new Set((await trabajadores()).filter(w=>w.jornada==="externo").map(w=>w.id));L=L.filter(x=>!EXT.has(x.id));}catch(e){}
   const esFes=FE.some(x=>x.fecha===f);
   const filas=L.map(x=>{const hor=x.horario||[];const def=esFes?0:horasTramos(hor);
     return{id:x.id,nombre:x.nombre,hor:hor.length?horTxt(hor):"Libra",cambio:x.trabajadas!=null,
@@ -1267,7 +1268,7 @@ async function horasDetalleCSV(mes){const[y,m]=mes.slice(0,7).split("-").map(Num
   const TR={};O.filter(o=>o.estado==="hecha"&&o.hecho_por_n).forEach(o=>{const k=o.fecha+"|"+o.hecho_por_n;(TR[k]=TR[k]||[]).push(o.titulo+(o.minutos!=null?" ("+durTxt(o.minutos)+")":""));});
   const filas=[["Fecha","Nombre","Jornada","Horas trabajadas","Fuera de presupuesto (h)","Extra a mano (h)","Motivo","Trabajos hechos ese día"]];
   for(let f=ini;f<=lim;f=(()=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})()){
-    W.filter(w=>w.activo&&w.rol!=="admin").forEach(w=>{const x=RH[w.id+"|"+f];if(!x)return;
+    W.filter(w=>w.activo&&w.rol!=="admin"&&w.jornada!=="externo").forEach(w=>{const x=RH[w.id+"|"+f];if(!x)return;
       const fu=+x.fuera||0,em=+x.extra_mano||0;if(!fu&&!em)return;
       const def=horasTramos((w.horario||{})[diaClave(f)]||[]);const h=x.falta?0:(x.trabajadas!=null?+x.trabajadas:def);
       filas.push([f,w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",dec(h),dec(fu),dec(em),x.nota||"",(TR[f+"|"+w.nombre]||[]).join(" · ")]);});}
@@ -1290,7 +1291,7 @@ async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Numbe
   const lim=fin<hoyISO()?fin:hoyISO();/* solo días ya pasados: no se cuentan los que faltan por llegar */
   const diasDesde=[];for(let f=BOLSA_DESDE;f<=lim;f=addDia(f,1))diasDesde.push(f);
   const filas=[["Nombre","Jornada","Horas de contrato","Horas trabajadas","Horas normales","Extra a mano entre semana","Extra a mano sábado","Extra a mano festivo y domingo","Fuera de presupuesto (h)","Bolsa al inicio del mes (h)","Variación de la bolsa (h)","Bolsa al final del mes (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
-  W.filter(w=>w.activo&&w.rol!=="admin").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
+  W.filter(w=>w.activo&&w.rol!=="admin"&&w.jornada!=="externo").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
     if(w.jornada!=="completa"){let Wp=0,fu=0,bj=0,vc=0,pm=0,ot=0;
       for(let f=ini;f<=lim;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
@@ -1370,7 +1371,7 @@ async function formTrab(w0,re){const w=Object.assign({equipos:["Semana"],rol:"op
   const nvb=el("div",{class:"chips"});const pn=()=>{nvb.textContent="";["Nave 1","Nave 2"].forEach(k=>nvb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String((w.naves||[]).includes(k)),text:k,onclick:()=>{w.naves=(w.naves||[]).includes(k)?w.naves.filter(x=>x!==k):(w.naves||[]).concat([k]);pn();}})));};pn();
   const eqb=el("div",{class:"chips"});const pe=()=>{eqb.textContent="";["Semana","Finde"].forEach(k=>eqb.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(w.equipos.includes(k)),text:k,onclick:()=>{w.equipos=w.equipos.includes(k)?w.equipos.filter(x=>x!==k):w.equipos.concat([k]);if(!w.equipos.length)w.equipos=[k];pe();}})));};pe();
   dlg(w.id?w.nombre:"Nuevo compañero",el("div",null,[fld("Nombre",inp(w.nombre,v=>w.nombre=v)),fld("Teléfono (para WhatsApp)",inp(w.telefono,v=>w.telefono=v,{type:"tel",inputmode:"tel",placeholder:"612 345 678"})),fld("Correo electrónico",inp(w.email,v=>w.email=v,{type:"email",inputmode:"email",autocomplete:"off"})),
-    el("div",{class:"row"},[fld("Categoría",inp(w.categoria,v=>w.categoria=v)),fld("Jornada",sel([["","—"],["completa","Completa"],["parcial","Parcial"]],w.jornada||"",v=>w.jornada=v))]),
+    el("div",{class:"row"},[fld("Categoría",inp(w.categoria,v=>w.categoria=v)),fld("Jornada",sel([["","—"],["completa","Completa"],["parcial","Parcial"],["externo","De otra empresa (no cuenta horas)"]],w.jornada||"",v=>w.jornada=v))]),
     fld("Horas de contrato a la semana",inp(w.horas_contrato,v=>w.horas_contrato=v,{type:"number",inputmode:"decimal",min:"0",max:"60"})),
     fld("Notas (solo las ves tú)",area(w.notas||"",v=>w.notas=v)),fld("Equipos",eqb),fld("Naves donde trabaja (para las OT de relevo)",nvb),fld("Responsable de hornos: a qué operarios puede asignar OT de hornos (vacío = no es responsable)",rchips),
     el("div",{class:"row"},[fld("Turno entre semana",sel([["","—"]].concat(TURNOS_S.map(x=>[x,x])),w.turno_semana,v=>w.turno_semana=v)),fld("Turno finde",sel([["","—"]].concat(TURNOS_F.map(x=>[x,x])),w.turno_finde,v=>w.turno_finde=v))]),
