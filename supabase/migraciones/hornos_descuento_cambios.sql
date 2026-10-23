@@ -11,3 +11,6 @@
 --   · alm_consumo_limpieza(..., p_maq) nueva versión con la inyectora; la de 5 parámetros sigue igual.
 --   · alm_precios_limpieza(p_secreto): artículos de la familia «horno» con su precio.
 --   · Alta de «Tolva de hierro» (hr-tolva-hierro) y «Tolva refractaria» (hr-tolva-refr) en Consumibles N1, sin precio.
+-- 23/10/2026 (2) · Cambio SOLO de tolva: pregunta si se cambia alguna junta y cuántas.
+--   · ots.juntas jsonb [{art,cant}]; _juntas_ok(recambios, juntas) solo admite las juntas del cono de ese horno (1–20).
+--   · _horno_items(..., p_juntas) añade esas juntas al cambio de tolva; horno_registrar(..., p_tolva, p_juntas) y ot_abrir (p.juntas).
