@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261023065016"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261023101559"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -733,6 +733,11 @@ function editarApunte(r){
   if(r.t==="C")campos.push(inp("Kilos (opcional, en blanco se calculan)","kg",{inputmode:"decimal"}));
   if(r.t==="E"||r.t==="G")campos.push(inp("Kilos","kg",{inputmode:"decimal"}));
   if(r.t==="E")campos.push(el("label",{text:"Nº albarán"},[el("input",{type:"text",value:v.a,oninput:e=>{v.a=e.target.value;}})]));
+  /* foto del albarán: se puede adjuntar o cambiar después */
+  if(r.t==="E"){const st=el("p",{class:"hint",text:r.ft?"Ya tiene foto. Si eliges otra, la cambia.":"Sin foto. Puedes hacerla ahora con la cámara o elegirla de la galería."});
+    campos.push(el("label",{text:"Foto del albarán"},[
+      r.ft?el("img",{class:"thumb",src:fotoUrl(r.ft),alt:"Albarán",style:"max-width:120px;cursor:pointer",onclick:()=>verFoto(r.ft)}):null,
+      el("input",{type:"file",accept:"image/*",onchange:e=>{v.foto=e.target.files&&e.target.files[0]||null;st.textContent=v.foto?"Elegida: "+v.foto.name+". Se sube al guardar.":(r.ft?"Ya tiene foto.":"Sin foto.");}}),st]));}
   const err=el("div",{class:"banner b",hidden:""});
   const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};
   const guardar=async e=>{
@@ -746,12 +751,13 @@ function editarApunte(r){
       const kgOrig=typeof r.kg==="number"?String(Math.abs(r.kg)).replace(".",","):"";
       if(v.kg.trim()===""||(v.lote!==r.o&&v.kg===kgOrig))delete n.kg;else n.kg=kg;}
     if(r.t==="G"){n.kg=r.kg<0?-kg:kg;if(!r.aj){n.u=v.u;if(r.kg<0)n.nv=v.nv;}}
-    if(r.t==="E"){n.fa=fa;n.kg=kg;if(v.a.trim())n.a=v.a.trim();else delete n.a;}
+    if(r.t==="E"){n.fa=fa;n.kg=kg;if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
     if(r.t==="A"){n.fa=fa;const b=S[r.o||r.d];n.kg=Math.round(fa*((b&&b.ratio)||0));}
     n.ed=hoy();
     const b=e.currentTarget;b.disabled=true;
-    try{await guardarMov(r,n);
-      if(r.t==="E"&&l){const up={};if(l.entrada!==v.f)up.entrada=v.f;if((l.albaran||"")!==(n.a||""))up.albaran=n.a||"";if(Object.keys(up).length)await db.doc("lotes/"+l.id).update(up);}
+    try{if(r.t==="E"&&v.foto){b.textContent="Subiendo la foto…";try{n.ft=await subirFoto(v.foto);}catch(x){toast("La foto no se pudo subir; guardo lo demás");}b.textContent="Guardar";}
+      await guardarMov(r,n);
+      if(r.t==="E"&&l){const up={};if(l.entrada!==v.f)up.entrada=v.f;if((l.albaran||"")!==(n.a||""))up.albaran=n.a||"";if(l.sinAlb&&n.a)up.sinAlb=null;if(Object.keys(up).length)await db.doc("lotes/"+l.id).update(up);}
       cerrar();toast("Apunte corregido");
     }catch(x){b.disabled=false;err.textContent="No se pudo guardar. Inténtalo otra vez.";err.hidden=false;}};
   const tec=e=>{if(e.key==="Escape")cerrar();};
