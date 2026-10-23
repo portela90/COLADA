@@ -1,0 +1,13 @@
+-- 23/10/2026 · Cambios de horno (cono, tolva, dosificador) descuentan del Almacén y quedan registrados.
+-- Aplicado en limpieza-cie (uddejncrjcyyaxjocbpj):
+--   · ots.tolva_tipo ('hierro' | 'refractario'); ot_abrir (p.tolva) y horno_registrar(..., p_tolva) lo guardan; FALTA_TOLVA en hornos cerrados.
+--   · consumos_horno: una fila por pieza descontada (estado del envío, inyectora, nave, quién).
+--   · _horno_items(recambios, acción, tolva): cono → cono + juntas_cono; tolva → hr-tolva-hierro / hr-tolva-refr;
+--     tolva y cono → las dos cosas; dosificador → tubo + junta_tubo. Hornos abiertos (recambios vacío) no descuentan.
+--   · ots_consumo_horno (trigger al pasar a «hecha») envía cada pieza a alm_consumo_limpieza con p_maq (F29…).
+--   · consumos_horno_reenviar(p_tok), horno_gasto(p_tok, p_el, p_desde) (los € solo admin y responsable de hornos).
+--   · precios_alm: copia cada hora de los recambios de horno del Almacén (cron precios-alm-pide :07 y precios-alm-recoge :09).
+-- Aplicado en colada-mapri (whemhkcrgwyjucpaswrm):
+--   · alm_consumo_limpieza(..., p_maq) nueva versión con la inyectora; la de 5 parámetros sigue igual.
+--   · alm_precios_limpieza(p_secreto): artículos de la familia «horno» con su precio.
+--   · Alta de «Tolva de hierro» (hr-tolva-hierro) y «Tolva refractaria» (hr-tolva-refr) en Consumibles N1, sin precio.
