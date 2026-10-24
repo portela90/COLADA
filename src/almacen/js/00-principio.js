@@ -179,19 +179,22 @@ function qAgrupa(L,q){const G={};L.forEach(h=>{const k=qClave(h,q.grp);const x=G
 function qOrdDet(L,q){const o=q.ord;return L.slice().sort((a,b)=>o==="clave"?a.f.localeCompare(b.f):o==="n"?b.f.localeCompare(a.f):(b[o]-a[o])||b.f.localeCompare(a.f));}
 const qEur=v=>v?eur(v):"—";
 function qNomGrupo(k,g){return g==="mes"?cap(fmtMes(k)):k;}
-function vConsultas(v){const q=draft.q=draft.q||Q0();const re=()=>render(true);
+function vConsultas(v){const q=draft.q=draft.q||Q0();const re=()=>{draft.qPre=null;render(true);};
+  /* consulta rápida: rellena el formulario, la marca y baja hasta el resultado */
+  const usa=(p,id)=>{draft.q=Object.assign(Q0(),p.q);draft.qPre=id;render(true);
+    setTimeout(()=>{const k=document.querySelector("#view .kpis");if(k)try{k.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){k.scrollIntoView();}},60);};
   const guard=cat.consultas||[];
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Consultas rápidas"})),el("div",{class:"bd"},[
-    el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},Q_PRE.map(p=>el("button",{type:"button",class:"chip",text:p.nom,onclick:()=>{draft.q=Object.assign(Q0(),p.q);re();}}))
-      .concat(guard.map(p=>el("span",{style:"display:inline-flex;gap:2px"},[el("button",{type:"button",class:"chip","aria-pressed":"true",text:"★ "+p.nom,onclick:()=>{draft.q=Object.assign(Q0(),p.q);re();}}),
+    el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},Q_PRE.map(p=>el("button",{type:"button",class:"chip","aria-pressed":String(draft.qPre==="pre:"+p.nom),text:p.nom,onclick:()=>usa(p,"pre:"+p.nom)}))
+      .concat(guard.map(p=>el("span",{style:"display:inline-flex;gap:2px"},[el("button",{type:"button",class:"chip","aria-pressed":"true",text:"★ "+p.nom,onclick:()=>usa(p,"g:"+p.id)}),
         el("button",{type:"button",class:"chip","aria-label":"Borrar «"+p.nom+"»",text:"×",onclick:()=>confirmar("¿Borrar la consulta?","«"+p.nom+"» deja de salir en Consultas rápidas.","Borrar",async()=>{cat.consultas=(cat.consultas||[]).filter(x=>x.id!==p.id);await saveCat();re();})})]))))])]));
   /* formulario */
   const todos=qHechos(q.que);const motivos=[...new Set(todos.map(h=>h.motivo))].filter(x=>x&&x!=="—").sort((a,b)=>a.localeCompare(b,"es"));
   const zonas=[...new Set(cat.maquinas.map(m=>zonaDe(m)))].sort();
   const grps=Object.keys(Q_GRP).filter(g=>q.que==="gasto"||!({pist:["modelo","eje"],rep:["resp","diam"],mat:["modelo","eje"]}[q.que]||[]).includes(g));
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Consulta"})),el("div",{class:"bd frm",style:"gap:12px"},[
-    el("div",{class:"seg",role:"group","aria-label":"Qué consultar"},Q_QUE.map(([k,t])=>el("button",{type:"button","aria-pressed":String(q.que===k),text:t,onclick:()=>{q.que=k;q.motivo="";if(!grps.includes(q.grp))q.grp="maq";re();}}))),
-    el("div",{class:"chips",role:"group","aria-label":"Periodo"},Q_PER.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(q.per===k),text:t,onclick:()=>{q.per=k;re();}}))),
+    el("div",{class:"seg seg-q",role:"group","aria-label":"Qué consultar"},Q_QUE.map(([k,t])=>el("button",{type:"button","aria-pressed":String(q.que===k),text:t,onclick:()=>{q.que=k;q.motivo="";if(!grps.includes(q.grp))q.grp="maq";re();}}))),
+    el("div",{class:"chips chips-per",role:"group","aria-label":"Periodo"},Q_PER.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(q.per===k),text:t,onclick:()=>{q.per=k;re();}}))),
     q.per==="rango"?el("div",{class:"row"},[fld("Desde",inp("qD",q.d,x=>{q.d=x;render();},{type:"date"})),fld("Hasta",inp("qH",q.h,x=>{q.h=x;render();},{type:"date"}))]):null,
     el("div",{class:"row"},[fld("Máquina",sel("qM",cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>[m.cod,m.cod]),q.maq,x=>{q.maq=x;re();},"Todas")),
       fld("Zona",sel("qZ",zonas.map(z=>[z,z]),q.zona,x=>{q.zona=x;re();},"Todas")),
