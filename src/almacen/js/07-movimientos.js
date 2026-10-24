@@ -60,7 +60,8 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   render(true);}
 function comprimir(file){return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);
   img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),cv=document.createElement("canvas");cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
-    cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(u);cv.toBlob(b=>res(b||file),"image/jpeg",.72);};
+    cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(u);
+    /* WebP si el móvil lo sabe hacer (ocupa menos); si no, JPEG */cv.toBlob(b=>{if(b&&b.type==="image/webp")res(b);else cv.toBlob(j=>res(j||file),"image/jpeg",.72);},"image/webp",.72);};
   img.onerror=()=>{URL.revokeObjectURL(u);res(file);};img.src=u;});}
 function vHist(v){const h=draft.hm;const ms=Object.keys(meses).filter(k=>meses[k].length).sort().reverse();
   if(!h.mes||!ms.includes(h.mes))h.mes=ms.includes(mesDe(hoy()))?mesDe(hoy()):(ms[0]||mesDe(hoy()));

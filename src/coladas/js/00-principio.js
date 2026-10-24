@@ -66,10 +66,31 @@ function comprimir(file,maxLado){
     i.src=u;
   });
 }
+/* foto de albarán para guardar: 1800 px por el lado largo (se lee bien la letra) y como mucho unos 350 KB.
+   Antes se guardaba a 3000 px y salían de más de 1 MB cada una; el espacio gratis de fotos es de 1 GB. */
+function fotoLigera(file){
+  return new Promise(res=>{
+    const u=URL.createObjectURL(file),i=new Image();
+    i.onload=async()=>{
+      try{
+        const esc=Math.min(1,1800/Math.max(i.width,i.height));
+        const c=document.createElement("canvas");c.width=Math.round(i.width*esc);c.height=Math.round(i.height*esc);
+        c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);
+        const blob=(t,q)=>new Promise(ok=>c.toBlob(b=>ok(b),t,q));
+        /* WebP si el móvil lo sabe hacer (ocupa menos); si no, JPEG */
+        let tipo="image/webp",q=.75,b=await blob(tipo,q);if(!b||b.type!=="image/webp"){tipo="image/jpeg";b=await blob(tipo,q);}
+        while(b&&b.size>350000&&q>.45){q-=.08;b=await blob(tipo,q);}
+        res(b&&b.size<file.size?b:file);
+      }catch(e){URL.revokeObjectURL(u);res(file);}
+    };
+    i.onerror=()=>{URL.revokeObjectURL(u);res(file);};
+    i.src=u;
+  });
+}
 async function subirFoto(file){
   const a=await claude.use("assets");
   if(!a)throw new Error("sin assets");
-  const b=await comprimir(file,3000);
+  const b=await fotoLigera(file);
   const r=await a.upload(b);
   return r.id;
 }
