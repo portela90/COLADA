@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261024123806">
-<meta charset="utf-8"><script src="errlog.js" data-app="limpieza" data-sb="limpieza"></script>
+<meta name="build" content="20261024125227">
+<meta charset="utf-8"><script src="errlog.js" data-app="limpieza" data-sb="limpieza"></script><script src="offline.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
 <meta name="theme-color" content="#FFFFFF">
@@ -219,7 +219,36 @@ function el(t,a,k){const e=document.createElement(t);if(a)for(const x in a){cons
   (Array.isArray(k)?k:k!=null?[k]:[]).flat(9).forEach(c=>{if(c==null||c===false)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
 const ls={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}};
 function toast(t){const d=el("div",{class:"toast",text:t});document.body.appendChild(d);setTimeout(()=>d.remove(),2600);}
-async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(args||{})});
+/* ---------- sin conexión ----------
+   Lecturas: se guarda la última respuesta en el móvil y se usa si no hay red.
+   Acciones de los operarios (empezar, pausar, terminar, registrar en el horno…): sin red se guardan y se envían al volver. */
+const LEER=new Set(["ots_dia","ots_rango","semana","elementos","elemento_ficha","lista_trabajadores","avisos_activos","avisos_todos","festivos_listar","horas_dia_leer","horas_rango","tareas","habituales","zonas","lugares","consumos_dia","horno_gasto","prl_pendientes","resp_hornos_yo","resp_hornos_admin","sust_lista","yo","extra_lista","extra_ver","cal_pendientes","check_ot_puntos","check_el_puntos","fotos_ot","enc_resumen","auto_estado","ot_historial","trabajadores_admin","trabajadores_gestor"]);
+const EN_COLA={estado_ot:"Cambio de estado de un trabajo",ot_pausa:"Pausa de un trabajo",checklist_ot:"Checklist de un trabajo",terminar_ot:"Trabajo terminado",horno_registrar:"Registro en un horno",limpieza_abrir:"Limpieza apuntada",ot_abrir:"Trabajo nuevo",consumo_nave:"Nave de un consumo"};
+OFF.ambito="limpieza";
+const claveR=(fn,a)=>"r:"+fn+":"+JSON.stringify(Object.assign({},a||{},{p_tok:undefined}));
+/* lo pendiente se ve ya en el día: el trabajo empezado o terminado sin red sale como tal */
+function conPendientes(fn,j){if(fn!=="ots_dia"||!j)return j;const P=OFF.cola().filter(o=>o.fn==="limp");if(!P.length)return j;
+  const ahora=new Date().toISOString();const toca=o=>{P.forEach(q=>{const a=q.args||{};if(a.p_ot!==o.id)return;
+    if(q.rpc==="estado_ot"){o.estado=a.p_estado;if(a.p_estado==="en_curso"&&!o.inicio)o.inicio=ahora;if(a.p_estado==="hecha"){o.fin=ahora;o.hecho_por_n=(S.yo&&S.yo.nombre)||o.hecho_por_n;}}
+    if(q.rpc==="terminar_ot"){o.estado="hecha";o.fin=ahora;o.hecho_por_n=(S.yo&&S.yo.nombre)||o.hecho_por_n;}
+    if(q.rpc==="ot_pausa")o.pausa_desde=a.p_pausar?ahora:null;});};
+  ["dia","atrasadas"].forEach(k=>(j[k]||[]).forEach(toca));return j;}
+async function rpc(fn,args){let r;
+  try{if(!navigator.onLine)throw new TypeError("offline");r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(args||{})});}
+  catch(e){OFF.red(false);
+    if(LEER.has(fn)){const c=await OFF.lee(claveR(fn,args));if(c!==undefined)return conPendientes(fn,JSON.parse(JSON.stringify(c)));throw new Error("Sin conexión, y esto todavía no se había abierto en este móvil.");}
+    if(EN_COLA[fn]){await OFF.encola({fn:"limp",rpc:fn,args,desc:EN_COLA[fn]});return{id:null,pendiente:true};}
+    throw new Error("Sin conexión: esto necesita red. Inténtalo cuando vuelva la cobertura.");}
+  OFF.red(true);
+  const j=await rpcRespuesta(fn,args,r);
+  if(LEER.has(fn))OFF.guarda(claveR(fn,args),j);
+  return conPendientes(fn,j);}
+/* lo que se envía desde la cola: con el PIN de ahora, y sin volver a meterlo en la cola si falla la red */
+OFF.ejecutor=async op=>{const a=Object.assign({},op.args,op.args&&op.args.p_tok&&S.tok?{p_tok:S.tok}:{});
+  const r=await fetch(URL_SB+"/rest/v1/rpc/"+op.rpc,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(a)});
+  await rpcRespuesta(op.rpc,a,r);};
+OFF.alVaciar=()=>{try{if(S.tok&&!document.querySelector(".ov"))pinta();}catch(e){}};
+async function rpcRespuesta(fn,args,r){
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){}
   if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(!k&&r.status!==401&&window.reportarError)reportarError(new Error("rpc "+fn+": "+String(m).slice(0,300)),"args: "+Object.keys(args||{}).join(","));if(k==="SESION"){salir(true);}throw new Error(k?ERR[k]:m);}
   if(j&&j.error){throw new Error(ERR[j.error]||j.error);}
@@ -236,7 +265,7 @@ async function firmarFotos(j){const L=Array.isArray(j)?j:(j?[j]:[]);const T=[];
 async function subirAlmacen(ruta,blob){const x=await fetch(URL_SB+"/storage/v1/object/fotos/"+ruta,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":blob.type||"image/jpeg"},body:blob});
   if(!x.ok)throw new Error("No se pudo subir la foto ("+x.status+")");}
 async function fotoAlmacen(ot,d){const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});return r.id;}
-async function guardarFoto(ot,d){try{const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());return await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});}
+async function guardarFoto(ot,d){if(!navigator.onLine||!ot)throw new Error("Sin conexión: las fotos no se pueden subir sin red. Quita la foto o espera a tener cobertura.");try{const r=await rpc("foto_reservar",{p_tok:S.tok,p_ot:ot});await subirAlmacen(r.ruta,await (await fetch(d)).blob());return await rpc("foto_confirmar",{p_tok:S.tok,p_id:r.id});}
   catch(e){return rpc("foto_add",{p_tok:S.tok,p_ot:ot,p_data:d});}}
 const hoyISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
 const sumaD=(f,n)=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};

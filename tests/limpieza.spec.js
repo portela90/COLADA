@@ -66,3 +66,31 @@ test('horno abierto no descuenta nada', async ({ page }) => {
   await expect(page.getByText('Horno abierto')).toBeVisible();
   expect(err).toEqual([]);
 });
+
+test('sin red: abre el día guardado, «Empezar» se guarda y se envía al volver', async ({ page, context }) => {
+  let online = true; const llamadas = [];
+  await page.addInitScript(([yo]) => { localStorage.setItem('limp.tok', 't'); localStorage.setItem('limp.yo', JSON.stringify(yo)); }, [OPER]);
+  const err = await vigila(page, r => {
+    const u = r.request().url();
+    if (!u.includes('/rpc/')) return null;
+    if (!online) return r.abort('internetdisconnected');
+    const fn = u.split('/rpc/')[1].split('?')[0]; let body = {};
+    try { body = JSON.parse(r.request().postData() || '{}'); } catch (e) {}
+    llamadas.push([fn, body]);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(R[fn] !== undefined ? R[fn] : []) });
+  });
+  await page.goto(original('limpieza.html')); await page.waitForTimeout(1800);
+  online = false; await context.setOffline(true);
+  await page.reload(); await page.waitForTimeout(1800);
+  await expect(page.locator('#off-barra')).toContainText('Sin conexión');
+  await expect(page.getByText('Limpieza F25 y foso').first()).toBeVisible();
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === 'Empezar' && x.offsetParent); b.click(); });
+  await page.waitForTimeout(600);
+  await expect(page.locator('#off-barra')).toContainText('1 cambio pendiente');
+  expect(llamadas.filter(c => c[0] === 'estado_ot').length).toBe(0);
+  online = true; await context.setOffline(false); await page.waitForTimeout(2500);
+  const env = llamadas.filter(c => c[0] === 'estado_ot');
+  expect(env.length).toBe(1);
+  expect(env[0][1]).toMatchObject({ p_estado: 'en_curso', p_tok: 't' });
+  expect(err).toEqual([]);
+});
