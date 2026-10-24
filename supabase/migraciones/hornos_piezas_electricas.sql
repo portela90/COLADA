@@ -1,0 +1,5 @@
+-- Limpieza (limpieza-cie), 24/10/2026: hornos mantenedores con cambio de resistencia, centrador, conexión estrella y conexión fase.
+-- elementos.recambios gana resistencia, centrador, con_estrella y con_fase (artículos del Almacén, según las inyectoras donde va cada uno en el catálogo).
+-- _pieza_de(accion) y _piezas_ok(recambios, accion, juntas): la cantidad cambiada va en ots.juntas como [{art, cant}] (1 a 20).
+-- _horno_items(4 args), horno_registrar(9 args), ot_abrir y horno_gasto aceptan las acciones nuevas:
+--   cambio_resistencia, cambio_centrador, cambio_con_estrella, cambio_con_fase.

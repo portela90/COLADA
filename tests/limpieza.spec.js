@@ -42,6 +42,20 @@ test('cambio solo de tolva: pregunta por las juntas', async ({ page }) => {
   expect(err).toEqual([]);
 });
 
+test('cambio de resistencias: pregunta cuántas y descuenta la del horno', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
+  await pulsa(page, 'Registrar en el horno'); await pulsa(page, 'Cambio de resistencia'); await pulsa(page, 'Siguiente');
+  await expect(page.getByText('¿Cuántas resistencias?')).toBeVisible();
+  await pulsa(page, 'Rota o quemada');
+  await page.click('[aria-label="Una más"]');
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^\d+\s*min/.test(x.textContent.trim())); b.click(); });
+  await pulsa(page, 'Guardar'); await page.waitForTimeout(500);
+  const c = llamadas.find(c => c[0] === 'horno_registrar')[1];
+  expect(c.p_accion).toBe('cambio_resistencia');
+  expect(c.p_juntas).toEqual([{ art: 'hr-rst120', cant: 2 }]);
+  expect(err).toEqual([]);
+});
+
 test('horno abierto no descuenta nada', async ({ page }) => {
   const { err } = await abre(page, ADMIN, '?el=H-F10');
   await expect(page.getByText('Horno abierto')).toBeVisible();
