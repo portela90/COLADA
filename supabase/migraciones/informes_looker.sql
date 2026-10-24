@@ -9,3 +9,7 @@
 --   alter role informes_lector with login password '…';
 -- Conexión en Looker Studio: conector PostgreSQL, host del «Session pooler» de Supabase, puerto 5432, base postgres,
 --   usuario informes_lector.whemhkcrgwyjucpaswrm, SSL activado.
+-- Vistas sencillas usadas en el informe «Almacén MAPRI» de Looker Studio (páginas Consumos, Entradas y Stock):
+--   informes.consumos      qué se ha gastado: producto, cantidad, unidad, dónde (máquina/nave/Limpieza), motivo (el de los pistones sale de la nota), quién, cuánto queda
+--   informes.entradas      qué ha entrado: producto, cantidad, almacén, proveedor, albarán, cuánto queda
+--   informes.stock_actual  lo que queda de cada producto, mínimo, estado (Bien / Para pedir / Bajo mínimo / Pedido) y en qué almacén está
