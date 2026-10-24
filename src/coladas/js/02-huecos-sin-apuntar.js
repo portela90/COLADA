@@ -287,6 +287,7 @@ function coladasStock(){
     el("div",{class:"tw"},[el("table",{class:"col-stk"},[el("thead",{},[el("tr",{},[el("th",{text:"Colada"}),el("th",{text:"Dónde"}),el("th",{text:"Entrada"}),el("th",{class:"r",text:"Fardos"}),el("th",{class:"r",text:"Kg"})])]),el("tbody",{},tb)])]),
     Object.keys(tot).length>1||grupos.length>1?el("div",{class:"bd"},[el("p",{class:"hint",style:"margin:0",text:"Total por aleación: "+Object.keys(MAT).filter(m=>tot[m]).map(m=>MAT[m].nom+" "+fmt(tot[m].f)+" f · "+fmt(tot[m].k)+" kg").join("  ·  ")})]):null]);
 }
+function dosCol(a,b,cl){const c=x=>el("div",{class:"col"},x.filter(Boolean));return el("div",{class:"dosc"+(cl?" "+cl:"")},[c(a),c(b)]);}
 function vStock(){
   const {B,dias}=bloques();
   if(parteDia&&parteDia>hoy())parteDia="";
@@ -321,10 +322,12 @@ function vStock(){
     el("div",{class:"split"},[el("div",{},[el("dt",{text:"Mínimo"}),el("dd",{class:"num",text:fmt(gm)+" kg"})]),el("div",{},[el("dt",{text:"Margen"}),el("dd",{class:"num",text:fmt(gk-gm)+" kg"})])]),
     el("div",{class:"foot"},[el("button",{type:"button",class:"btn sec",style:"font-size:13px;padding:5px 10px",text:"Ajustar por recuento",onclick:ajustarGranalla})])
   ]));
-  const out=[avisoCierre(),filtroStock(B),coladasStock(),parte,vHuecos(),vPrevision(),vMaquinas(),g].filter(Boolean);
   const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5&&pasaF(b.nave,b.mat);}).map(k=>B[k]);
-  if(alerta.length)out.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
-  out.push(vMin());
+  const der=[vHuecos(),vPrevision(),vMaquinas(),g];
+  if(alerta.length)der.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
+  der.push(vMin());
+  /* en el ordenador: coladas y parte a la izquierda, el resto a la derecha; en el móvil, una cosa debajo de otra como siempre */
+  const out=[avisoCierre(),filtroStock(B),dosCol([coladasStock(),parte],der,"ancha-izq")].filter(Boolean);
   out.push(el("p",{class:"hint",text:"El gasto medio sale de "+dias+" días distintos con consumo registrado. Los días de material cuentan sólo los fardos que están en la nave: lo del almacén externo no se puede fundir hasta traerlo."}));
   return out;
 }

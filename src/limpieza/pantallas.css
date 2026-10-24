@@ -1,0 +1,21 @@
+/* ===== Cada pantalla con su forma: móvil, tablet y ordenador =====
+   - Móvil (< 700 px): como siempre.
+   - Tablet (700–1199 px): contenido más ancho, pestañas y botones de abajo centrados.
+   - Ordenador (≥ 1200 px): el jefe tiene el menú a la izquierda y el contenido usa el ancho. */
+@media (min-width:700px){
+  main{max-width:1040px;padding-left:24px;padding-right:24px}
+  nav{justify-content:center}
+  nav button{flex:0 1 120px}
+  .pie{left:max(0px,calc(50% - 520px));right:max(0px,calc(50% - 520px));border-radius:12px 12px 0 0}
+}
+@media (min-width:1200px){
+  body:has(#nav:not([hidden])) main{max-width:1240px;margin-left:calc(228px + max(0px,(100vw - 228px - 1240px)/2));margin-right:auto;padding:22px 32px 48px}
+  #nav{top:0;bottom:0;left:0;right:auto;width:228px;z-index:19;flex-direction:column;justify-content:flex-start;gap:2px;
+    padding:68px 10px 16px;border-top:0;box-shadow:inset -1px 0 0 var(--line);overflow-y:auto}
+  #nav button{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;min-height:44px;padding:9px 14px;
+    border-radius:8px;font-size:14px;text-align:left;box-shadow:none}
+  #nav button:hover{background:var(--surf2)}
+  #nav button[aria-selected=true]{background:var(--acc-soft,var(--surf2));box-shadow:inset 3px 0 0 var(--acc)}
+  #nav button .ic,#nav button .ic svg{width:20px;height:20px}
+  body:has(#nav:not([hidden])) .toast{bottom:28px}
+}

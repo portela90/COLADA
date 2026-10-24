@@ -1,0 +1,41 @@
+/* ===== Cada pantalla con su forma: móvil, tablet y ordenador =====
+   Lo usan Coladas y Almacén (misma estructura: #app > header + main > .wrap + nav#tabs).
+   - Móvil (< 700 px): como siempre, barra de pestañas abajo.
+   - Tablet (700–1199 px): contenido más ancho y pestañas centradas abajo.
+   - Ordenador (≥ 1200 px): menú lateral a la izquierda y el contenido usa el ancho, a dos columnas donde tiene sentido. */
+
+/* dos columnas: en el móvil y la tablet una debajo de otra (mismo orden de siempre) */
+.dosc{display:flex;flex-direction:column;gap:16px;min-width:0}
+.dosc>.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+@media (min-width:700px){
+  main{padding:20px 24px 28px}
+  .wrap{max-width:1040px}
+  nav#tabs{justify-content:center}
+  nav#tabs button{flex:0 1 140px}
+  /* cabecera en una sola fila: título · avisos · buscar */
+  #app>header{align-items:center;flex-wrap:nowrap}
+  #app>header .chips2{width:auto;order:2;flex:1 1 auto;min-width:0}
+  #app>header .lupa{order:3;margin-left:auto;flex:none}
+  #app>header .tot+.lupa{margin-left:14px}
+}
+
+@media (min-width:1200px){
+  #app{display:grid;grid-template-columns:228px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100%}
+  #app>header{grid-column:1/-1;grid-row:1;padding-left:24px;padding-right:24px}
+  #app>main{grid-column:2;grid-row:2;min-height:0;padding:24px 32px 40px}
+  #app>nav#tabs{grid-column:1;grid-row:2;position:static;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:2px;
+    padding:14px 10px;border-top:0;box-shadow:inset -1px 0 0 var(--line);overflow-x:hidden;overflow-y:auto;background:var(--surf)}
+  #app>nav#tabs button{flex:none!important;display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:12px;
+    width:100%;max-width:none;min-height:44px;padding:10px 14px!important;margin:0;border:0!important;border-radius:8px!important;
+    font-size:14px!important;text-align:left;white-space:nowrap;box-shadow:none!important;color:var(--ink2);background:none}
+  #app>nav#tabs button:hover{background:var(--surf2)}
+  #app>nav#tabs button[aria-selected="true"]{background:var(--acc-soft)!important;color:var(--acc);box-shadow:inset 3px 0 0 var(--accb)!important}
+  #app>nav#tabs button svg{width:20px!important;height:20px!important;flex:none}
+  .wrap{max-width:1360px}
+  /* pantallas que son un formulario: no hace falta que ocupen todo el ancho */
+  .wrap.estrecha{max-width:960px}
+  .dosc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  .dosc.ancha-izq{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+  #toast{bottom:28px}
+}

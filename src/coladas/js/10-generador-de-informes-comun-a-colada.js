@@ -152,7 +152,7 @@ function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(
   const k={sinAlb:sinAlbaran().length,naves:nv,kg:Object.values(nv).reduce((t,x)=>t+x.kg,0),fa:Object.values(nv).reduce((t,x)=>t+x.fa,0),ud:R.ud||null};
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function pinta(){
-  const v=$("view");v.textContent="";
+  const v=$("view");v.textContent="";v.classList.toggle("estrecha",tab==="consumo"||tab==="entrada"||tab==="precios");
   if(!ready){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"Cargando…"})]));return;}
   if(!db){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."})]));return;}
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
@@ -162,7 +162,13 @@ function pinta(){
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
 function tabsUI(){const n=$("tabs");n.textContent="";
-  TABS.forEach(([id,t])=>n.appendChild(el("button",{type:"button","aria-selected":String(tab===id),text:t,onclick:()=>{tab=id;try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}})));}
+  TABS.forEach(([id,t])=>{const b=el("button",{type:"button","aria-selected":String(tab===id),onclick:()=>{tab=id;try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}});
+    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO_T[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});}
+/* iconos de las pestañas */
+const ICO_T={stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',consumo:'<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.3 3 2.5 3 0-3-1-5.5 0-8z"/>',
+  entrada:'<path d="M2 7h11v9H2zM13 10h4l4 3.5V16h-8z"/><circle cx="6" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',lotes:'<path d="M4 6h16M4 12h16M4 18h10"/>',
+  hist:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',precios:'<path d="M17.5 6.5A6.5 6.5 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/>',
+  plan:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'};
 try{const t=localStorage.getItem("colada.tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
 try{const q=new URLSearchParams(location.search).get("t");if(q&&TABS.some(x=>x[0]===q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
 tabsUI();render();

@@ -80,3 +80,7 @@ header h1,header .tot span,nav button,.card>.hd h2,.sc .al,.sc dt,.pill,label,.c
 :root{padding-bottom:0!important}
 input[type=date],input[type=time],input[type=datetime-local],input[type=month]{-webkit-appearance:none;appearance:none;display:block;width:100%;max-width:100%;min-width:0;min-height:46px;text-align:left}
 input::-webkit-date-and-time-value{text-align:left}
+/* pestañas con icono encima del nombre */
+nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:8px!important;padding-bottom:9px!important}
+nav button svg{width:22px;height:22px;flex:none}
+nav button span{overflow:hidden;text-overflow:ellipsis;max-width:100%}
