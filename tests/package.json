@@ -2,6 +2,11 @@
   "name": "pruebas-apps-mapri",
   "private": true,
   "description": "Pruebas automáticas de Almacén, Coladas, Inicio y Limpieza (se ejecutan en GitHub Actions antes de publicar)",
-  "scripts": { "test": "playwright test" },
-  "devDependencies": { "@playwright/test": "1.64.0" }
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@supabase/supabase-js": "2.45.4"
+  }
 }

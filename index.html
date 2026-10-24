@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261024123922"><meta charset=utf8><script src="errlog.js" data-app="coladas" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261024124626"><meta charset=utf8><script src="errlog.js" data-app="coladas" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -333,6 +333,7 @@ input::-webkit-date-and-time-value{text-align:left}
   <nav id="tabs"></nav>
 </div>
 
+<script src="offline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 .lg-ov{position:fixed;inset:0;z-index:2000;background:var(--bg,#E9ECE8);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -383,12 +384,15 @@ function acceso(){if(listo)return listo;listo=(async()=>{
   let {data:{session}}=await sb.auth.getSession();
   if(!session)session=await pantallaAcceso();
   const r=await sb.from("usuarios").select("*").eq("user_id",session.user.id).maybeSingle();
-  yo=r.data||{email:session.user.email,activo:false};
+  const kY="mapri.yo."+session.user.id;
+  if(r.error&&OFF.esRed(r.error)){try{yo=JSON.parse(localStorage.getItem(kY)||"null");}catch(e){yo=null;}OFF.red(false);}
+  else{yo=r.data;try{if(yo)localStorage.setItem(kY,JSON.stringify(yo));}catch(e){}}
+  yo=yo||{email:session.user.email,activo:false};
   if(!yo.activo){pantallaEspera();return new Promise(()=>{});}
   ponUsuario();
   /* base vacía: ofrecer importar la copia de la Colada */
   if(!P){const c=await sb.from("docs").select("col",{count:"exact",head:true});
-  if((c.count||0)===0||/[?&]importar/.test(location.search))await pantallaImportar((c.count||0)===0);}
+  if(!c.error&&(c.count||0)===0||/[?&]importar/.test(location.search))await pantallaImportar((c.count||0)===0);}
   return true;})();return listo;}
 
 /* ---------- importar la copia descargada del artefacto ---------- */
@@ -444,18 +448,30 @@ const snap=rows=>({docs:rows.map(r=>({id:r.id,data:()=>r.data}))});
 const subs={};
 function canal(col,fn){col=P+col;(subs[col]=subs[col]||[]).push(fn);
   if(subs[col].length===1)sb.channel("docs-"+col).on("postgres_changes",{event:"*",schema:"public",table:"docs",filter:"col=eq."+col},p=>{subs[col].forEach(f=>f(p));}).subscribe(st=>{if(st==="SUBSCRIBED")subs[col].forEach(f=>f(null));});}
-async function leeCol(col){const r=await sb.from("docs").select("id,data").eq("col",P+col);if(r.error)throw r.error;return r.data||[];}
-async function leeDoc(col,id){const r=await sb.from("docs").select("data").eq("col",P+col).eq("id",id).maybeSingle();if(r.error)throw r.error;return r.data;}
+/* lecturas: si no hay red se usa la última copia guardada en el móvil (con los cambios pendientes ya puestos) */
+async function leeCol(col){const C=P+col,k="c:"+C;
+  try{if(!navigator.onLine)throw new TypeError("offline");const r=await sb.from("docs").select("id,data").eq("col",C);if(r.error)throw r.error;const d=r.data||[];OFF.guarda(k,d);OFF.red(true);return OFF.aplicaCol(C,d);}
+  catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);const d=await OFF.lee(k);if(!d)throw e;return OFF.aplicaCol(C,d);}}
+async function leeDoc(col,id){const C=P+col,k="d:"+C+"/"+id,ap=d=>d?{data:OFF.aplicaDoc(C,id,d.data)}:(OFF.cola().some(o=>o.col===C&&o.id===id)?{data:OFF.aplicaDoc(C,id,{})}:null);
+  try{if(!navigator.onLine)throw new TypeError("offline");const r=await sb.from("docs").select("data").eq("col",C).eq("id",id).maybeSingle();if(r.error)throw r.error;OFF.guarda(k,r.data||null);OFF.red(true);return ap(r.data);}
+  catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);let d=await OFF.lee(k);if(d===undefined){const L=await OFF.lee("c:"+C);const x=(L||[]).find(z=>z.id===id);d=x?{data:x.data}:undefined;}
+    if(d===undefined&&!OFF.cola().some(o=>o.col===C&&o.id===id))throw e;return ap(d||null);}}
 const rpc=async(f,a)=>{const r=await sb.rpc(f,a);if(r.error)throw r.error;};
+/* apuntes (añadir, quitar o cambiar líneas): sin red se guardan en la cola y se envían al volver */
+const rpcQ=async(f,a)=>{try{if(!navigator.onLine)throw new TypeError("offline");await rpc(f,a);OFF.red(true);}
+  catch(e){if(!OFF.esRed(e)){if(window.reportarError)reportarError(e,"guardar "+f+" "+a.p_col);throw e;}OFF.red(false);await OFF.encola({fn:f,args:a,col:a.p_col,id:a.p_id,desc:sinP(a.p_col)+" "+a.p_id});recargar([a.p_col]);}};
+const sinRed=()=>new Error("Sin conexión: esto se podrá guardar cuando vuelva la red. Los consumos y apuntes sí se guardan sin red.");
+const escribe=async fn=>{if(!navigator.onLine)throw sinRed();try{const r=await fn();if(r&&r.error)throw r.error;OFF.red(true);return r;}catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
+OFF.ejecutor=op=>rpc(op.fn,op.args);OFF.alVaciar=cols=>recargar(cols);
 const db={
-  itemsAdd:(col,id,items)=>rpc("docs_items_add",{p_col:P+col,p_id:id,p_items:items}),
+  itemsAdd:(col,id,items)=>rpcQ("docs_items_add",{p_col:P+col,p_id:id,p_items:items}),
   itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:P+col,p_id:id,p_item:item}),
   itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:P+col,p_id:id,p_i:i}),
   collection:col=>({onSnapshot:(cb,er)=>{const go=()=>leeCol(col).then(rows=>cb(snap(rows))).catch(e=>er&&er(e));go();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
     get:async()=>{const d=await leeDoc(col,id);return{exists:!!d,data:()=>d?d.data:undefined};},
-    set:async data=>{const r=await sb.from("docs").upsert({col:P+col,id,data});if(r.error)throw r.error;},
-    update:async patch=>{const d=await leeDoc(col,id);const r=await sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)});if(r.error)throw r.error;},
+    set:async data=>{await escribe(()=>sb.from("docs").upsert({col:P+col,id,data}));},
+    update:async patch=>{if(!navigator.onLine)throw sinRed();const d=await leeDoc(col,id);await escribe(()=>sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)}));},
     onSnapshot:(cb,er)=>{const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();canal(col,p=>{if(!p||(p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
 /* ---------- historial de cambios y deshacer ---------- */
