@@ -30,7 +30,7 @@ self.addEventListener("fetch", e => {
       if (res.ok) { const cp = res.clone(); caches.open(CACHE).then(c => c.put(new Request(u.origin + u.pathname), cp)); }
       return res;
     }).catch(() => caches.match(new Request(u.origin + u.pathname)).then(x => x || caches.match(r, { ignoreSearch: true }))
-      .then(x => x || new Response("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><body style='font:16px system-ui;padding:24px'><h2>Sin conexión</h2><p>Esta página todavía no se había abierto en este móvil. Ábrela una vez con conexión y luego funcionará sin red.</p>", { headers: { "Content-Type": "text/html; charset=utf-8" } }))));
+      .then(x => x || (r.mode !== "navigate" ? Response.error() : new Response("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><body style='font:16px system-ui;padding:24px'><h2>Sin conexión</h2><p>Esta página todavía no se había abierto en este móvil. Ábrela una vez con conexión y luego funcionará sin red.</p>", { headers: { "Content-Type": "text/html; charset=utf-8" } })))));
     return;
   }
   e.respondWith(caches.match(r).then(x => {
