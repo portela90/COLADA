@@ -1,0 +1,11 @@
+-- 24/10/2026 · Cuadros de mando con Looker Studio (colada-mapri, whemhkcrgwyjucpaswrm)
+-- Esquema «informes» con vistas planas de solo lectura (la app no lo usa; la API de Supabase no lo expone):
+--   informes.alm_movimientos       consumos, entradas, traslados y conteos del Almacén (artículo, familia, almacén, máquina, nave, motivo, origen, importe)
+--   informes.alm_pistones          cambios de pistón (máquina, diámetro, motivo, destino, responsable, importe)
+--   informes.alm_reparaciones_ejes reparaciones de ejes (modelo, desperfecto, fechas, días en el taller, resultado)
+--   informes.alm_stock             stock actual por artículo y almacén, con valor
+--   informes.coladas_movimientos   aluminio: consumos y entradas por colada, nave y aleación (kg calculados como en la app)
+-- Usuario de solo lectura: informes_lector (creado sin acceso; se activa poniéndole contraseña en el editor SQL de Supabase):
+--   alter role informes_lector with login password '…';
+-- Conexión en Looker Studio: conector PostgreSQL, host del «Session pooler» de Supabase, puerto 5432, base postgres,
+--   usuario informes_lector.whemhkcrgwyjucpaswrm, SSL activado.
