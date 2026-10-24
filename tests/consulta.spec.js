@@ -1,26 +1,26 @@
 // Usuario de solo consulta: ve el Almacén, no puede apuntar nada y no entra en Coladas.
 const { test, expect } = require('@playwright/test');
-const { original } = require('./util');
+const { original, desbordes, pulsa } = require('./util');
 const { servidor, datosAlmacen } = require('./supa');
 
-test('Almacén en solo consulta: sin «Apuntar», con aviso y sin guardar nada', async ({ page }) => {
+test('Almacén en solo consulta: sus pantallas propias, sin nada que guarde', async ({ page }) => {
   const errores = []; page.on('pageerror', e => errores.push(e.message));
   const S = await servidor(page, 'alm_', datosAlmacen(), { consulta: true });
   await page.goto(original('almacen.html')); await page.waitForTimeout(2500);
   await expect(page.locator('.solo-c')).toHaveText('Solo consulta');
-  const vis = await page.evaluate(() => [...document.querySelectorAll('#tabs button')].filter(b => b.offsetParent).map(b => b.textContent));
-  expect(vis).not.toContain('Apuntar'); expect(vis).toContain('Stock');
-  // intenta apuntar un consumo desde Movimientos
-  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.waitForTimeout(300);
-  await page.evaluate(() => [...document.querySelectorAll('.tile')].find(t => t.querySelector('.tt').textContent === 'Movimientos').click());
-  await page.waitForTimeout(400);
-  await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Consumo').click());
-  await page.waitForTimeout(200);
-  const art = await page.$eval('#mArt', s => [...s.options].find(o => o.value).value);
-  await page.selectOption('#mArt', art); await page.waitForTimeout(200);
-  await page.fill('#mCant', '2'); await page.click('#mBtn'); await page.waitForTimeout(400);
-  await expect(page.locator('#toast')).toContainText('solo consulta');
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('#tabs button')].map(b => b.textContent));
+  expect(tabs).toEqual(['Resumen', 'Consumos', 'Entradas', 'Stock', 'Ejes']);
+  for (const t of tabs) {
+    await page.evaluate(t => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === t).click(), t);
+    await page.waitForTimeout(500);
+    expect(await desbordes(page), 'se sale en ' + t).toEqual([]);
+  }
+  // consumos agrupados por motivo y stock filtrado por «bajo mínimo»
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Consumos').click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Por motivo'); await expect(page.locator('#view')).toContainText('Por motivo (');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Stock').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('.chip')].find(b => b.textContent.startsWith('Bajo mínimo')).click()); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Bajo mínimo');
   expect(S.llamadas.filter(([f]) => f.startsWith('docs_items')).length).toBe(0);
   expect(S.llamadas.filter(([f]) => f === 'log_error').length).toBe(0);
   // el menú no lleva a Coladas ni al historial

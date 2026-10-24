@@ -80,5 +80,20 @@ input::-webkit-date-and-time-value{text-align:left}
 }
 @media (max-width:600px){.kpis:has(>div:nth-child(4):last-child){grid-template-columns:1fr 1fr}}
 
-/* usuario de solo consulta: no ve la pestaña «Apuntar» */
-.solo-consulta #tabs button[data-t="rap"]{display:none!important}
+/* tablas que no caben en el móvil: cada fila se ve como una ficha (lo pone tablas-movil.js) */
+@media (max-width:600px){
+ table.tm,table.tm tbody,table.tm tfoot{display:block;width:100%}
+ table.tm thead{display:none}
+ table.tm tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px 12px;padding:10px 14px;border-bottom:1px solid var(--line2)}
+ table.tm td{display:block;white-space:normal!important;padding:0!important;border:0!important;text-align:left!important;min-width:0;overflow-wrap:anywhere}
+ table.tm td:first-child,table.tm td.tm-ancha{grid-column:1/-1;font-weight:600}
+ table.tm td[data-l]:not(:first-child)::before{content:attr(data-l);display:block;font-size:11px;line-height:1.3;color:var(--mut);font-weight:500;margin-bottom:1px}
+ table.tm td:empty{display:none}
+}
+/* pantallas de solo consulta */
+.ct td.cw{white-space:normal;min-width:180px}
+.cfil .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cfil .row>label{min-width:0}
+.cfil select{min-width:0;width:100%}
+@media (max-width:520px){.solo-c{display:none}}
+@media (max-width:600px){table.tm td.cw{font-weight:400}}
