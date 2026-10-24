@@ -56,6 +56,21 @@ test('cambio de resistencias: pregunta cuántas y descuenta la del horno', async
   expect(err).toEqual([]);
 });
 
+test('cambio de otras piezas: se eligen cuáles y cuántas', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
+  await pulsa(page, 'Registrar en el horno'); await pulsa(page, 'Cambio de otras piezas'); await pulsa(page, 'Siguiente');
+  await pulsa(page, 'Fuga o pérdida');
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^\d+\s*min/.test(x.textContent.trim())); b.click(); });
+  await pulsa(page, 'Guardar');
+  expect(llamadas.filter(c => c[0] === 'horno_registrar').length).toBe(0);
+  await page.click('[aria-label="Una más de hr-jtrk"]'); await page.click('[aria-label="Una más de hr-jtrk"]');
+  await pulsa(page, 'Guardar'); await page.waitForTimeout(500);
+  const c = llamadas.find(c => c[0] === 'horno_registrar')[1];
+  expect(c.p_accion).toBe('cambio_otra');
+  expect(c.p_juntas).toEqual([{ art: 'hr-jtrk', cant: 2 }]);
+  expect(err).toEqual([]);
+});
+
 test('horno abierto no descuenta nada', async ({ page }) => {
   const { err } = await abre(page, ADMIN, '?el=H-F10');
   await expect(page.getByText('Horno abierto')).toBeVisible();

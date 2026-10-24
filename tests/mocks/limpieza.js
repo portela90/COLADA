@@ -16,7 +16,7 @@ R.festivos_listar=[{fecha:'2026-12-08',nombre:'Inmaculada'}];
 R.tareas=[{id:'t1',dias:['lunes'],tipo:'Basuras',orden:0,turno:'Mañana',activo:true,equipo:'Semana',titulo:'Basuras Nave 2',borrado:false,nombres:['Ahmed El Hait'],asignados:['w3'],descripcion:'',minutos_est:90,todo_equipo:false}];
 R.habituales=[];R.zonas=[];R.horas_rango=[];R.lugares=['Nave 1'];
 
-const REC={cono:"hr-ccp040",tubo:"hr-tdk21",junta_tubo:"hr-jtdd001",resistencia:"hr-rst120",centrador:"hr-pcr32",con_estrella:"hr-vmh241",con_fase:"hr-vmh240",juntas_cono:[{art:"hr-jpc375",cant:2},{art:"hr-jpf365",cant:1}]};
+const REC={cono:"hr-ccp040",tubo:"hr-tdk21",junta_tubo:"hr-jtdd001",resistencia:"hr-rst120",centrador:"hr-pcr32",con_estrella:"hr-vmh241",con_fase:"hr-vmh240",otras:["hr-jtrk","hr-jpb095","hr-jplk1"],juntas_cono:[{art:"hr-jpc375",cant:2},{art:"hr-jpf365",cant:1}]};
 const H29={id:'e29',codigo:'H-F29',nombre:'Horno mantenedor F29',tipo:'horno',modelo:'Krown',capacidad_kg:'1200',lugar:'Nave 1',activo:true,recambios:REC,consumibles:[],historial:[],ult:{},vaciado_dias:180};
 const H10={id:'e10',codigo:'H-F10',nombre:'Horno mantenedor F10',tipo:'horno',modelo:'Sin marca',capacidad_kg:'600',lugar:'Nave 1',activo:true,recambios:{},consumibles:[],historial:[],ult:{},vaciado_dias:180};
 R.elementos=[H29,H10];

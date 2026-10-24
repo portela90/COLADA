@@ -3,3 +3,5 @@
 -- _pieza_de(accion) y _piezas_ok(recambios, accion, juntas): la cantidad cambiada va en ots.juntas como [{art, cant}] (1 a 20).
 -- _horno_items(4 args), horno_registrar(9 args), ot_abrir y horno_gasto aceptan las acciones nuevas:
 --   cambio_resistencia, cambio_centrador, cambio_con_estrella, cambio_con_fase.
+-- Después: «Cambio de otras piezas» (cambio_otra). elementos.recambios.otras = todas las piezas de horno del catálogo del Almacén
+-- que llevan esa inyectora; _otras_ok(recambios, juntas) valida [{art, cant}]; horno_gasto devuelve 'otras' con nombre y precio.
