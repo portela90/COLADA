@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261022143825">
-<meta charset="utf-8">
+<meta name="build" content="20261024123922">
+<meta charset="utf-8"><script src="errlog.js" data-app="toolbox" data-sb="limpieza"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="limpieza.webmanifest"><link rel="icon" href="limp-192.png"><link rel="apple-touch-icon" href="limp-180.png">
@@ -168,6 +168,7 @@ async function rpc(fn, args={}){
   if(!r.ok){
     let m=''; try{ m=JSON.parse(txt).message||''; }catch(e){ m=txt; }
     if(m==='SESION'){ salir(true); }
+    if(!ERR[m]&&r.status!==401&&window.reportarError) reportarError(new Error('rpc '+fn+': '+String(m).slice(0,300)));
     throw new Error(ERR[m] || m || ('Error '+r.status));
   }
   return txt ? JSON.parse(txt) : null;

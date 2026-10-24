@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261023183551">
-<meta charset="utf-8">
+<meta name="build" content="20261024123806">
+<meta charset="utf-8"><script src="errlog.js" data-app="limpieza" data-sb="limpieza"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
 <meta name="theme-color" content="#FFFFFF">
@@ -221,7 +221,7 @@ const ls={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},se
 function toast(t){const d=el("div",{class:"toast",text:t});document.body.appendChild(d);setTimeout(()=>d.remove(),2600);}
 async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(args||{})});
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){}
-  if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(k==="SESION"){salir(true);}throw new Error(k?ERR[k]:m);}
+  if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(!k&&r.status!==401&&window.reportarError)reportarError(new Error("rpc "+fn+": "+String(m).slice(0,300)),"args: "+Object.keys(args||{}).join(","));if(k==="SESION"){salir(true);}throw new Error(k?ERR[k]:m);}
   if(j&&j.error){throw new Error(ERR[j.error]||j.error);}
   if(FIRMAR.includes(fn))await firmarFotos(j);return j;}
 /* fotos del almacén privado: la base de datos da la ruta y aquí se pide un enlace firmado que caduca en 1 hora */
@@ -1112,6 +1112,14 @@ const hornoCerrado=e=>!!(e&&e.recambios&&Object.keys(e.recambios).length);
 const llevaTolva=(e,accs)=>hornoCerrado(e)&&accs.some(a=>a==="cambio_tolva"||a==="cambio_tolva_cono");
 function selTolva(f){const b=el("div",{class:"seg sel"});const p=()=>{b.textContent="";[["hierro","De hierro"],["refractario","Refractaria"]].forEach(([k,t])=>b.appendChild(el("button",{type:"button","aria-pressed":String(f.tolva===k),text:t,onclick:()=>{f.tolva=k;p();}})));};p();
   return fld("¿Qué tolva se pone?",b);}
+/* errores que les han salido a los usuarios (registro en app_errores) */
+async function verErrores(){let L;try{L=await rpc("errores_listar",{p_tok:S.tok,p_dias:30});}catch(e){toast(e.message);return;}
+  const nv=L.filter(e=>!e.visto).length;
+  const fila=e=>el("details",{class:"card",style:"padding:8px 12px;margin:0 0 8px"+(e.visto?";opacity:.65":"")},[
+    el("summary",{style:"cursor:pointer"},[el("b",{text:e.msg}),el("small",{class:"hint",style:"display:block;margin:2px 0 0",text:[e.app,e.n>1?e.n+" veces":"1 vez",new Date(e.ultimo).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),e.usuario].filter(Boolean).join(" · ")+(e.visto?"":" · nuevo")})]),
+    el("pre",{style:"white-space:pre-wrap;font-size:12px;margin:6px 0 0;max-height:220px;overflow:auto",text:[e.url,e.ua,"versión "+(e.build||"?"),e.stack].filter(Boolean).join("\n")})]);
+  dlg("Errores de la app",el("div",null,[el("p",{class:"hint",text:L.length?(nv?nv+" sin revisar. ":"")+"Últimos 30 días. Toca uno para ver el detalle.":"Ningún error en los últimos 30 días."}),...L.map(fila)]),
+    [{t:"Cerrar",cls:"sec"}].concat(nv?[{t:"Marcar todo como visto",fn:async()=>{try{await rpc("errores_visto",{p_tok:S.tok,p_firma:"*"});toast("Marcados como vistos");}catch(e){toast(e.message);return false;}}}]:[]));}
 /* cambio SOLO de tolva: ¿se cambia también alguna junta? y cuántas */
 const soloTolva=(e,accs)=>hornoCerrado(e)&&accs.includes("cambio_tolva")&&!accs.includes("cambio_cono")&&!accs.includes("cambio_tolva_cono");
 function selJuntas(e,f){f.jc=f.jc||{};const J=(e.recambios.juntas_cono||[]).map(j=>({art:j.art,cant:+j.cant||1,nombre:j.art}));
@@ -1643,7 +1651,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
     const bot=(ic,t,sel,fn)=>{const i=el("span",{class:"ic"});i.innerHTML=svgI(ic);return el("button",{"aria-selected":String(!!sel),onclick:fn},[i,el("span",{text:t})]);};
     const ancho=window.innerWidth>=760,prin=ancho?Object.keys(T):["hoy","semana","tareas","equipo"];
     prin.forEach(k=>nav.appendChild(bot(T[k][0],T[k][1],S.tab===k,ir(k))));
-    if(ancho)EXT.forEach(([ic,t,u])=>nav.appendChild(bot(ic,t,false,pag(u))));
+    if(ancho){EXT.forEach(([ic,t,u])=>nav.appendChild(bot(ic,t,false,pag(u))));nav.appendChild(bot("avisos","Errores",false,verErrores));}
     else{const resto=Object.keys(T).filter(k=>!prin.includes(k));
       nav.appendChild(bot("mas","Más",resto.includes(S.tab),()=>{let cerrar=()=>{};
         const fila=(ic,t,sub,fn)=>el("button",{type:"button",class:"btn sec",style:"display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin:0 0 8px",onclick:()=>{cerrar();fn();}},[ic?el("span",{style:"font-size:24px",text:ic}):null,el("span",{style:"flex:1"},[el("b",{text:t}),sub?el("small",{style:"display:block;font-weight:400;color:var(--mut)",text:sub}):null])]);
@@ -1651,6 +1659,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
           fila("","Toolbox y prevención","Toolbox, formación, EPIs y fichas",pag("toolbox.html")),
           fila("","Encargado","Instrucciones, checklist e incidencias",pag("encargado.html")),
           fila("","Calendario laboral","Festivos, vacaciones y firmas",pag("calendario.html")),
+          fila("","Errores de la app","Lo que ha fallado en los móviles de cualquiera",verErrores),
           fila("","Probar como operario","Ver la app como la ve un trabajador",()=>{S.verOp=true;S.tab="hoy";pinta();window.scrollTo(0,0);})]),[{t:"Cerrar",cls:"sec"}]);}));}}
   else{nav.hidden=true;S.tab="hoy";}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);

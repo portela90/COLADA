@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261023065016"><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261024123836"><meta charset=utf8><script src="errlog.js" data-app="inicio" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Inicio · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -330,6 +330,10 @@ input::-webkit-date-and-time-value{text-align:left}
 .ini-t .tbar i{display:block;height:100%}
 .ini-t.app .tn{font-size:15px;font-weight:600;color:var(--acc)}
 @media (max-width:560px){.ini-wrap{padding:12px 0 32px}.ini-tiles{grid-template-columns:1fr 1fr;gap:10px}.ini-t{min-height:132px;padding:12px 12px 10px}.ini-t .tn{font-size:28px}.ini-t .ts{font-size:11.5px}.ini-hola{font-size:18px}}
+.err-lst{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.err-it{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surf)}.err-it.visto{opacity:.6}
+.err-it summary{cursor:pointer}.err-it summary small{display:block;color:var(--ink2);font-size:12px;margin-top:2px}
+.err-it pre{white-space:pre-wrap;font-size:12px;margin:6px 0 0;max-height:200px;overflow:auto;color:var(--ink2)}
 .ini-aviso{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 14px}
 </style>
 
@@ -555,7 +559,18 @@ const fN=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString("es-ES");
 const fKg=n=>n==null?"–":n>=1000?(n/1000).toLocaleString("es-ES",{maximumFractionDigits:1}):fN(n);
 const uKg=n=>n!=null&&n>=1000?"t":"kg";
 function hace(ts){if(!ts)return"sin datos todavía";const m=Math.round((Date.now()-ts)/60000);if(m<1)return"actualizado ahora";if(m<60)return"actualizado hace "+m+" min";const h=Math.round(m/60);if(h<24)return"actualizado hace "+h+" h";const d=Math.round(h/24);return"actualizado hace "+d+(d===1?" día":" días");}
-let A=null,C=null,db=null;
+let A=null,C=null,db=null,ERRS=null;
+async function cargaErrores(){try{const r=await window.sbColada.rpc("errores_listar",{p_dias:30});if(!r.error){ERRS=r.data||[];pinta();}}catch(e){}}
+function verErrores(){const L=ERRS||[],nv=L.filter(e=>!e.visto).length;
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}});
+  const fila=e=>el("details",{class:"err-it"+(e.visto?" visto":"")},[el("summary",null,[el("b",{text:e.msg}),el("small",{text:[e.app,e.n>1?e.n+" veces":"1 vez",new Date(e.ultimo).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),e.usuario].filter(Boolean).join(" · ")+(e.visto?"":" · nuevo")})]),
+    el("pre",{text:[e.url,e.ua,"versión "+(e.build||"?"),e.stack].filter(Boolean).join("\n")})]);
+  const box=el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Errores de la app"},[el("h3",{text:"Errores de la app"}),
+    el("p",{class:"hint",text:L.length?(nv?nv+" sin revisar. ":"")+"Almacén, Coladas e Inicio, últimos 30 días (los de Limpieza están en su app, en Más). Toca uno para ver el detalle.":"Ningún error en los últimos 30 días."}),
+    el("div",{class:"err-lst"},L.map(fila)),
+    el("div",{class:"dlg-b"},[el("button",{class:"btn sec",type:"button",text:"Cerrar",onclick:()=>ov.remove()}),
+      nv?el("button",{class:"btn",type:"button",text:"Marcar todo como visto",onclick:async()=>{try{await window.sbColada.rpc("errores_visto",{p_firma:"*"});}catch(e){}ov.remove();cargaErrores();}}):null])]);
+  ov.appendChild(box);document.body.appendChild(ov);}
 /* mosaico: [título, subtítulo, número, unidad, nivel, enlace, pie, barra] */
 function tile(o){const t=el("a",{class:"ini-t "+(o.niv||""),href:o.u},[el("span",{class:"tt",text:o.t}),o.s?el("span",{class:"ts",text:o.s}):null,
   el("span",{class:"tv"},[el("span",{class:"tn",text:o.n}),o.un?el("span",{class:"tu",text:o.un}):null]),
@@ -591,13 +606,16 @@ function pinta(){const v=$("view");v.textContent="";
     .concat([tile({t:"Apuntar consumo",s:"Fardos gastados hoy",n:"Abrir",u:"index.html?t=consumo",niv:"app"}),
       tile({t:"Entrada de material",s:"Albaranes de aluminio",n:c.sinAlb?fN(c.sinAlb):"Abrir",un:c.sinAlb?"sin albarán":null,niv:c.sinAlb?"warn":"app",u:"index.html?t=entrada",f:c.sinAlb?"pendientes de completar":null})])));
   /* --- Otras apps --- */
-  v.appendChild(grupo("Otras apps",null,[tile({t:"Limpieza",s:"CIE · trabajos, hornos y horas",n:"Abrir",u:"limpieza.html",niv:"app"})]));
+  const nE=ERRS?ERRS.filter(e=>!e.visto).length:null;
+  const tE=ERRS?tile({t:"Errores de la app",s:"Lo que ha fallado en los móviles",n:fN(nE),un:nE===1?"sin revisar":"sin revisar",niv:nE?"bad":"ok",u:"#errores",f:ERRS.length?ERRS.length+" en 30 días":"ninguno en 30 días"}):null;
+  if(tE)tE.addEventListener("click",e=>{e.preventDefault();verErrores();});
+  v.appendChild(grupo("Otras apps",null,[tile({t:"Limpieza",s:"CIE · trabajos, hornos y horas",n:"Abrir",u:"limpieza.html",niv:"app"}),tE]));
 }
 async function arranca(){try{db=await claude.use("db");}catch(e){db=null;}
   if(!db){pinta();return;}
   db.doc("alm_kpi/inicio").onSnapshot(sn=>{A=sn.exists?sn.data():null;pinta();},()=>pinta());
   db.doc("kpi/inicio").onSnapshot(sn=>{C=sn.exists?sn.data():null;pinta();},()=>pinta());
-  setInterval(pinta,60000);}
+  cargaErrores();setInterval(()=>{pinta();},60000);setInterval(cargaErrores,300000);}
 arranca();
 })();
 </script>

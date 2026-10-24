@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261022143825">
-<meta charset="utf-8">
+<meta name="build" content="20261024123922">
+<meta charset="utf-8"><script src="errlog.js" data-app="encargado" data-sb="limpieza"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Encargado · Limpieza CIE</title>
 <meta name="theme-color" content="#FFFFFF">
@@ -129,7 +129,7 @@ const ls={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},se
 function toast(t){const d=el("div",{class:"toast",text:t});document.body.appendChild(d);setTimeout(()=>d.remove(),2600);}
 async function rpc(fn,args){const r=await fetch(URL_SB+"/rest/v1/rpc/"+fn,{method:"POST",headers:{apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(args||{})});
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){}
-  if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));throw new Error(k?ERR[k]:m);}return j;}
+  if(!r.ok){const m=(j&&j.message)||txt||("Error "+r.status);const k=Object.keys(ERR).find(x=>m.includes(x));if(!k&&r.status!==401&&window.reportarError)reportarError(new Error("rpc "+fn+": "+String(m).slice(0,300)),"args: "+Object.keys(args||{}).join(","));throw new Error(k?ERR[k]:m);}return j;}
 function dlg(titulo,cuerpo,botones){const ov=el("div",{class:"ov"});const cerrar=()=>ov.remove();
   const bs=(botones||[{t:"Cerrar",cls:"sec"}]).map(b=>el("button",{class:"btn "+(b.cls||""),text:b.t,onclick:async e=>{if(!b.fn){cerrar();return;}e.target.disabled=true;try{const r=await b.fn();if(r!==false)cerrar();}catch(er){toast(er.message);}e.target.disabled=false;}}));
   ov.appendChild(el("div",{class:"dlg",role:"dialog","aria-modal":"true"},[el("h3",{text:titulo}),cuerpo,el("div",{class:"row",style:"margin-top:12px"},bs)]));
