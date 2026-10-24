@@ -9,7 +9,7 @@ test('Almacén en solo consulta: sus pantallas propias, sin nada que guarde', as
   await page.goto(original('almacen.html')); await page.waitForTimeout(2500);
   await expect(page.locator('.solo-c')).toHaveText('Solo consulta');
   const tabs = await page.evaluate(() => [...document.querySelectorAll('#tabs button')].map(b => b.textContent));
-  expect(tabs).toEqual(['Resumen', 'Consumos', 'Entradas', 'Stock', 'Ejes']);
+  expect(tabs).toEqual(['Resumen', 'Consumos', 'Pistones y ejes', 'Entradas', 'Stock']);
   for (const t of tabs) {
     await page.evaluate(t => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === t).click(), t);
     await page.waitForTimeout(500);
@@ -17,7 +17,14 @@ test('Almacén en solo consulta: sus pantallas propias, sin nada que guarde', as
   }
   // consumos agrupados por motivo y stock filtrado por «bajo mínimo»
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Consumos').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('.chip')].find(b => b.textContent.startsWith('Desmoldeantes')).click()); await page.waitForTimeout(300);
+  await expect(page.locator('#view table')).toContainText('Pistonwax');
+  await expect(page.locator('#view thead')).toContainText('Envases');
+  await pulsa(page, 'Por producto'); await expect(page.locator('#view')).toContainText('por producto (');
+  await pulsa(page, 'Por mes'); await expect(page.locator('#view')).toContainText('últimos 12 meses');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Pistones y ejes').click()); await page.waitForTimeout(300);
   await pulsa(page, 'Por motivo'); await expect(page.locator('#view')).toContainText('Por motivo (');
+  await pulsa(page, 'Ejes'); await expect(page.locator('#view')).toContainText('Reparaciones (');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Stock').click()); await page.waitForTimeout(300);
   await page.evaluate(() => [...document.querySelectorAll('.chip')].find(b => b.textContent.startsWith('Bajo mínimo')).click()); await page.waitForTimeout(300);
   await expect(page.locator('#view')).toContainText('Bajo mínimo');

@@ -97,3 +97,10 @@ input::-webkit-date-and-time-value{text-align:left}
 .cfil select{min-width:0;width:100%}
 @media (max-width:520px){.solo-c{display:none}}
 @media (max-width:600px){table.tm td.cw{font-weight:400}}
+details.cgrp>summary{cursor:pointer;list-style:none}
+details.cgrp>summary::-webkit-details-marker{display:none}
+details.cgrp>summary h2::before{content:"▸";display:inline-block;width:16px;color:var(--mut);transition:transform .15s}
+details.cgrp[open]>summary h2::before{transform:rotate(90deg)}
+details.cgrp:not([open])>summary{border-bottom:0}
+.cfil .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
+@media (max-width:699px){.solo-consulta #tabs button span{white-space:normal;line-height:1.1;text-align:center;overflow:visible}}
