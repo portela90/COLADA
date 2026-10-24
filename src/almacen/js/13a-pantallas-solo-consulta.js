@@ -22,7 +22,7 @@ const TABS_C=[["cRes","Resumen"],["cCons","Consumos"],["cPist","Pistones y ejes"
 Object.assign(ICO,{cRes:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',cCons:'<path d="M12 20V8M7 13l5-5 5 5"/><path d="M5 4h14"/>',
   cEnt:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',cStock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
   cPist:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/>'});
-const CQ={mes:mesDe(hoy()),g:"",donde:"",motivo:"",txt:"",vista:"det",prov:"",estado:"",alm:"",pe:"pist",pMaq:"",pMot:"",pDiam:"",pVista:"det"};
+const CQ={mes:mesDe(hoy()),g:"",gE:"",gS:"",donde:"",motivo:"",txt:"",vista:"det",prov:"",estado:"",alm:"",pe:"pist",pMaq:"",pMot:"",pDiam:"",pVista:"det"};
 
 /* ---------- registros con la misma forma que el informe de Looker ---------- */
 const nomArt=a=>a?(TEC(a.fam)?nomBT(a):a.desc):"(artículo borrado)";
@@ -72,9 +72,9 @@ const cBarras=(titulo,R,campo,fmt)=>{const box=el("div",{style:"padding:4px 10px
   if(window.GRAF&&R.length)setTimeout(()=>GRAF.barras(box,{x:R.map(r=>r.k),series:[{name:titulo,data:R.map(r=>Math.round((r[campo]||0)*100)/100)}],horizontal:true,fmt:fmt||(campo==="eur"?"eur":"n")}),0);
   return box;};
 /* fila de grupos: «Todos» y cada grupo con cuántos hay este mes */
-function cChipsGrupo(L,re,alPulsar){const n=k=>L.filter(x=>x.g===k).length;
+function cChipsGrupo(L,re,alPulsar,K){K=K||"g";const n=k=>L.filter(x=>x.g===k).length;
   return el("div",{class:"chips chips-per",role:"group","aria-label":"Grupo"},[["","Todos"]].concat(GRUPOS.map(g=>[g[0],g[1]])).map(([k,t])=>
-    el("button",{type:"button",class:"chip","aria-pressed":String(CQ.g===k),text:t+(k?" ("+n(k)+")":""),style:k&&!n(k)?"opacity:.55":"",onclick:()=>{if(alPulsar&&alPulsar(k))return;CQ.g=k;CQ.donde="";CQ.motivo="";re();}})));}
+    el("button",{type:"button",class:"chip","aria-pressed":String(CQ[K]===k),text:t+(k?" ("+n(k)+")":""),style:k&&!n(k)?"opacity:.55":"",onclick:()=>{if(alPulsar&&alPulsar(k))return;CQ[K]=k;if(K==="g"){CQ.donde="";CQ.motivo="";}re();}})));}
 const irGrupo=k=>{if(k==="piston"){CQ.pe="pist";irA("cPist");return true;}return false;};
 
 /* ---------- Resumen ---------- */
@@ -96,7 +96,7 @@ function vCRes(v){const re=()=>render(true);const C=cConsumos(),E=cEntradas();
     el("div",{class:"col"},[cardFeed(),cCard("Consumo por grupo",cTxtMes()+(ant?" · comparado con "+fmtMes(mesAnt(CQ.mes)):""),[el("div",{class:"lst"},GRUPOS.map(filaG))])]),
     el("div",{class:"col"},[
       cCard("Stock",null,[el("div",{class:"lst"},[["Bajo mínimo",bad,"bad"],["Para pedir",warn,"warn"],["Pedidos en curso",ped,"info"]].map(([t,L,c])=>
-        el("button",{type:"button",class:"it",onclick:()=>{CQ.estado=c==="info"?"ped":c;CQ.g="";irA("cStock");}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:t}),
+        el("button",{type:"button",class:"it",onclick:()=>{CQ.estado=c==="info"?"ped":c;CQ.gS="";irA("cStock");}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:t}),
           el("div",{class:"t2",text:L.slice(0,4).map(a=>nomArt(a)).join(" · ")+(L.length>4?" …":"")||"ninguno"})]),el("span",{class:"pill "+(L.length?c:"ok"),text:String(L.length)})])))]),
       cCard("Pistones y ejes",null,[el("div",{class:"lst"},[
         ["Pistones cambiados",cTxtMes(),P.length,"info","pist"],["Ejes en el taller","en reparación o devueltos",taller,taller?"warn":"ok","ejes"],["Ejes en cuarentena","rotos o agarrotados",ejePend().length,ejePend().length?"bad":"ok","ejes"]]
@@ -206,10 +206,10 @@ function cEjes(v,re){const vivos=ejes.filter(e=>e.estado!=="baja");const n=k=>vi
 
 /* ---------- Entradas ---------- */
 function vCEnt(v){const re=()=>render(true);const T=cEntradas(),Tm=T.filter(cEnMes);
-  const L=Tm.filter(x=>(!CQ.g||x.g===CQ.g)&&(!CQ.prov||x.prov===CQ.prov)&&cPasaTxt(x,["prod","prov","alb","alm","nota"])).sort((a,b)=>b.f.localeCompare(a.f));
+  const L=Tm.filter(x=>(!CQ.gE||x.g===CQ.gE)&&(!CQ.prov||x.prov===CQ.prov)&&cPasaTxt(x,["prod","prov","alb","alm","nota"])).sort((a,b)=>b.f.localeCompare(a.f));
   v.appendChild(el("div",{class:"card"},[el("div",{class:"bd frm cfil",style:"gap:10px"},[
     el("div",{class:"row"},[cSelMes(T,re),fld("Proveedor",sel("cqProv",cOpts(Tm,"prov"),CQ.prov,x=>{CQ.prov=x;re();},"Todos"))]),
-    cChipsGrupo(Tm,re),cBuscar(re,"Producto, albarán…")])]));
+    cChipsGrupo(Tm,re,null,"gE"),cBuscar(re,"Producto, albarán…")])]));
   v.appendChild(cKpis([["Entradas",fmtN(L.length)],["Productos",fmtN(new Set(L.map(x=>x.prod)).size)],["Proveedores",fmtN(new Set(L.map(x=>x.prov)).size)]]));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel("Entradas "+cTxtMes(),L.map(x=>({"Fecha":x.f,"Grupo":GRUPO_N[x.g],"Producto":x.prod,"Cantidad":x.cant,"Unidad":x.ud,"Envases (aprox.)":x.env?Math.round(x.env.n*100)/100:"","Entra en":x.alm,"Proveedor":x.prov,"Albarán":x.alb,"Quién":x.quien,"Nota":x.nota})),e.currentTarget)})]));
   if(!L.length){v.appendChild(el("p",{class:"empty",text:"No hay entradas con estos filtros en "+cTxtMes()+"."}));return;}
@@ -224,13 +224,13 @@ function vCStock(v){const re=()=>render(true);
   const T=artsActivos().map(a=>{const n=a.pedido?"ped":nivel(a);const x=SM[a.id]||{};const q=stockDe(a.id);
     return{a,prod:nomArt(a),g:grupoDe(a),est:n,queda:q,ud:a.ud||"ud",env:cEnv(a,q),min:+a.min||0,dq:diasQuedan(a),tarde:!!(a.pedido&&a.prevista&&a.prevista<hoy()),
       donde:Object.entries(x).filter(([,c])=>c).map(([l,c])=>almN(l)+" "+fmtN(c)).join(" · "),alms:Object.keys(x).filter(l=>x[l])};});
-  const L=T.filter(x=>(!CQ.estado||x.est===CQ.estado)&&(!CQ.g||x.g===CQ.g)&&(!CQ.alm||x.alms.includes(CQ.alm))&&cPasaTxt(x,["prod","donde"]))
+  const L=T.filter(x=>(!CQ.estado||x.est===CQ.estado)&&(!CQ.gS||x.g===CQ.gS)&&(!CQ.alm||x.alms.includes(CQ.alm))&&cPasaTxt(x,["prod","donde"]))
     .sort((p,q)=>C_EST[p.est][2]-C_EST[q.est][2]||p.prod.localeCompare(q.prod,"es",{numeric:true}));
   const cuenta=k=>T.filter(x=>x.est===k).length;
   v.appendChild(el("div",{class:"card"},[el("div",{class:"bd frm cfil",style:"gap:10px"},[
     el("div",{class:"chips chips-per",role:"group","aria-label":"Estado"},[["","Todo"],["bad","Bajo mínimo"],["warn","Para pedir"],["ped","Pedido"],["ok","Bien"]].map(([k,t])=>
       el("button",{type:"button",class:"chip","aria-pressed":String(CQ.estado===k),text:t+(k?" ("+cuenta(k)+")":""),onclick:()=>{CQ.estado=k;re();}}))),
-    el("div",{class:"row"},[fld("Grupo",sel("cqGS",GRUPOS.map(g=>[g[0],g[1]]),CQ.g,x=>{CQ.g=x;re();},"Todos")),fld("Almacén",sel("cqAlm",cat.almacenes.map(a=>[a.id,a.nom]),CQ.alm,x=>{CQ.alm=x;re();},"Todos"))]),
+    el("div",{class:"row"},[fld("Grupo",sel("cqGS",GRUPOS.map(g=>[g[0],g[1]]),CQ.gS,x=>{CQ.gS=x;re();},"Todos")),fld("Almacén",sel("cqAlm",cat.almacenes.map(a=>[a.id,a.nom]),CQ.alm,x=>{CQ.alm=x;re();},"Todos"))]),
     cBuscar(re)])]));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel("Stock "+fmtF(hoy()).replace(/\//g,"-"),L.map(x=>({"Grupo":GRUPO_N[x.g],"Producto":x.prod,"Queda":x.queda,"Unidad":x.ud,"Envases (aprox.)":x.env?Math.round(x.env.n*100)/100:"","Para (días)":x.dq==null?"":x.dq,"Mínimo":x.min||"","Estado":C_EST[x.est][0]+(x.tarde?" (con retraso)":""),"Dónde está":x.donde,"Pedido el":x.a.pedido||"","Llega":x.a.prevista||""})),e.currentTarget)})]));
   if(!L.length){v.appendChild(el("p",{class:"empty",text:"Ningún producto con estos filtros."}));return;}
@@ -239,7 +239,7 @@ function vCStock(v){const re=()=>render(true);
     const tabla=cTabla(["Producto","Queda"].concat(liq?["Envases"]:[]).concat(["Para","Mínimo","Estado","Dónde está"]),
       LL.map(x=>[lnkProd(x.a.id,x.prod),fmtN(x.queda)+" "+x.ud].concat(liq?[cEnvTxt(x.env)]:[]).concat([el("span",{style:x.dq!=null&&x.dq<=7?"color:var(--bad);font-weight:600":"",text:diasTxt(x.dq)}),x.min?fmtN(x.min):"—",
         el("span",{class:"pill "+(x.tarde?"bad":C_EST[x.est][1]),text:C_EST[x.est][0]+(x.est==="ped"&&x.a.prevista?(x.tarde?" · con retraso (llegaba "+fmtF(x.a.prevista)+")":" · llega "+fmtF(x.a.prevista)):"")}),x.donde||"—"])),liq?[1,2,4]:[1,3],[liq?6:5]);
-    v.appendChild(el("details",{class:"card cgrp",open:mal||CQ.g||CQ.estado||L.length<=25?"":null},[el("summary",{class:"hd"},[el("h2",{text:t}),
+    v.appendChild(el("details",{class:"card cgrp",open:mal||CQ.gS||CQ.estado||L.length<=25?"":null},[el("summary",{class:"hd"},[el("h2",{text:t}),
       el("span",{class:"sub",style:"margin-left:auto",text:LL.length+(LL.length===1?" producto":" productos")}),mal?el("span",{class:"pill "+(LL.some(x=>x.est==="bad")?"bad":"warn"),text:mal+" para pedir"}):null]),tabla]));});}
 
 const VC={cRes:vCRes,cCons:vCCons,cPist:vCPist,cEnt:vCEnt,cStock:vCStock};
