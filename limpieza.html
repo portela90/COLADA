@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="build" content="20261024125227">
-<meta charset="utf-8"><script src="errlog.js" data-app="limpieza" data-sb="limpieza"></script><script src="offline.js"></script>
+<meta name="build" content="20261024130514">
+<meta charset="utf-8"><script src="errlog.js" data-app="limpieza" data-sb="limpieza"></script><script src="offline.js"></script><script src="graficos.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Limpieza · CIE</title>
 <meta name="theme-color" content="#FFFFFF">
@@ -1074,6 +1074,10 @@ async function gastoHornos(per){per=per||"ano";let G;try{G=await rpc("horno_gast
   dlg("Gasto de hornos",el("div",null,[el("div",{class:"chips",style:"margin:0 0 8px"},DESDE_G.map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(per===k),text:t,onclick:()=>gastoHornos(k)}))),
     el("div",{class:"g-kpi"},[["Hornos con cambios",H.length],["Cambios",H.reduce((s,h)=>s+(+h.cambios||0),0)]].map(([t,n])=>el("div",null,[el("small",{text:t}),el("b",{text:String(n)})])).concat(V?[el("div",null,[el("small",{text:"Gasto total"}),el("b",{text:eur(tot)})])]:[])),
     G.mal?el("div",{class:"aviso"},[G.mal+" pieza"+(G.mal>1?"s":"")+" no ha"+(G.mal>1?"n":"")+" llegado al Almacén",el("small",{text:"Ábrelo en la ficha del horno para ver cuál y reintentarlo."})]):null,
+    H.length>1&&window.GRAF?(()=>{const g=el("div");const T=H.slice(0,15);setTimeout(()=>GRAF.barras(g,V&&T.some(h=>+h.total>0)?
+        {x:T.map(h=>h.codigo.replace(/^H-/,"")),horizontal:true,fmt:"eur",series:[{name:"Gasto",data:T.map(h=>Math.round(+h.total||0))}],alClick:i=>{cerrarTodo();fichaElemento(T[i].codigo);}}:
+        {x:T.map(h=>h.codigo.replace(/^H-/,"")),horizontal:true,apilado:true,fmt:"n",series:[["Conos","conos"],["Tolvas","tolvas"],["Dosificadores","dosificadores"]].map(([n,k])=>({name:n,data:T.map(h=>+h[k]||0)})),alClick:i=>{cerrarTodo();fichaElemento(T[i].codigo);}}),0);
+      return el("div",{style:"margin:6px 0 10px"},[g]);})():null,
     H.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Horno","Conos","Tolvas","Dosif."].concat(V?["Gasto"]:[]).map(h=>el("th",{text:h})))),
       el("tbody",null,H.map(h=>el("tr",{style:"cursor:pointer",onclick:()=>{cerrarTodo();fichaElemento(h.codigo);}},[el("td",null,[el("b",{text:h.codigo.replace(/^H-/,"")}),el("small",{class:"hint",style:"display:block;margin:0",text:h.modelo||""})]),
         el("td",{text:String(h.conos)}),el("td",{text:String(h.tolvas)}),el("td",{text:String(h.dosificadores)})].concat(V?[el("td",{text:eur(h.total)+(h.sin_precio?" *":"")})]:[]))))]):el("p",{class:"empty",text:"Ningún cambio de cono, tolva ni dosificador en este periodo."}),

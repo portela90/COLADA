@@ -2,9 +2,9 @@
 // - Páginas: primero la red (siempre la versión nueva); si no hay red, la copia guardada.
 // - Letras, iconos y librerías: la copia guardada (y se actualiza por detrás).
 // - Los datos (Supabase) no pasan por aquí: los guarda offline.js.
-const CACHE = "mapri-app-v3";
+const CACHE = "mapri-app-v4";
 const BASE = [
-  "./", "index.html", "almacen.html", "inicio.html", "errlog.js", "offline.js", "manifest.json",
+  "./", "index.html", "almacen.html", "inicio.html", "errlog.js", "offline.js", "graficos.js", "manifest.json",
   "icon-180.png", "icon-192.png", "icon-512.png",
   "fonts/inter-latin-400-normal.woff2", "fonts/inter-latin-500-normal.woff2", "fonts/inter-latin-600-normal.woff2", "fonts/inter-latin-700-normal.woff2",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js",

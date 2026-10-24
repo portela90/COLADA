@@ -16,6 +16,7 @@ function montar(nombre, mock) {
   const pre = L[i].startsWith('<script>window.DB_PREFIX') ? [L[i]] : [];
   const out = L.slice(0, i).concat(pre, [m], L.slice(j + 1)).join('\n');
   fs.mkdirSync(TMP, { recursive: true });
+  for (const f of fs.readdirSync(ROOT).filter(f => f.endsWith('.js'))) fs.copyFileSync(path.join(ROOT, f), path.join(TMP, f));
   const dest = path.join(TMP, nombre);
   fs.writeFileSync(dest, out);
   return 'file://' + dest;
@@ -24,10 +25,14 @@ function montar(nombre, mock) {
 function original(nombre) { return 'file://' + path.join(ROOT, nombre); }
 
 /* Recoge errores de la página y corta todo acceso a internet. */
+const ECHARTS = path.join(__dirname, 'node_modules/echarts/dist/echarts.min.js');
 async function vigila(page, alInternet) {
   const errores = [];
   page.on('pageerror', e => errores.push(e.message));
-  await page.route(/^https?:/, r => (alInternet ? alInternet(r) : null) || r.abort());
+  await page.route(/^https?:/, r => {
+    if (r.request().url().includes('/echarts')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(ECHARTS, 'utf8') });
+    return (alInternet ? alInternet(r) : null) || r.abort();
+  });
   return errores;
 }
 async function pulsa(page, texto) {

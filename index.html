@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261024124626"><meta charset=utf8><script src="errlog.js" data-app="coladas" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261024130427"><meta charset=utf8><script src="errlog.js" data-app="coladas" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -239,6 +239,7 @@ input[type=file]{font-size:15px;padding:9px 10px}
 @media (prefers-reduced-motion:no-preference){#toast{animation:pop .18s ease-out}@keyframes pop{from{opacity:0;transform:translate(-50%,8px)}}}
 @media (max-width:520px){header .tot{width:100%;margin-left:0}}
 
+.g-tit{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink2)}
 /* ===== Tema SAP Fiori (Horizon) ===== */
 @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
@@ -334,6 +335,7 @@ input::-webkit-date-and-time-value{text-align:left}
 </div>
 
 <script src="offline.js"></script>
+<script src="graficos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 .lg-ov{position:fixed;inset:0;z-index:2000;background:var(--bg,#E9ECE8);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -2098,6 +2100,20 @@ function vCierre(){
     ])
   ]);
 }
+/* gráficos: consumo y entradas de aluminio por mes, por nave y aleación (últimos 12 meses) */
+function cardGraficos(){if(!window.GRAF)return null;
+  const S=saldos(),hoyM=mesDe(hoy());const M=[];{let [y,m]=hoyM.split("-").map(Number);for(let k=0;k<12;k++){M.unshift(y+"-"+String(m).padStart(2,"0"));m--;if(m<1){m=12;y--;}}}
+  const C={},E={};LINEAS.forEach(([n,mm])=>{C[key(n,mm)]=M.map(()=>0);E[key(n,mm)]=M.map(()=>0);});
+  todosMovs().forEach(r=>{if(!r.f||r.h)return;const i=M.indexOf(r.f.slice(0,7));if(i<0)return;
+    if(r.t==="C"){const l=lotes.find(x=>x.id===r.o);if(!l)return;const k=key(l.nave,l.material);if(C[k])C[k][i]+=Math.abs(kgAp(r,S)||0);}
+    else if(r.t==="E"){const l=lotes.find(x=>x.id===r.d);if(!l)return;const k=key(l.nave,l.material);if(E[k])E[k][i]+=Math.abs(+r.kg||0);}});
+  const ser=O=>Object.keys(O).filter(k=>O[k].some(v=>v>0)).map(k=>({name:etiqLinea(k),data:O[k].map(v=>Math.round(v))}));
+  const sc=ser(C),se=ser(E);if(!sc.length&&!se.length)return null;
+  const x=M.map(m=>{const[y,mm]=m.split("-");return ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][+mm-1]+" "+y.slice(2);});
+  const g1=el("div"),g2=el("div");
+  setTimeout(()=>{if(sc.length)GRAF.barras(g1,{x,apilado:true,leyenda:true,fmt:"kg",series:sc});if(se.length)GRAF.barras(g2,{x,apilado:true,leyenda:true,fmt:"kg",series:se});},0);
+  return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Aluminio por mes"}),el("span",{class:"sub",style:"margin-left:auto",text:"últimos 12 meses"})]),
+    el("div",{class:"bd",style:"display:grid;gap:14px"},[sc.length?el("div",{},[el("h3",{class:"g-tit",text:"Consumo"}),g1]):null,se.length?el("div",{},[el("h3",{class:"g-tit",text:"Entradas"}),g2]):null])]);}
 function vConsultas(){
   const f=filtro,rows=filtrados();
   const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};
@@ -2185,6 +2201,7 @@ function vConsultas(){
         }catch(err){if(!(err&&err.code==="declined"))toast("No se pudo hacer la copia");}finally{b.disabled=false;b.textContent=t0;}}})])]);
   return [
     vCierre(),
+    cardGraficos(),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consultar movimientos"})]),filtros,resumen,botones]),
     desglose,
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Detalle"}),el("span",{class:"sub",style:"margin-left:auto",text:rows.length>300?"mostrando 300 de "+fmt(rows.length):fmt(rows.length)+" apuntes"})]),

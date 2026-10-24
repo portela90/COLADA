@@ -94,3 +94,15 @@ test('sin red: abre el día guardado, «Empezar» se guarda y se envía al volve
   expect(env[0][1]).toMatchObject({ p_estado: 'en_curso', p_tok: 't' });
   expect(err).toEqual([]);
 });
+
+test('gasto de hornos con gráfico', async ({ page }) => {
+  R.horno_gasto_all = { ver_precios: true, mal: 0, hornos: [
+    { id: 'e29', codigo: 'H-F29', nombre: 'Horno F29', modelo: 'Krown', cambios: 3, conos: 2, tolvas: 1, dosificadores: 0, piezas: 7, total: 240, sin_precio: 0 },
+    { id: 'e20', codigo: 'H-F20', nombre: 'Horno F20', modelo: 'Westofen', cambios: 1, conos: 1, tolvas: 0, dosificadores: 0, piezas: 3, total: 95, sin_precio: 0 }] };
+  const { err } = await abre(page, ADMIN);
+  await pulsa(page, 'Inyectoras y hornos'); await page.waitForTimeout(400);
+  await pulsa(page, 'Gasto de hornos'); await page.waitForTimeout(1500);
+  expect(await page.locator('.ov svg, dialog svg, .dlg svg').count()).toBeGreaterThanOrEqual(1);
+  if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA });
+  expect(err).toEqual([]);
+});

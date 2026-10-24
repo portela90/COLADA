@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261024124626"><meta charset=utf8><script src="errlog.js" data-app="almacen" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261024130210"><meta charset=utf8><script src="errlog.js" data-app="almacen" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -233,6 +233,7 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .bj .bjq{appearance:none;font-family:inherit;min-width:60px;height:44px;border-radius:10px;border:1.5px solid var(--acc);background:var(--acc-soft);color:var(--acc);font-size:19px;font-weight:800;cursor:pointer}
 .bj .bjx{appearance:none;width:44px;height:44px;border:0;border-radius:10px;background:none;color:var(--mut);font-size:20px;cursor:pointer}
 
+.g-tit{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink2)}
 /* ===== Tema SAP Fiori (Horizon) ===== */
 @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
@@ -320,6 +321,7 @@ input::-webkit-date-and-time-value{text-align:left}
 
 <script>window.DB_PREFIX="alm_";</script>
 <script src="offline.js"></script>
+<script src="graficos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 .lg-ov{position:fixed;inset:0;z-index:2000;background:var(--bg,#E9ECE8);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -751,6 +753,7 @@ function vConsultas(v){const q=draft.q=draft.q||Q0();const re=()=>render(true);
     el("button",{type:"button",class:"btn sec",text:"Guardar consulta",onclick:()=>{const i=el("input",{type:"text",value:titulo,"aria-label":"Nombre"});dlg("Guardar consulta",[el("p",{class:"hint",text:"Saldrá en Consultas rápidas, siempre con los datos del día."}),i],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const nom=i.value.trim();if(!nom){toast("Ponle un nombre");return false;}const qq=Object.assign({},q);cat.consultas=(cat.consultas||[]).concat([{id:uid(),nom,q:qq}]);await saveCat();toast("Consulta guardada");re();}}]);}})]);
   v.appendChild(acc);
   if(!L.length){v.appendChild(el("p",{class:"empty",text:"No hay nada con estos filtros en "+qPerTxt(q)+"."}));return;}
+  qGraficos(v,q,L,titulo);
   const sub=el("p",{class:"sub",text:titulo+" · "+qPerTxt(q)});
   if(q.grp==="det"){const D=qOrdDet(L,q).slice(0,300);
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Detalle ("+L.length+")"})),el("div",{style:"padding:0 14px"},sub),qTablaDet(D),L.length>300?el("p",{class:"hint",style:"padding:8px 14px",text:"Se ven los 300 primeros; el Excel lleva todos."}):null]));return;}
@@ -762,6 +765,25 @@ function vConsultas(v){const q=draft.q=draft.q||Q0();const re=()=>render(true);
           el("div",{style:"height:6px;border-radius:3px;background:var(--acc,#2F5D46);opacity:.75;margin:4px 0;width:"+Math.max(2,Math.round(val/mx*100))+"%"}),
           el("div",{class:"t2",text:[r.n+(r.n===1?" vez":" veces"),q.que!=="rep"?fmtN(r.cant)+" "+(r.L[0].ud||"ud"):null,r.sinP?r.sinP+" sin precio":null].filter(Boolean).join(" · ")})]),
         el("div",{class:"cant num"},[el("b",{text:q.ord==="eur"||q.que==="rep"?qEur(r.eur):fmtN(r.cant)}),el("small",{text:q.ord==="eur"||q.que==="rep"?(r.n+" reg."):qEur(r.eur)})])]);}))]));}
+/* gráficos de la consulta: evolución por mes y reparto por el grupo elegido */
+function qGraficos(v,q,L,titulo){if(!window.GRAF)return;
+  const conEur=L.some(h=>h.eur>0),fmt=conEur?"eur":"n",val=h=>conEur?h.eur:(q.que==="mat"?h.cant:1);
+  const nomVal=conEur?"Gasto":q.que==="mat"?"Cantidad":"Veces";
+  const meses=[...new Set(L.map(h=>h.f.slice(0,7)))].sort();
+  /* meses seguidos aunque alguno no tenga datos */
+  const M=[];if(meses.length){let [y,m]=meses[0].split("-").map(Number);const fin=meses[meses.length-1];for(let k=0;k<36;k++){const t=y+"-"+String(m).padStart(2,"0");M.push(t);if(t>=fin)break;m++;if(m>12){m=1;y++;}}}
+  const porGrupo=q.grp!=="mes"&&q.grp!=="det";
+  let pilas;if(porGrupo){const R=qAgrupa(L,Object.assign({},q,{ord:conEur?"eur":"cant"}));const top=R.slice(0,5).map(r=>r.k);pilas=top.map(k=>[qNomGrupo(k,q.grp),h=>qClave(h,q.grp)===k]);if(R.length>5)pilas.push(["Resto",h=>!top.includes(qClave(h,q.grp))]);}
+  else if(q.que==="gasto")pilas=[...new Set(L.map(h=>h.tipo))].map(t=>[t,h=>h.tipo===t]);
+  else pilas=[[nomVal,()=>true]];
+  const secs=[];
+  if(M.length>=2){const g=el("div");secs.push(el("div",{},[el("h3",{class:"g-tit",text:nomVal+" por mes"}),g]));
+    setTimeout(()=>GRAF.barras(g,{x:M.map(m=>{const[y,mm]=m.split("-");return MESES[+mm-1].slice(0,3)+" "+y.slice(2);}),apilado:true,fmt,series:pilas.map(([n,f])=>({name:n,data:M.map(m=>Math.round(L.filter(h=>h.f.slice(0,7)===m&&f(h)).reduce((t,h)=>t+val(h),0)*100)/100)}))}),0);}
+  if(porGrupo){const R=qAgrupa(L,Object.assign({},q,{ord:conEur?"eur":"cant"})).slice(0,12);if(R.length>1){const g=el("div");
+    secs.push(el("div",{},[el("h3",{class:"g-tit",text:nomVal+" por "+Q_GRP[q.grp].toLowerCase()+(R.length===12?" (los 12 primeros)":"")}),g,el("p",{class:"hint",text:"Toca una barra para ver el detalle."})]));
+    setTimeout(()=>GRAF.barras(g,{x:R.map(r=>qNomGrupo(r.k,q.grp)),horizontal:true,fmt,series:[{name:nomVal,data:R.map(r=>Math.round((conEur?r.eur:q.que==="mat"?r.cant:r.n)*100)/100)}],
+      alClick:i=>qDetDlg(qNomGrupo(R[i].k,q.grp)+" · "+titulo,R[i].L,q)}),0);}}
+  if(secs.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Gráficos"})),el("div",{class:"bd",style:"display:grid;gap:14px"},secs)]));}
 function qTablaDet(D){return el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Máquina"}),el("th",{text:"Qué"}),el("th",{text:"Motivo"}),el("th",{class:"r",text:"Cant."}),el("th",{class:"r",text:"€"})])),
   el("tbody",{},D.map(h=>el("tr",{},[el("td",{class:"num",text:fmtF(h.f)}),el("td",{text:h.maq||(h.zona||"—")}),el("td",{text:h.tipo==="Reparación de eje"?h.eje+" · "+h.art+(h.estado&&h.estado!=="Reparado"?" ("+h.estado.toLowerCase()+")":""):h.art}),el("td",{text:h.motivo}),el("td",{class:"r num",text:fmtN(h.cant)}),el("td",{class:"r num",text:qEur(h.eur)})])))]));}
 function qDetDlg(t,L,q){dlg(t,[el("p",{class:"sub",text:L.length+" registros · "+fmtN(L.reduce((s,h)=>s+h.cant,0))+" · "+qEur(L.reduce((s,h)=>s+h.eur,0))}),qTablaDet(qOrdDet(L,q).slice(0,300))],[{t:"Cerrar",cls:"sec"}]);

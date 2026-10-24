@@ -50,3 +50,17 @@ test('ficha de artículo y de inyectora se abren', async ({ page }) => {
   await page.waitForTimeout(400);
   expect(err).toEqual([]);
 });
+
+test('Análisis dibuja los gráficos y al tocar una barra se abre el detalle', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.waitForTimeout(250);
+  await pulsa(page, 'Análisis'); await page.waitForTimeout(300);
+  await pulsa(page, 'Todo el gasto'); await pulsa(page, '12 meses'); await page.waitForTimeout(1500);
+  await expect(page.getByText('Gráficos')).toBeVisible();
+  expect(await page.locator('.card svg').count()).toBeGreaterThanOrEqual(1);
+  if (process.env.CAPTURA) { await page.evaluate(() => [...document.querySelectorAll('h2')].find(h => h.textContent === 'Gráficos').scrollIntoView()); await page.waitForTimeout(300); await page.screenshot({ path: process.env.CAPTURA }); }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
