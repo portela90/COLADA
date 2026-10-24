@@ -12,6 +12,7 @@ for (const f of paginas) {
     bloques.forEach((b, i) => { expect(() => new vm.Script(b, { filename: f + ' #' + (i + 1) }), f + ' bloque ' + (i + 1)).not.toThrow(); });
   });
 }
-for (const f of fs.readdirSync(ROOT).filter(f => f.endsWith('.js'))) {
+const jsRaiz = fs.readdirSync(ROOT).filter(f => f.endsWith('.js') && f !== 'build.mjs').concat(fs.existsSync(path.join(ROOT, 'js')) ? fs.readdirSync(path.join(ROOT, 'js')).map(f => 'js/' + f) : []);
+for (const f of jsRaiz) {
   test('sintaxis · ' + f, () => { expect(() => new vm.Script(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f })).not.toThrow(); });
 }

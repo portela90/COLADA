@@ -1,0 +1,10 @@
+
+/* Aviso de versión nueva (igual que en la app de limpieza) */
+(function(){const m=document.querySelector('meta[name="build"]');if(!m)return;const mia=m.content;const url=location.href.split("#")[0].split("?")[0];let ult=0;
+  async function mira(){if(Date.now()-ult<60e3||document.getElementById("nuevaVer"))return;ult=Date.now();
+    try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return;const t=await r.text();const x=t.match(/<meta name="build" content="([^"]+)"/);if(x&&x[1]!==mia)aviso();}catch(e){}}
+  function aviso(){const d=document.createElement("div");d.id="nuevaVer";d.setAttribute("role","status");
+    d.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:9999;background:#16212C;color:#fff;padding:8px 8px 8px 16px;border-radius:999px;display:flex;gap:10px;align-items:center;font:14px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);max-width:92vw";
+    const s=document.createElement("span");s.textContent="Hay una versión nueva de la app";const b=document.createElement("button");b.type="button";b.textContent="Actualizar";
+    b.style.cssText="border:0;border-radius:999px;padding:8px 14px;font:700 14px system-ui,sans-serif;background:#fff;color:#16212C;cursor:pointer";b.onclick=()=>location.reload();d.append(s,b);document.body.appendChild(d);}
+  window.addEventListener("load",()=>setTimeout(mira,1500));document.addEventListener("visibilitychange",()=>{if(!document.hidden)mira();});setInterval(mira,10*60e3);})();

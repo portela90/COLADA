@@ -1,0 +1,11 @@
+{
+  "name": "apps-mapri-cie",
+  "private": true,
+  "type": "module",
+  "description": "Coladas, Almacén, Inicio y Limpieza. El código está en src/; build.mjs genera las páginas que se publican.",
+  "scripts": {
+    "build": "node build.mjs",
+    "exacto": "node build.mjs --exacto salida-exacta"
+  },
+  "devDependencies": { "esbuild": "0.24.0" }
+}

@@ -1,4 +1,4 @@
-# Pruebas automáticas de las apps.
+# Pruebas automáticas de las apps (sobre las páginas montadas con build.mjs desde src/).
 # - En la rama «dev»: si todas las pruebas pasan, se publica (se pasa a «main» y se pide a GitHub Pages que actualice la web).
 # - En «main»: se prueban también, para avisar si algo que se subió directamente está roto.
 name: Pruebas
@@ -24,6 +24,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Montar las páginas desde src/ y comprobar que coinciden con lo subido
+        working-directory: .
+        run: |
+          npm install --no-audit --no-fund
+          node build.mjs
+          git status --porcelain
+          if [ -n "$(git status --porcelain -- ':!tests')" ]; then echo "::error::Las páginas subidas no coinciden con src/. Ejecuta node build.mjs y súbelas."; git diff --stat; exit 1; fi
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test

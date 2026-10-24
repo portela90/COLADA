@@ -1,0 +1,25 @@
+<!doctype html><html><head>
+<meta name="build" content="20261024130427"><meta charset=utf8><script src="errlog.js" data-app="coladas" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><!--@estilo ../comun/base.css--></head><body>
+<title>Colada · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
+<!--@estilo estilos.css tema-sap.css-->
+
+<div id="app">
+  <header>
+    <h1>Colada</h1>
+    <div class="tot num"><div><b id="tKg">—</b> <span>kg</span></div><div><b id="tFa">—</b> <span>fardos</span></div></div>
+    <button id="lupa" class="lupa" type="button" aria-label="Buscar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Buscar</span></button>
+  </header>
+  <main><div class="wrap" id="view"></div></main>
+  <nav id="tabs"></nav>
+</div>
+
+<script src="offline.js"></script>
+<script src="graficos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!--@estilo acceso.css-->
+<!--@guion externo supabase-web ../comun/supabase-web.js-->
+
+<!--@guion externo coladas js/00-principio.js js/01-editar-un-apunte.js js/02-huecos-sin-apuntar.js js/03-consumo-por-relevo.js js/04-entradas-sin-albaran-se-meten-con.js js/05-recuento-fisico-guiado.js js/06-cierre-de-mes.js js/07-plan-del-mes-precios-camiones-entradas.js js/08-pedido-propuesto-para-el-mes-siguiente.js js/09-ficha-de-colada-toda-su-historia.js js/10-generador-de-informes-comun-a-colada.js-->
+
+<!--@guion externo aviso-version ../comun/aviso-version.js-->
+</body></html>

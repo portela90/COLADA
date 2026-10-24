@@ -6,17 +6,15 @@ const TMP = path.join(__dirname, '.tmp');
 
 /* Copia la página cambiando el bloque que habla con Supabase por un simulador con datos de prueba. */
 function montar(nombre, mock) {
-  const L = fs.readFileSync(path.join(ROOT, nombre), 'utf8').split('\n');
-  let i = L.findIndex(l => l.includes('supabase-js@'));
-  if (i < 0) throw new Error('No encuentro el bloque de Supabase en ' + nombre);
-  if (i > 0 && L[i - 1].startsWith('<script>window.DB_PREFIX')) i--;
-  let j = L.findIndex((l, k) => k > i + 1 && l.trim() === '</script>');
-  if (j < 0) throw new Error('No encuentro el final del bloque de Supabase en ' + nombre);
+  const html = fs.readFileSync(path.join(ROOT, nombre), 'utf8');
+  const i = html.indexOf('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js');
+  const fin = html.match(/<script src="js\/supabase-web\.[0-9a-f]+\.js"><\/script>/);
+  if (i < 0 || !fin) throw new Error('No encuentro el bloque de Supabase en ' + nombre + ' (¿has ejecutado node build.mjs?)');
   const m = fs.readFileSync(path.join(__dirname, 'mocks', mock), 'utf8');
-  const pre = L[i].startsWith('<script>window.DB_PREFIX') ? [L[i]] : [];
-  const out = L.slice(0, i).concat(pre, [m], L.slice(j + 1)).join('\n');
-  fs.mkdirSync(TMP, { recursive: true });
+  const out = html.slice(0, i) + m + html.slice(fin.index + fin[0].length);
+  fs.mkdirSync(path.join(TMP, 'js'), { recursive: true });
   for (const f of fs.readdirSync(ROOT).filter(f => f.endsWith('.js'))) fs.copyFileSync(path.join(ROOT, f), path.join(TMP, f));
+  for (const f of fs.readdirSync(path.join(ROOT, 'js'))) fs.copyFileSync(path.join(ROOT, 'js', f), path.join(TMP, 'js', f));
   const dest = path.join(TMP, nombre);
   fs.writeFileSync(dest, out);
   return 'file://' + dest;

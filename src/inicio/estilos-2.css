@@ -1,0 +1,28 @@
+
+/* ===== Inicio (launchpad estilo SAP Fiori) ===== */
+.ini-wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+.ini-hola{font-size:20px;font-weight:600;margin:4px 0 2px}
+.ini-sub{color:var(--ink2);font-size:13px;margin:0 0 18px}
+.ini-grp{margin:0 0 22px}
+.ini-grp h2{font-size:15px;font-weight:600;margin:0 0 10px;color:var(--ink);letter-spacing:0;text-transform:none;display:flex;align-items:baseline;gap:8px}
+.ini-grp h2 small{font-weight:400;color:var(--mut);font-size:12px}
+.ini-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:12px}
+.ini-t{appearance:none;font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px 12px;min-height:150px;display:flex;flex-direction:column;gap:4px;transition:box-shadow .15s,border-color .15s;text-decoration:none}
+.ini-t:hover{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),var(--shadow)}
+.ini-t:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.ini-t .tt{font-size:14px;font-weight:600;line-height:1.25}
+.ini-t .ts{font-size:12px;color:var(--ink2);line-height:1.3}
+.ini-t .tv{margin-top:auto;padding-top:10px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.ini-t .tn{font-size:34px;font-weight:300;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ini-t .tu{font-size:12px;color:var(--ink2)}
+.ini-t .tf{font-size:11px;color:var(--mut);border-top:1px solid var(--line2);padding-top:6px;margin-top:6px}
+.ini-t.bad .tn{color:var(--bad)}.ini-t.warn .tn{color:var(--warn)}.ini-t.ok .tn{color:var(--ok)}
+.ini-t .tbar{height:6px;border-radius:3px;background:var(--line2);overflow:hidden;margin-top:6px;display:flex}
+.ini-t .tbar i{display:block;height:100%}
+.ini-t.app .tn{font-size:15px;font-weight:600;color:var(--acc)}
+@media (max-width:560px){.ini-wrap{padding:12px 0 32px}.ini-tiles{grid-template-columns:1fr 1fr;gap:10px}.ini-t{min-height:132px;padding:12px 12px 10px}.ini-t .tn{font-size:28px}.ini-t .ts{font-size:11.5px}.ini-hola{font-size:18px}}
+.err-lst{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.err-it{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surf)}.err-it.visto{opacity:.6}
+.err-it summary{cursor:pointer}.err-it summary small{display:block;color:var(--ink2);font-size:12px;margin-top:2px}
+.err-it pre{white-space:pre-wrap;font-size:12px;margin:6px 0 0;max-height:200px;overflow:auto;color:var(--ink2)}
+.ini-aviso{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 14px}

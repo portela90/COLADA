@@ -2,3 +2,5 @@ tests/node_modules/
 tests/.tmp/
 tests/test-results/
 test-results/
+node_modules/
+salida-exacta/

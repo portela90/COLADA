@@ -1,0 +1,26 @@
+<!doctype html><html><head>
+<meta name="build" content="20261024132325"><meta charset=utf8><script src="errlog.js" data-app="almacen" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><!--@estilo ../comun/base.css--></head><body>
+<title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
+<!--@estilo estilos.css tema-sap.css-->
+
+<div id="app">
+  <header>
+    <h1 id="hTit">Almacén<span class="hsub" id="hSub"></span></h1>
+    <button id="lupa" class="lupa" type="button" aria-label="Buscar"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Buscar</span></button>
+    <div class="chips2" id="hChips"></div>
+  </header>
+  <main><div class="wrap" id="view"></div></main>
+  <nav id="tabs"></nav>
+</div>
+
+<script>window.DB_PREFIX="alm_";</script>
+<script src="offline.js"></script>
+<script src="graficos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!--@estilo acceso.css-->
+<!--@guion externo supabase-web ../comun/supabase-web.js-->
+
+<!--@guion externo almacen js/00-principio.js js/01-analisis-asistente-lo-importante-ahora-tende.js js/02-generador-de-informes-comun-a-colada.js js/03-barras-expulsoras-y-tornillos-tope.js js/04-generador-de-planos-de-ejes-de.js js/05-apuntar-rapido-escribir-o-dictar-la.js js/06-stock.js js/07-movimientos.js js/08-informe-sap.js js/09-prevision-minimos-dotacion-de-planta-ejes.js js/10-costes-de-reparacion-de-ejes-y.js js/11-eje-puesto-en-cada-maquina-y.js js/12-que-lleva-cada-maquina-consumibles-sin.js js/13-boot.js-->
+
+<!--@guion externo aviso-version ../comun/aviso-version.js-->
+</body></html>
