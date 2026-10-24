@@ -1,6 +1,6 @@
 // Service worker de la app de limpieza: guarda la app para abrirla sin conexión, recibe los avisos y abre la app al tocarlos.
-const CACHE = "limp-app-v4";
-const BASE = ["limpieza.html", "errlog.js", "offline.js", "graficos.js", "limpieza.webmanifest", "limp-180.png", "limp-192.png", "limp-512.png", "limp-badge.png",
+const CACHE = "limp-app-v5";
+const BASE = ["limpieza.html", "errlog.js", "offline.js", "graficos.js", "escaner.js", "limpieza.webmanifest", "limp-180.png", "limp-192.png", "limp-512.png", "limp-badge.png",
   "fonts/inter-latin-400-normal.woff2", "fonts/inter-latin-500-normal.woff2", "fonts/inter-latin-600-normal.woff2", "fonts/inter-latin-700-normal.woff2"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(BASE.map(u => c.add(new Request(u, { cache: "reload" })).catch(() => null)))).then(() => self.skipWaiting()));
