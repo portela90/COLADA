@@ -31,12 +31,16 @@ function cMotivo(m){if(m.motivo)return cap(m.motivo);const n=String(m.nota||"");
   if(/^Limpieza:/.test(n))return n.replace(/^Limpieza:\s*/,"");if(/^Cambio de pistón/.test(n))return"Cambio de pistón";return"Sin indicar";}
 function cDonde(m){if(m.maq)return maqCod(m.maq);if(m.nave)return m.nave;if(/^(Limpieza:|Horno )/.test(m.nota||""))return"Limpieza";return"Sin indicar";}
 const cEnv=(a,c)=>a&&a.peso>0?{n:c/a.peso,t:(a.envase||"envase").toLowerCase()}:null;
-function cConsumos(){return todosMov().filter(m=>m.tipo==="salida").map(m=>{const a=art(m.art),c=+m.cant||0;
-  return{f:m.f,prod:nomArt(a),cod:a&&a.cod||"",artId:m.art,g:grupoDe(a),cant:c,ud:a?a.ud||"ud":"ud",env:cEnv(a,c),donde:cDonde(m),motivo:cMotivo(m),quien:m.resp?respTxt(m.resp):"",
-    sale:almN(m.alm),queda:a?stockDe(a.id):null,eur:c*precioDe(a),nota:m.nota||""};});}
+/* quién: en los cambios de pistón, el responsable apuntado en el cambio; en lo de Limpieza, su equipo; en lo demás, quien lo apuntó */
+function cQuien(m,PM){const p=PM[m.id];const resp=p&&p.resp?respTxt(p.resp):m.resp?respTxt(m.resp):"";
+  const por=m.por||(/^(Limpieza:|Horno )/.test(m.nota||"")?"Equipo de limpieza":"");return{resp,por,quien:resp||por};}
+function cConsumos(){const PM={};todosPist().forEach(p=>{if(p.movId)PM[p.movId]=p;});
+  return todosMov().filter(m=>m.tipo==="salida").map(m=>{const a=art(m.art),c=+m.cant||0;
+  return Object.assign({f:m.f,prod:nomArt(a),cod:a&&a.cod||"",artId:m.art,g:grupoDe(a),cant:c,ud:a?a.ud||"ud":"ud",env:cEnv(a,c),donde:cDonde(m),motivo:cMotivo(m),
+    sale:almN(m.alm),queda:a?stockDe(a.id):null,eur:c*precioDe(a),nota:m.nota||""},cQuien(m,PM));});}
 function cEntradas(){return todosMov().filter(m=>m.tipo==="entrada").map(m=>{const a=art(m.art),c=+m.cant||0;
   return{f:m.f,prod:nomArt(a),artId:m.art,g:grupoDe(a),cant:c,ud:a?a.ud||"ud":"ud",env:cEnv(a,c),alm:almN(m.alm),
-    prov:provN(m.prov)||(String(m.nota||"").match(/^Proveedor:\s*(.*)$/)||[])[1]||"Sin indicar",alb:m.alb||"",foto:m.foto||null,quien:m.resp?respTxt(m.resp):"",nota:m.nota||""};});}
+    prov:provN(m.prov)||(String(m.nota||"").match(/^Proveedor:\s*(.*)$/)||[])[1]||"Sin indicar",alb:m.alb||"",foto:m.foto||null,quien:m.resp?respTxt(m.resp):(m.por||""),nota:m.nota||""};});}
 
 /* ---------- piezas de pantalla ---------- */
 const cCard=(t,sub,kids)=>el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:t}),sub?el("span",{class:"sub",style:"margin-left:auto",text:sub}):null]),...kids]);
@@ -122,7 +126,7 @@ function vCCons(v){const re=()=>render(true);const T=cConsumos(),Tm=T.filter(cEn
       el("button",{type:"button","aria-pressed":String(CQ.vista===k),text:t,onclick:()=>{CQ.vista=k;re();}})))])]));
   const q=L.reduce((s,x)=>s+x.cant,0),env=L.reduce((s,x)=>s+(x.env?x.env.n:0),0),eurOk=conEur(L);
   v.appendChild(cKpis([["Consumos",fmtN(L.length)],[liq?"Kg gastados":"Cantidad",fmtN(q)+(liq?" kg":"")],liq?["Envases",env?"≈ "+fmtN(Math.round(env*10)/10):"—"]:["Productos",fmtN(new Set(L.map(x=>x.prod)).size)],["Gasto",eurOk?eur(L.reduce((t,x)=>t+x.eur,0)):"—"]]));
-  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel(GRUPO_N[CQ.g]+" "+cTxtMes(),L.map(x=>({"Fecha":x.f,"Grupo":GRUPO_N[x.g],"Producto":x.prod,"Cantidad":x.cant,"Unidad":x.ud,"Envases (aprox.)":x.env?Math.round(x.env.n*100)/100:"","Dónde":x.donde,"Motivo":x.motivo,"Quién":x.quien,"Sale de":x.sale,"Queda ahora":x.queda,"Importe (€)":Math.round(x.eur*100)/100,"Nota":x.nota})),e.currentTarget)})]));
+  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel(GRUPO_N[CQ.g]+" "+cTxtMes(),L.map(x=>({"Fecha":x.f,"Grupo":GRUPO_N[x.g],"Producto":x.prod,"Cantidad":x.cant,"Unidad":x.ud,"Envases (aprox.)":x.env?Math.round(x.env.n*100)/100:"","Dónde":x.donde,"Motivo":x.motivo,"Responsable":x.resp,"Apuntado por":x.por,"Sale de":x.sale,"Queda ahora":x.queda,"Importe (€)":Math.round(x.eur*100)/100,"Nota":x.nota})),e.currentTarget)})]));
   const tit=GRUPO_N[CQ.g];
   if(!L.length){v.appendChild(el("p",{class:"empty",text:"No hay consumos de "+tit.toLowerCase()+" con estos filtros en "+cTxtMes()+"."}));return;}
   if(CQ.vista==="det"){const c=cColumnas(CQ.g);v.appendChild(cCard(tit+" ("+L.length+")",cTxtMes(),[cTabla(c.cab,L.slice(0,400).map(c.fila),c.r,c.anchas),

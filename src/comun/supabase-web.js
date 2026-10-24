@@ -133,7 +133,9 @@ const sinRed=()=>new Error("Sin conexión: esto se podrá guardar cuando vuelva 
 const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();try{const r=await fn();if(r&&r.error)throw r.error;OFF.red(true);return r;}catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
 OFF.ejecutor=op=>rpc(op.fn,op.args);OFF.alVaciar=cols=>recargar(cols);
 const db={
-  itemsAdd:(col,id,items)=>rpcQ("docs_items_add",{p_col:P+col,p_id:id,p_items:items}),
+  /* en el Almacén cada apunte guarda quién lo ha hecho («por») */
+  itemsAdd:(col,id,items)=>{if(P==="alm_"&&yo&&Array.isArray(items)){const n=(yo.nombre||yo.email||"").trim();if(n)items.forEach(it=>{if(it&&typeof it==="object"&&!Array.isArray(it)&&!it.por)it.por=n;});}
+    return rpcQ("docs_items_add",{p_col:P+col,p_id:id,p_items:items});},
   itemsDelId:(col,id,ids)=>rpcQ("docs_items_del_id",{p_col:P+col,p_id:id,p_ids:ids}),
   itemsPatchId:(col,id,items)=>rpcQ("docs_items_patch_id",{p_col:P+col,p_id:id,p_items:items}),
   itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:P+col,p_id:id,p_item:item}),
