@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-<meta name="build" content="20261024130210"><meta charset=utf8><script src="errlog.js" data-app="almacen" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="build" content="20261024132325"><meta charset=utf8><script src="errlog.js" data-app="almacen" data-sb="colada"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Almacén · MAPRI</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Colada"><meta name="theme-color" content="#2F5D46"><link rel="icon" href="icon-192.png">
 <style>
 :root{
@@ -412,6 +412,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
   [["inicio","inicio.html","Inicio","Resumen de todo en mosaicos"],["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny"))
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
+  if(P==="alm_")box.appendChild(fila("Avisos al móvil","Bajo mínimo, pedidos retrasados y ejes en cuarentena",panelAvisos));
   box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
   box.appendChild(fila("Mi usuario","Mis datos, usuarios y cerrar sesión",panelUsuario));
   box.appendChild(h("button",{type:"button",class:"btn sec",style:"width:100%",text:"Cerrar",onclick:()=>ov.remove()}));
@@ -523,6 +524,29 @@ async function panelHist(){
       const b=h("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px;align-self:flex-start",text:"Deshacer",onclick:async()=>{b.disabled=true;b.textContent="Deshaciendo…";
         try{const ok=await deshacerGrupo(g);if(ok){ov.remove();const t=document.createElement("div");t.id="toast";t.setAttribute("role","status");t.textContent="Deshecho";const o=document.getElementById("toast");if(o)o.remove();document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}else{b.disabled=false;b.textContent="Deshacer";}}catch(e){alert("No se pudo deshacer: "+(e.message||e));b.disabled=false;b.textContent="Deshacer";}}});
       lst.appendChild(h("div",{class:"usr-row",style:"flex-direction:column;align-items:stretch;gap:6px"},[h("div",{class:"hint",style:"margin:0",text:fechaH(g.at)+(nombres[g.by]?" · "+nombres[g.by]:"")}),det,b]));});};
+  pinta();}
+/* ---------- avisos al móvil (Web Push) ---------- */
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0));};
+async function subAvisos(){if(!("serviceWorker" in navigator)||!("PushManager" in window))return null;const r=await navigator.serviceWorker.register("sw.js");await navigator.serviceWorker.ready;return{r,s:await r.pushManager.getSubscription()};}
+async function panelAvisos(){const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);document.body.appendChild(ov);
+  const pinta=async(msg)=>{box.textContent="";box.appendChild(h("h3",{text:"Avisos al móvil"}));
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent),solo=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;
+    const p=t=>box.appendChild(h("p",{class:"hint",text:t}));
+    p("Te llega un aviso al móvil, los días laborables hacia las 7:30 y las 13:30, cuando haya algo nuevo: artículos bajo mínimo, pedidos que ya deberían haber llegado o ejes que llevan más de una semana en cuarentena. Cada cosa avisa una sola vez.");
+    if(!("PushManager" in window)||!("serviceWorker" in navigator)){p(ios&&!solo?"En iPhone primero hay que instalar la app: en Safari toca Compartir › «Añadir a pantalla de inicio», ábrela desde ese icono y vuelve aquí.":"Este navegador no permite avisos.");}
+    else{let st=null;try{st=await subAvisos();}catch(e){}const on=!!(st&&st.s)&&Notification.permission==="granted";
+      if(msg)box.appendChild(h("div",{class:"banner",text:msg}));
+      box.appendChild(h("p",{style:"font-weight:600",text:on?"Activados en este móvil.":Notification.permission==="denied"?"Los avisos están bloqueados para esta web en los ajustes del móvil.":"Desactivados en este móvil."}));
+      const b=h("button",{class:"btn",type:"button",text:on?"Desactivar en este móvil":"Activar en este móvil",onclick:async()=>{b.disabled=true;
+        try{if(on){await sb.rpc("alm_push_baja",{p_endpoint:st.s.endpoint});await st.s.unsubscribe();pinta("Avisos desactivados.");return;}
+          const perm=await Notification.requestPermission();if(perm!=="granted"){pinta("Sin permiso no se pueden mandar avisos.");return;}
+          const k=await sb.rpc("alm_push_clave");if(k.error||!k.data)throw new Error("No hay clave de avisos");
+          const s2=await st.r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k.data)});const j=s2.toJSON();
+          const a=await sb.rpc("alm_push_alta",{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth});if(a.error)throw a.error;
+          try{new Notification("Avisos activados",{body:"Te avisaremos aquí de lo importante del almacén.",icon:"icon-192.png"});}catch(e){}
+          pinta("Avisos activados.");}catch(e){if(window.reportarError)reportarError(e,"activar avisos");pinta("No se pudo: "+(e.message||e));}}});
+      box.appendChild(b);}
+    box.appendChild(h("button",{class:"btn sec",type:"button",style:"width:100%;margin-top:8px",text:"Cerrar",onclick:()=>ov.remove()}));};
   pinta();}
 /* ---------- fotos de albaranes en Storage ---------- */
 const urls={},pidiendo=new Set();

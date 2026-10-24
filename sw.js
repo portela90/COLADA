@@ -2,7 +2,7 @@
 // - Páginas: primero la red (siempre la versión nueva); si no hay red, la copia guardada.
 // - Letras, iconos y librerías: la copia guardada (y se actualiza por detrás).
 // - Los datos (Supabase) no pasan por aquí: los guarda offline.js.
-const CACHE = "mapri-app-v5";
+const CACHE = "mapri-app-v6";
 const BASE = [
   "./", "index.html", "almacen.html", "inicio.html", "errlog.js", "offline.js", "graficos.js", "manifest.json",
   "icon-180.png", "icon-192.png", "icon-512.png",
@@ -36,5 +36,18 @@ self.addEventListener("fetch", e => {
   e.respondWith(caches.match(r).then(x => {
     const red = fetch(r).then(res => { if (res.ok || res.type === "opaque") { const cp = res.clone(); caches.open(CACHE).then(c => c.put(r, cp)); } return res; }).catch(() => x);
     return x || red;
+  }));
+});
+/* avisos de Almacén (bajo mínimo, pedidos retrasados, ejes en cuarentena) */
+self.addEventListener("push", e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { titulo: "Almacén", texto: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || "Almacén", { body: d.texto || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || undefined, renotify: !!d.tag, data: { url: d.url || "almacen.html" } }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "almacen.html", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(L => {
+    for (const c of L) if (new URL(c.url).pathname === new URL(url).pathname && "focus" in c) return c.navigate(url).then(w => (w || c).focus()).catch(() => c.focus());
+    return self.clients.openWindow(url);
   }));
 });
