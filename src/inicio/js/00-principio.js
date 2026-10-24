@@ -29,7 +29,8 @@ function pinta(){const v=$("view");v.textContent="";
   const hr=new Date().getHours();v.appendChild(el("p",{class:"ini-hola",text:(hr<14?"Buenos días":hr<21?"Buenas tardes":"Buenas noches")}));
   v.appendChild(el("p",{class:"ini-sub",text:new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})+" · pulsa un mosaico para ir directo"}));
   const a=A||{},c=C||{};const fa=hace(a.ts),fc=hace(c.ts);
-  if(!A||!C)v.appendChild(el("div",{class:"ini-aviso",text:"Algunos números salen cuando alguien abre "+[!A?"Almacén":null,!C?"Coladas":null].filter(Boolean).join(" y ")+" por primera vez después de este cambio."}));
+  const SC=!!window.SOLO_CONSULTA;
+  if(!A||(!C&&!SC))v.appendChild(el("div",{class:"ini-aviso",text:"Algunos números salen cuando alguien abre "+[!A?"Almacén":null,!C?"Coladas":null].filter(Boolean).join(" y ")+" por primera vez después de este cambio."}));
   /* --- Almacén --- */
   const AL="almacen.html?t=";
   const ejP=a.ejesTot?Math.round(a.ejesPlanta/a.ejesTot*100):null;
@@ -45,7 +46,8 @@ function pinta(){const v=$("view");v.textContent="";
     tile({t:"Pistones usados",s:"En la zona de retirada",n:fN(a.usadosZona),un:"pistones",niv:a.urgeRecup?"warn":"",u:AL+"pist",f:a.urgeRecup?a.urgeRecup+" medida"+(a.urgeRecup===1?"":"s")+" conviene recuperar":"nada urgente que recuperar"}),
     tile({t:"Inyectoras",s:"Plano, material y moldes",n:fN(a.iny),un:"máquinas",u:AL+"iny"}),
     tile({t:"Análisis",s:"Pregúntale a la app y tendencias",n:"Abrir",u:AL+"consultas",niv:"app"})]));
-  /* --- Coladas --- */
+  /* --- Coladas --- (no lo ve el usuario de solo consulta del Almacén) */
+  if(SC)return;
   const N=c.naves||{};const nv=Object.keys(N).sort();
   v.appendChild(grupo("Coladas","aluminio · "+fc,[
     tile({t:"Stock de aluminio",s:"Total en todas las naves",n:fKg(c.kg),un:uKg(c.kg)+(c.fa!=null?" · "+fN(c.fa)+" fardos":""),u:"index.html?t=stock"})]

@@ -19,8 +19,9 @@ function sesion() {
   return { access_token: jwt, refresh_token: 'r', token_type: 'bearer', expires_in: 86400 * 30, expires_at: exp, user: USER };
 }
 /* Monta el servidor simulado en la página. P = prefijo de colecciones ("alm_" en Almacén). */
-async function servidor(page, P, D) {
+async function servidor(page, P, D, yo) {
   const S = { D, online: true, llamadas: [] };
+  const fila = Object.assign({ user_id: USER.id, activo: true, nombre: 'Prueba', email: USER.email }, yo || {});
   await page.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, ['sb-whemhkcrgwyjucpaswrm-auth-token', JSON.stringify(sesion())]);
   await page.route(/^https?:/, async r => {
     const u = new URL(r.request().url());
@@ -29,7 +30,7 @@ async function servidor(page, P, D) {
     if (!S.online) return r.abort('internetdisconnected');
     const q = u.searchParams, obj = (r.request().headers()['accept'] || '').includes('vnd.pgrst.object');
     const json = (x, st) => r.fulfill({ status: st || 200, contentType: 'application/json', body: JSON.stringify(x) });
-    if (u.pathname === '/rest/v1/usuarios') return json(obj ? { user_id: USER.id, activo: true, nombre: 'Prueba', email: USER.email } : [{ user_id: USER.id, activo: true, nombre: 'Prueba', email: USER.email }]);
+    if (u.pathname === '/rest/v1/usuarios') return json(obj ? fila : [fila]);
     if (u.pathname === '/rest/v1/docs' && r.request().method() === 'GET') {
       const col = (q.get('col') || '').replace(/^eq\./, ''), id = (q.get('id') || '').replace(/^eq\./, '');
       const c = S.D[col.slice(P.length)] || {};

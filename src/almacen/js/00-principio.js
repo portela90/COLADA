@@ -39,7 +39,7 @@ const fmtN=n=>(Math.round(n*100)/100).toLocaleString("es-ES",{maximumFractionDig
 const parseN=s=>{const n=parseFloat(String(s).trim().replace(",","."));return isFinite(n)?n:NaN;};
 const MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const fmtMes=m=>{const[y,mm]=m.split("-");return MESES[+mm-1]+" "+y;};
-function toast(t){const o=$("toast");if(o)o.remove();const n=el("div",{id:"toast",role:"status",text:t});document.body.appendChild(n);setTimeout(()=>n.remove(),2600);}
+function toast(t){if(window.SOLO_CONSULTA&&/^No se pudo guardar|^No se ha podido guardar/.test(String(t)))t="Tu usuario es de solo consulta: puedes ver todo, pero no cambiar nada.";const o=$("toast");if(o)o.remove();const n=el("div",{id:"toast",role:"status",text:t});document.body.appendChild(n);setTimeout(()=>n.remove(),2600);}
 function fld(l,inp,hid){return el("label",{hidden:hid},[l,inp]);}
 function sel(id,opts,val,onch,ph){const s=el("select",{id},(ph!=null?[el("option",{value:"",text:ph})]:[]).concat(opts.map(o=>Array.isArray(o)?el("option",{value:o[0],text:o[1]}):o)));s.value=val||"";if(onch)s.addEventListener("change",()=>onch(s.value));return s;}
 function inp(id,val,onin,extra){const i=el("input",Object.assign({id,value:val==null?"":val},extra||{}));if(onin)i.addEventListener("input",()=>onin(i.value));return i;}
@@ -132,7 +132,7 @@ function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent=no
   let nb=0;try{lineas().forEach(l=>{nb+=faltas(l.id).filter(f=>f.falta>0&&f.org).length;});}catch(e){}
   if(nb)c.appendChild(el("button",{type:"button",class:"chip2 warn",onclick:()=>irA("repo")},[el("b",{text:String(nb)}),"para bajar a planta"]));
   if(al)c.appendChild(el("button",{type:"button",class:"chip2 bad",onclick:()=>irA("stock")},[el("b",{text:String(al)}),"para pedir"]));}
-function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>{const b=el("button",{type:"button","aria-selected":String(tab===id||PADRE[tab]===id),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
+function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||PADRE[tab]===id),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
 
 /* ===== CONSULTAS: preguntas con filtros sobre pistones, ejes y material ===== */
 const Q_QUE=[["pist","Cambios de pistón"],["rep","Reparaciones de ejes"],["mat","Consumo de material"],["gasto","Todo el gasto"]];

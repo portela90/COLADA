@@ -79,3 +79,6 @@ input::-webkit-date-and-time-value{text-align:left}
  .chips.chips-per{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
 }
 @media (max-width:600px){.kpis:has(>div:nth-child(4):last-child){grid-template-columns:1fr 1fr}}
+
+/* usuario de solo consulta: no ve la pestaña «Apuntar» */
+.solo-consulta #tabs button[data-t="rap"]{display:none!important}

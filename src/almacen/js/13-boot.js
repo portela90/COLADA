@@ -3,6 +3,8 @@ draft.p.resp=lsGet("alm.resp");draft.p.dest=lsGet("alm.dp");window.addEventListe
 try{const t=localStorage.getItem((window.APP_ID||"almacen")+".tab");if(t&&esTab(t))tab=t;}catch(e){}
 try{const q=new URLSearchParams(location.search).get("t");if(q&&esTab(q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
 tabsUI();render(true);
+/* usuario de solo consulta: sin la pestaña «Apuntar» */
+window.addEventListener("solo-consulta",()=>{if(tab==="rap")irA("res");else tabsUI();});
 (async()=>{
   try{db=await claude.use("db");}catch(e){db=null;}
   try{assets=await claude.use("assets");}catch(e){assets=null;}
