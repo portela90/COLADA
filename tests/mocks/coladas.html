@@ -1,0 +1,14 @@
+<script>
+const D={cfg:{app:{plan:{"2026-10":{camiones:[],consumo:{},entradas:[{f:"2026-10-14",k:"Nave 1|L-2630",fa:37,o:"B"}]}},proveedores:[],minimos:{},paros:[],calendario:{}}},
+ lotes:{l1:{nombre:"C25001",material:"L-2630",nave:"Nave 1",donde:"externo",kgInv:16000,fardosInv:24,entrada:"2026-09-01"},
+        l2:{nombre:"C25002",material:"L-2630",nave:"Nave 1",donde:"externo",kgInv:13000,fardosInv:20,entrada:"2026-09-10"},
+        l3:{nombre:"C25003",material:"L-2630",nave:"Nave 1",donde:"nave",kgInv:6500,fardosInv:10,entrada:"2026-09-12"}},
+ mov:{"2026-10":{items:[{i:"m0",t:"C",f:"2026-10-13",u:"Mañana",o:"l3",fa:2}]}},maq:{}};
+const subs={};const fire=c=>(subs[c]||[]).forEach(f=>f());
+function snap(c){const docs=Object.keys(D[c]||{}).map(id=>({id,data:()=>JSON.parse(JSON.stringify(D[c][id])),exists:true}));return{docs,size:docs.length,empty:!docs.length,forEach:f=>docs.forEach(f),docChanges:()=>[]};}
+const db={collection:c=>({onSnapshot:cb=>{const go=()=>cb(snap(c));(subs[c]=subs[c]||[]).push(go);setTimeout(go,5);return()=>{};}}),
+ doc:p=>{const[c,id]=p.split("/");return{get:async()=>({exists:!!(D[c]||{})[id],data:()=>JSON.parse(JSON.stringify(D[c][id]))}),
+  set:async v=>{(D[c]=D[c]||{})[id]=JSON.parse(JSON.stringify(v));fire(c);},update:async v=>{Object.assign(D[c][id],v);fire(c);},delete:async()=>{delete D[c][id];fire(c);},
+  onSnapshot:cb=>{const go=()=>cb({exists:!!(D[c]||{})[id],data:()=>D[c][id]});(subs[c]=subs[c]||[]).push(go);setTimeout(go,5);return()=>{};}};}};
+window.WEB=true;window.claude={use:async n=>n==="db"?db:null};window.__D=D;
+</script>

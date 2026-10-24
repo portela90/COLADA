@@ -1,0 +1,4 @@
+<script>const D={alm_kpi:{inicio:{"bajar":10,"uds":39,"pedir":3,"bajoMin":2,"pedidos":1,"ejesTot":15,"prep":0,"ejesPlanta":11,"ejesTaller":3,"cuarentena":1,"pistMes":7,"usadosZona":12,"urgeRecup":1,"iny":10,"ts":Date.now()-7*60000}},
+kpi:{inicio:{"naves":{"Nave 1":{"kg":34200,"fa":52,"kgN":5200,"kgE":29000},"Nave 2":{"kg":8450,"fa":13,"kgN":8450,"kgE":0}},"kg":42650,"fa":65,"ts":Date.now()-2*3600000}}};
+const db={doc:p=>{const[c,id]=p.split("/");return{onSnapshot:cb=>{setTimeout(()=>cb({exists:!!(D[c]||{})[id],data:()=>D[c][id]}),5);return()=>{};}};}};
+window.claude={use:async n=>n==="db"?db:null};</script>

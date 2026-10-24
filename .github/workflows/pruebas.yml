@@ -1,0 +1,60 @@
+# Pruebas automáticas de las apps.
+# - En la rama «dev»: si todas las pruebas pasan, se publica (se pasa a «main» y se pide a GitHub Pages que actualice la web).
+# - En «main»: se prueban también, para avisar si algo que se subió directamente está roto.
+name: Pruebas
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          CI: "1"
+      - name: Guardar capturas si algo falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-pruebas
+          path: tests/test-results
+          retention-days: 7
+  publicar:
+    needs: pruebas
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pasar dev a main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          git merge --ff-only origin/dev || git merge --no-edit origin/dev
+          git push origin main
+      - name: Actualizar la web (GitHub Pages)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages/builds" || echo "No se pudo pedir la publicación; se hará en el siguiente cambio."
