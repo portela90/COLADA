@@ -84,3 +84,24 @@ input::-webkit-date-and-time-value{text-align:left}
 nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:8px!important;padding-bottom:9px!important}
 nav button svg{width:22px;height:22px;flex:none}
 nav button span{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* tabla de coladas en el móvil: dónde y fecha de entrada van debajo del nombre, para que quepa sin mover de lado */
+.solo-movil{display:none}
+@media (max-width:600px){
+ table.col-stk tr:not(.grp)>:nth-child(2),table.col-stk tr:not(.grp)>:nth-child(3){display:none}
+ table.col-stk .solo-movil{display:block}
+ table.col-stk td:first-child{overflow-wrap:anywhere}
+ table.col-stk{width:100%;min-width:0}
+}
+/* parte del día en el móvil: «en nave» y «en externo» van debajo del total */
+@media (max-width:600px){
+ table.parte-t tr>:nth-child(3),table.parte-t tr>:nth-child(4){display:none}
+ table.parte-t .solo-movil{display:block}
+ table.parte-t{width:100%}
+}
+/* previsión en el móvil: las máquinas van debajo del nombre */
+@media (max-width:600px){
+ table.prev-t tr>:nth-child(2){display:none}
+ table.prev-t .solo-movil{display:block}
+ table.prev-t{width:100%}
+ table.prev-t th,table.prev-t td{padding-left:6px;padding-right:6px}
+}

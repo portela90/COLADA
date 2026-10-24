@@ -178,10 +178,10 @@ function vPrevision(){
   const nuevo=filas.some(x=>x.fuente==="media")||NAVES.some(n=>P.gran[n].maq>0&&P.gran[n].fuente==="media");
   return el("div",{class:"card"},[
     el("div",{class:"hd"},[el("h2",{text:"Previsión de gasto"}),el("span",{class:"sub",style:"margin-left:auto",text:"quedan "+restan.toLocaleString("es-ES")+" día"+(restan===1?"":"s")+" de trabajo"})]),
-    el("div",{class:"tw"},[el("table",{},[
+    el("div",{class:"tw"},[el("table",{class:"prev-t"},[
       el("thead",{},[el("tr",{},[el("th",{text:"Línea"}),el("th",{class:"r",text:"Máquinas"}),el("th",{class:"r",text:"Al día"}),el("th",{class:"r",text:"Días en nave"}),el("th",{class:"r",text:"Resto del mes"}),el("th",{class:"r",text:Mayus(nomMes(sig).split(" ")[0])})])]),
       el("tbody",{},filas.map(x=>el("tr",{},[
-        el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),el("div",{class:"sub",text:MAT[x.mat].nom+(x.fuente==="recta"&&x.pend!=null?" · "+(x.pend<0?"cada máquina parada suma "+f1(-x.pend*TURNOS.length)+" f/día":"cada máquina en marcha suma "+f1(x.pend*TURNOS.length)+" f/día"):"")})]),
+        el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),el("div",{class:"sub",text:MAT[x.mat].nom+(x.fuente==="recta"&&x.pend!=null?" · "+(x.pend<0?"cada máquina parada suma "+f1(-x.pend*TURNOS.length)+" f/día":"cada máquina en marcha suma "+f1(x.pend*TURNOS.length)+" f/día"):"")}),el("div",{class:"sub solo-movil",text:x.maq+" máquinas"})]),
         el("td",{class:"r num",text:String(x.maq)}),
         el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:f1(x.diaAhora)+" f"}),el("div",{class:"sub",text:fmt(x.diaAhora*x.kgf)+" kg"}),
           x.fase!=="ok"?el("div",{class:"sub",style:"color:var(--warn)",text:(x.fase==="roto"?"cargador roto":"recuperando bebederos")+((x.fase==="roto"?x.rRoto:x.rRecup)?"":" · normal "+f1(x.dia)+" f")}):null]),
@@ -189,7 +189,7 @@ function vPrevision(){
         el("td",{class:"r num"},[el("div",{text:fmt(Math.ceil(x.resto))+" f"}),el("div",{class:"sub",text:fmt(x.resto*x.kgf)+" kg"})]),
         el("td",{class:"r num"},[el("div",{text:fmt(Math.ceil(x.sig))+" f"}),el("div",{class:"sub",text:fmt(x.sig*x.kgf/1000)+" t"+cam(x.sig,x.mat)})])]))
       .concat(gMaq>0||gTot>0?[el("tr",{},[
-        el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),el("div",{class:"sub",text:NAVES.filter(n=>P.gran[n].maq).map(n=>n+" "+f1(P.gran[n].dia)+" kg/día").join(" · ")})]),
+        el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),el("div",{class:"sub",text:NAVES.filter(n=>P.gran[n].maq).map(n=>n+" "+f1(P.gran[n].dia)+" kg/día").join(" · ")}),el("div",{class:"sub solo-movil",text:gMaq+" máquinas"})]),
         el("td",{class:"r num",text:String(gMaq)}),
         el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:f1(gTot)+" kg"})]),
         el("td",{class:"r num",text:gTot>0?String(Math.floor(gk/gTot)):"—"}),
@@ -275,12 +275,12 @@ function coladasStock(){
     tb.push(el("tr",{class:"grp"},[el("td",{colspan:"5"},[el("span",{class:"tagm",style:"background:"+MAT[g.m].col}),el("b",{text:g.n+" · "+MAT[g.m].nom})])]));
     let f=0,k=0;g.its.forEach(({l,b})=>{const kg=kgVis(b);f+=b.fa;k+=kg;const ext=l.donde==="externo";
       tb.push(el("tr",{class:ext?"ext":""},[
-        el("td",{},[el("button",{type:"button",class:"linkcol",text:l.nombre,onclick:()=>abrirFicha(l.id)}),el("div",{class:"sub",text:[l.proveedor,l.albaran].filter(Boolean).join(" · ")})]),
+        el("td",{},[el("button",{type:"button",class:"linkcol",text:l.nombre,onclick:()=>abrirFicha(l.id)}),el("div",{class:"sub",text:[l.proveedor,l.albaran].filter(Boolean).join(" · ")}),el("div",{class:"sub solo-movil",text:(ext?"Externo":"Nave")+" · entrada "+(l.entrada?dmyA(l.entrada):"—")})]),
         el("td",{text:ext?"Externo":"Nave"}),
         el("td",{class:"num",text:l.entrada?dmyA(l.entrada):"—"}),
         el("td",{class:"r num",style:"font-weight:600",text:fmt(b.fa)}),
         el("td",{class:"r num",text:fmt(kg)})]));});
-    tb.push(el("tr",{class:"sub-tot"},[el("td",{colspan:"3",text:"Total "+g.n+" · "+MAT[g.m].nom}),el("td",{class:"r num",text:fmt(f)}),el("td",{class:"r num",text:fmt(k)})]));});
+    tb.push(el("tr",{class:"sub-tot"},[el("td",{text:"Total "+g.n+" · "+MAT[g.m].nom}),el("td"),el("td"),el("td",{class:"r num",text:fmt(f)}),el("td",{class:"r num",text:fmt(k)})]));});
   const tot={};filas.forEach(({l,b})=>{const t=tot[l.material]=tot[l.material]||{f:0,k:0};t.f+=b.fa;t.k+=kgVis(b);});
   return el("div",{class:"card"},[
     el("div",{class:"hd"},[el("h2",{text:"Coladas"}),el("span",{class:"sub",style:"margin-left:auto",text:filas.length+" con existencias · la más antigua primero"})]),

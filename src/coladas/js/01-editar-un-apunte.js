@@ -123,7 +123,7 @@ function vParte(B,ud,ahora){
     (ahora&&ud&&ud<hoy()&&todosMovs().some(r=>!r.h&&r.f>ud&&(r.t==="C"||r.t==="A"||r.t==="E"||r.t==="T")))?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner",
       text:"Este parte es al cierre del "+dmy(ud)+". Con lo apuntado después, en nave hay ahora: "+LINEAS.filter(([n,m])=>(tab!=="stock"||pasaF(n,m))&&ahora[key(n,m)]&&(ahora[key(n,m)].faN||B[key(n,m)].faN)).map(([n,m])=>n+" "+MAT[m].nom+" "+fmt(ahora[key(n,m)].faN)+" f").join(" · ")+"."})]):null,
     (ud===hoy())?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner w",text:"Hoy aún no ha terminado: el consumo y el stock son los apuntados hasta ahora."})]):null,
-    filasV.length?el("div",{class:"tw"},[el("table",{},[
+    filasV.length?el("div",{class:"tw"},[el("table",{class:"parte-t"},[
       el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{class:"r",text:"Consumido"}),el("th",{class:"r",text:"En nave"}),el("th",{class:"r",text:"En externo"}),el("th",{class:"r",text:"Total"}),el("th",{class:"r",text:"Días"})])]),
       el("tbody",{},filasV.map(x=>el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),
@@ -131,7 +131,7 @@ function vParte(B,ud,ahora){
         dual(x.cFa,x.cKg,true),
         dual(x.faN,x.kgN),
         dual(x.faE,x.kgE),
-        dual(x.fa,x.kg),
+        (()=>{const c=dual(x.fa,x.kg);c.appendChild(el("div",{class:"sub solo-movil",text:"nave "+fmt(x.faN)+" · ext. "+fmt(x.faE)}));return c;})(),
         el("td",{class:"r num",text:x.dias!=null?String(x.dias):"—"})
       ])).concat(fStk.mat&&tab==="stock"?[]:[el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),
