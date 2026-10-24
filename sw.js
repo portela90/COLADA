@@ -2,7 +2,7 @@
 // - Páginas: primero la red (siempre la versión nueva); si no hay red, la copia guardada.
 // - Letras, iconos y librerías: la copia guardada (y se actualiza por detrás).
 // - Los datos (Supabase) no pasan por aquí: los guarda offline.js.
-const CACHE = "mapri-app-v4";
+const CACHE = "mapri-app-v5";
 const BASE = [
   "./", "index.html", "almacen.html", "inicio.html", "errlog.js", "offline.js", "graficos.js", "manifest.json",
   "icon-180.png", "icon-192.png", "icon-512.png",
@@ -24,7 +24,7 @@ self.addEventListener("fetch", e => {
   if (esDatos(u)) return;
   const mismo = u.origin === self.location.origin;
   if (!mismo && !esLib(u)) return;
-  const pagina = r.mode === "navigate" || (mismo && /\.html?$|\/$/.test(u.pathname));
+  const pagina = r.mode === "navigate" || (mismo && /\.html?$|\/$/.test(u.pathname)) || (mismo && /\.js$/.test(u.pathname)); // páginas y scripts propios: siempre la versión nueva si hay red
   if (pagina) {
     e.respondWith(fetch(r).then(res => {
       if (res.ok) { const cp = res.clone(); caches.open(CACHE).then(c => c.put(new Request(u.origin + u.pathname), cp)); }

@@ -1,5 +1,5 @@
 // Service worker de la app de limpieza: guarda la app para abrirla sin conexión, recibe los avisos y abre la app al tocarlos.
-const CACHE = "limp-app-v3";
+const CACHE = "limp-app-v4";
 const BASE = ["limpieza.html", "errlog.js", "offline.js", "graficos.js", "limpieza.webmanifest", "limp-180.png", "limp-192.png", "limp-512.png", "limp-badge.png",
   "fonts/inter-latin-400-normal.woff2", "fonts/inter-latin-500-normal.woff2", "fonts/inter-latin-600-normal.woff2", "fonts/inter-latin-700-normal.woff2"];
 self.addEventListener("install", e => {
@@ -17,7 +17,7 @@ self.addEventListener("fetch", e => {
   if (esDatos(u)) return;
   const mismo = u.origin === self.location.origin;
   if (!mismo && !esLib(u)) return;
-  const pagina = r.mode === "navigate" || (mismo && /\.html?$/.test(u.pathname));
+  const pagina = r.mode === "navigate" || (mismo && /\.html?$/.test(u.pathname)) || (mismo && /\.js$/.test(u.pathname)); // páginas y scripts propios: siempre la versión nueva si hay red
   if (pagina) {
     e.respondWith(fetch(r).then(res => {
       if (res.ok) { const cp = res.clone(); caches.open(CACHE).then(c => c.put(new Request(u.origin + u.pathname), cp)); }
