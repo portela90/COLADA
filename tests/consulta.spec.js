@@ -24,10 +24,15 @@ test('Almacén en solo consulta: sus pantallas propias, sin nada que guarde', as
   await pulsa(page, 'Por mes'); await expect(page.locator('#view')).toContainText('últimos 12 meses');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Pistones y ejes').click()); await page.waitForTimeout(300);
   await pulsa(page, 'Por motivo'); await expect(page.locator('#view')).toContainText('Por motivo (');
-  await pulsa(page, 'Ejes'); await expect(page.locator('#view')).toContainText('Reparaciones (');
+  await pulsa(page, 'Ejes'); await expect(page.locator('#view')).toContainText('Enviados al taller (');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Stock').click()); await page.waitForTimeout(300);
   await page.evaluate(() => [...document.querySelectorAll('.chip')].find(b => b.textContent.startsWith('Bajo mínimo')).click()); await page.waitForTimeout(300);
   await expect(page.locator('#view')).toContainText('Bajo mínimo');
+  // ficha de producto y «lo último que ha pasado»
+  await page.click('#view .lnk'); await expect(page.locator('.dlg-ancho')).toContainText('Dónde está');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent === 'Resumen').click()); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Lo último que ha pasado');
   expect(S.llamadas.filter(([f]) => f.startsWith('docs_items')).length).toBe(0);
   expect(S.llamadas.filter(([f]) => f === 'log_error').length).toBe(0);
   // el menú no lleva a Coladas ni al historial

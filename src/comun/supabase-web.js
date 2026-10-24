@@ -210,6 +210,7 @@ async function panelHist(){
 /* ---------- avisos al móvil (Web Push) ---------- */
 const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0));};
 async function subAvisos(){if(!("serviceWorker" in navigator)||!("PushManager" in window))return null;const r=await navigator.serviceWorker.register("sw.js");await navigator.serviceWorker.ready;return{r,s:await r.pushManager.getSubscription()};}
+window.panelAvisos=()=>panelAvisos();
 async function panelAvisos(){const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);document.body.appendChild(ov);
   const pinta=async(msg)=>{box.textContent="";box.appendChild(h("h3",{text:"Avisos al móvil"}));
     const ios=/iPhone|iPad|iPod/.test(navigator.userAgent),solo=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;

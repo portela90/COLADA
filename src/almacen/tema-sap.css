@@ -104,3 +104,6 @@ details.cgrp[open]>summary h2::before{transform:rotate(90deg)}
 details.cgrp:not([open])>summary{border-bottom:0}
 .cfil .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
 @media (max-width:699px){.solo-consulta #tabs button span{white-space:normal;line-height:1.1;text-align:center;overflow:visible}}
+.lnk{appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:var(--acc);text-align:left;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.dlg.dlg-ancho{max-width:860px;width:calc(100vw - 24px);max-height:88vh;overflow-y:auto}
+.dlg.dlg-ancho h4{font-size:14px}
