@@ -176,6 +176,7 @@ function cEjes(v,re){const vivos=ejes.filter(e=>e.estado!=="baja");const n=k=>vi
   const cortos=mods.filter(m=>+m.min>0&&plantaG(m)<=+m.min);
   v.appendChild(cKpis([["En planta",fmtN(n("planta"))],["Para enviar",fmtN(n("preparado"))],["En el taller",fmtN(n("reparacion")+n("devuelto"))],["Cuarentena",fmtN(P.length)]]));
   if(cortos.length)v.appendChild(el("div",{class:"banner",text:"Modelos con pocos ejes en planta: "+cortos.map(m=>(m.ref||m.cod)+" ("+plantaG(m)+" de mínimo "+m.min+")").join(" · ")+"."}));
+  v.appendChild(cardCostesEjes(re));
   /* por modelo: en planta frente al mínimo */
   v.appendChild(cCard("Ejes por modelo",mediaG!=null?"el taller tarda de media "+mediaG+" días":null,[cTabla(["Modelo","En planta","Mínimo","Fuera","Total","Estado"],
     mods.slice().sort((p,q)=>(cortos.includes(q)-cortos.includes(p))||String(p.cod).localeCompare(String(q.cod),"es",{numeric:true})).map(m=>{const cs=grupoEje(m).map(x=>x.cod);const es=vivos.filter(e=>cs.includes(e.mod));
@@ -314,3 +315,19 @@ function cardFeed(){const E=cFeed(),N=CQ.feedN||12;const ult=E.find(e=>e.w.hora)
   return cCard("Lo último que ha pasado",ult?"se actualiza solo · último apunte "+cuandoTxt(ult.w,ult.f):"se actualiza solo",[
     E.length?el("div",{class:"lst"},E.slice(0,N).map(it)):el("p",{class:"empty",text:"Todavía no hay nada apuntado."}),
     E.length>N?el("div",{class:"bd",style:"padding-top:0"},[el("button",{type:"button",class:"btn sec peq",text:"Ver más",onclick:()=>{CQ.feedN=N+20;render(true);}})]):null]);}
+
+/* gasto en el taller y ahorro por recuperar ejes en planta (lo mismo que en «Costes de reparación y ahorro» del Almacén) */
+function cardCostesEjes(re){const k=CQ.icP||"ano",D=datosIC(k);
+  const ks=Object.keys(D.porMod).sort((a,b)=>D.porMod[b].coste+D.porMod[b].ahorro-D.porMod[a].coste-D.porMod[a].ahorro),ms=Object.keys(D.porMes).sort();
+  const nomMod=c=>{const m=modelo(c);return m?m.ref+" ("+c+")":(c||"Sin modelo");};
+  return cCard("Gasto en reparaciones y ahorro",D.P.t,[el("div",{class:"bd",style:"display:grid;gap:10px"},[
+      el("div",{class:"seg",role:"group","aria-label":"Periodo"},[["mes","Este mes"],["mesant","Mes anterior"],["ano","Este año"],["12m","12 meses"]].map(([kk,t])=>
+        el("button",{type:"button","aria-pressed":String(k===kk),text:t,onclick:()=>{CQ.icP=kk;re();}}))),
+      cKpis([["Gasto en el taller",eur(D.coste)],["Reparados",fmtN(D.recib.length)],["Ahorro en planta",eur(D.ahorro)],["Recuperados en planta",fmtN(D.recu.length)],["En el taller ahora",D.taller.length+" · "+eur(D.costeTaller)]]),
+      D.sinPrecio.length?el("div",{class:"banner",text:"Sin precio de reparación: "+D.sinPrecio.join(", ")+". Esos ejes no suman en el gasto ni en el ahorro."}):null,
+      el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>excelIC(D,e.currentTarget)})])]),
+    ks.length?cTabla(["Modelo","Reparados","Gasto","Recuperados","Ahorro"],ks.map(c=>{const x=D.porMod[c];return[nomMod(c),fmtN(x.rep),eur(x.coste),fmtN(x.rec),eur(x.ahorro)];}),[1,2,3,4])
+      :el("p",{class:"empty",text:"No hay reparaciones recibidas ni ejes recuperados en "+D.P.t.toLowerCase()+"."}),
+    ms.length>1?el("div",{class:"gh",text:"Por mes"}):null,
+    ms.length>1?cTabla(["Mes","Reparados","Gasto","Recuperados","Ahorro"],ms.map(c=>{const x=D.porMes[c];return[cap(fmtMes(c)),fmtN(x.rep),eur(x.coste),fmtN(x.rec),eur(x.ahorro)];}),[1,2,3,4]):null,
+    el("p",{class:"hint",style:"padding:8px 14px;margin:0",text:"Gasto = importe del albarán del taller o, si no se puso, el precio de reparación del modelo. Ahorro = lo que costaría reparar cada eje con pistón agarrotado que se ha recuperado en planta sin mandarlo al taller."})]);}
