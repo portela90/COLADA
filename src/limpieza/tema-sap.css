@@ -61,3 +61,6 @@ header a{background:none!important;color:var(--acc)!important;border:1px solid v
 
 input[type=date],input[type=time],input[type=datetime-local],input[type=month]{-webkit-appearance:none;appearance:none;display:block;width:100%;max-width:100%;min-width:0;min-height:44px;text-align:left}
 input::-webkit-date-and-time-value{text-align:left}
+/* que ningún desplegable largo ensanche las ventanas en el móvil */
+.dlg{overflow-x:hidden}.dlg select,.dlg input,.dlg textarea{max-width:100%;min-width:0}
+.dlg label,.dlg .f,.dlg .row>*{min-width:0;max-width:100%}.dlg select{width:100%;text-overflow:ellipsis}
