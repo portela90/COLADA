@@ -97,41 +97,90 @@ async function pantallaMes(mes, tab){
 // ---- Envío a prevención (al cerrar el mes)
 function avisoPrevencion(s){
   const correo=S.cfg.correo_prl;
-  if(!correo) return `<div class="small muted" style="margin-top:10px">Para que al cerrar el mes se envíe solo al responsable de prevención, <a href="#" id="prevCfg">pon su correo en Ajustes</a>.</div>`;
+  const ol=`<button class="btn ghost" id="prevOl" style="width:100%;margin-top:4px">Enviar desde mi Outlook</button>`;
+  if(!correo) return `<div id="prevBox" style="margin-top:12px;padding-top:10px;border-top:1px solid #e6e9ef"><div class="small muted">Para que al cerrar el mes se envíe solo al responsable de prevención, <a href="#" id="prevCfg">pon su correo en Ajustes</a>.</div>${ol}</div>`;
   let t;
   if(s.prev_enviado_en) t=`<span class="chip ok">Enviado a prevención ${fmtFH(s.prev_enviado_en)}</span> <span class="small muted">${esc(s.prev_destino||correo)}</span>`;
   else if(s.prev_error) t=`<span class="chip warn">No se pudo enviar a prevención</span> <span class="small muted">${esc(s.prev_error)}</span>`;
   else t=`<span class="chip warn">Sin enviar a prevención</span>`;
-  return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e6e9ef"><div style="display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;min-width:0;overflow-wrap:anywhere">${t}</div>
-    <button class="btn ${s.prev_enviado_en?'ghost':'sec'}" id="prevEnv" style="width:100%;margin-top:8px">${s.prev_enviado_en?'Volver a enviar a prevención':'Enviar a prevención'}</button></div>`;
+  return `<div id="prevBox" style="margin-top:12px;padding-top:10px;border-top:1px solid #e6e9ef"><div style="display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;min-width:0;overflow-wrap:anywhere">${t}</div>
+    <button class="btn ${s.prev_enviado_en?'ghost':'sec'}" id="prevEnv" style="width:100%;margin-top:8px">${s.prev_enviado_en?'Volver a enviar (automático)':'Enviar automático a prevención'}</button>${ol}</div>`;
 }
 const aB64 = bytes => { const u=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); };
+// Hace los PDF del mes para prevención: el Toolbox y las formaciones en el puesto firmadas ese mes
+async function prepararPrevencion(){
+  if(!window.jspdf) throw new Error('No se ha podido cargar el generador de PDF. Revisa la conexión.');
+  const mes=S.mes, anio=S.anio, docs=[];
+  const { doc, nombre } = await construirPDF();
+  docs.push({nombre, bytes:new Uint8Array(doc.output('arraybuffer'))});
+  const L=(await rpc('prl_form_lista',{p_tok:S.tok,p_anio:anio})).filter(f=>+f.fecha.slice(5,7)===mes);
+  const firm=L.filter(f=>f.tiene_firma);
+  if(firm.length) docs.push({nombre:`F40R304 Formacion en el puesto ${MESES[mes-1]} ${anio}.pdf`, bytes:await bytesFormaciones(firm.map(f=>f.id))});
+  const s=sesionDe(), fz=new Set(S.data.firmas.map(f=>f.trabajador)), prev=s.previstos||[];
+  const resumen={toolbox:true, tema:S.data.toolbox.tema||S.data.toolbox.compromiso||'', previstos:prev.length, firmados:prev.filter(id=>fz.has(id)).length,
+    faltan:prev.filter(id=>!fz.has(id)).map(id=>(S.trab.find(t=>t.id===id)||{}).nombre).filter(Boolean),
+    formaciones:firm.length, formSinFirmar:L.length-firm.length};
+  return {mes, anio, docs, resumen};
+}
+// Asunto y texto del correo (el mismo que manda el envío automático)
+function correoPrevencion(P){
+  const r=P.resumen, c=S.cfg, mt=`${MESES[P.mes-1]} ${P.anio}`, L=[];
+  L.push('Hola'+(c.correo_prl_nombre?' '+c.correo_prl_nombre:'')+',','');
+  L.push(`Te adjunto la documentación de prevención de ${mt}${c.centro?' ('+c.centro+')':''}:`,'');
+  L.push(`- Toolbox del mes${r.tema?': '+r.tema:''}. Han firmado ${r.firmados} de ${r.previstos}.`+(r.faltan.length?` Faltan: ${r.faltan.join(', ')}.`:''));
+  if(r.formaciones) L.push(`- Formación práctica en el puesto de trabajo (F40R304): ${r.formaciones} firmada${r.formaciones>1?'s':''}.`+(r.formSinFirmar?` Hay ${r.formSinFirmar} sin firmar todavía, que no van en el PDF.`:''));
+  else L.push('- Formación práctica en el puesto de trabajo: este mes no hay ninguna firmada.'+(r.formSinFirmar?` Hay ${r.formSinFirmar} pendiente${r.formSinFirmar>1?'s':''} de firmar.`:''));
+  L.push('','Un saludo,',S.yo.nombre||'');
+  return {asunto:`Documentación PRL ${mt} · Toolbox y formación en el puesto`+(c.empresa?' · '+c.empresa:''), texto:L.join('\n')};
+}
 async function enviarPrevencion(btn){
-  const mes=S.mes, anio=S.anio;
+  const mes=S.mes;
   busy(btn,true); toast('Preparando los documentos para prevención…');
   try{
-    if(!window.jspdf) throw new Error('No se ha podido cargar el generador de PDF. Revisa la conexión.');
-    const archivos=[];
-    const { doc, nombre } = await construirPDF();
-    archivos.push({nombre, b64:doc.output('datauristring').split(',')[1]});
-    const L=(await rpc('prl_form_lista',{p_tok:S.tok,p_anio:anio})).filter(f=>+f.fecha.slice(5,7)===mes);
-    const firm=L.filter(f=>f.tiene_firma);
-    if(firm.length) archivos.push({nombre:`F40R304 Formacion en el puesto ${MESES[mes-1]} ${anio}.pdf`, b64:aB64(await bytesFormaciones(firm.map(f=>f.id)))});
-    const s=sesionDe(), fz=new Set(S.data.firmas.map(f=>f.trabajador));
-    const prev=s.previstos||[];
-    const resumen={toolbox:true, tema:S.data.toolbox.tema||S.data.toolbox.compromiso||'', previstos:prev.length, firmados:prev.filter(id=>fz.has(id)).length,
-      faltan:prev.filter(id=>!fz.has(id)).map(id=>(S.trab.find(t=>t.id===id)||{}).nombre).filter(Boolean),
-      formaciones:firm.length, formSinFirmar:L.length-firm.length};
+    const P=await prepararPrevencion();
+    const archivos=P.docs.map(d=>({nombre:d.nombre,b64:aB64(d.bytes)}));
     let r, j={};
     try{ r=await fetch(`${SB_URL}/functions/v1/envio-prevencion`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({tok:S.tok,anio,mes,archivos,resumen})}); }
-    catch(e){ throw new Error('Sin conexión. Se ha cerrado el mes, pero no se ha enviado. Pulsa «Enviar a prevención» cuando tengas cobertura.'); }
+      body:JSON.stringify({tok:S.tok,anio:P.anio,mes:P.mes,archivos,resumen:P.resumen})}); }
+    catch(e){ throw new Error('Sin conexión. Se ha cerrado el mes, pero no se ha enviado. Pulsa «Enviar automático a prevención» cuando tengas cobertura.'); }
     try{ j=await r.json(); }catch(e){}
     if(!r.ok||!j.ok){ const m=j.error||('Error '+r.status); throw new Error(m==='SIN_CORREO'?'Falta el correo del responsable de prevención en Ajustes.':ERR[m]||m); }
     toast(`Enviado a ${j.destino}`);
   }catch(e){ toast(e.message,true); }
   try{ if(S.mes===mes){ await cargarMes(mes); pintarMes(); } }catch(e){}
   busy(btn,false);
+}
+// Enviar yo mismo desde mi correo (Outlook): la app prepara todo y yo le doy a «Enviar»
+const esMovil = () => /Android|iPhone|iPad/i.test(navigator.userAgent);
+async function enviarOutlook(btn){
+  busy(btn,true);
+  let P;
+  try{ P=await prepararPrevencion(); }catch(e){ busy(btn,false); toast(e.message,true); return; }
+  busy(btn,false);
+  const C=correoPrevencion(P), dest=S.cfg.correo_prl||'';
+  const files=P.docs.map(d=>new File([d.bytes],d.nombre,{type:'application/pdf'}));
+  const compartir = esMovil() && navigator.canShare && navigator.canShare({files});
+  const box=$('#prevBox'); if(!box) return;
+  box.innerHTML=`<div style="margin-top:12px;padding:12px;border-radius:12px;background:#f3f6fb">
+    <b>Enviar desde mi Outlook</b>
+    <ol class="small" style="margin:8px 0 10px;padding-left:20px;line-height:1.5">${compartir
+      ? `<li>Pulsa <b>Abrir Outlook</b> y elige <b>Outlook</b>.</li><li>Los ${files.length} PDF y el texto ya van puestos. Pon el destinatario${dest?` (<b>${esc(dest)}</b>)`:''}.</li><li>Dale a <b>Enviar</b> y vuelve aquí.</li>`
+      : `<li>Pulsa <b>Abrir Outlook</b>: se descargan los ${files.length} PDF y se abre un correo nuevo con ${dest?'el destinatario, ':''}el asunto y el texto puestos.</li><li>Arrastra los PDF descargados al correo.</li><li>Dale a <b>Enviar</b> y vuelve aquí.</li>`}</ol>
+    <button class="btn" id="olAbrir" style="width:100%">Abrir Outlook</button>
+    <button class="btn sec" id="olHecho" style="width:100%;margin-top:8px">Ya lo he enviado</button>
+    <button class="btn ghost" id="olCancel" style="width:100%;margin-top:4px">Cancelar</button></div>`;
+  $('#olAbrir').onclick=async()=>{
+    if(compartir){
+      try{ await navigator.share({files, title:C.asunto, text:C.texto}); }catch(e){ if(e.name!=='AbortError') toast(e.message,true); }
+      return;
+    }
+    files.forEach((f,i)=>setTimeout(()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},4000); }, i*400));
+    setTimeout(()=>{ location.href=`mailto:${dest.split(/\s*[,;]\s*/).map(encodeURIComponent).join(',')}?subject=${encodeURIComponent(C.asunto)}&body=${encodeURIComponent(C.texto)}`; }, files.length*400+200);
+  };
+  $('#olHecho').onclick=async e=>{ const b=e.currentTarget; busy(b,true);
+    try{ await rpc('prl_envio_manual',{p_tok:S.tok,p_anio:P.anio,p_mes:P.mes,p_destino:dest?dest+' (desde mi correo)':'desde mi correo'}); toast('Apuntado como enviado');
+      if(S.mes===P.mes){ await cargarMes(P.mes); pintarMes(); } }catch(err){ busy(b,false); toast(err.message,true); } };
+  $('#olCancel').onclick=()=>pintarMes();
 }
 function sesionDe(){ return S.data.sesion || {estado:'abierta', previstos:S.trab.filter(t=>t.rol==='operario').map(t=>t.id), enviada_en:null}; }
 function pintarMes(){
@@ -171,6 +220,7 @@ function pintarMes(){
     pintarMes(); await enviarPrevencion($('#prevEnv'));
   };
   if($('#prevEnv')) $('#prevEnv').onclick=e=>enviarPrevencion(e.currentTarget);
+  if($('#prevOl')) $('#prevOl').onclick=e=>enviarOutlook(e.currentTarget);
   if($('#prevCfg')) $('#prevCfg').onclick=e=>{ e.preventDefault(); pantallaAjustes(); };
   if($('#reabrir')) $('#reabrir').onclick=async e=>{
     const b=e.currentTarget; busy(b,true);

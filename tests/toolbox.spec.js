@@ -31,6 +31,7 @@ async function montar(page, cfg) {
         case 'prl_cerrar': st.ses = Object.assign({}, st.ses, { estado: a.p_cerrar ? 'cerrada' : 'abierta', cerrada_en: a.p_cerrar ? '2026-10-25T09:00:00Z' : null }); d = st.ses; break;
         case 'prl_form_lista': d = [{ id: 'fo1', nombre: 'Pepe', fecha: '2026-10-05', tiene_firma: true, items: [1] }, { id: 'fo2', nombre: 'Luisa', fecha: '2026-10-06', tiene_firma: false, items: [1] },
           { id: 'fo3', nombre: 'Ana', fecha: '2026-09-06', tiene_firma: true, items: [1] }]; break;
+        case 'prl_envio_manual': st.manual = a; st.ses = Object.assign({}, st.ses, { prev_enviado_en: '2026-10-25T09:30:00Z', prev_destino: a.p_destino }); d = st.ses; break;
         case 'prl_form_firmas': d = [{ id: 'fo1', nombre: 'Pepe', fecha: '2026-10-05', items: [1], firma: FIRMA, firmado_en: '2026-10-05T09:00:00Z', impartida: 'Jefe', duracion: '60' }]; break;
       }
       return r.fulfill({ json: d });
@@ -74,7 +75,7 @@ test('Toolbox: al cerrar el mes se envían los PDF del mes a prevención', async
   for (const a of e.archivos) expect(a.b64.startsWith('JVBER')).toBe(true);
   expect(e.resumen).toMatchObject({ firmados: 1, previstos: 2, faltan: ['Luisa'], formaciones: 1, formSinFirmar: 1 });
   await expect(page.getByText('Enviado a prevención')).toBeVisible();
-  await expect(page.locator('#prevEnv')).toHaveText('Volver a enviar a prevención');
+  await expect(page.locator('#prevEnv')).toHaveText('Volver a enviar (automático)');
   expect(st.errores).toEqual([]);
 });
 
@@ -85,6 +86,25 @@ test('Toolbox: sin correo de prevención, cerrar el mes no envía nada y avisa',
   await page.click('#cerrar');
   await expect(page.locator('.toast')).toContainText('pon su correo en Ajustes');
   await expect(page.locator('#prevCfg')).toBeVisible();
+  expect(st.envios.length).toBe(0);
+  expect(st.errores).toEqual([]);
+});
+
+test('Toolbox: enviar yo desde mi Outlook (ordenador): descarga los PDF, abre el correo y se apunta como enviado', async ({ page }) => {
+  const st = await montar(page, { centro: 'CIE', formador: 'Jefe', duracion: '15', firma_formador: FIRMA, correo_prl: 'prevencion@ejemplo.com', correo_prl_nombre: 'Ana' });
+  // mes ya cerrado (sin envío automático): se envía a mano desde Outlook
+  st.ses.estado = 'cerrada'; st.ses.cerrada_en = '2026-10-25T09:00:00Z';
+  await page.evaluate(() => pantallaMes(10));
+  await page.click('#prevOl');
+  await expect(page.locator('#olAbrir')).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('#prevBox')).toContainText('Arrastra los PDF');
+  const descargas = [];
+  page.on('download', d => descargas.push(d.suggestedFilename()));
+  await page.click('#olAbrir');
+  await expect.poll(() => descargas.length, { timeout: 10000 }).toBe(2);
+  await page.click('#olHecho');
+  await expect.poll(() => st.manual && st.manual.p_destino).toBe('prevencion@ejemplo.com (desde mi correo)');
+  await expect(page.getByText('Enviado a prevención')).toBeVisible();
   expect(st.envios.length).toBe(0);
   expect(st.errores).toEqual([]);
 });
