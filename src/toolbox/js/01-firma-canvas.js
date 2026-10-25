@@ -94,6 +94,45 @@ async function pantallaMes(mes, tab){
   $('#pdf').onclick=e=>descargarPDF(e.currentTarget);
   pintarMes();
 }
+// ---- Envío a prevención (al cerrar el mes)
+function avisoPrevencion(s){
+  const correo=S.cfg.correo_prl;
+  if(!correo) return `<div class="small muted" style="margin-top:10px">Para que al cerrar el mes se envíe solo al responsable de prevención, <a href="#" id="prevCfg">pon su correo en Ajustes</a>.</div>`;
+  let t;
+  if(s.prev_enviado_en) t=`<span class="chip ok">Enviado a prevención ${fmtFH(s.prev_enviado_en)}</span> <span class="small muted">${esc(s.prev_destino||correo)}</span>`;
+  else if(s.prev_error) t=`<span class="chip warn">No se pudo enviar a prevención</span> <span class="small muted">${esc(s.prev_error)}</span>`;
+  else t=`<span class="chip warn">Sin enviar a prevención</span>`;
+  return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e6e9ef"><div style="display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;min-width:0;overflow-wrap:anywhere">${t}</div>
+    <button class="btn ${s.prev_enviado_en?'ghost':'sec'}" id="prevEnv" style="width:100%;margin-top:8px">${s.prev_enviado_en?'Volver a enviar a prevención':'Enviar a prevención'}</button></div>`;
+}
+const aB64 = bytes => { const u=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); };
+async function enviarPrevencion(btn){
+  const mes=S.mes, anio=S.anio;
+  busy(btn,true); toast('Preparando los documentos para prevención…');
+  try{
+    if(!window.jspdf) throw new Error('No se ha podido cargar el generador de PDF. Revisa la conexión.');
+    const archivos=[];
+    const { doc, nombre } = await construirPDF();
+    archivos.push({nombre, b64:doc.output('datauristring').split(',')[1]});
+    const L=(await rpc('prl_form_lista',{p_tok:S.tok,p_anio:anio})).filter(f=>+f.fecha.slice(5,7)===mes);
+    const firm=L.filter(f=>f.tiene_firma);
+    if(firm.length) archivos.push({nombre:`F40R304 Formacion en el puesto ${MESES[mes-1]} ${anio}.pdf`, b64:aB64(await bytesFormaciones(firm.map(f=>f.id)))});
+    const s=sesionDe(), fz=new Set(S.data.firmas.map(f=>f.trabajador));
+    const prev=s.previstos||[];
+    const resumen={toolbox:true, tema:S.data.toolbox.tema||S.data.toolbox.compromiso||'', previstos:prev.length, firmados:prev.filter(id=>fz.has(id)).length,
+      faltan:prev.filter(id=>!fz.has(id)).map(id=>(S.trab.find(t=>t.id===id)||{}).nombre).filter(Boolean),
+      formaciones:firm.length, formSinFirmar:L.length-firm.length};
+    let r, j={};
+    try{ r=await fetch(`${SB_URL}/functions/v1/envio-prevencion`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({tok:S.tok,anio,mes,archivos,resumen})}); }
+    catch(e){ throw new Error('Sin conexión. Se ha cerrado el mes, pero no se ha enviado. Pulsa «Enviar a prevención» cuando tengas cobertura.'); }
+    try{ j=await r.json(); }catch(e){}
+    if(!r.ok||!j.ok){ const m=j.error||('Error '+r.status); throw new Error(m==='SIN_CORREO'?'Falta el correo del responsable de prevención en Ajustes.':ERR[m]||m); }
+    toast(`Enviado a ${j.destino}`);
+  }catch(e){ toast(e.message,true); }
+  try{ if(S.mes===mes){ await cargarMes(mes); pintarMes(); } }catch(e){}
+  busy(btn,false);
+}
 function sesionDe(){ return S.data.sesion || {estado:'abierta', previstos:S.trab.filter(t=>t.rol==='operario').map(t=>t.id), enviada_en:null}; }
 function pintarMes(){
   const d=S.data, s=sesionDe(), cerrada=s.estado==='cerrada';
@@ -109,6 +148,7 @@ function pintarMes(){
     <div class="bar" style="margin:8px 0 12px"><b style="width:${nPrev?Math.round(nOk/nPrev*100):0}%"></b></div>
     <div class="row">${cerrada?`<button class="btn sec grow" id="reabrir">Reabrir mes</button>`:
       `<button class="btn grow" id="enviar">${s.enviada_en?'Recordar a los que faltan':'Enviar a los trabajadores'}</button><button class="btn sec" id="cerrar">Cerrar mes</button>`}</div>
+    ${cerrada?avisoPrevencion(s):''}
     ${!S.cfg.firma_formador?`<div class="small" style="margin-top:10px;color:var(--warn)"> Falta tu firma de formador. <a href="#" id="gofirma">Añádela en Ajustes</a>.</div>`:''}
   </div>
   <div class="tabs"><button data-t="firmas" class="${S.tab==='firmas'?'on':''}">Firmas</button><button data-t="datos" class="${S.tab==='datos'?'on':''}">Datos</button><button data-t="contenido" class="${S.tab==='contenido'?'on':''}">Contenido</button></div><div id="tab"></div>`;
@@ -121,12 +161,17 @@ function pintarMes(){
     catch(err){ busy(b,false); toast(err.message,true); }
   };
   if($('#cerrar')) $('#cerrar').onclick=async e=>{
-    const falt=nPrev-nOk;
-    if(falt>0 && !confirm(`Faltan ${falt} por firmar. ¿Cerrar el mes igualmente?`)) return;
+    const falt=nPrev-nOk, correo=S.cfg.correo_prl;
+    const txt=(falt>0?`Faltan ${falt} por firmar.\n\n`:'')+(correo?`Al cerrar el mes se enviarán el Toolbox y las formaciones en el puesto de ${MESES[S.mes-1]} a ${correo}.\n\n¿Cerrar el mes y enviarlo?`:'¿Cerrar el mes?');
+    if((falt>0||correo) && !confirm(txt)) return;
     const b=e.currentTarget; busy(b,true);
-    try{ await rpc('prl_cerrar',{p_tok:S.tok,p_anio:S.anio,p_mes:S.mes,p_cerrar:true}); toast('Mes cerrado'); await cargarMes(S.mes); pintarMes(); }
-    catch(err){ busy(b,false); toast(err.message,true); }
+    try{ await rpc('prl_cerrar',{p_tok:S.tok,p_anio:S.anio,p_mes:S.mes,p_cerrar:true}); await cargarMes(S.mes); }
+    catch(err){ busy(b,false); toast(err.message,true); return; }
+    if(!correo){ pintarMes(); toast('Mes cerrado. Para que se envíe solo a prevención, pon su correo en Ajustes.'); return; }
+    pintarMes(); await enviarPrevencion($('#prevEnv'));
   };
+  if($('#prevEnv')) $('#prevEnv').onclick=e=>enviarPrevencion(e.currentTarget);
+  if($('#prevCfg')) $('#prevCfg').onclick=e=>{ e.preventDefault(); pantallaAjustes(); };
   if($('#reabrir')) $('#reabrir').onclick=async e=>{
     const b=e.currentTarget; busy(b,true);
     try{ await rpc('prl_cerrar',{p_tok:S.tok,p_anio:S.anio,p_mes:S.mes,p_cerrar:false}); await cargarMes(S.mes); pintarMes(); }

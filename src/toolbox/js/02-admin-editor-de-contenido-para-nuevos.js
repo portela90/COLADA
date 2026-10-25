@@ -61,6 +61,11 @@ async function pantallaAjustes(){
     <div class="card"><b>Firma y sello de la empresa</b><div class="small muted">Para las entregas de EPI y de información. Sube una foto o imagen del sello.</div>
     <div style="margin:12px 0;min-height:70px;display:flex;align-items:center;justify-content:center;background:#f6f7fa;border-radius:12px">${c.sello?`<img src="${c.sello}" style="max-height:90px">`:'<span class="muted small">Sin sello</span>'}</div>
     <div class="row"><label class="btn sec grow" style="cursor:pointer">Subir imagen<input type="file" accept="image/*" id="c_sello" hidden></label>${c.sello?'<button class="btn ghost" id="c_sdel">Quitar</button>':''}</div></div>
+    <div class="card"><b>Responsable de prevención</b><div class="small muted">Al pulsar «Cerrar mes» se le envían solos por correo el PDF del Toolbox y el de las formaciones en el puesto de ese mes. Te llega una copia a ti.</div>
+    <label class="f">Nombre</label><input class="inp" id="c_pnom" value="${esc(c.correo_prl_nombre||'')}" placeholder="Por ejemplo: Ana">
+    <label class="f">Correo</label><input class="inp" type="email" inputmode="email" autocomplete="email" id="c_pcor" value="${esc(c.correo_prl||'')}" placeholder="prevencion@empresa.com">
+    <div class="small muted" style="margin-top:4px">Si son varios, sepáralos con una coma (máximo 3).</div>
+    <button class="btn sec" id="c_save3" style="margin-top:12px;width:100%">Guardar</button></div>
     <div class="card small muted">Sesión: ${esc(S.yo.nombre)} (la misma que en la app de limpieza)</div>`;
   $('#c_save').onclick=async e=>{
     const b=e.currentTarget; busy(b,true);
@@ -70,6 +75,8 @@ async function pantallaAjustes(){
   $('#c_sig').onclick=()=>hojaFirma('Tu firma de formador','',async png=>{ S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{firma_formador:png}}); toast('Firma guardada'); pantallaAjustes(); });
   $('#c_rsig').onclick=()=>hojaFirma('Firma del responsable de centro','',async png=>{ S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{firma_resp:png}}); toast('Firma guardada'); pantallaAjustes(); });
   if($('#c_rdel')) $('#c_rdel').onclick=async()=>{ try{ S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{firma_resp:''}}); pantallaAjustes(); }catch(e){ toast(e.message,true); } };
+  $('#c_save3').onclick=async e=>{ const b=e.currentTarget; busy(b,true);
+    try{ S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{correo_prl:$('#c_pcor').value.trim(),correo_prl_nombre:$('#c_pnom').value.trim()}}); toast(S.cfg.correo_prl?'Guardado. Se enviará al cerrar cada mes.':'Guardado'); }catch(err){ toast(err.message,true); } busy(b,false); };
   $('#c_save2').onclick=async e=>{ const b=e.currentTarget; busy(b,true); try{ S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{empresa:$('#c_emp').value.trim(),lugar:$('#c_lug').value.trim()}}); toast('Guardado'); }catch(err){ toast(err.message,true); } busy(b,false); };
   $('#c_dni').onclick=pantallaTrabajadoresDNI;
   $('#c_sello').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const png=await selloDeFoto(f); S.cfg=await rpc('prl_config_guardar',{p_tok:S.tok,p:{sello:png}}); toast('Sello guardado'); pantallaAjustes(); }catch(err){ toast(err.message,true); } };

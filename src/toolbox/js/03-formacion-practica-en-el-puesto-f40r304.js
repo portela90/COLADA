@@ -244,22 +244,26 @@ async function rellenarF40(PDFLib, plantillaBytes, f, cfg){
   if(f.eval_eficaz===false){ X(335,349,745.5,758.5); if(f.nueva_fecha) txt(fmtF(f.nueva_fecha),484,755.5,8.5,bold); }
   return doc;
 }
+// Las formaciones elegidas en un solo PDF (bytes). Lo usan la descarga y el envío a prevención.
+async function bytesFormaciones(ids){
+  const [PDFLib, plantilla, lista, cfg] = await Promise.all([
+    cargarPdfLib(),
+    fetch(PLANTILLA_F40).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla del F40R304'); return r.arrayBuffer(); }),
+    rpc('prl_form_firmas',{p_tok:S.tok,p_ids:ids}),
+    rpc('prl_config_leer',{p_tok:S.tok})
+  ]);
+  const salida = await PDFLib.PDFDocument.create();
+  for(const f of lista){
+    const d = await rellenarF40(PDFLib, plantilla, f, cfg);
+    const pags = await salida.copyPages(d, d.getPageIndices());
+    pags.forEach(p=>salida.addPage(p));
+  }
+  return salida.save();
+}
 async function pdfFormaciones(ids, nombre, btn){
   busy(btn,true);
   try{
-    const [PDFLib, plantilla, lista, cfg] = await Promise.all([
-      cargarPdfLib(),
-      fetch(PLANTILLA_F40).then(r=>{ if(!r.ok) throw new Error('No se encuentra la plantilla del F40R304'); return r.arrayBuffer(); }),
-      rpc('prl_form_firmas',{p_tok:S.tok,p_ids:ids}),
-      rpc('prl_config_leer',{p_tok:S.tok})
-    ]);
-    const salida = await PDFLib.PDFDocument.create();
-    for(const f of lista){
-      const d = await rellenarF40(PDFLib, plantilla, f, cfg);
-      const pags = await salida.copyPages(d, d.getPageIndices());
-      pags.forEach(p=>salida.addPage(p));
-    }
-    const bytes = await salida.save();
+    const bytes = await bytesFormaciones(ids);
     const blob = new Blob([bytes],{type:'application/pdf'});
     const file = new File([blob], nombre, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]}) && /Android|iPhone|iPad/i.test(navigator.userAgent)){

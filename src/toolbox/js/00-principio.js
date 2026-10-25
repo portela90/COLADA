@@ -12,7 +12,7 @@ const ERR = {
   FIRMA_INVALIDA:'La firma no es válida. Vuelve a firmar.', SIN_TOOLBOX:'Ese mes no tiene Toolbox.',
   PIN_MAL:'PIN incorrecto.', FALTA_ALTA:'Todavía no tienes PIN. Entra primero en la app de Limpieza con el código de alta que te da el jefe.', PIDE_CODIGO:'Entra primero en la app de Limpieza con tu código de alta.', CODIGO_MAL:'Código de alta incorrecto.', BLOQUEADO:'Demasiados intentos. Espera 10 minutos.', PIN_FORMATO:'El PIN debe tener de 4 a 8 números.',
   NO_EXISTE:'No existe o ya no está disponible.', FALTA_COMPROMISO:'Falta el compromiso del mes.',
-  FALTA_FECHA:'Falta la fecha de la formación.', FALTA_TRABAJADOR:'Elige al menos un trabajador.', FALTA_TIPO:'Elige el tipo de curso.', ARCHIVO_TIPO:'Solo se pueden adjuntar fotos (JPG/PNG) o PDF.', ARCHIVO_GRANDE:'El archivo es demasiado grande.'
+  CORREO_MAL:'El correo no es válido. Revísalo (si son varios, sepáralos con una coma).', FALTA_FECHA:'Falta la fecha de la formación.', FALTA_TRABAJADOR:'Elige al menos un trabajador.', FALTA_TIPO:'Elige el tipo de curso.', ARCHIVO_TIPO:'Solo se pueden adjuntar fotos (JPG/PNG) o PDF.', ARCHIVO_GRANDE:'El archivo es demasiado grande.'
 };
 
 // ====== Estado ======
