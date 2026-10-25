@@ -100,12 +100,15 @@ async function vExcel(v){
   const inpF=el("input",{type:"file",accept:".xlsx,.xls,.csv,.ods",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f)leerExcel(f,v);e.target.value="";}});
   v.appendChild(el("label",{class:"btn grande",style:"text-align:center;cursor:pointer"},["Subir el Excel del fin de semana",inpF]));
   v.appendChild(el("div",{id:"exbox"}));}
-async function leerExcel(file,v){const box=$("exbox");box.textContent="";box.appendChild(el("div",{class:"empty",text:"Leyendo «"+file.name+"»…"}));
+/* la zona del Excel: si la pantalla se ha vuelto a pintar (al volver del selector de archivos del móvil), se espera a que esté */
+async function cajaExcel(){for(let i=0;i<40;i++){const b=$("exbox");if(b)return b;await new Promise(r=>setTimeout(r,100));}
+  if(S.tab!=="excel"){S.tab="excel";await pinta();}return $("exbox");}
+async function leerExcel(file,v){const box=await cajaExcel();if(!box){toast("Vuelve a la pestaña Excel y sube el archivo otra vez");return;}box.textContent="";box.appendChild(el("div",{class:"empty",text:"Leyendo «"+file.name+"»…"}));
   try{await cargaJS("https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","XLSX");
     const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
     if(!EX.trab)EX.trab=await rpc("trabajadores_gestor",{p_tok:S.tok});
     EX.wb=wb;EX.hoja=wb.SheetNames.find(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,blankrows:false}).length>1)||wb.SheetNames[0];EX.nombre=file.name;EX.cab=null;EX.map=null;EX.sab=null;EX.sabFijo=false;EX.sabDelExcel=false;
-    pintaExcel();}catch(e){box.textContent="";box.appendChild(el("div",{class:"empty",text:"No he podido leer el archivo: "+e.message}));}}
+    pintaExcel();}catch(e){const b=$("exbox")||box;b.textContent="";b.appendChild(el("div",{class:"empty",text:"No he podido leer el archivo: "+e.message}));}}
 function sabadoObj(){const h=hoyISO(),d=dow(h);return d===6?h:d===0?sumaD(h,6):sumaD(h,6-d);}
 function aFecha(x,sab){if(x instanceof Date&&!isNaN(x)){const d=new Date(x.getTime()-x.getTimezoneOffset()*60000);return d.toISOString().slice(0,10);}
   const t=norm(x);if(!t)return null;
@@ -116,7 +119,7 @@ function quienes(x){const t=norm(x);if(!t)return{ids:[],mal:[]};const ids=[],mal
     const W=EX.trab.filter(w=>w.rol!=="admin");const nn=w=>norm(w.nombre);
     const w=W.find(w=>nn(w)===tok)||W.find(w=>nn(w).split(" ")[0]===tok)||W.find(w=>nn(w).split(" ").some(p=>p.length>3&&p===tok))||W.find(w=>nn(w).startsWith(tok))||W.find(w=>tok.length>3&&tok.includes(nn(w).split(" ")[0]));
     if(w){if(!ids.includes(w.id))ids.push(w.id);}else mal.push(tok);});return{ids,mal};}
-function pintaExcel(){const box=$("exbox");box.textContent="";const ws=EX.wb.Sheets[EX.hoja];
+function pintaExcel(){const box=$("exbox");if(!box)return;box.textContent="";const ws=EX.wb.Sheets[EX.hoja];
   const filas=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:""});
   if(!filas.length){box.appendChild(el("div",{class:"empty",text:"Esa hoja está vacía."}));return;}
   /* fila de cabecera: la primera (de las 15 primeras) con más textos que coinciden con los nombres de columna */

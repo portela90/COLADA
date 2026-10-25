@@ -188,5 +188,5 @@ async function vAjustes(v){
   catch(e){card2.lastChild.textContent=e.message;}}
 
 pinta();
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!document.querySelector(".ov")&&S.tab!=="check"&&S.tab!=="ajustes")pinta();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!document.querySelector(".ov")&&S.tab!=="check"&&S.tab!=="ajustes"&&S.tab!=="excel")pinta();});
 })();
