@@ -25,4 +25,7 @@ R.horno_gasto_el={abierto:false,ver_precios:true,recambios:{cambio_cono:[{art:'h
  ultimos:[{ot_id:'x',cuando:'2026-10-21T08:00:00Z',accion:'cambio_cono',quien:'Abdoul kader Maiga',piezas:[{nombre:'Cono con pestaña Krown CCP-040',cant:1,envio:'enviado'},{nombre:'Junta cono Krown JPC-375',cant:2,envio:'fallo',info:'sin respuesta del Almacén'}],importe:85,mal:1}]};
 R.horno_gasto_all={ver_precios:true,mal:1,hornos:[{id:'e29',codigo:'H-F29',nombre:'Horno mantenedor F29',modelo:'Krown',cambios:2,conos:1,tolvas:1,dosificadores:0,piezas:5,total:85,sin_precio:2}]};
 
+R.problemas_lista=[{id:'p1',tema:'Aceite',lugar:'F19',estado:'pendiente',primera:'2026-10-20',ultima:'2026-10-21',reabierto:0,veces:3,veces7:2,historial:[{f:'2026-10-21T08:00:00Z',estado:'pendiente',nota:'2 veces en 7 días'}],
+  ots:[{id:'x1',fecha:'2026-10-21',titulo:'Derrame de aceite',descripcion:'Lubrificador F19, fuga de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Ahmed El Hait'},{id:'x2',fecha:'2026-10-20',titulo:'Derrame de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Josefa Ruiz'}]}];
+R.problema_estado={};
 module.exports={R,W,H29,H10,hoy};

@@ -60,6 +60,42 @@ let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
     const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
+/* Problemas que se repiten (aceite, taladrina, agua, roturas en el mismo sitio): recuadro rojo arriba para el jefe y el encargado, hasta que se solucionen */
+try{const c=new URLSearchParams(location.search).get("prob");if(c){S.probPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
+const EST_P={pendiente:["Pendiente de actuar","bad"],en_marcha:["En marcha","warn"],solucionado:["Solucionado","ok"]};
+function fichaProblema(p,re){const nota={v:""};
+  const ult=(p.historial||[]).filter(h=>h.nota).slice(-1)[0];
+  const cuerpo=el("div",null,[
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"},[el("span",{class:"pill "+EST_P[p.estado][1],text:p.reabierto&&p.estado==="pendiente"?"Ha vuelto a pasar":EST_P[p.estado][0]}),
+      el("span",{class:"hint",style:"margin:0",text:p.veces+" veces"+(p.veces7!==p.veces?" ("+p.veces7+" en los últimos 7 días)":"")+" · desde el "+fCorta(p.primera)})]),
+    el("b",{style:"display:block;margin:10px 0 4px",text:"Avisos de los trabajadores"}),
+    el("div",{style:"max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:8px"},(p.ots||[]).map(o=>el("div",{class:"ot",style:"padding:8px 10px"},[
+      el("div",{class:"t",text:fCorta(o.fecha)+" · "+o.titulo}),o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
+      el("div",{class:"meta"},[el("span",{text:o.lugar||""}),o.creado_por_n?el("span",{text:"Avisó "+o.creado_por_n.split(" ")[0]}):null,el("span",{text:({hecha:"Limpiado",pendiente:"Sin limpiar",en_curso:"Limpiando",no_hecha:"No se pudo"})[o.estado]||o.estado})])]))),
+    (p.historial||[]).length?el("b",{style:"display:block;margin:12px 0 4px",text:"Seguimiento"}):null,
+    el("div",null,(p.historial||[]).slice().reverse().map(h=>el("div",{class:"hint",style:"margin:0 0 4px"},[el("b",{text:fCorta(String(h.f).slice(0,10))+" · "+(EST_P[h.estado]||[h.estado])[0]+(h.quien?" ("+h.quien.split(" ")[0]+")":"")+": "}),h.nota||""]))),
+    fld(p.estado==="en_marcha"?"¿Qué se ha hecho? (para marcarlo como solucionado)":"¿Qué se va a hacer o qué se ha hecho?",area("",v=>nota.v=v)),
+    el("p",{class:"hint",style:"margin:4px 0 0",text:"Por ejemplo: «Avisado a mantenimiento para cambiar la manguera de la F19» o «Cambiado el retén, ya no pierde»."})]);
+  const guarda=est=>async()=>{if(!nota.v.trim()){toast("Escribe qué se ha hecho o qué se va a hacer");return false;}
+    await rpc("problema_estado",{p_tok:S.tok,p_id:p.id,p_estado:est,p_nota:nota.v.trim()});toast(est==="solucionado"?"Marcado como solucionado":"Marcado en marcha");re&&re();};
+  const bots=[{t:"Cerrar",cls:"sec"}];
+  if(p.estado!=="en_marcha"&&p.estado!=="solucionado")bots.push({t:"En marcha",cls:"sec",fn:guarda("en_marcha")});
+  if(p.estado!=="solucionado")bots.push({t:"Solucionado",fn:guarda("solucionado")});
+  dlg("⚠ "+p.tema+" en "+p.lugar,cuerpo,bots);}
+let _prN=0;const _pintaPr=pinta;pinta=function(){_pintaPr();const n=++_prN;
+  if(!S.tok||!S.yo||!esGes()||(S.tab!=="hoy"&&!S.probPend))return;
+  rpc("problemas_lista",{p_tok:S.tok}).then(L=>{if(n!==_prN||!Array.isArray(L))return;
+    if(S.probPend){const c=S.probPend;S.probPend=null;const x=L.find(y=>y.id===c);if(x)setTimeout(()=>fichaProblema(x,()=>pinta()),300);}
+    if(!L.length||S.tab!=="hoy")return;
+    const caja=el("div",{class:"card prob-rep",style:"border:2px solid var(--bad);margin:0 0 12px;overflow:hidden"},[
+      el("div",{style:"background:var(--bad);color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center"},[el("span",{style:"font-size:22px;line-height:1",text:"⚠"}),
+        el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:16px",text:"Problemas que se repiten ("+L.length+")"}),el("span",{style:"font-size:13px;opacity:.95",text:"Hay que actuar: toca cada uno para ver los avisos y apuntar qué se hace."})])]),
+      ...L.map(p=>el("button",{class:"ot",style:"cursor:pointer;text-align:left;width:100%;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 14px",onclick:()=>fichaProblema(p,()=>pinta())},[
+        el("div",{style:"display:flex;gap:8px;align-items:center"},[el("span",{class:"t",style:"flex:1;font-size:16px",text:p.tema+" en "+p.lugar}),
+          el("span",{class:"pill "+EST_P[p.estado][1],text:p.reabierto&&p.estado==="pendiente"?"Ha vuelto a pasar":EST_P[p.estado][0]})]),
+        el("div",{class:"meta"},[el("span",{text:p.veces7+" veces en 7 días"+(p.veces>p.veces7?" ("+p.veces+" en total)":"")}),el("span",{text:"Última: "+fCorta(p.ultima)}),
+          p.estado==="en_marcha"?el("span",{text:((p.historial||[]).filter(h=>h.estado==="en_marcha").slice(-1)[0]||{}).nota||""}):null])]))]);
+    const v=$("v");if(v)v.prepend(caja);}).catch(()=>{});};
 const _pinta0=pinta;pinta=function(){_pinta0();if(S.petPend&&S.tok&&S.yo){const c=S.petPend;S.petPend=null;if(esAdm())rpc("extra_ver",{p_tok:S.tok,p_id:c}).then(p=>{if(p.estado==="pendiente")setTimeout(()=>dlg("Pide quedarse",el("div",null,filaPet(p,()=>pinta())),[{t:"Cerrar",cls:"sec"}]),300);}).catch(()=>{});}if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
 if(S.tok&&S.yo)rpc("yo",{p_tok:S.tok}).then(y=>{if(!y||!y.id)return;const antes=!!S.yo.encargado;S.yo=Object.assign({},S.yo,{encargado:!!y.encargado});ls.set("limp.yo",JSON.stringify(S.yo));if(antes!==!!y.encargado)pinta();}).catch(()=>{});

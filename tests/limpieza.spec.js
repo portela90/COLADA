@@ -117,3 +117,31 @@ test('gasto de hornos con gráfico', async ({ page }) => {
   expect(err).toEqual([]);
 });
 
+
+test('problemas que se repiten: recuadro rojo arriba para el jefe y seguimiento', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN);
+  const caja = page.locator('.prob-rep');
+  await expect(caja).toContainText('Problemas que se repiten (1)');
+  await expect(caja).toContainText('Aceite en F19');
+  await expect(caja).toContainText('2 veces en 7 días');
+  await caja.getByText('Aceite en F19').click();
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('Lubrificador F19');
+  await expect(d).toContainText('Avisó Ahmed');
+  await d.getByRole('button', { name: 'En marcha' }).click();
+  await expect(page.locator('.dlg')).toHaveCount(1);
+  expect(llamadas.some(([f]) => f === 'problema_estado')).toBe(false);
+  await d.locator('textarea').fill('Avisado a mantenimiento para cambiar el retén');
+  await d.getByRole('button', { name: 'En marcha' }).click();
+  await expect.poll(() => llamadas.find(([f]) => f === 'problema_estado')).toBeTruthy();
+  const b = llamadas.find(([f]) => f === 'problema_estado')[1];
+  expect(b).toMatchObject({ p_id: 'p1', p_estado: 'en_marcha', p_nota: 'Avisado a mantenimiento para cambiar el retén' });
+  expect(err).toEqual([]);
+});
+
+test('problemas que se repiten: el operario no ve el recuadro', async ({ page }) => {
+  const { err, llamadas } = await abre(page, OPER);
+  await expect(page.locator('.prob-rep')).toHaveCount(0);
+  expect(llamadas.some(([f]) => f === 'problemas_lista')).toBe(false);
+  expect(err).toEqual([]);
+});
