@@ -46,6 +46,9 @@ const EPI_ITEMS = [
   ['unif_refl','Uniformidad reflectante (EN 20471)','R',329.5,350.5],
   ['ignifugo','Vestuario ignífugo / antiestático','R',350.5,370]
 ];
+const MOTIVOS_EPI=['Primera entrega','Reposición: rotura','Reposición: pérdida o extravío','Reposición: desgaste','Cambio de talla','Otro'];
+// Texto del motivo tal como se imprime («Otro» se sustituye por lo que se escribe)
+const motivoTxt=v=>!v||!v.motivo?'':(v.motivo==='Otro'?(v.mtxt||'Otro'):v.motivo);
 const EPI_OTROS_Y = [[370,388.5],[388.5,414.2],[414.2,438],[438,459.2]];
 const EPI_GRUPOS = [['Protección ocular y facial',['gafas','gafas_sold','pantalla']],['Protección auditiva',['tapon_cordon','tapones','orejeras','orejeras_casco']],
   ['Anticaídas',['arnes','mosqueton','cuerda']],['Protección respiratoria',['mascarilla','media_mascara','mascara','filtros']],['Cabeza y pies',['casco','zapato','bota']],
@@ -83,14 +86,17 @@ function docEstado(d){
   if(d.tiene_firma) return ['Firmado','ok']; if(d.enviada_en) return ['Pendiente de firma','blue']; return ['Sin enviar','warn'];
 }
 
+// Selector de motivo (se muestra solo cuando el equipo está marcado)
+function motivoHTML(cls,attr,v,visible){ const sel=(v&&v.motivo)||'Primera entrega'; const otro=sel==='Otro';
+  return `<span class="${cls}w" ${attr} style="display:${visible?'flex':'none'};gap:6px;flex-wrap:wrap;width:100%;padding-left:32px"><select class="inp ${cls}" ${attr} style="flex:1;min-width:200px;min-height:38px">${MOTIVOS_EPI.map(m=>`<option ${m===sel?'selected':''}>${esc(m)}</option>`).join('')}</select><input class="inp ${cls}t" ${attr} placeholder="Escribe el motivo" value="${esc(v&&v.mtxt||'')}" style="flex:1;min-width:160px;min-height:38px;display:${otro?'block':'none'}"></span>`; }
 // ---- lo que lee el trabajador
 function htmlDoc(d){
   const x=d.datos||{}; let h=`<div class="card"><div class="small muted">${esc(DOC_INFO[d.tipo].c)}</div><div class="tema" style="margin:4px 0 8px">${esc(DOC_INFO[d.tipo].t)}</div>
     <div class="li"><span class="grow small muted">Trabajador</span><b>${esc(d.nombre||'')}</b></div>
     <div class="li"><span class="grow small muted">Fecha</span><b>${fmtF(d.fecha)}</b></div>${d.puesto?`<div class="li"><span class="grow small muted">Puesto</span><b>${esc(d.puesto)}</b></div>`:''}</div>`;
   if(d.tipo==='epi'){
-    const its=x.items||{}; const filas=EPI_ITEMS.filter(i=>its[i[0]]).map(i=>{ const v=its[i[0]]; return `<li><b>${esc(i[1])}</b>${v.u?` · ${esc(v.u)} ud.`:''}${(v.cat||[]).length?` · ${esc(v.cat.join(', '))}`:''}</li>`; });
-    (x.otros||[]).filter(o=>o&&o.t).forEach(o=>filas.push(`<li><b>${esc(o.t)}</b>${o.u?` · ${esc(o.u)} ud.`:''}${o.c?` · ${esc(o.c)}`:''}</li>`));
+    const its=x.items||{}; const filas=EPI_ITEMS.filter(i=>its[i[0]]).map(i=>{ const v=its[i[0]]; return `<li><b>${esc(i[1])}</b>${v.u?` · ${esc(v.u)} ud.`:''}${(v.cat||[]).length?` · ${esc(v.cat.join(', '))}`:''}${motivoTxt(v)?` · <i>${esc(motivoTxt(v))}</i>`:''}</li>`; });
+    (x.otros||[]).filter(o=>o&&o.t).forEach(o=>filas.push(`<li><b>${esc(o.t)}</b>${o.u?` · ${esc(o.u)} ud.`:''}${o.c?` · ${esc(o.c)}`:''}${motivoTxt(o)?` · <i>${esc(motivoTxt(o))}</i>`:''}</li>`));
     h+=`<div class="card read"><div class="tema">Equipos que recibes</div><ul>${filas.join('')||'<li>—</li>'}</ul></div>
       <div class="card read"><p>En cumplimiento del artículo 17.2 de la Ley de Prevención de Riesgos Laborales es obligatorio el uso de equipos de protección individual. La empresa pone a tu disposición los equipos indicados.</p><b>Al firmar declaras que:</b><ol>${EPI_DECL.map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`;
   } else if(d.tipo==='epi_col'){
@@ -192,9 +198,10 @@ async function pantallaDocEditar(tipo, d){
     h+=EPI_GRUPOS.map(([g,keys])=>`<div class="card"><b>${esc(g)}</b>${keys.map(k=>{ const it=EPI_ITEMS.find(i=>i[0]===k), v=its[k]; return `
       <div class="li" style="flex-wrap:wrap"><label style="display:flex;gap:10px;align-items:center;flex:1;min-width:200px;cursor:pointer"><input type="checkbox" class="ei" data-k="${k}" ${v?'checked':''} style="width:22px;height:22px"><span>${esc(it[1])}</span></label>
       <input class="inp eu" data-k="${k}" type="number" min="1" placeholder="Ud." value="${esc(v&&v.u||'')}" style="width:76px;min-height:38px">
+      ${motivoHTML('em',`data-k="${k}"`,v,!!v)}
       ${it[5]?`<div style="width:100%;padding-left:32px" class="row">${it[5].map(c=>`<label class="chip" style="cursor:pointer"><input type="checkbox" class="ec" data-k="${k}" value="${esc(c)}" ${v&&(v.cat||[]).includes(c)?'checked':''}> ${esc(c)}</label>`).join('')}</div>`:''}</div>`; }).join('')}</div>`).join('');
     const ot=x.otros||[];
-    h+=`<datalist id="ropa">${['Pantalón de trabajo','Camiseta','Polo','Camisa','Chaqueta','Forro polar','Chaleco','Sudadera','Bata','Gorra','Calcetines'].map(r=>`<option value="${r}">`).join('')}</datalist><div class="card"><b>Ropa de trabajo y otros elementos</b><div class="small muted">Escribe o elige la prenda (pantalón, camiseta, polo…).</div>${[0,1,2,3].map(i=>`<div class="row" style="margin-top:6px"><input class="inp eo grow" list="ropa" data-i="${i}" placeholder="Prenda o elemento" value="${esc(ot[i]&&ot[i].t||'')}"><input class="inp eou" data-i="${i}" type="number" min="1" placeholder="Ud." value="${esc(ot[i]&&ot[i].u||'')}" style="width:76px"></div>`).join('')}</div>`;
+    h+=`<datalist id="ropa">${['Pantalón de trabajo','Camiseta','Polo','Camisa','Chaqueta','Forro polar','Chaleco','Sudadera','Bata','Gorra','Calcetines'].map(r=>`<option value="${r}">`).join('')}</datalist><div class="card"><b>Ropa de trabajo y otros elementos</b><div class="small muted">Escribe o elige la prenda (pantalón, camiseta, polo…).</div>${[0,1,2,3].map(i=>`<div class="row" style="margin-top:6px"><input class="inp eo grow" list="ropa" data-i="${i}" placeholder="Prenda o elemento" value="${esc(ot[i]&&ot[i].t||'')}"><input class="inp eou" data-i="${i}" type="number" min="1" placeholder="Ud." value="${esc(ot[i]&&ot[i].u||'')}" style="width:76px">${motivoHTML('eom',`data-i="${i}"`,ot[i],!!(ot[i]&&ot[i].t))}</div>`).join('')}</div>`;
   }
   if(tipo==='epi_col'){
     const its=x.items||{};
@@ -228,14 +235,17 @@ async function pantallaDocEditar(tipo, d){
   const sino=(sel,set)=>document.querySelectorAll(sel).forEach(b=>b.onclick=()=>{ const v=b.dataset.v==='1'; set(b,v);
     b.parentNode.querySelectorAll('button').forEach(o=>{ const on=(o.dataset.v==='1')===v; o.className=o.className.replace(/\b(ok|sec)\b/g,'').trim()+' '+(on?(v?'ok':''):'sec'); o.style.background=on&&!v?'var(--bad)':''; o.style.color=on&&!v?'#fff':''; }); });
   if(tipo==='botiquin'){ x.items=x.items||[]; sino('.bs',(b,v)=>{ const i=+b.dataset.i; x.items[i]=x.items[i]||{}; x.items[i].ok=v; }); sino('.bp',(b,v)=>{ x[b.dataset.k]=v; }); }
-  document.querySelectorAll('.eu').forEach(i=>i.oninput=()=>{ const c=document.querySelector(`.ei[data-k="${i.dataset.k}"]`); if(i.value) c.checked=true; });
+  document.querySelectorAll('.eu').forEach(i=>i.oninput=()=>{ const c=document.querySelector(`.ei[data-k="${i.dataset.k}"]`); if(i.value){ c.checked=true; const w=document.querySelector(`.emw[data-k="${i.dataset.k}"]`); if(w) w.style.display='flex'; } });
   document.querySelectorAll('.ec').forEach(i=>i.onchange=()=>{ if(i.checked) document.querySelector(`.ei[data-k="${i.dataset.k}"]`).checked=true; });
   document.querySelectorAll('.cs').forEach(i=>i.oninput=()=>{ if(i.value) document.querySelector(`.ci[data-k="${i.dataset.k}"]`).checked=true; });
+  const leerMotivo=(cls,sel)=>{ const m=document.querySelector(`select.${cls}${sel}`); const mv=m?m.value:'Primera entrega'; const t=document.querySelector(`input.${cls}t${sel}`); return mv==='Otro'?{motivo:'Otro',mtxt:(t?t.value.trim():'')}:{motivo:mv}; };
+  document.querySelectorAll('.ei').forEach(c=>c.onchange=()=>{ const w=document.querySelector(`.emw[data-k="${c.dataset.k}"]`); if(w) w.style.display=c.checked?'flex':'none'; });
+  document.querySelectorAll('select.em,select.eom').forEach(sl=>sl.onchange=()=>{ const t=sl.parentNode.querySelector('input'); if(t) t.style.display=sl.value==='Otro'?'block':'none'; });
   const recoger=()=>{
     const p={tipo, fecha:$('#d_fec').value, datos:{}}; const D=p.datos;
     if($('#d_lug')) D.lugar=$('#d_lug').value.trim(); if($('#d_emp')) D.empresa=$('#d_emp').value.trim(); if($('#d_hora')) D.hora=$('#d_hora').value;
-    if(tipo==='epi'){ D.items={}; document.querySelectorAll('.ei:checked').forEach(c=>{ const k=c.dataset.k; D.items[k]={u:document.querySelector(`.eu[data-k="${k}"]`).value||'', cat:[...document.querySelectorAll(`.ec[data-k="${k}"]:checked`)].map(e=>e.value)}; });
-      D.otros=[0,1,2,3].map(i=>({t:document.querySelector(`.eo[data-i="${i}"]`).value.trim(), u:document.querySelector(`.eou[data-i="${i}"]`).value})).filter(o=>o.t);
+    if(tipo==='epi'){ D.items={}; document.querySelectorAll('.ei:checked').forEach(c=>{ const k=c.dataset.k; D.items[k]={u:document.querySelector(`.eu[data-k="${k}"]`).value||'', cat:[...document.querySelectorAll(`.ec[data-k="${k}"]:checked`)].map(e=>e.value), ...leerMotivo('em',`[data-k="${k}"]`)}; });
+      D.otros=[0,1,2,3].map(i=>({t:document.querySelector(`.eo[data-i="${i}"]`).value.trim(), u:document.querySelector(`.eou[data-i="${i}"]`).value, ...leerMotivo('eom',`[data-i="${i}"]`)})).filter(o=>o.t);
       if(!Object.keys(D.items).length && !D.otros.length) throw new Error('Marca al menos un equipo'); }
     if(tipo==='epi_col'){ D.items={}; document.querySelectorAll('.ci:checked').forEach(c=>{ D.items[c.dataset.k]={serie:document.querySelector(`.cs[data-k="${c.dataset.k}"]`).value.trim()}; }); D.otros=$('#c_otros').value.trim();
       if(!Object.keys(D.items).length && !D.otros) throw new Error('Marca al menos un equipo'); }
@@ -363,6 +373,10 @@ async function rellenarDoc(PDFLib, plantilla, d, cfg, extra){
       ctr(v.u||'1',L.unit[0],L.unit[1],y0,y1,9,bold);
       if(cats&&(v.cat||[]).length){ const cols = lado==='R'?L.cat3:(cats.length===3?L.cat3:L.cat2); cats.forEach((c,i)=>{ if(v.cat.includes(c)) X(cols[i][0],cols[i][1],y0,y1); }); } }
     (x.otros||[]).slice(0,4).forEach((o,i)=>{ const [y0,y1]=EPI_OTROS_Y[i]; txt(o.t,466,(y0+y1)/2+3,8,font,130); ctr(o.u||'',EPI_R.unit[0],EPI_R.unit[1],y0,y1,9,bold); if(o.c) txt(o.c,634,(y0+y1)/2+3,7,font,118); });
+    // Motivos de cada equipo (la plantilla no tiene columna para ello): texto pequeño bajo la declaración
+    const mot=[...EPI_ITEMS.filter(i=>its[i[0]]&&motivoTxt(its[i[0]])).map(i=>i[1].replace(/\s*\(.*\)$/,'')+': '+motivoTxt(its[i[0]])),...(x.otros||[]).filter(o=>o&&o.t&&motivoTxt(o)).map(o=>o.t+': '+motivoTxt(o))];
+    if(mot.length){ const lin=[]; let cur=''; for(const m of mot){ const tst=cur?cur+'   ·   '+m:m; if(font.widthOfTextAtSize(tst,6)>440&&cur){ lin.push(cur); cur=m; } else cur=tst; } if(cur) lin.push(cur);
+      lin.slice(0,2).forEach((l,i)=>txt((i?'':'Motivo: ')+l,86,578+i*6.5,6,font,440)); }
     blanco(518,507,641.5,524); txt('En '+(x.lugar||'')+',',521,514.5,7,font,118); txt('a '+fLarga2(d.fecha),521,521.5,7,font,118);
     await img(d.firma,522,546,638,580); if(d.firmado_en) mini('Firmado digitalmente '+fmtFH(d.firmado_en),522,580.5);
     await img(cfg.sello,646,518,752,579);

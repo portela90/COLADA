@@ -1,9 +1,14 @@
 // ====== FICHA POR TRABAJADOR (registro de entregas de EPI y ropa para inspección) ======
+// Motivo para el resumen (no se muestra «Primera entrega», que es lo normal)
+const motivoExtra=v=>{ const t=motivoTxt(v); return t&&t!=='Primera entrega'?t:null; };
+// Historial: cada entrega con sus equipos y motivos
+const motivosDoc=d=>{ const x=d.datos||{}; const its=x.items||{}; const a=EPI_ITEMS.filter(i=>its[i[0]]).map(i=>i[1].replace(/\s*\(.*\)$/,'')+(motivoTxt(its[i[0]])?' ('+motivoTxt(its[i[0]])+')':''));
+  (x.otros||[]).filter(o=>o&&o.t).forEach(o=>a.push(o.t+(motivoTxt(o)?' ('+motivoTxt(o)+')':''))); return a; };
 function resumenEntregas(docs){
   const m={};
   const add=(clave,etq,u,fecha,extra)=>{ const r=m[clave]||(m[clave]={etq,u:0,veces:0,ult:null,primera:null,extra:new Set()}); r.u+=(+u||1); r.veces++; if(!r.ult||fecha>r.ult) r.ult=fecha; if(!r.primera||fecha<r.primera) r.primera=fecha; (extra||[]).forEach(e=>e&&r.extra.add(e)); };
   for(const d of docs){ if(!d.tiene_firma) continue; const x=d.datos||{};
-    if(d.tipo==='epi'){ for(const it of EPI_ITEMS){ const v=(x.items||{})[it[0]]; if(v) add('e_'+it[0],it[1],v.u,d.fecha,v.cat); } (x.otros||[]).forEach(o=>{ if(o&&o.t) add('o_'+o.t.toLowerCase(),o.t,o.u,d.fecha); }); }
+    if(d.tipo==='epi'){ for(const it of EPI_ITEMS){ const v=(x.items||{})[it[0]]; if(v) add('e_'+it[0],it[1],v.u,d.fecha,[...(v.cat||[]),motivoExtra(v)]); } (x.otros||[]).forEach(o=>{ if(o&&o.t) add('o_'+o.t.toLowerCase(),o.t,o.u,d.fecha,[motivoExtra(o)]); }); }
     if(d.tipo==='epi_col'){ for(const it of COL_ITEMS){ const v=(x.items||{})[it[0]]; if(v) add('c_'+it[0],it[1]+' (uso colectivo)',1,d.fecha,v.serie?['nº '+v.serie]:[]); } if(x.otros) add('co_'+x.otros.toLowerCase(),x.otros+' (uso colectivo)',1,d.fecha); }
   }
   return Object.values(m).sort((a,b)=>b.ult.localeCompare(a.ult)||a.etq.localeCompare(b.etq));
@@ -93,7 +98,7 @@ async function expedientePDF(F, btn){
     tabla('Formación y cursos',['Curso','Fecha','Horas','Caduca','Estado'],[L,300,360,400,460],
       [...(F.certs||[]).map(c=>[c.tipo+(c.titulo?' · '+c.titulo:'')+(c.entidad?' ('+c.entidad+')':''),c.fecha?fmtF(c.fecha):'—',c.horas?String(c.horas):'—',c.caduca?fmtF(c.caduca):'—',estadoCad(c)[0]+(c.archivos.length?' · certificado adjunto':'')]),
        ...F.formaciones.map(f=>['Formación práctica en el puesto (F40R304)'+(f.impartida?' · '+f.impartida:''),fmtF(f.fecha),f.duracion||'—','—',f.tiene_firma?(f.eval_eficaz===true?'Firmada · eficaz':f.eval_eficaz===false?'Firmada · no eficaz':'Firmada'):'Pendiente de firma'])]);
-    const hist=[...F.docs.map(d=>[d.fecha,DOC_INFO[d.tipo].c.replace('SH-CORP-SP-',''),DOC_INFO[d.tipo].t+(d.tipo.startsWith('epi')?': '+resumenEntregas([{...d,tiene_firma:true}]).map(r=>r.etq.replace(/ \(.*\)$/,'')).join(', '):''),d.tiene_firma?'Firmado '+fmtFH(d.firmado_en):'PENDIENTE DE FIRMA']),
+    const hist=[...F.docs.map(d=>[d.fecha,DOC_INFO[d.tipo].c.replace('SH-CORP-SP-',''),DOC_INFO[d.tipo].t+(d.tipo.startsWith('epi')?': '+(d.tipo==='epi'?motivosDoc(d).join(', '):resumenEntregas([{...d,tiene_firma:true}]).map(r=>r.etq.replace(/ \(.*\)$/,'')).join(', ')):''),d.tiene_firma?'Firmado '+fmtFH(d.firmado_en):'PENDIENTE DE FIRMA']),
       ...F.formaciones.map(f=>[f.fecha,'F40R304','Formación práctica en el puesto'+((f.items||[]).length?': '+(f.items||[]).map(n=>n).join(', '):'')+(f.eval_eficaz===true?' · eficaz':f.eval_eficaz===false?' · no eficaz':''),f.tiene_firma?'Firmado '+fmtFH(f.firmado_en):'PENDIENTE DE FIRMA']),
       ...F.toolbox.map(b=>[(b.firmado_en||'').slice(0,10),'FO-IB-031','Toolbox Talk '+MESES[b.mes-1]+' '+b.anio+(b.tema?': '+b.tema:''),'Firmado '+fmtFH(b.firmado_en)])].sort((a,b)=>b[0].localeCompare(a[0]));
     tabla('Historial de documentos',['Fecha','Documento','Contenido','Estado'],[L,105,170,440],hist.map(h=>[fmtF(h[0]),h[1],h[2],h[3]]));
