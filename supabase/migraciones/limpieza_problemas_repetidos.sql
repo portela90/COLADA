@@ -20,3 +20,6 @@ create trigger ots_problema_rep after insert or update of lugar, titulo, descrip
 --   _es_ot_problema(ots), _problema_rep() (disparador; nunca impide guardar la OT)
 --   problemas_lista(p_tok, p_solucionados) y problema_estado(p_tok, p_id, p_estado, p_nota): jefe o encargado;
 --     'en_marcha' y 'solucionado' piden nota (FALTA_NOTA) y avisan al otro.
+-- Añadido el mismo día: columnas descartadas uuid[] y descartado boolean;
+--   problema_estado acepta 'descartado' (con nota); problema_quitar_ot(p_tok,p_id,p_ot,p_nota) quita un aviso («No es lo mismo»)
+--   y si queda uno solo se descarta; problemas_lista devuelve nfotos de cada aviso.

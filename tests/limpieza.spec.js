@@ -128,6 +128,8 @@ test('problemas que se repiten: recuadro rojo arriba para el jefe y seguimiento'
   const d = page.locator('.dlg').last();
   await expect(d).toContainText('Lubrificador F19');
   await expect(d).toContainText('Avisó Ahmed');
+  await expect(d.locator('.fotos img')).toHaveCount(1);
+  await expect(d).toContainText('Sin fotos');
   await d.getByRole('button', { name: 'En marcha' }).click();
   await expect(page.locator('.dlg')).toHaveCount(1);
   expect(llamadas.some(([f]) => f === 'problema_estado')).toBe(false);
@@ -143,5 +145,18 @@ test('problemas que se repiten: el operario no ve el recuadro', async ({ page })
   const { err, llamadas } = await abre(page, OPER);
   await expect(page.locator('.prob-rep')).toHaveCount(0);
   expect(llamadas.some(([f]) => f === 'problemas_lista')).toBe(false);
+  expect(err).toEqual([]);
+});
+
+test('problemas que se repiten: «No es lo mismo» quita un aviso con su motivo', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN);
+  await page.locator('.prob-rep').getByText('Aceite en F19').click();
+  await page.locator('.dlg').last().getByRole('button', { name: 'No es lo mismo' }).first().click();
+  const q = page.locator('.dlg').last();
+  await expect(q).toContainText('Quitar este aviso');
+  await q.locator('textarea').fill('Es aceite de la carretilla');
+  await q.getByRole('button', { name: 'Quitar' }).click();
+  await expect.poll(() => llamadas.find(([f]) => f === 'problema_quitar_ot')).toBeTruthy();
+  expect(llamadas.find(([f]) => f === 'problema_quitar_ot')[1]).toMatchObject({ p_id: 'p1', p_ot: 'x1', p_nota: 'Es aceite de la carretilla' });
   expect(err).toEqual([]);
 });

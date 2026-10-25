@@ -62,16 +62,21 @@ let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
     const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
 /* Problemas que se repiten (aceite, taladrina, agua, roturas en el mismo sitio): recuadro rojo arriba para el jefe y el encargado, hasta que se solucionen */
 try{const c=new URLSearchParams(location.search).get("prob");if(c){S.probPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
-const EST_P={pendiente:["Pendiente de actuar","bad"],en_marcha:["En marcha","warn"],solucionado:["Solucionado","ok"]};
+const EST_P={pendiente:["Pendiente de actuar","bad"],en_marcha:["En marcha","warn"],solucionado:["Solucionado","ok"],descartado:["Descartado","info"],quitado:["Aviso quitado","info"]};
 function fichaProblema(p,re){const nota={v:""};
   const ult=(p.historial||[]).filter(h=>h.nota).slice(-1)[0];
   const cuerpo=el("div",null,[
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"},[el("span",{class:"pill "+EST_P[p.estado][1],text:p.reabierto&&p.estado==="pendiente"?"Ha vuelto a pasar":EST_P[p.estado][0]}),
       el("span",{class:"hint",style:"margin:0",text:p.veces+" veces"+(p.veces7!==p.veces?" ("+p.veces7+" en los últimos 7 días)":"")+" · desde el "+fCorta(p.primera)})]),
     el("b",{style:"display:block;margin:10px 0 4px",text:"Avisos de los trabajadores"}),
-    el("div",{style:"max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:8px"},(p.ots||[]).map(o=>el("div",{class:"ot",style:"padding:8px 10px"},[
+    el("div",{style:"max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px"},(p.ots||[]).map(o=>{const fb=el("div",{class:"fotos",style:"margin-top:6px"});
+      if(o.nfotos){fb.appendChild(el("span",{class:"hint",style:"margin:0",text:"Cargando "+o.nfotos+" foto"+(o.nfotos>1?"s":"")+"…"}));
+        rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>{fb.textContent="";L.forEach(x=>fb.appendChild(miniFoto(x,fCorta(o.fecha)+" · "+o.titulo+(x.por?" · "+x.por:""))));}).catch(e=>{fb.textContent=e.message;});}
+      return el("div",{class:"ot",style:"padding:8px 10px"},[
       el("div",{class:"t",text:fCorta(o.fecha)+" · "+o.titulo}),o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
-      el("div",{class:"meta"},[el("span",{text:o.lugar||""}),o.creado_por_n?el("span",{text:"Avisó "+o.creado_por_n.split(" ")[0]}):null,el("span",{text:({hecha:"Limpiado",pendiente:"Sin limpiar",en_curso:"Limpiando",no_hecha:"No se pudo"})[o.estado]||o.estado})])]))),
+      el("div",{class:"meta"},[el("span",{text:o.lugar||""}),o.creado_por_n?el("span",{text:"Avisó "+o.creado_por_n.split(" ")[0]}):null,el("span",{text:({hecha:"Limpiado",pendiente:"Sin limpiar",en_curso:"Limpiando",no_hecha:"No se pudo"})[o.estado]||o.estado}),o.nfotos?null:el("span",{text:"Sin fotos"})]),
+      fb,
+      p.estado!=="descartado"?el("button",{type:"button",class:"btn sec peq",style:"margin-top:6px;width:auto;min-height:32px;padding:4px 12px;font-size:13px",text:"No es lo mismo",onclick:()=>quitarDeProblema(p,o,re)}):null]);})),
     (p.historial||[]).length?el("b",{style:"display:block;margin:12px 0 4px",text:"Seguimiento"}):null,
     el("div",null,(p.historial||[]).slice().reverse().map(h=>el("div",{class:"hint",style:"margin:0 0 4px"},[el("b",{text:fCorta(String(h.f).slice(0,10))+" · "+(EST_P[h.estado]||[h.estado])[0]+(h.quien?" ("+h.quien.split(" ")[0]+")":"")+": "}),h.nota||""]))),
     fld(p.estado==="en_marcha"?"¿Qué se ha hecho? (para marcarlo como solucionado)":"¿Qué se va a hacer o qué se ha hecho?",area("",v=>nota.v=v)),
@@ -80,8 +85,17 @@ function fichaProblema(p,re){const nota={v:""};
     await rpc("problema_estado",{p_tok:S.tok,p_id:p.id,p_estado:est,p_nota:nota.v.trim()});toast(est==="solucionado"?"Marcado como solucionado":"Marcado en marcha");re&&re();};
   const bots=[{t:"Cerrar",cls:"sec"}];
   if(p.estado!=="en_marcha"&&p.estado!=="solucionado")bots.push({t:"En marcha",cls:"sec",fn:guarda("en_marcha")});
-  if(p.estado!=="solucionado")bots.push({t:"Solucionado",fn:guarda("solucionado")});
-  dlg("⚠ "+p.tema+" en "+p.lugar,cuerpo,bots);}
+  if(p.estado!=="solucionado"&&p.estado!=="descartado")bots.push({t:"Solucionado",fn:guarda("solucionado")});
+  if(p.estado==="descartado"||p.estado==="solucionado")bots.push({t:"Reabrir",cls:"sec",fn:async()=>{await rpc("problema_estado",{p_tok:S.tok,p_id:p.id,p_estado:"pendiente",p_nota:nota.v.trim()||"Reabierto"});toast("Reabierto");re&&re();}});
+  const cerrar=dlg("⚠ "+p.tema+" en "+p.lugar,cuerpo,bots);
+  if(p.estado!=="descartado"&&p.estado!=="solucionado")cuerpo.appendChild(el("button",{type:"button",class:"btn sec peq",style:"margin-top:10px;width:100%;color:var(--mut)",text:"Descartar: no es un problema que se repita",
+    onclick:async()=>{if(!nota.v.trim()){toast("Escribe arriba por qué se descarta");return;}try{await rpc("problema_estado",{p_tok:S.tok,p_id:p.id,p_estado:"descartado",p_nota:nota.v.trim()});toast("Descartado");cerrar();re&&re();}catch(e){toast(e.message);}}}));}
+/* «No es lo mismo»: se quita ese aviso del problema (con el motivo) */
+function quitarDeProblema(p,o,re){const m={v:""};
+  dlg("Quitar este aviso",el("div",null,[el("p",{style:"margin:0 0 8px",text:fCorta(o.fecha)+" · "+o.titulo+(o.descripcion?" — "+o.descripcion:"")}),
+    fld("¿Por qué no es el mismo problema?",area("",v=>m.v=v)),el("p",{class:"hint",style:"margin:4px 0 0",text:"Por ejemplo: «Es aceite de la carretilla, no de la máquina». Si solo queda un aviso, el problema se descarta solo."})]),
+    [{t:"Cancelar",cls:"sec"},{t:"Quitar",fn:async()=>{if(!m.v.trim()){toast("Escribe el motivo");return false;}
+      await rpc("problema_quitar_ot",{p_tok:S.tok,p_id:p.id,p_ot:o.id,p_nota:m.v.trim()});toast("Aviso quitado");document.querySelectorAll(".ov").forEach(x=>x.remove());re&&re();}}]);}
 let _prN=0;const _pintaPr=pinta;pinta=function(){_pintaPr();const n=++_prN;
   if(!S.tok||!S.yo||!esGes()||(S.tab!=="hoy"&&!S.probPend))return;
   rpc("problemas_lista",{p_tok:S.tok}).then(L=>{if(n!==_prN||!Array.isArray(L))return;

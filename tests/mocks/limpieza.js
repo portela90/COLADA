@@ -26,6 +26,6 @@ R.horno_gasto_el={abierto:false,ver_precios:true,recambios:{cambio_cono:[{art:'h
 R.horno_gasto_all={ver_precios:true,mal:1,hornos:[{id:'e29',codigo:'H-F29',nombre:'Horno mantenedor F29',modelo:'Krown',cambios:2,conos:1,tolvas:1,dosificadores:0,piezas:5,total:85,sin_precio:2}]};
 
 R.problemas_lista=[{id:'p1',tema:'Aceite',lugar:'F19',estado:'pendiente',primera:'2026-10-20',ultima:'2026-10-21',reabierto:0,veces:3,veces7:2,historial:[{f:'2026-10-21T08:00:00Z',estado:'pendiente',nota:'2 veces en 7 días'}],
-  ots:[{id:'x1',fecha:'2026-10-21',titulo:'Derrame de aceite',descripcion:'Lubrificador F19, fuga de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Ahmed El Hait'},{id:'x2',fecha:'2026-10-20',titulo:'Derrame de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Josefa Ruiz'}]}];
-R.problema_estado={};
+  ots:[{id:'x1',fecha:'2026-10-21',titulo:'Derrame de aceite',descripcion:'Lubrificador F19, fuga de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Ahmed El Hait',nfotos:1},{id:'x2',fecha:'2026-10-20',titulo:'Derrame de aceite',lugar:'F19',estado:'hecha',creado_por_n:'Josefa Ruiz'}]}];
+R.problema_estado={};R.problema_quitar_ot={};R.fotos_ot=[{id:'f1',data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',por:'Ahmed El Hait',creado:'2026-10-21T08:00:00Z'}];
 module.exports={R,W,H29,H10,hoy};
