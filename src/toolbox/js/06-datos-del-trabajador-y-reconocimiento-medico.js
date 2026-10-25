@@ -30,6 +30,7 @@ async function pantallaDatosTrab(t){
    <div class="card"><b>Identificación</b>
     <div class="row"><div class="grow"><label class="f">DNI / NIE</label><input class="inp" id="t_dni" value="${esc(t.dni||'')}" autocapitalize="characters"></div><div class="grow"><label class="f">Puesto de trabajo</label><input class="inp" id="t_pue" value="${esc(t.puesto_propio||'')}" placeholder="${esc(t.categoria||'')}"></div></div>
     <div class="row"><div class="grow"><label class="f">Fecha de alta</label><input class="inp" type="date" id="t_alta" value="${esc(t.fecha_alta||'')}"></div><div class="grow"><label class="f">Fecha de baja</label><input class="inp" type="date" id="t_baja" value="${esc(t.fecha_baja||'')}"></div></div>
+    <label class="f">Motivo de baja (si ya no trabaja aquí)</label><select class="inp" id="t_mot"><option value="">— No aplica —</option>${MOTIVOS_BAJA.map(m=>`<option ${t.motivo_baja===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
     <label class="f">Idioma que mejor entiende</label><input class="inp" id="t_idi" list="idiomas" value="${esc(t.idioma||'')}"><datalist id="idiomas">${['Castellano','Árabe','Francés','Inglés','Rumano','Portugués','Bambara','Wolof','Ucraniano'].map(i=>`<option value="${i}">`).join('')}</datalist></div>
    <div class="card"><b>Contacto</b>
     <label class="f">Teléfono del trabajador</label><input class="inp" type="tel" id="t_tel" value="${esc(t.telefono||'')}">
@@ -45,7 +46,7 @@ async function pantallaDatosTrab(t){
   $('#t_rm1').onclick=()=>{ const f=$('#t_rmf').value; if(!f){ toast('Pon antes la fecha del reconocimiento',true); return; } const d=new Date(f+'T12:00:00'); d.setFullYear(d.getFullYear()+1); $('#t_rmp').value=d.toISOString().slice(0,10); };
   $('#t_save').onclick=async e=>{ const b=e.currentTarget; busy(b,true);
     const tallas={}; document.querySelectorAll('.tt').forEach(i=>{ if(i.value.trim()) tallas[i.dataset.k]=i.value.trim(); });
-    const p={dni:$('#t_dni').value,puesto:$('#t_pue').value,fecha_alta:$('#t_alta').value,fecha_baja:$('#t_baja').value,idioma:$('#t_idi').value,telefono:$('#t_tel').value,
+    const p={dni:$('#t_dni').value,puesto:$('#t_pue').value,fecha_alta:$('#t_alta').value,fecha_baja:$('#t_baja').value,motivo_baja:$('#t_mot').value,idioma:$('#t_idi').value,telefono:$('#t_tel').value,
       emerg_nombre:$('#t_en').value,emerg_tel:$('#t_et').value,tallas,rm_resultado:$('#t_rm').value,rm_fecha:$('#t_rmf').value,rm_proximo:$('#t_rmp').value,rm_limitacion:$('#t_rm').value==='apto_restr'?$('#t_lim').value:''};
     try{ await rpc('prl_trab_datos_guardar',{p_tok:S.tok,p_id:t.id,p}); toast('Guardado'); pantallaFicha(t.id); }catch(err){ busy(b,false); toast(err.message,true); } };
 }

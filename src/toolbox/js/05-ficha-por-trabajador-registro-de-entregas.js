@@ -13,15 +13,21 @@ function resumenEntregas(docs){
   }
   return Object.values(m).sort((a,b)=>b.ult.localeCompare(a.ult)||a.etq.localeCompare(b.etq));
 }
+// Motivos de baja (se guardan en el trabajador; su historial se conserva siempre)
+const MOTIVOS_BAJA=['Fin de contrato','Dimisión','Despido','Excedencia','Fin de obra o proyecto','Otro'];
+let VER_BAJAS=false;
 async function pantallaFichas(){
   pararVoz();
   view(barra('Fichas por trabajador', `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"><div class="empty"><span class="spin dk"></span></div></div>`);
   $('#bk').onclick=pantallaDocumentos;
   let L; try{ L=await rpc('prl_fichas',{p_tok:S.tok}); }catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
-  $('#w').innerHTML=`<p class="small muted" style="margin-top:0">Todo lo entregado y firmado por cada trabajador. Desde su ficha puedes sacar el expediente completo en PDF para una inspección.</p><div class="card">`+
-    L.map(t=>`<div class="li" data-t="${esc(t.id)}" style="cursor:pointer"><span class="dot ${t.epis?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span>${t.activo?'':' <span class="chip">de baja</span>'}<br>
+  const bajas=L.filter(t=>!t.activo&&!t.sin_firmar).length;
+  const LV=VER_BAJAS?L:L.filter(t=>t.activo||t.sin_firmar);
+  $('#w').innerHTML=`<p class="small muted" style="margin-top:0">Todo lo entregado y firmado por cada trabajador. Desde su ficha puedes sacar el expediente completo en PDF para una inspección.</p>${bajas||VER_BAJAS?`<button class="btn ghost" id="vb" style="margin-bottom:8px">${VER_BAJAS?'Ocultar bajas':'Ver bajas ('+bajas+')'}</button>`:''}<div class="card">`+
+    LV.map(t=>`<div class="li" data-t="${esc(t.id)}" style="cursor:pointer"><span class="dot ${t.epis?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span>${t.activo?'':' <span class="chip">de baja</span>'}<br>
       <span class="small muted">${t.epis?`${t.epis} entrega${t.epis>1?'s':''} de EPI · última ${fmtF(t.ult_epi)}`:'Sin entregas de EPI'}${t.dni?'':' · <span style="color:var(--warn)">sin DNI</span>'}</span></span>
       <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${!RM_ACTIVO?'':!t.rm_resultado?'<span class="chip warn">sin reconoc. médico</span>':t.rm_proximo&&t.rm_proximo<hoyISO()?'<span class="chip bad">reconoc. médico caducado</span>':''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
+  if($('#vb')) $('#vb').onclick=()=>{ VER_BAJAS=!VER_BAJAS; pantallaFichas(); };
   document.querySelectorAll('[data-t]').forEach(el=>el.onclick=()=>pantallaFicha(el.dataset.t));
 }
 async function pantallaFicha(id){
@@ -39,7 +45,7 @@ async function pantallaFicha(id){
     <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Datos del trabajador</div><button class="btn ghost" id="edatos">Editar</button></div>
     <div class="card">
       <div class="li"><span class="grow small muted">Fecha de alta</span><b>${t.fecha_alta?fmtF(t.fecha_alta):'<span style="color:var(--warn)">sin poner</span>'}</b></div>
-      ${t.fecha_baja?`<div class="li"><span class="grow small muted">Fecha de baja</span><b>${fmtF(t.fecha_baja)}</b></div>`:''}
+      ${t.fecha_baja?`<div class="li"><span class="grow small muted">Fecha de baja</span><b>${fmtF(t.fecha_baja)}</b></div>`:''}${t.motivo_baja?`<div class="li"><span class="grow small muted">Motivo de baja</span><b>${esc(t.motivo_baja)}</b></div>`:''}
       <div class="li"><span class="grow small muted">Teléfono</span><b>${esc(t.telefono||'—')}</b></div>
       <div class="li"><span class="grow small muted">Contacto de emergencia</span><b style="text-align:right">${t.emerg_nombre||t.emerg_tel?esc((t.emerg_nombre||'')+' '+(t.emerg_tel||'')):'—'}</b></div>
       <div class="li"><span class="grow small muted">Idioma</span><b>${esc(t.idioma||'—')}</b></div>
