@@ -3,9 +3,9 @@
 "use strict";
 const TABS=[["res","Hoy"],["rap","Apuntar"],["stock","Stock"],["repo","Reponer"],["mas","Más"]];
 const SUB=[["pist","Pistones"],["ejes","Ejes"],["iny","Inyectoras"],["mov","Movimientos"],["consultas","Análisis"],["bt","Recambios"],["cat","Catálogo"]];
-const PADRE={consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",cat:"mas",iny:"mas",mat:"mas",cons:"mas",mol:"mas"};
+const PADRE={consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",cat:"mas",iny:"mas",mat:"mas",cons:"mas",mol:"mas",cont:"mas"};
 /* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
-const INY_SUB=[["iny","Plano"],["mat","Material"],["cons","Consumos"],["mol","Moldes"]];
+const INY_SUB=[["iny","Plano"],["mat","Material"],["cons","Consumos"],["mol","Moldes"],["cont","Contenedores"]];
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t)||INY_SUB.some(x=>x[0]===t);
 const FAM={consumible:"Consumible",piston:"Pistón",barra:"Barra expulsora",tornillo:"Tornillo tope",horno:"Recambio de horno",eje:"Eje",repuesto:"Repuesto",otro:"Otro"};
 const TEC=f=>f==="barra"||f==="tornillo";
@@ -119,8 +119,8 @@ function render(force){const a=document.activeElement;
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(!catOk){v.appendChild(el("div",{class:"banner b",text:"No se ha podido cargar el catálogo (¿sin cobertura?). Cierra y vuelve a abrir la app. Mientras tanto no se guarda nada en el catálogo para no borrarlo."}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
-  if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
-  (VC[tab]||{res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vAnalisis}[tab])(v);
+  if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
+  (VC[tab]||{res:vRes,rap:vRap,stock:vStock,repo:vRepo,iny:vIny,mol:vMol,cont:vCont,cons:vCons,mat:vMat,mov:vMov,pist:vPist,ejes:vEjes,bt:vBT,cat:vCat,mas:vMas,consultas:vAnalisis}[tab])(v);
   document.querySelector("main").scrollTop=sc;kpiInicio();}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}

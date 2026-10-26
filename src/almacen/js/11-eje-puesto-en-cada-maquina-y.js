@@ -176,8 +176,7 @@ function vMol(v){
   /* moldes y contenedores */
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Moldes ("+(cat.moldes||[]).length+")"}),el("button",{type:"button",class:"btn sec peq der",text:"＋ Molde",onclick:()=>formMolde(null)})]),
     (cat.moldes||[]).length?el("div",{class:"lst"},moldes().map(itMolde)):el("p",{class:"hint",style:"padding:10px 14px",text:"Todavía no hay moldes. Añádelos con su código, la pieza y el Ø de pistón que usa: así cada máquina sabrá qué pistón lleva según el molde puesto."})]));
-  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Contenedores ("+(cat.contens||[]).length+")"}),el("button",{type:"button",class:"btn sec peq der",text:"＋ Contenedor",onclick:()=>formCont(null)})]),
-    (cat.contens||[]).length?el("div",{class:"lst"},contens().map(x=>{const en=cat.maquinas.filter(m=>hoyDe(m).cont===x.id).map(m=>m.cod);return el("button",{type:"button",class:"it",onclick:()=>formCont(x)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:x.cod}),el("div",{class:"t2",text:[x.notas,en.length?"puesto en "+en.join(", "):"sin máquina"].filter(Boolean).join(" · ")})])]);})):el("p",{class:"hint",style:"padding:10px 14px",text:"Todavía no hay contenedores."})]));
+  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Contenedores ("+vivosCont().length+")"}),el("button",{type:"button",class:"btn sec peq der",text:"Ver contenedores",onclick:()=>irA("cont")})]),el("p",{class:"hint",style:"padding:10px 14px",text:"Los contenedores tienen su propia pestaña: estantería, inventario rápido y qué lleva cada máquina."})]));
   const ult=todosMlog().slice(-15).reverse();
   if(ult.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Últimos cambios de molde y contenedor"})),el("div",{class:"tw"},el("table",{},el("tbody",{},ult.map(x=>el("tr",{},[el("td",{class:"num",text:fmtF(x.f)}),el("td",{text:maqN(x.maq)}),el("td",{text:x.tipo==="molde"?"Molde":"Contenedor"}),el("td",{text:(x.tipo==="molde"?(moldeDe(x.val)||{}).cod:(contDe(x.val)||{}).cod)||"—"}),el("td",{text:x.by||""})])))))]));}
 /* consumo por inyectora: pistones y material sacado para cada máquina */
@@ -210,13 +209,9 @@ function formMolde(x0,despues){const x=x0?Object.assign({},x0):{cod:"",pieza:"",
       if((cat.moldes||[]).some(z=>z.id!==x.id&&norm(z.cod)===norm(cod))){toast("Ya existe el molde "+cod);return false;}
       const nue={id:x.id||uid(),cod,pieza:String(x.pieza||"").trim()||null,diam:x.diam||null,notas:String(x.notas||"").trim()||null};
       cat.moldes=(cat.moldes||[]).filter(z=>z.id!==nue.id).concat([nue]);try{await saveCat();toast("Molde guardado");}catch(e){return false;}if(despues)setTimeout(()=>despues(nue),60);else render(true);}}]);}
-function formCont(x0,despues){const x=x0?Object.assign({},x0):{cod:"",notas:""};
-  dlg(x0?"Contenedor "+x0.cod:"Nuevo contenedor",[fld("Código o nombre",inp("coC",x.cod,z=>x.cod=z,{autocomplete:"off"})),fld("Notas",inp("coN",x.notas,z=>x.notas=z,{autocomplete:"off"}))],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const cod=String(x.cod||"").trim();if(!cod){toast("Pon el código");return false;}
-      const nue={id:x.id||uid(),cod,notas:String(x.notas||"").trim()||null};cat.contens=(cat.contens||[]).filter(z=>z.id!==nue.id).concat([nue]);
-      try{await saveCat();toast("Contenedor guardado");}catch(e){return false;}if(despues)setTimeout(()=>despues(nue),60);else render(true);}}]);}
+function formCont(x0,despues){return fichaCont(x0,despues);}
 /* cambio de molde o de contenedor en una máquina */
-function cambioHoy(m0,tipo,pre){const m=maqDe(m0.id)||m0;const h=hoyDe(m);const esM=tipo==="molde";const d={f:hoy(),val:esM?h.molde||"":h.cont||"",by:quienSoy()};
+function cambioHoy(m0,tipo,pre){if(tipo!=="molde")return cambioCont(m0,pre);const m=maqDe(m0.id)||m0;const h=hoyDe(m);const esM=tipo==="molde";const d={f:hoy(),val:esM?h.molde||"":h.cont||"",by:quienSoy()};
   const lista=()=>esM?moldes().map(x=>[x.id,moldeTxt(x)+(x.diam?" ("+x.diam+")":"")]):contens().map(x=>[x.id,x.cod]);
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const mo=esM?moldeDe(d.val):null;const dm=diamDe(m);

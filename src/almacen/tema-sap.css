@@ -107,3 +107,17 @@ details.cgrp:not([open])>summary{border-bottom:0}
 .lnk{appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:var(--acc);text-align:left;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 .dlg.dlg-ancho{max-width:860px;width:calc(100vw - 24px);max-height:88vh;overflow-y:auto}
 .dlg.dlg-ancho h4{font-size:14px}
+/* Contenedores: la cuadrícula del panel de la pared (largo × Ø) */
+.ct-grid{display:grid;grid-template-columns:minmax(44px,.8fr) repeat(5,minmax(0,1fr));gap:4px}
+.ct-h{font-size:12px;font-weight:700;color:var(--ink2);text-align:center;align-self:end;padding:2px 0}
+.ct-l{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;color:#1D2D3E;padding:4px 2px;min-height:58px}
+.ct-l b{font-size:22px;line-height:1}.ct-l small{font-size:10px;font-weight:600}
+.ct-c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:58px;padding:4px 2px;border:1px solid var(--line);border-radius:6px;background:var(--surf);color:var(--ink);font:inherit;min-width:0;cursor:pointer}
+button.ct-c:hover{border-color:var(--accb)}
+.ct-c b{font-size:13px}.ct-c .ct-n{font-size:20px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}.ct-c small{font-size:10px;color:var(--ink2);text-align:center;line-height:1.15}
+.ct-c.ct-no{color:var(--ink2);background:var(--surf2);cursor:default;font-weight:700;letter-spacing:2px}
+.ct-c.ct-vacio{background:var(--surf2)}.ct-c.ct-vacio .ct-n{color:var(--ink2)}
+.ct-c.ct-sin{border:2px solid var(--bad);background:color-mix(in srgb,var(--bad) 12%,var(--surf))}.ct-c.ct-sin .ct-n{color:var(--bad,#AA0808)}
+.ct-maqs{display:grid;gap:6px}.ct-maqs>div{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.ct-maqs b{flex:none;width:26px;text-align:center;border-radius:4px;color:#1D2D3E}
+@media (min-width:700px){.ct-c,.ct-l{min-height:70px}.ct-c .ct-n{font-size:24px}.ct-c b{font-size:15px}}

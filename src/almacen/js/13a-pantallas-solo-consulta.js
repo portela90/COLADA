@@ -177,6 +177,8 @@ function cEjes(v,re){const vivos=ejes.filter(e=>e.estado!=="baja");const n=k=>vi
   v.appendChild(cKpis([["En planta",fmtN(n("planta"))],["Para enviar",fmtN(n("preparado"))],["En el taller",fmtN(n("reparacion")+n("devuelto"))],["Cuarentena",fmtN(P.length)]]));
   if(cortos.length)v.appendChild(el("div",{class:"banner",text:"Modelos con pocos ejes en planta: "+cortos.map(m=>(m.ref||m.cod)+" ("+plantaG(m)+" de mínimo "+m.min+")").join(" · ")+"."}));
   v.appendChild(cardCostesEjes(re));
+  if(vivosCont().length){const D=vivosCont().map(dondeCont);v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Contenedores"}),el("span",{class:"der sub",text:D.filter(d=>d.k==="estanteria").length+" en la estantería · "+D.filter(d=>d.k==="maquina").length+" puestos · "+D.filter(d=>d.k==="taller").length+" en el taller"})]),
+    el("div",{style:"padding:10px 12px 12px"},[gridCont(true),notaGrid()])]));}
   /* por modelo: en planta frente al mínimo */
   v.appendChild(cCard("Ejes por modelo",mediaG!=null?"el taller tarda de media "+mediaG+" días":null,[cTabla(["Modelo","En planta","Mínimo","Fuera","Total","Estado"],
     mods.slice().sort((p,q)=>(cortos.includes(q)-cortos.includes(p))||String(p.cod).localeCompare(String(q.cod),"es",{numeric:true})).map(m=>{const cs=grupoEje(m).map(x=>x.cod);const es=vivos.filter(e=>cs.includes(e.mod));

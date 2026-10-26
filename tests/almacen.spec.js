@@ -64,3 +64,36 @@ test('Análisis dibuja los gráficos y al tocar una barra se abre el detalle', a
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Contenedores: inventario rápido, estantería y cambio de contenedor en una máquina', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.waitForTimeout(250); await pulsa(page, 'Inyectoras'); await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Contenedores', exact: true }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.ct-grid')).toBeVisible();
+  expect(await desbordes(page), 'se sale de la pantalla en Contenedores').toEqual([]);
+  await page.getByRole('button', { name: 'Inventario rápido' }).click();
+  const d = page.locator('.dlg').last();
+  await d.getByRole('button', { name: 'D5', exact: true }).click();
+  await d.getByRole('button', { name: 'D5-01' }).click();
+  await d.getByRole('button', { name: 'D5-02' }).click();
+  await expect(d).toContainText('Se darán de alta 2');
+  await d.getByRole('button', { name: 'Dar de alta' }).click();
+  await expect(page.locator('.ct-c', { hasText: 'D5' })).toContainText('2');
+  // F4 es de largo D: se le pone el D5-01
+  await page.locator('.it', { hasText: 'F4 · sin apuntar' }).click();
+  const c = page.locator('.dlg').last();
+  await expect(c).toContainText('largo D (470 mm)');
+  const ops = await c.locator('#ccV option').allTextContents();
+  expect(ops.some(o => o.startsWith('D5-01'))).toBe(true);
+  await c.locator('#ccV').selectOption({ label: ops.find(o => o.startsWith('D5-01')) });
+  await c.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('.it', { hasText: 'F4 · D5-01' })).toBeVisible();
+  await expect(page.locator('.ct-c', { hasText: 'D5' })).toContainText('1 puesto');
+  // F21 es de largo C: no le salen los D
+  await page.locator('.it', { hasText: 'F21 · sin apuntar' }).click();
+  const c2 = page.locator('.dlg').last();
+  expect((await c2.locator('#ccV option').allTextContents()).some(o => o.startsWith('D5'))).toBe(false);
+  expect(err).toEqual([]);
+});
