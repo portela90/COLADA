@@ -68,7 +68,5 @@ test('Precios: se meten y se ven en €/kg (y si se escribe en €/t se entiende
   await fila('IDALSA').fill('2797,5'); await fila('IDALSA').dispatchEvent('change');
   await expect.poll(() => page.evaluate(() => ((__D.cfg.app.precios['2026-10'] || {}).prov || {}).IDALSA)).toBe(2797.5);
   await expect(fila('IDALSA')).toHaveValue('2,7975');
-  await page.screenshot({ path: test.info().outputPath('precios.png') });
-  require('fs').copyFileSync(test.info().outputPath('precios.png'), '/tmp/claude-0/-home-claude/068f3ece-7c3b-5132-967d-cdd20aa5b924/scratchpad/precios.png');
   expect(err).toEqual([]);
 });
