@@ -137,3 +137,36 @@ test('Ficha de inyectora: lo que monta lleva a cada pieza y se vuelve a la máqu
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, listas e ideas', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  const mas = async () => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(200); };
+  for (const p of ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones']) {
+    await mas(); await page.locator('.tile .tt', { hasText: new RegExp('^' + p + '$') }).click(); await page.waitForTimeout(250);
+    for (const t of ['Cambios', 'Por máquina', 'Gasto', 'Referencias', 'Más cosas', 'Resumen']) {
+      await page.locator('.secc-tabs').getByRole('tab', { name: new RegExp('^' + t) }).click(); await page.waitForTimeout(150);
+      expect(await desbordes(page), p + ' › ' + t).toEqual([]);
+    }
+  }
+  // en Contenedores: un aviso fijo, una lista y una idea
+  await mas(); await page.locator('.tile .tt', { hasText: /^Contenedores$/ }).click();
+  const addExtra = async (tipo, rellena) => {
+    await page.locator('.secc-tabs').getByRole('tab', { name: /^Más cosas/ }).click();
+    await page.getByRole('button', { name: '＋ Añadir' }).click();
+    await page.locator('.dlg').last().locator('.it', { hasText: tipo }).click();
+    const d = page.locator('.dlg').last(); await rellena(d); await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(200);
+  };
+  await addExtra('Aviso fijo', d => d.locator('input').first().fill('Los D5 tardan 3 semanas'));
+  await addExtra('Lista de comprobación', async d => { await d.locator('input').first().fill('Revisión mensual'); await d.locator('textarea').fill('Mirar desgaste\nLimpiar'); });
+  await addExtra('Idea para la app', d => d.locator('textarea').fill('Avisar si un contenedor lleva 3 meses puesto'));
+  await expect(page.locator('#view')).toContainText('Revisión mensual (0/2)');
+  await page.locator('#view label.it', { hasText: 'Mirar desgaste' }).locator('input').check(); await page.waitForTimeout(200);
+  await expect(page.locator('#view')).toContainText('Revisión mensual (1/2)');
+  await expect(page.locator('#view')).toContainText('Avisar si un contenedor');
+  await page.locator('.secc-tabs').getByRole('tab', { name: 'Resumen' }).click();
+  await expect(page.locator('#view .banner', { hasText: 'Los D5 tardan 3 semanas' })).toBeVisible();
+  await mas(); await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('#view')).toContainText('Ideas para la app (1 pendiente)');
+  expect(err).toEqual([]);
+});
