@@ -134,13 +134,17 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   habituales().then(H=>{hwrap.hidden=!H.some(h=>h.activo);ph();});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
+  /* la OT se crea una sola vez: si una foto falla, al reintentar solo se suben las fotos que faltan (no se duplica la OT) */
+  let creada=null;
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
     if(hSel&&hSel.alm_art&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
-    const r=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});for(const d of fotos)await guardarFoto(r.id,d);
+    if(!creada)creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});
+    const r=creada;
+    for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
