@@ -80,7 +80,9 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
     tabs:[["General",gen],["Movimientos ("+movs.length+")",tabM],["Consumo",tabC],["Planos y documentos",tabD]],
     acts:[{t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formArticulo(a),0);}},{t:"Contar",cls:"sec",fn:()=>ir("ajuste")},{t:"Entrada",cls:"sec",fn:()=>ir("entrada")},{t:"Consumo",fn:()=>ir("salida")}]});}
 function signo(m){const c=+m.cant||0;if(m.tipo==="entrada")return"+"+fmtN(c);if(m.tipo==="salida")return"−"+fmtN(c);if(m.tipo==="ajuste")return(c>=0?"+":"−")+fmtN(Math.abs(c));return fmtN(c);}
-function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest):almN(m.alm)+(paraTxt(m)?" · "+paraTxt(m):"");}
+/* Consumos de limpieza: la nave va en la nota («Limpieza: <tarea> · Nave 2») */
+const naveDeNota=m=>{const r=/·\s*(Nave\s[^·]+?)\s*$/i.exec(m&&m.nota||"");return r?r[1]:"";};
+function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest):almN(m.alm)+((paraTxt(m)||naveDeNota(m))?" · "+(paraTxt(m)||naveDeNota(m)):"");}
 
 /* ===== Ficha de objeto a pantalla completa (estilo SAP «Object Page») =====
    o={tipo, ruta:[...], titulo, sub, estado:[texto,clase], kpis:[[etiqueta,valor,clase]], tabs:[[titulo,[nodos]]], acts:[{t,cls,fn}], tab} */
