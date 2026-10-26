@@ -114,7 +114,11 @@ function zonasCard(){let G="Otras";const nom=el("input",{type:"text",placeholder
     el("div",{style:"padding:0 14px 12px"},[el("p",{class:"hint",style:"margin:0 0 8px",text:"Lo que añadas aquí sale en la lista desplegable al abrir o crear una OT. Quitar una zona no toca las OT ya hechas."}),
       el("div",{class:"row"},[nom,sel(GRUPOS_Z,"Otras",v=>G=v),el("button",{class:"btn",text:"＋ Añadir",onclick:add})]),lista])]);}
 let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc("habituales",{p_tok:S.tok});}catch(e){HAB=HAB||[];}}return HAB;}
-async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
+/* borrador de la OT en curso: si el móvil cierra la app al hacer la foto, al volver se reabre con lo escrito */
+const BORR_OT="limp.borrador_ot";
+function borradorOT(){try{const b=JSON.parse(sessionStorage.getItem(BORR_OT)||"null");if(!b||!S.yo||b.yo!==S.yo.id||Date.now()-b.t>30*60*1000)return null;return b;}catch(e){return null;}}
+function borrarBorradorOT(){try{sessionStorage.removeItem(BORR_OT);}catch(e){}}
+async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
   const dl=el("datalist",{id:"lugares-dl"});const lchips=el("div",{class:"chips",style:"margin:-4px 0 10px"});let LUG=[];
@@ -136,6 +140,8 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   const fbox=el("div",{class:"fotos"});
   /* la OT se crea una sola vez: si una foto falla, al reintentar solo se suben las fotos que faltan (no se duplica la OT) */
   let creada=null;
+  const guardaBorr=()=>{const d={yo:S.yo&&S.yo.id,t:Date.now(),o:{titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,urgente:!!o.urgente}};
+    try{sessionStorage.setItem(BORR_OT,JSON.stringify(Object.assign({fotos:fotos.slice(0,4)},d)));}catch(e){try{sessionStorage.setItem(BORR_OT,JSON.stringify(d));}catch(_){}}};
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
     if(hSel&&hSel.alm_art&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
@@ -144,6 +150,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
     if(!creada)creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});
     const r=creada;
+    borrarBorradorOT();
     for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
@@ -157,7 +164,7 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   /* responsable de hornos: puede dar la OT a uno de sus operarios de hornos */
   let asgR=(S.resp&&S.resp.operarios[0])?S.resp.operarios[0].id:null;
   const quienR=(S.resp&&sim)?fld("¿Quién lo hace?",(()=>{const c=el("div",{class:"chips"});const pc=()=>{c.textContent="";S.resp.operarios.forEach(x=>c.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(asgR===x.id),text:x.nombre,onclick:()=>{asgR=x.id;pc();}})));};pc();return c;})()):null;
-  const fotoBtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}})]);
+  const fotoBtn=el("label",{class:"btn sec",style:"display:block;text-align:center;cursor:pointer"},["Añadir foto",el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;let d;try{d=await comprime(f);}catch(er){toast("Esa foto no se ha podido leer. Prueba con otra.");return;}fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));guardaBorr();}})]);
   const urgente=fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x));
   /* incidencias frecuentes: un toque rellena qué ha pasado y la urgencia */
   const INC_FREC=[["Derrame de aceite",true],["Derrame de taladrina",true],["Filtración de agua",true],["Desbordamiento de depósito",true],["Manguera rota (agua o aceite)",true],["Contenedor de basura lleno",false],["Suelo resbaladizo",false]];
@@ -165,11 +172,18 @@ async function abrirOT(re){await zonasL();await elementosL().catch(()=>{});await
   /* el responsable de hornos no ve las incidencias de limpieza (derrames, filtraciones…) */
   const incFld=S.resp?null:fld("Lo más frecuente",incBox);
   if(sim)fZ.firstChild.textContent="¿Dónde?";
-  const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",area("",x=>o.descripcion=x)),fotoBtn,fbox]);
+  const descTA=area("",x=>o.descripcion=x);
+  const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",descTA),fotoBtn,fbox]);
   const cuerpo=sim?[incFld,hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,quienR,urgente,masOp]
     :[incFld,hwrap,navWrap,hornoWrap,fld("¿Qué hay que hacer?",tit),fZ,fLug,urgente,fld("¿Quién lo hace?",seg([[true,"Lo hago yo"],["elegir","Elegir persona"],[false,"Que lo haga el del relevo y nave"]],true,x=>{o.yo=x===true;o.elegir=x==="elegir";quienBox.hidden=!o.elegir;if(relRow)relRow.hidden=x!==false;})),quienBox,
       relRow,fld("Detalles (opcional)",area("",x=>o.descripcion=x)),fotoBtn,fbox];
-  dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec"},{t:"Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
+  dlg("Abrir OT",el("div",null,cuerpo),[{t:"Cancelar",cls:"sec",fn:()=>{borrarBorradorOT();}},{t:"Ya lo he hecho",cls:"ok",fn:()=>guardar(true)},{t:"Abrir OT",fn:()=>guardar(false)}]);
+  const ovOT=[...document.querySelectorAll(".ov")].pop();
+  if(ovOT){ovOT.addEventListener("input",guardaBorr);ovOT.addEventListener("click",()=>setTimeout(guardaBorr,0));}
+  /* restaurar lo escrito (si la app se cerró al hacer la foto) */
+  if(borr&&borr.o){ if(borr.o.titulo){o.titulo=borr.o.titulo;tit.value=borr.o.titulo;} if(borr.o.lugar){o.lugar=borr.o.lugar;lug.value=borr.o.lugar;pl();}
+    if(borr.o.descripcion){o.descripcion=borr.o.descripcion;descTA.value=borr.o.descripcion;} if(borr.o.urgente){o.urgente=true;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===1)));}
+    (borr.fotos||[]).forEach(d=>{fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}); if(borr.fotos&&borr.fotos.length)masOp.open=true; marcaLug(); }
   setTimeout(()=>{if(!(HAB||[]).length)tit.focus();},50);}
 /* tareas habituales: no tienen día fijo, pero se hacen a menudo */
 async function formHabitual(h0,re){await trabajadores().catch(()=>{});const h=Object.assign({activo:true},JSON.parse(JSON.stringify(h0)));const bot=[{t:"Cancelar",cls:"sec"}];

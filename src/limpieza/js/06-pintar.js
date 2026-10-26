@@ -112,5 +112,7 @@ let _prN=0;const _pintaPr=pinta;pinta=function(){_pintaPr();const n=++_prN;
     const v=$("v");if(v)v.prepend(caja);}).catch(()=>{});};
 const _pinta0=pinta;pinta=function(){_pinta0();if(S.petPend&&S.tok&&S.yo){const c=S.petPend;S.petPend=null;if(esAdm())rpc("extra_ver",{p_tok:S.tok,p_id:c}).then(p=>{if(p.estado==="pendiente")setTimeout(()=>dlg("Pide quedarse",el("div",null,filaPet(p,()=>pinta())),[{t:"Cerrar",cls:"sec"}]),300);}).catch(()=>{});}if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
+/* si la app se cerró con una OT a medias (por la foto), se reabre con lo escrito */
+if(S.tok&&S.yo){const bo=borradorOT();if(bo)setTimeout(()=>{if(!document.querySelector(".ov"))abrirOT(()=>pinta(),bo);},600);}
 if(S.tok&&S.yo)rpc("yo",{p_tok:S.tok}).then(y=>{if(!y||!y.id)return;const antes=!!S.yo.encargado;S.yo=Object.assign({},S.yo,{encargado:!!y.encargado});ls.set("limp.yo",JSON.stringify(S.yo));if(antes!==!!y.encargado)pinta();}).catch(()=>{});
 })();
