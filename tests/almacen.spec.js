@@ -12,7 +12,7 @@ test('abre y recorre todas las pantallas sin errores', async ({ page }) => {
     await page.waitForTimeout(350);
     expect(await desbordes(page), 'se sale de la pantalla en ' + t).toEqual([]);
   }
-  const subs = ['Pistones', 'Ejes', 'Inyectoras', 'Movimientos', 'Análisis', 'Recambios', 'Catálogo'];
+  const subs = ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones', 'Inyectoras', 'Moldes', 'Movimientos', 'Análisis', 'Catálogo'];
   for (const t of subs) {
     await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
     await page.waitForTimeout(250);
@@ -97,14 +97,43 @@ test('Contenedores: inventario rápido, estantería y cambio de contenedor en un
   expect(err).toEqual([]);
 });
 
-test('Contenedores también en Recambios', async ({ page }) => {
+test('Más: cada pieza con su apartado y Falta y sobra en Reponer', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.waitForTimeout(250); await pulsa(page, 'Recambios'); await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Contenedores', exact: true }).click(); await page.waitForTimeout(300);
-  await expect(page.locator('.ct-grid')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Inventario rápido' })).toBeVisible();
+  await page.waitForTimeout(250);
+  for (const g of ['Piezas', 'Máquinas', 'Gestión']) await expect(page.locator('.mas-g', { hasText: g })).toBeVisible();
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Gastado en 30 días');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Barras expulsoras$/ }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Registrar cambio');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Reponer')).click());
+  await page.getByRole('button', { name: 'Falta y sobra' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Faltan');
+  expect(err).toEqual([]);
+});
+
+test('Ficha de inyectora: lo que monta lleva a cada pieza y se vuelve a la máquina', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.waitForTimeout(250); await page.locator('.tile .tt', { hasText: /^Inyectoras$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('button.mq', { hasText: 'F4' }).first().click(); await page.waitForTimeout(400);
+  const pg = page.locator('.op-pg').last();
+  for (const t of ['Ahora', 'Consumibles', 'Ejes', 'Historial', 'Gasto', 'Documentos']) await expect(pg.getByRole('tab', { name: t })).toBeVisible();
+  await expect(pg.locator('.mq-l')).toHaveCount(await pg.locator('.mq-l').count());
+  for (const k of ['Molde', 'Pistón', 'Eje', 'Contenedor', 'Horno']) await expect(pg.locator('.mq-lk', { hasText: new RegExp('^' + k + '$') })).toBeVisible();
+  const pis = pg.locator('button.mq-lp', { hasText: 'Pistón' });
+  if (await pis.count()) {
+    await pis.click(); await page.waitForTimeout(300);
+    const hijo = page.locator('.op-pg').last();
+    await expect(hijo.locator('.op-back')).toHaveText('‹ F4');
+    await hijo.locator('.op-back').click(); await page.waitForTimeout(200);
+    await expect(page.locator('.op-pg').last()).toContainText('Lo que monta ahora');
+  }
+  for (const t of ['Historial', 'Gasto', 'Documentos']) { await pg.getByRole('tab', { name: t }).click(); await page.waitForTimeout(150); }
+  await expect(pg).toContainText('Planos de lo que monta');
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

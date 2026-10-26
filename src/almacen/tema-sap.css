@@ -121,3 +121,18 @@ button.ct-c:hover{border-color:var(--accb)}
 .ct-maqs{display:grid;gap:6px}.ct-maqs>div{display:flex;gap:8px;align-items:flex-start;font-size:13px}
 .ct-maqs b{flex:none;width:26px;text-align:center;border-radius:4px;color:#1D2D3E}
 @media (min-width:700px){.ct-c,.ct-l{min-height:70px}.ct-c .ct-n{font-size:24px}.ct-c b{font-size:15px}}
+/* Más: títulos de grupo (Piezas, Máquinas, Gestión) */
+.gh.mas-g{background:none;border:0;padding:16px 2px 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+.gh.mas-g:first-child{padding-top:2px}
+/* Ficha de inyectora: «Lo que monta ahora», cada línea lleva a su pieza */
+.mq-ls{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mq-l{display:flex;align-items:center;gap:8px;padding:0 10px 0 0;border-bottom:1px solid var(--line)}.mq-l:last-child{border-bottom:0}
+.mq-lp{flex:1;min-width:0;display:grid;grid-template-columns:118px minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:10px 12px;background:none;border:0;font:inherit;color:inherit;text-align:left}
+button.mq-lp{cursor:pointer}button.mq-lp:hover{background:var(--surf2)}
+.mq-lk{grid-row:1/3;font-size:12px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.03em}
+.mq-lp b{font-size:15px;overflow-wrap:anywhere}.mq-lp small{grid-column:2;font-size:12px;color:var(--ink2)}
+.mq-lg{grid-column:3;grid-row:1/3;font-size:22px;color:var(--acc)}
+.mq-l.mut .mq-lp b{color:var(--ink2);font-weight:500}
+.mq-l.warn{box-shadow:inset 4px 0 0 var(--warn)}
+.mq-ht{flex:none;min-width:78px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink2);padding:2px 0 0 4px}
+@media (max-width:420px){.mq-lp{grid-template-columns:86px minmax(0,1fr) auto}}

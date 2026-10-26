@@ -142,10 +142,10 @@ function cambioCont(m0,pre){const m=maqDe(m0.id)||m0;const l=letraMaq(m),dp=diam
   pinta();
   const bots=[{t:"Cancelar",cls:"sec"}];
   if(antes)bots.push({t:"Solo quitar el "+antes.cod,cls:"sec",fn:async()=>{const mm=maqDe(m.id);mm.hoy=Object.assign({},mm.hoy||{},{cont:null,contF:d.f});
-    antes.estado=d.dest;try{await saveCat();await addMlog({f:d.f,maq:m.id,tipo:"cont",val:null,antes:antes.id,destino:d.dest,by:(d.by||"").trim()||null});toast(antes.cod+" quitado");}catch(e){return false;}render(true);}});
+    antes.estado=d.dest;try{await saveCat();await addMlog({f:d.f,maq:m.id,tipo:"cont",val:null,antes:antes.id,destino:d.dest,by:(d.by||"").trim()||null});toast(antes.cod+" quitado");}catch(e){return false;}render(true);if(d.volver){cerrarDlgs();setTimeout(()=>fichaIny(maqDe(m.id)),60);}}});
   bots.push({t:"Guardar",fn:async()=>{if(!d.val){toast("Elige el contenedor");return false;}const x=contDe(d.val);const dn=dondeCont(x);const mm=maqDe(m.id);
     if(dn.k==="maquina"&&dn.m.id!==mm.id){dn.m.hoy=Object.assign({},dn.m.hoy||{},{cont:null,contF:d.f});}
     mm.hoy=Object.assign({},mm.hoy||{},{cont:x.id,contF:d.f});x.estado="estanteria";if(antes)antes.estado=d.dest;
     try{await saveCat();await addMlog({f:d.f,maq:m.id,tipo:"cont",val:x.id,antes:antes?antes.id:null,destino:antes?d.dest:null,by:(d.by||"").trim()||null});toast(x.cod+" puesto en "+m.cod);}catch(e){toast("No se pudo guardar");return false;}
-    render(true);}});
+    render(true);if(d.volver){cerrarDlgs();setTimeout(()=>fichaIny(maqDe(m.id)),60);}}});
   dlg("Cambio de contenedor · "+m.cod,[box],bots);}

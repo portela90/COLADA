@@ -104,11 +104,17 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
     pistMes:pm,usadosZona:E?E.tot.Z:null,urgeRecup:E?puUrge(E).length:0,iny:(cat.maquinas||[]).length};
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
-  const D={iny:"Plano de máquinas, material, consumos y moldes",pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos, piezas de horno y contenedores",cat:"Artículos, almacenes, máquinas y copias"};
+  const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
+    btb:"Stock, cambios y qué máquinas las llevan",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
+    quim:"Stock en kg y envases, consumo y días que quedan",iny:"Plano de las naves y la ficha completa de cada máquina",mol:"Moldes y el Ø de pistón que usa cada uno",
+    mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
-  D.cont="Estantería, inventario y qué lleva cada máquina";try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
-  const L=SUB.slice();const ie=L.findIndex(x=>x[0]==="ejes");L.splice(ie<0?L.length:ie+1,0,["cont","Contenedores"]);
-  v.appendChild(el("div",{class:"tiles"},L.map(([id,t])=>el("button",{type:"button",class:"tile",onclick:()=>irA(id)},[el("span",{class:"tt",text:t}),el("span",{class:"td",text:D[id]||""}),av[id]?el("span",{class:"tav "+av[id][1],text:av[id][0]}):null]))));
+  try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
+  try{Object.entries({btb:"barra",btt:"tornillo",bth:"horno"}).forEach(([k,f])=>{const n=artsBT(f).filter(a=>nivel(a)==="bad").length;if(n)av[k]=[n+" bajo mínimo","bad"];});
+    const nq=artsActivos().filter(a=>GRUPOS_Q.includes(grupoDe(a))&&nivel(a)==="bad").length;if(nq)av.quim=[nq+" bajo mínimo","bad"];}catch(e){}
+  const nom=Object.fromEntries(SUB);
+  SUB_G.forEach(([g,ids])=>{v.appendChild(el("div",{class:"gh mas-g",text:g}));
+    v.appendChild(el("div",{class:"tiles"},ids.map(id=>el("button",{type:"button",class:"tile",onclick:()=>irA(id)},[el("span",{class:"tt",text:nom[id]}),el("span",{class:"td",text:D[id]||""}),av[id]?el("span",{class:"tav "+av[id][1],text:av[id][0]}):null]))));});
 }
 
 /* ===== RESUMEN: todo de un vistazo para decidir rápido ===== */

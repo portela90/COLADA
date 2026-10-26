@@ -95,7 +95,8 @@ function lineasFicha(m,conStock){const v=valoresDe(m);return plantilla().map(c=>
   const ops=(v[c.id]||[]).map(id=>c.ops.find(o=>o.id===id)).filter(Boolean);if(!ops.length)return null;
   return{c,ops,txt:ops.map(o=>{const a=o.art&&art(o.art);return o.t+(conStock&&a?" · hay "+fmtN(stockDe(a.id))+" "+a.ud:"");}).join(", ")};}).filter(Boolean);}
 const resumenFicha=m=>lineasFicha(m).map(l=>l.c.nom+": "+l.txt);
-function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
+function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn=>()=>{OP_VOLVER=m.cod;fn();setTimeout(()=>{OP_VOLVER=null;},0);};
+  const reabre=t=>()=>{cerrarDlgs();setTimeout(()=>fichaIny(m,t),60);};
   const mods=(cat.modelos||[]).filter(x=>inyDe(x).includes(m.cod));const all=todosPist().filter(p=>p.maq===m.id);const ps=all.slice(-8).reverse();
   const c3=all.filter(p=>p.f>=sumaDias(hy,-91)).reduce((s,p)=>s+(+p.cant||1),0);const u=all[all.length-1];
   const dm=diamDe(m),pa=dm?pistArt(dm):null;
@@ -104,7 +105,7 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
   const d60=sumaDias(hy,-60),cons={};todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=d60&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{cons[x.art]=(cons[x.art]||0)+(+x.cant||0);});
   const lista=(arr,fn)=>el("div",{class:"card"},el("div",{class:"lst"},arr.map(fn)));
   const gh=t=>el("div",{class:"gh",style:"border-radius:6px",text:t});
-  const itArt=(a,extra)=>el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();ficha(a);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:TEC(a.fam)?nomBT(a):a.desc}),
+  const itArt=(a,extra)=>el("button",{type:"button",class:"it",onclick:abre(()=>ficha(a))},[el("div",{class:"ppal"},[el("div",{class:"t1",text:TEC(a.fam)?nomBT(a):a.desc}),
     el("div",{class:"t2",text:[FAM[a.fam],TEC(a.fam)?(revVig(a)?"plano "+revTxt(revVig(a).n):"sin plano"):(a.plano?"plano "+a.plano:null),!TEC(a.fam)&&(a.docs||[]).length?"con plano":null,extra].filter(Boolean).join(" · ")})]),
     el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id))}),el("small",{text:a.ud})])]);
   const lf=lineasFicha(m,true).filter(l=>l.c.auto!=="horno");const datos=[].concat(...lf.map(l=>[el("dt",{text:l.c.nom}),el("dd",{text:l.txt})]));
@@ -121,7 +122,7 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
     gh("Ejes · "+(mods.length?mods.length+" modelo"+(mods.length>1?"s":""):"ninguno")),
     mods.length?(()=>{const ep=ejeEnMaq(m.cod);return el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 2px"},[el("span",{},["Eje puesto: ",el("b",{text:ep?ep.cod:"sin saber"}),ep&&ep.maqF?el("span",{class:"sub",text:" · desde "+fmtF(ep.maqF)}):null]),
       el("button",{type:"button",class:"btn sec peq",text:ep?"Cambiar":"Indicar",onclick:()=>{cerrarDlgs();elegirEjeMaq(m,()=>setTimeout(()=>fichaIny(m),350));}})]);})():null,
-    mods.length?lista(mods,x=>{const es=ejes.filter(e=>e.mod===x.cod);const p=es.filter(e=>e.estado==="planta").length;return el("button",{type:"button",class:"it",onclick:()=>{cerrarDlgs();fichaModelo(x);}},[
+    mods.length?lista(mods,x=>{const es=ejes.filter(e=>e.mod===x.cod);const p=es.filter(e=>e.estado==="planta").length;return el("button",{type:"button",class:"it",onclick:abre(()=>fichaModelo(x))},[
       el("span",{class:"stripe "+(+x.min>0?(p<+x.min?"bad":p===+x.min?"warn":"ok"):"")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.ref}),
         el("div",{class:"t2",text:[x.cod,x.long,x.rosca?"rosca "+x.rosca:null,(x.docs||[]).length?"con plano":"sin plano",es.length-p?(es.length-p)+" fuera de planta":null].filter(Boolean).join(" · ")})]),
       el("div",{class:"cant num"},[el("b",{text:p+"/"+es.length}),el("small",{text:"en planta"})])]);}):el("p",{class:"hint",text:"Ningún modelo de eje tiene puesta esta inyectora (se pone en el modelo de eje, campo Inyectoras)."}),
@@ -136,9 +137,48 @@ function fichaIny(m0){const m=maqDe(m0.id)||m0;const hy=hoy();
     el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"},docs.length?docs.map(d=>docThumb(d,async()=>{const x=maqDe(m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaIny(m);})):[el("p",{class:"hint",text:"Placa de la máquina, manual, fotos del horno o de la canaleta…"})]),
     subirDoc(async d=>{const x=maqDe(m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Guardado");cerrarDlgs();fichaIny(m);},"Subir foto o documento (PDF o imagen)")];
   const C=(...ix)=>[el("section",{class:"card"},el("div",{class:"bd",style:"display:grid;gap:10px"},ix.map(i=>B[i]).filter(Boolean)))];
+  /* --- Ahora: lo que monta, cada línea lleva a su pieza --- */
+  const h=hoyDe(m),mo=moldeDe(h.molde),co=contDe(h.cont),ep=ejeEnMaq(m.cod),epM=ep?modelo(ep.mod):null;
+  const bar=asign.filter(a=>a.fam==="barra"),tor=asign.filter(a=>a.fam==="tornillo");
+  const linea=(k,v,sub,ir,cambiar,cls)=>el("div",{class:"mq-l"+(cls?" "+cls:"")},[
+    el(ir?"button":"div",Object.assign({class:"mq-lp"},ir?{type:"button",onclick:abre(ir),"aria-label":k+": "+v}:{}),[el("span",{class:"mq-lk",text:k}),el("b",{text:v||"sin apuntar"}),sub?el("small",{text:sub}):null,ir?el("span",{class:"mq-lg","aria-hidden":"true",text:"›"}):null]),
+    cambiar?el("button",{type:"button",class:"btn sec peq",text:"Cambiar",onclick:cambiar}):null]);
+  const ct=co?tipoCont(co):"",dpN=diamPist(m);
+  const ahora=el("div",{class:"mq-ls"},[
+    linea("Molde",mo?moldeTxt(mo):"",mo?[mo.diam?"pistón "+mo.diam:null,h.moldeF?"desde "+fmtF(h.moldeF):null].filter(Boolean).join(" · "):null,mo?()=>formMolde(mo,()=>reabre(0)()):null,()=>{cerrarDlgs();cambioHoy(m,"molde");},mo?"":"mut"),
+    linea("Pistón",dm||"",pa?"hay "+fmtN(stockDe(pa.id))+" de ese Ø · "+c3+(c3===1?" cambio":" cambios")+" en 3 meses":null,pa?()=>ficha(pa):null,()=>{cerrarDlgs();Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});irA("pist");},dm?(pa&&nivel(pa)==="bad"?"warn":""):"mut"),
+    linea("Eje",ep?ep.cod:"",ep?[epM?epM.ref:ep.mod,ep.maqF?"desde "+fmtF(ep.maqF):null].filter(Boolean).join(" · "):mods.length?"no se sabe cuál lleva":"ningún modelo para esta máquina",ep?()=>fichaEje(ep):null,mods.length?()=>{cerrarDlgs();elegirEjeMaq(m,()=>setTimeout(()=>fichaIny(m),350));}:null,ep?"":"mut"),
+    linea("Contenedor",co?co.cod:"",co?[ct?CT_L[ct[0]].mm+" mm · Ø"+CT_D[ct[1]]:null,h.contF?"desde "+fmtF(h.contF):null,dpN&&ct&&CT_D[ct[1]]!==dpN?"¡no es el Ø del pistón!":null].filter(Boolean).join(" · "):letraMaq(m)?"lleva largo "+letraMaq(m)+" ("+CT_L[letraMaq(m)].mm+" mm)":null,co?()=>fichaCont(co,()=>reabre(0)()):null,()=>{cerrarDlgs();cambioCont(m,{volver:true});},co?(dpN&&ct&&CT_D[ct[1]]!==dpN?"warn":""):"mut"),
+    ...(bar.length?bar:[null]).map(a=>linea("Barras expulsoras",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud+(revVig(a)?" · plano "+revTxt(revVig(a).n):""):null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
+    ...(tor.length?tor:[null]).map(a=>linea("Tornillo tope",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud:null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
+    linea("Horno",hornoTxt(m)||"",hornoA.length?hornoA.length+" recambios en su lista (pestaña Consumibles)":null,null,null,hornoTxt(m)?"":"mut")]);
+  /* --- Historial: todo lo que ha pasado en la máquina, en una sola lista --- */
+  const H=[];todosMlog().filter(x=>x.maq===m.id).forEach(x=>H.push({f:x.f,ts:x.ts||0,t:x.tipo==="molde"?"Molde":"Contenedor",d:x.tipo==="molde"?"Se pone el "+(((moldeDe(x.val)||{}).cod)||"?"):(x.val?"Se pone el "+(((contDe(x.val)||{}).cod)||"?"):"Se quita")+(x.antes?" · sale el "+((x.tipo==="molde"?(moldeDe(x.antes)||{}).cod:(contDe(x.antes)||{}).cod)||"?")+(x.destino?" ("+((CT_EST[x.destino]||[x.destino])[0]).toLowerCase()+")":""):""),q:x.by,ir:x.tipo==="cont"&&contDe(x.val||x.antes)?()=>fichaCont(contDe(x.val||x.antes)):null}));
+  all.forEach(p=>H.push({f:p.f,ts:p.ts||0,t:"Pistón",d:p.diam+" · "+cap(p.motivo||"")+((+p.cant||1)>1?" · "+p.cant+" pistones":""),q:p.resp?respTxt(p.resp):p.por||""}));
+  todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art);H.push({f:x.f,ts:x.ts||0,t:a&&a.fam==="horno"?"Horno":a&&TEC(a.fam)?FAM[a.fam]:"Material",d:(a?(TEC(a.fam)?nomBT(a):a.desc):"?")+" × "+fmtN(+x.cant||0)+(x.nota?" · "+x.nota:""),q:x.por||(x.resp?respTxt(x.resp):""),ir:a?()=>ficha(a):null});});
+  H.sort((a,b)=>(b.f+"|"+String(b.ts).padStart(15,"0")).localeCompare(a.f+"|"+String(a.ts).padStart(15,"0")));
+  const hist=H.length?el("div",{class:"lst"},H.slice(0,80).map(x=>el(x.ir?"button":"div",Object.assign({class:"it"},x.ir?{type:"button",onclick:abre(x.ir)}:{style:"cursor:default"}),[el("span",{class:"mq-ht",text:x.t}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.d}),el("div",{class:"t2",text:[fmtF(x.f),x.q].filter(Boolean).join(" · ")})])]))):el("p",{class:"hint",text:"Todavía no hay nada apuntado en esta máquina."});
+  /* --- Gasto: pistones y material, este mes, el anterior y el año --- */
+  const gastoDe=desde=>{const ps=all.filter(p=>p.f>=desde),ms=todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=desde&&!/^Cambio de pistón/.test(x.nota||""));
+    const eP=ps.reduce((t,p)=>t+(+p.cant||1)*precioDe(pistArt(p.diam)),0),fam={};ms.forEach(x=>{const a=art(x.art);const k=a?(a.fam==="horno"?"Horno":TEC(a.fam)?"Barras y tornillos":"Consumibles"):"Otros";fam[k]=(fam[k]||0)+(+x.cant||0)*precioDe(a);});
+    return{pist:ps.reduce((t,p)=>t+(+p.cant||1),0),eP,fam,tot:eP+Object.values(fam).reduce((a,b)=>a+b,0)};};
+  const mes0=hy.slice(0,8)+"01",ano0=hy.slice(0,5)+"01-01";const GM=gastoDe(mes0),GA=gastoDe(ano0),G12=gastoDe(sumaDias(hy,-365));
+  const hayP=GA.tot>0||G12.tot>0;
+  const gasto=el("div",{style:"display:grid;gap:10px"},[el("dl",{class:"kpis num"},[["Este mes",hayP?eur(GM.tot):GM.pist+" pistones"],["Este año",hayP?eur(GA.tot):GA.pist+" pistones"],["Últimos 12 meses",hayP?eur(G12.tot):G12.pist+" pistones"],["Pistones en el año",String(GA.pist)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
+    hayP?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},["","Este mes","Este año"].map((t,i)=>el("th",{class:i?"r":"",text:t})))),el("tbody",{},[["Pistones",GM.eP,GA.eP]].concat(["Consumibles","Barras y tornillos","Horno","Otros"].map(k=>[k,GM.fam[k]||0,GA.fam[k]||0])).filter(r=>r[1]||r[2]).map(r=>el("tr",{},[el("td",{text:r[0]}),el("td",{class:"r num",text:eur(r[1])}),el("td",{class:"r num",text:eur(r[2])})])))])):el("p",{class:"hint",text:"Cuando los artículos tengan precio (Catálogo › artículo), aquí saldrá el gasto en euros de esta máquina."})]);
+  /* --- Documentos: los de la máquina y los planos de lo que monta --- */
+  const planos=[];mods.forEach(x=>{if((x.docs||[]).length)planos.push({t:"Eje "+x.ref,s:(x.docs||[]).length+" plano"+((x.docs||[]).length>1?"s":""),ir:()=>fichaModelo(x)});});
+  asign0.filter(a=>TEC(a.fam)&&revVig(a)).forEach(a=>planos.push({t:FAM[a.fam]+" "+nomBT(a),s:"plano "+revTxt(revVig(a).n),ir:()=>ficha(a)}));
+  asign0.filter(a=>!TEC(a.fam)&&(a.docs||[]).length).forEach(a=>planos.push({t:a.desc,s:(a.docs||[]).length+" documento"+((a.docs||[]).length>1?"s":""),ir:()=>ficha(a)}));
+  if(mo&&(mo.docs||[]).length)planos.push({t:"Molde "+mo.cod,s:(mo.docs||[]).length+" documento(s)",ir:()=>formMolde(mo)});
+  const docsPl=planos.length?el("div",{class:"lst"},planos.map(x=>el("button",{type:"button",class:"it",onclick:abre(x.ir)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:x.t}),el("div",{class:"t2",text:x.s})])]))):el("p",{class:"hint",text:"Ninguna pieza de esta máquina tiene planos todavía (se suben en la ficha del modelo de eje o de la barra)."});
+  const S=(t,...kids)=>el("section",{class:"card"},[t?el("div",{class:"hd"},el("h2",{text:t})):null,el("div",{class:"bd",style:"display:grid;gap:10px"},kids.filter(Boolean))]);
   objPage({tipo:"Inyectora",ruta:["Máquinas",m.nave||"Planta"],titulo:m.cod,sub:B[0]&&B[0].textContent,
     kpis:[["Ø pistón",dm||"—"],["Pistones 3 meses",String(c3)],["Último cambio",u?"hace "+dias(u.f,hy)+" d":"—"],["Stock de ese Ø",pa?fmtN(stockDe(pa.id)):"—",pa&&nivel(pa)==="bad"?"neg":""]],
-    tabs:[["General",C(2,3,4,5)],["Ejes",C(7,8)],["Qué lleva",C(9,10,11,12,13)],["Pistones",C(15)],["Documentos",C(17,18)]],
+    tab:tab0||0,
+    tabs:[["Ahora",[S("Lo que monta ahora",ahora,avisosMaq(m).length?el("div",{class:"banner w",text:avisosMaq(m).join(" · ")}):null),S("Ficha técnica",B[5])]],
+      ["Consumibles",C(9,10,11,12,13)],["Ejes",C(6,7,8)],["Historial",[S(null,hist)]],["Gasto",[S(null,gasto,B[14],B[15])]],
+      ["Documentos",[S("De la máquina",B[17],B[18]),S("Planos de lo que monta",docsPl)]]],
     acts:[{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},{t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
       {t:"Cambio de pistón",fn:()=>{Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});setTimeout(()=>{irA("pist");const f=document.getElementById("pForm");if(f)f.scrollIntoView();},0);}}]});}
 /* editar lo que monta una máquina: en cada campo se tocan las opciones */

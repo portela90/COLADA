@@ -86,7 +86,9 @@ function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest)
 
 /* ===== Ficha de objeto a pantalla completa (estilo SAP «Object Page») =====
    o={tipo, ruta:[...], titulo, sub, estado:[texto,clase], kpis:[[etiqueta,valor,clase]], tabs:[[titulo,[nodos]]], acts:[{t,cls,fn}], tab} */
-function objPage(o){const ov=el("div",{class:"dlg-ov op-ov"});let pg;
+/* OP_VOLVER: si una página se abre desde otra (p. ej. el eje desde la F28), su botón dice «‹ F28» */
+let OP_VOLVER=null;
+function objPage(o){const ov=el("div",{class:"dlg-ov op-ov"});let pg;const volver=o.volver||OP_VOLVER;
   const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};const esc=e=>{if(e.key==="Escape"&&document.querySelectorAll(".dlg-ov").length&&document.querySelectorAll(".dlg-ov")[document.querySelectorAll(".dlg-ov").length-1]===ov)close();};
   const tabs=(o.tabs||[]).filter(t=>t&&t[1]&&t[1].filter(Boolean).length);let cur=Math.min(o.tab||0,Math.max(0,tabs.length-1));
   const body=el("div",{class:"op-body"});const tb=el("div",{class:"op-tabs",role:"tablist"});
@@ -94,7 +96,7 @@ function objPage(o){const ov=el("div",{class:"dlg-ov op-ov"});let pg;
   tabs.forEach(([t],i)=>tb.appendChild(el("button",{type:"button",role:"tab",text:t,onclick:()=>{cur=i;pinta();const sc=pg.querySelector(".op-scroll");const tp=tb.offsetTop;if(sc.scrollTop>tp)sc.scrollTop=tp;}})));
   const foot=(o.acts||[]).length?el("div",{class:"op-foot"},o.acts.map(a=>{const b=el("button",{type:"button",class:"btn "+(a.cls||""),text:a.t});b.onclick=async()=>{if(a.fn){b.disabled=true;let r;try{r=await a.fn();}catch(e){r=false;}b.disabled=false;if(r===false)return;}close();};return b;})):null;
   pg=el("div",{class:"op-pg dlg",role:"dialog","aria-modal":"true","aria-label":(o.tipo?o.tipo+" ":"")+o.titulo},[
-    el("div",{class:"op-bar"},[el("button",{type:"button",class:"op-back","aria-label":"Volver",onclick:close},"‹ Volver"),el("span",{class:"op-tipo",text:o.tipo||""})]),
+    el("div",{class:"op-bar"},[el("button",{type:"button",class:"op-back","aria-label":"Volver",onclick:close},"‹ "+(volver||"Volver")),el("span",{class:"op-tipo",text:o.tipo||""})]),
     el("div",{class:"op-scroll"},[el("div",{class:"op-hd"},[
       o.ruta&&o.ruta.length?el("div",{class:"op-ruta",text:o.ruta.join("  ›  ")}):null,
       el("div",{class:"op-tit"},[el("h2",{text:o.titulo}),o.estado?el("span",{class:"pill "+(o.estado[1]||""),text:o.estado[0]}):null]),
@@ -121,9 +123,10 @@ function faltas(almId){const d=(cat.dot||{})[almId]||{};const OK=okBajar();retur
   {const x=ajBajarHoy()[almId+"|"+id];if(x&&x.quitar)falta=0;else if(x&&x.cant!=null)falta=Math.max(0,Math.min(falta,+x.cant||0));}
   return{a,obj,st,org:org!==almId?org:null,falta,quitado:!!ok};}).filter(Boolean);}
 function vRepo(v){draft.rv=draft.rv||"hoy";
-  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"],["prev","Previsión"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
+  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Vista"},[["hoy","Reponer hoy"],["dot","Qué va en cada almacén"],["prev","Previsión"],["mat","Falta y sobra"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(draft.rv===k),text:t,onclick:()=>{draft.rv=k;render(true);}}))));
   if(draft.rv==="dot"){vDotacion(v);return;}
   if(draft.rv==="prev"){vPrev(v);return;}
+  if(draft.rv==="mat"){vMat(v);return;}
   const ls=lineas();
   if(!ls.length){v.appendChild(el("div",{class:"banner",text:"Marca al menos un almacén como «de producción» en Catálogo > Almacenes."}));return;}
   const todas=[];ls.forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)todas.push(Object.assign({l},f));}));
