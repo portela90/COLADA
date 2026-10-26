@@ -104,7 +104,7 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
     pistMes:pm,usadosZona:E?E.tot.Z:null,urgeRecup:E?puUrge(E).length:0,iny:(cat.maquinas||[]).length};
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
-  const D={iny:"Plano de máquinas, material, consumos y moldes",pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos y piezas de horno",cat:"Artículos, almacenes, máquinas y copias"};
+  const D={iny:"Plano de máquinas, material, consumos y moldes",pist:"Cambios, stock por medida e informe para Beatriz",ejes:"Cuarentena, taller y revisión de ejes",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",bt:"Barras, tornillos, piezas de horno y contenedores",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
   D.cont="Estantería, inventario y qué lleva cada máquina";try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
   const L=SUB.slice();const ie=L.findIndex(x=>x[0]==="ejes");L.splice(ie<0?L.length:ie+1,0,["cont","Contenedores"]);

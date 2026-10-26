@@ -11,7 +11,8 @@ const maqsArt=a=>(a.iny||[]).map(id=>maqN(id)).filter(x=>x&&x!=="—").sort((p,q
 const GRUPOS_H=["Tubos dosificadores","Conos","Juntas de cono","Juntas de tubo dosificador","Resistencias","Conexiones estrella","Conexiones fase","Centradores","Juntas de puerta y tapa","Juntas de termopar"];
 function gruposH(A){const g={};A.forEach(a=>{const k=a.grupo||"Otros";(g[k]=g[k]||[]).push(a);});return Object.keys(g).sort((x,y)=>{const i=GRUPOS_H.indexOf(x),j=GRUPOS_H.indexOf(y);return(i<0?99:i)-(j<0?99:j);}).map(k=>[k,g[k]]);}
 function vBT(v){draft.bt=draft.bt||"barra";const f=draft.bt,N=BT[f],hy=hoy();
-  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Apartado"},Object.keys(BT).map(k=>el("button",{type:"button","aria-pressed":String(f===k),text:BT[k].nom,onclick:()=>{draft.bt=k;draft.btMaq="";render(true);}}))));
+  v.appendChild(el("div",{class:"seg",role:"group","aria-label":"Apartado"},Object.keys(BT).concat(["cont"]).map(k=>el("button",{type:"button","aria-pressed":String(f===k),text:k==="cont"?"Contenedores":BT[k].nom,onclick:()=>{draft.bt=k;draft.btMaq="";render(true);}}))));
+  if(f==="cont")return vCont(v);
   const A=artsBT(f),C30=cambiosBT(f,sumaDias(hy,-30));const PR={};try{prevTodo().arts.forEach(x=>{PR[x.a.id]=x;});}catch(e){}
   const bajo=A.filter(a=>{const n=nivel(a);return n==="bad"||n==="warn";});
   v.appendChild(el("dl",{class:"kpis num"},[["Referencias",String(A.length)],["En stock",fmtN(A.reduce((t,a)=>t+stockDe(a.id),0))+" ud"],["Para pedir",String(bajo.length)],["Cambios 30 días",fmtN(C30.reduce((t,m)=>t+(+m.cant||0),0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
