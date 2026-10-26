@@ -69,8 +69,7 @@ test('Contenedores: inventario rápido, estantería y cambio de contenedor en un
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.waitForTimeout(250); await pulsa(page, 'Inyectoras'); await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Contenedores', exact: true }).click(); await page.waitForTimeout(300);
+  await page.waitForTimeout(250); await page.locator('.tile', { hasText: 'Contenedores' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.ct-grid')).toBeVisible();
   expect(await desbordes(page), 'se sale de la pantalla en Contenedores').toEqual([]);
   await page.getByRole('button', { name: 'Inventario rápido' }).click();
