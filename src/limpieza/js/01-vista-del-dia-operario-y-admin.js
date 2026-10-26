@@ -128,7 +128,8 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   selH.onchange=()=>{o.elemento_id=selH.value||null;};const hornoWrap=fld("¿Qué horno se limpia?",selH);hornoWrap.hidden=true;
   /* tareas habituales: una lista desplegable (solo las que puede hacer esta persona) */
   const hsel=el("select",{"aria-label":"Tarea habitual"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=fld("¿Es una tarea habitual?",el("div",null,[hsel,hinfo]));hwrap.hidden=true;
-  const navWrap=el("div");const pnav=()=>{navWrap.textContent="";navWrap.hidden=!(hSel&&hSel.alm_art);if(navWrap.hidden)return;
+  const navWrap=el("div");const esVar=()=>!!(hSel&&hSel.alm_art&&(hSel.alm_cant==null||hSel.alm_cant===""));
+  const pnav=()=>{navWrap.textContent="";navWrap.hidden=!(hSel&&hSel.alm_art);if(navWrap.hidden)return;if(esVar()){navWrap.appendChild(el("p",{class:"hint",text:"Al terminarla te pediremos la nave y los kilos que repones."}));return;}
     navWrap.appendChild(fld("¿En qué nave? (obligatorio: el coste se carga ahí)",seg([["Nave 1","Nave 1"],["Nave 2","Nave 2"]],o.nave,x=>{o.nave=x;})));};
   const ph=()=>{hsel.textContent="";hsel.appendChild(el("option",{value:"",text:"— No, la escribo yo —"}));
     (HAB||[]).filter(h=>h.activo).forEach(h=>hsel.appendChild(el("option",{value:h.id,text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):"")})));
@@ -144,7 +145,9 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
     try{sessionStorage.setItem(BORR_OT,JSON.stringify(Object.assign({fotos:fotos.slice(0,4)},d)));}catch(e){try{sessionStorage.setItem(BORR_OT,JSON.stringify(d));}catch(_){}}};
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
-    if(hSel&&hSel.alm_art&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
+    if(esVar()&&hecha){toast("Queda abierta: al terminarla te pediremos la nave y los kilos que repones");}
+    if(esVar())hecha=false;
+    if(hSel&&hSel.alm_art&&!esVar()&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
