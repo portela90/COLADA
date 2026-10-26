@@ -90,7 +90,7 @@ function textoCierre(I,s){s=s||incluirSel("cierre",opsCierre(I));const FI=I.fila
     if(!x.cua.ok)L.push("  ¡No cuadra! Diferencia "+sg(x.cua.fa)+" f · "+sg(x.cua.kg)+" kg");});}
   if(s.val){L.push("");L.push("VALORACIÓN (al precio del mes)");
   Object.keys(MAT).forEach(mt=>{const fs=FI.filter(x=>x.mat===mt);if(!fs.length)return;const pv=I.precio[mt].v;
-    L.push(MAT[mt].nom+(pv?" a "+eurT(pv)+" €/t":" (sin precio)"));
+    L.push(MAT[mt].nom+(pv?" a "+eurKg(pv)+" €/kg":" (sin precio)"));
     const sm=k=>fs.reduce((a,x)=>a+x.eur[k],0);
     fs.forEach(x=>L.push("  "+x.nave+": consumo "+eur(x.eur.con)+" · stock final "+eur(x.eur.fin)));
     if(fs.length>1)L.push("  Total "+MAT[mt].nom+": consumo "+eur(sm("con"))+" · stock final "+eur(sm("fin")));});}
@@ -164,7 +164,7 @@ async function excelCierre(I,s){s=s||incluirSel("cierre",opsCierre(I));
   /* valoración */
   ws.addRow([]);
   const tV=ws.addRow(["VALORACIÓN (todo al precio del mes)"]);tV.font={bold:true,size:12};
-  ws.addRow(["",Object.keys(MAT).filter(mt=>I.filas.some(x=>x.mat===mt)).map(mt=>MAT[mt].nom+": "+(I.precio[mt].v?eurT(I.precio[mt].v)+" €/t":"SIN PRECIO")+(I.precio[mt].fuente==="entradas"?" (media de las entradas del mes)":I.precio[mt].fuente==="tarifa"?" (media de la tarifa)":"")).join("   ·   ")]).font={italic:true};
+  ws.addRow(["",Object.keys(MAT).filter(mt=>I.filas.some(x=>x.mat===mt)).map(mt=>MAT[mt].nom+": "+(I.precio[mt].v?eurKg(I.precio[mt].v)+" €/kg":"SIN PRECIO")+(I.precio[mt].fuente==="entradas"?" (media de las entradas del mes)":I.precio[mt].fuente==="tarifa"?" (media de la tarifa)":"")).join("   ·   ")]).font={italic:true};
   const hv=ws.addRow(["Nave","Aleación",labIni(I)+" (€)","Entradas (€)","Consumo (€)","Ajustes (€)","Final en nave (€)","Final en externo (€)","Stock final (€)"]);cab(hv);
   const EURF='#,##0.00 "€"';
   const lval=(a,b,v,neg)=>{const row=ws.addRow([a,b,v.ini,v.ent,v.con,v.aju,v.finN,v.finE,v.fin].map(z=>typeof z==="number"?Math.round(z*100)/100:z));
@@ -222,11 +222,11 @@ async function excelCierre(I,s){s=s||incluirSel("cierre",opsCierre(I));
   /* Entradas */
   const we=wb.addWorksheet("Entradas del mes");
   we.addRow(["Entradas de "+tit]).font={bold:true,size:14};we.addRow([]);
-  cab(we.addRow(["Fecha","Colada","Descargado en","Proveedor","Albarán","Fardos","Kg","€/t","Importe"]));
+  cab(we.addRow(["Fecha","Colada","Descargado en","Proveedor","Albarán","Fardos","Kg","€/kg","Importe"]));
   const ents=I.entradas.slice().sort((a,b)=>a.r.f.localeCompare(b.r.f));
   if(!ents.length)we.addRow(["Sin entradas este mes"]);
-  else porBloques(we,ents,9,6,({r,l,kg,fa,h,precio,importe})=>{const row=we.addRow([r.f.split("-").reverse().join("/"),l.nombre,h?(r.ext?"Externo":"Nave")+" (antes de la app)":(l.donde==="externo"?"Externo":"Nave"),l.proveedor||r.p||"",l.albaran||r.a||"",r0(fa),r0(kg),precio||"sin precio",precio?Math.round(importe*100)/100:""]);nums(row,6);
-    row.getCell(8).numFmt="#,##0.00";row.getCell(9).numFmt='#,##0.00 "€"';if(!precio)row.getCell(8).font={color:{argb:"FF9C0006"}};
+  else porBloques(we,ents,9,6,({r,l,kg,fa,h,precio,importe})=>{const row=we.addRow([r.f.split("-").reverse().join("/"),l.nombre,h?(r.ext?"Externo":"Nave")+" (antes de la app)":(l.donde==="externo"?"Externo":"Nave"),l.proveedor||r.p||"",l.albaran||r.a||"",r0(fa),r0(kg),precio?Math.round(precio*10)/10000:"sin precio",precio?Math.round(importe*100)/100:""]);nums(row,6);
+    row.getCell(8).numFmt="#,##0.0000";row.getCell(9).numFmt='#,##0.00 "€"';if(!precio)row.getCell(8).font={color:{argb:"FF9C0006"}};
     if(h&&r.n2){row.getCell(2).note=r.n2;}return{fa,kg,eur:precio?importe:0};});
   [30,28,13,16,14,10,12,11,15].forEach((w,i)=>we.getColumn(i+1).width=w);we.getColumn(1).width=30;we.views=[{state:"frozen",ySplit:3}];
   /* Movimientos */
@@ -321,7 +321,7 @@ function vCierre(){
     if(fs.length>1)filV.push(el("tr",{style:"font-weight:600"},[el("td",{text:"Total "+MAT[mt].nom}),eu(sm("ini")),eu(sm("ent")),eu(sm("con")),eu(sm("aju")),eu(sm("fin"))]));});
   const valor=el("div",{},[
     el("h3",{style:"margin:6px 0 4px;font-size:14px;letter-spacing:.05em;text-transform:uppercase",text:"Valoración"}),
-    el("p",{class:"hint",style:"margin:0 0 6px",text:"Al precio del mes: "+Object.keys(MAT).filter(mt=>I.filas.some(x=>x.mat===mt)).map(mt=>MAT[mt].nom+" "+(I.precio[mt].v?eurT(I.precio[mt].v)+" €/t":"sin precio")).join(" · ")+". Se cambia en la pestaña Precios."}),
+    el("p",{class:"hint",style:"margin:0 0 6px",text:"Al precio del mes: "+Object.keys(MAT).filter(mt=>I.filas.some(x=>x.mat===mt)).map(mt=>MAT[mt].nom+" "+(I.precio[mt].v?eurKg(I.precio[mt].v)+" €/kg":"sin precio")).join(" · ")+". Se cambia en la pestaña Precios."}),
     sinPr.length?el("div",{class:"banner w",style:"margin-bottom:6px",text:"Falta el precio de "+sinPr.map(mt=>MAT[mt].nom).join(" y ")+" para "+nomMes(I.m)+": mételo en Precios."}):null,
     el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{class:"r",text:labIni(I)}),el("th",{class:"r",text:"Entradas"}),el("th",{class:"r",text:"Consumo"}),el("th",{class:"r",text:"Ajustes"}),el("th",{class:"r",text:"Final"})])]),
       el("tbody",{},filV)])])]);

@@ -17,7 +17,7 @@ function mediaCamion(mat,prov){
 const LINEAS=[["Nave 1","L-2630"],["Nave 1","L-2521-B"],["Nave 2","L-2630"],["Nave 2","L-2521-B"]];
 function mesPlan(){return planMes||mesDe(hoy());}
 /* ---------- Precios del aluminio ----------
-   Se meten por mes, proveedor y aleación (€/tonelada). Si un mes no tiene
+   Se meten y se ven en €/kg; se guardan en €/tonelada (así se hacen las cuentas). Se meten por mes, proveedor y aleación. Si un mes no tiene
    precio para un proveedor se usa el último mes anterior que lo tenga.
    Guardado en cfg.precios[mes] = {prov:{PROV:€ AlSi9}, provAz:{PROV:€ AlSi12}, azul:€ AlSi12 general}. */
 let precMes=null;
@@ -45,6 +45,11 @@ async function setPrecio(mes,prov,mat,val){
   else{const f=mat==="L-2521-B"?"provAz":"prov";p[f]=Object.assign({},p[f]||{});if(val>0)p[f][prov.toUpperCase()]=val;else delete p[f][prov.toUpperCase()];}
   c[mes]=p;cfg.precios=c;await saveCfg();}
 const eurT=v=>(Math.round(v*100)/100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:2});
+/* precios en € por kg (se guardan en €/t): 2787,5 €/t → 2,7875 €/kg */
+const eurKg=v=>(v/1000).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:4});
+const kgTxt=v=>v?String(Math.round(v*10)/10000).replace(".",","):"";
+/* lo que se escribe en €/kg → €/t para guardar. Si alguien pone el de la tonelada (más de 100), se entiende como €/t */
+const deKg=t=>{const v=numES(t);if(!(v>0))return v;return Math.round((v>100?v:v*1000)*100)/100;};
 function vPrecios(){
   const act=mesDe(hoy()),m=precMes||act;
   const ms=new Set([act]);Object.keys(cfg.precios||{}).forEach(x=>ms.add(x));Object.keys(meses).forEach(x=>ms.add(x));
@@ -53,25 +58,25 @@ function vPrecios(){
   const provs=(cfg.proveedores||[]).slice().sort((a,b)=>a.localeCompare(b,"es"));
   const propio=(prov,mat)=>{const p=(cfg.precios||{})[m]||{},k=prov.toUpperCase();return mat==="L-2521-B"?((p.provAz||{})[k]||0):((p.prov||{})[k]||0);};
   const celda=(prov,mat)=>{const own=propio(prov,mat),her=own?null:precioDe(m,prov,mat);
-    return el("td",{},[el("input",{class:"num",type:"text",inputmode:"decimal",style:"font-size:15px;padding:7px 9px",value:own?String(own).replace(".",","):"",
-      placeholder:her&&her.v?eurT(her.v)+(her.m!==m?" ("+nomMes(her.m).slice(0,3)+")":""):"€/t","aria-label":prov+" "+MAT[mat].nom+" €/t",
-      onchange:async e=>{const t=e.target.value.trim(),v=t===""?0:numES(t);if(t!==""&&!(v>0)){toast("Pon el precio en € por tonelada, por ejemplo 2892,5");return;}
+    return el("td",{},[el("input",{class:"num",type:"text",inputmode:"decimal",style:"font-size:15px;padding:7px 9px",value:kgTxt(own),
+      placeholder:her&&her.v?eurKg(her.v)+(her.m!==m?" ("+nomMes(her.m).slice(0,3)+")":""):"€/kg","aria-label":prov+" "+MAT[mat].nom+" €/kg",
+      onchange:async e=>{const t=e.target.value.trim(),v=t===""?0:deKg(t);if(t!==""&&!(v>0)){toast("Pon el precio en € por kg, por ejemplo 2,7875");return;}
         try{await setPrecio(m,prov,mat,v);toast(v?"Precio guardado":"Precio quitado: se usa el del mes anterior");render();}catch(err){toast("No se pudo guardar");}}})]);};
   const general=(()=>{const p=(cfg.precios||{})[m]||{},own=p.azul||0,her=own?null:precioDe(m,"*","L-2521-B");
     return el("tr",{},[el("td",{},[document.createTextNode("Otros"),el("div",{class:"sub",text:"AlSi12 de un proveedor sin precio propio"})]),el("td",{class:"sub",text:"—"}),
-      el("td",{},[el("input",{class:"num",type:"text",inputmode:"decimal",style:"font-size:15px;padding:7px 9px",value:own?String(own).replace(".",","):"",placeholder:her&&her.v?eurT(her.v):"€/t",
-        onchange:async e=>{const t=e.target.value.trim(),v=t===""?0:numES(t);if(t!==""&&!(v>0))return;try{await setPrecio(m,"*","L-2521-B",v);toast("Precio guardado");render();}catch(err){toast("No se pudo guardar");}}})])]);})();
+      el("td",{},[el("input",{class:"num",type:"text",inputmode:"decimal",style:"font-size:15px;padding:7px 9px",value:kgTxt(own),placeholder:her&&her.v?eurKg(her.v):"€/kg",
+        onchange:async e=>{const t=e.target.value.trim(),v=t===""?0:deKg(t);if(t!==""&&!(v>0))return;try{await setPrecio(m,"*","L-2521-B",v);toast("Precio guardado");render();}catch(err){toast("No se pudo guardar");}}})])]);})();
   const med=Object.keys(MAT).map(mt=>{const x=precioMedio(m,mt);
     return el("tr",{},[el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[mt].col}),document.createTextNode(MAT[mt].nom)]),
-      el("td",{class:"r num",style:"font-weight:600",text:x.v?eurT(x.v)+" €/t":"—"}),
+      el("td",{class:"r num",style:"font-weight:600",text:x.v?eurKg(x.v)+" €/kg":"—"}),
       el("td",{class:"sub",text:x.fuente==="entradas"?"media de "+x.n+" camión(es) de este mes"+(x.sin?" · "+x.sin+" sin precio":""):x.fuente==="tarifa"?"sin entradas: media de la tarifa":"sin precios"})]);});
   /* entradas del mes sin precio */
   const sinP=entradasMes(m).filter(x=>!(precioDe(m,x.prov,x.mat).v>0));
   return [
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Precios del aluminio"}),el("div",{style:"margin-left:auto;min-width:175px"},[selM])]),
       el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
-        el("p",{class:"hint",text:"En € por tonelada. Lo que dejes vacío toma el precio del mes anterior (sale en gris). Solo cambia los que suban o bajen."}),
-        el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"AlSi9 €/t"}),el("th",{text:"AlSi12 azul €/t"})])]),
+        el("p",{class:"hint",text:"En € por kg (por ejemplo 2,7875). Lo que dejes vacío toma el precio del mes anterior (sale en gris). Solo cambia los que suban o bajen."}),
+        el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"AlSi9 €/kg"}),el("th",{text:"AlSi12 azul €/kg"})])]),
           el("tbody",{},provs.map(p=>el("tr",{},[el("td",{text:p}),celda(p,"L-2630"),celda(p,"L-2521-B")])).concat([general]))])]),
         sinP.length?el("div",{class:"banner w",text:sinP.length+" entrada(s) de este mes sin precio: "+[...new Set(sinP.map(x=>(x.prov||"sin proveedor")+" "+(MAT[x.mat]?MAT[x.mat].nom:"")))].join(", ")+"."}):null])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Precio para el cierre"})]),

@@ -54,7 +54,7 @@ function vEntrada(){
   const txtPrecio=()=>{if(!d.prov||!d.mat)return"Elige proveedor y aleación para ver el precio.";
     const pr=precioDe(mesDe(d.fecha),d.prov,d.mat),k=numES(d.kg||"");
     if(!pr.v)return"Sin precio para "+d.prov+" "+MAT[d.mat].nom+" en "+nomMes(mesDe(d.fecha))+". Mételo en la pestaña Precios.";
-    return"Precio "+d.prov+" "+MAT[d.mat].nom+": "+eurT(pr.v)+" €/t"+(pr.m!==mesDe(d.fecha)?" (de "+nomMes(pr.m)+")":"")+(k>0?" · importe "+eur(k/1000*pr.v):"");};
+    return"Precio "+d.prov+" "+MAT[d.mat].nom+": "+eurKg(pr.v)+" €/kg"+(pr.m!==mesDe(d.fecha)?" (de "+nomMes(pr.m)+")":"")+(k>0?" · importe "+eur(k/1000*pr.v):"");};
   const form=el("form",{onsubmit:async e=>{e.preventDefault();if(!valida())return;const est=kgEst(),nk=est||numES(d.kg||""),nf=numES(d.fardos||"");const b=$("e-go");b.disabled=true;
     try{
       let ft=null;

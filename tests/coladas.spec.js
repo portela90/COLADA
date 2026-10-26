@@ -51,3 +51,24 @@ test('Consultas: gráficos de aluminio por mes', async ({ page }) => {
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Precios: se meten y se ven en €/kg (y si se escribe en €/t se entiende igual)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => db.doc('cfg/app').set(Object.assign({}, __D.cfg.app, { proveedores: ['BEFESA', 'IDALSA'], precios: { '2026-09': { prov: { BEFESA: 2892.5 } } } })));
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.includes('Precios')).click());
+  await page.waitForTimeout(300);
+  await page.selectOption('#pr-mes', '2026-10'); await page.waitForTimeout(200);
+  const fila = n => page.locator('tr', { hasText: n }).locator('input').first();
+  await expect(page.locator('th', { hasText: 'AlSi9 €/kg' })).toBeVisible();
+  await expect(fila('BEFESA')).toHaveAttribute('placeholder', /2,8925/);
+  await fila('BEFESA').fill('2,7875'); await fila('BEFESA').dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => ((__D.cfg.app.precios['2026-10'] || {}).prov || {}).BEFESA)).toBe(2787.5);
+  await expect(fila('BEFESA')).toHaveValue('2,7875');
+  await fila('IDALSA').fill('2797,5'); await fila('IDALSA').dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => ((__D.cfg.app.precios['2026-10'] || {}).prov || {}).IDALSA)).toBe(2797.5);
+  await expect(fila('IDALSA')).toHaveValue('2,7975');
+  await page.screenshot({ path: test.info().outputPath('precios.png') });
+  require('fs').copyFileSync(test.info().outputPath('precios.png'), '/tmp/claude-0/-home-claude/068f3ece-7c3b-5132-967d-cdd20aa5b924/scratchpad/precios.png');
+  expect(err).toEqual([]);
+});
