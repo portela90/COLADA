@@ -1,0 +1,3 @@
+-- Corregir nave y kilos de una OT ya hecha con material del almacén (limpieza-cie).
+-- Si el consumo ya se envió, la salida del almacén se corrige con alm_consumo_corregir (colada-mapri).
+-- Ver la función ot_consumo_editar aplicada en la base limpieza-cie (uddejncrjcyyaxjocbpj).
