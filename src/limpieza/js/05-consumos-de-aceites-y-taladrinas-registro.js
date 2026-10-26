@@ -8,7 +8,7 @@ function textoConsumos(C){const f=C.fecha,L=C.lineas||[];
   const T=["CONSUMOS DE ACEITES Y TALADRINAS · "+fLarga(f),""];
   if(!L.length){T.push("Hoy no se ha consumido ningún aceite ni taladrina.");return T.join("\n");}
   const G={};L.forEach(x=>{const k=x.articulo||"";const g=G[k]=G[k]||{t:0,ud:x.ud||"kg",p:[]};if(x.cant!=null)g.t+=+x.cant;
-    const lug=x.lugar||x.nave||"sin lugar";g.p.push(lug+(x.fecha?" ("+fDM(x.fecha)+")":""));});
+    const lug=x.nave||x.lugar||"sin lugar";g.p.push(lug+(x.fecha?" ("+fDM(x.fecha)+")":""));});
   Object.keys(G).sort().forEach(k=>{const g=G[k];T.push(k+": "+kgTxt(g.t)+" "+g.ud);[...new Set(g.p)].forEach(p=>T.push("   · "+p));});
   if(L.some(x=>x.fecha&&x.fecha<f))T.push("","Incluye consumos pendientes de días anteriores.");
   return T.join("\n");}
