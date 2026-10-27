@@ -97,3 +97,8 @@ begin
 
   return jsonb_build_object('quitados', v_quit, 'puestos', n, 'almacen', case when s is null then 'sin clave' else 'enviado' end);
 end $f$;
+
+-- 27/10/2026 (2) · consumos_horno.envio admite 'anulado' (la restricción no lo tenía y la corrección fallaba).
+alter table public.consumos_horno drop constraint consumos_horno_envio_check;
+alter table public.consumos_horno add constraint consumos_horno_envio_check
+  check (envio = any (array['pendiente'::text, 'enviado'::text, 'fallo'::text, 'sin_enviar'::text, 'anulado'::text]));
