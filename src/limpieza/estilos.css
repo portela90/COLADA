@@ -127,3 +127,5 @@ video.cam{width:100%;border-radius:12px;background:#000;max-height:60vh}
 label:has(> input[type=file][accept^="image"])::after{content:"Solo el sitio o la máquina. Sin personas, piezas, pantallas ni documentos.";display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:4px;line-height:1.3}
 /* incidencias frecuentes: rejilla de dos columnas del mismo tamaño */
 .chips.inc{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chips.inc .chip{text-align:center;white-space:normal;line-height:1.25;padding:10px 8px;font-size:14px}
+/* tareas habituales: lista con el nombre en el color del bidón */
+.hab-list{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.hab-op{text-align:left;background:none;border:0;border-radius:8px;padding:10px 8px;font-size:16px;font-weight:600;cursor:pointer;color:var(--ink)}.hab-op[aria-pressed=true]{background:var(--surf2);outline:1px solid var(--acc)}
