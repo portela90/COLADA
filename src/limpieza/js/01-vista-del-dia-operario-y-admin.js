@@ -192,9 +192,10 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const urgente=fld("¿Es urgente?",seg([[false,"No"],[true,"Sí, urgente"]],false,x=>o.urgente=x));
   /* incidencias frecuentes: un toque rellena qué ha pasado y la urgencia */
   const INC_FREC=[["Derrame de aceite",true],["Derrame de taladrina",true],["Filtración de agua",true],["Desbordamiento de depósito",true],["Manguera rota (agua o aceite)",true],["Contenedor de basura lleno",false],["Suelo resbaladizo",false]];
-  const incBox=el("div",{class:"chips inc",style:"margin:-4px 0 10px"},INC_FREC.map(([t,u])=>el("button",{type:"button",class:"chip",text:t+(u?" ":""),onclick:()=>{hSel=null;o.habitual_id=null;ph();o.titulo=t;tit.value=t;o.urgente=u;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===(u?1:0))));marcaLug();}})));
+  const incSel=el("select",{"aria-label":"Lo más frecuente"},[el("option",{value:"",text:"— Elige una incidencia frecuente —"})].concat(INC_FREC.map(([t,u],i)=>el("option",{value:String(i),text:t}))));
+  incSel.onchange=()=>{if(incSel.value==="")return;const [t,u]=INC_FREC[+incSel.value];incSel.value="";hSel=null;o.habitual_id=null;ph();o.titulo=t;tit.value=t;o.urgente=u;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===(u?1:0))));marcaLug();};
   /* el responsable de hornos no ve las incidencias de limpieza (derrames, filtraciones…) */
-  const incFld=S.resp?null:fld("Lo más frecuente",incBox);
+  const incFld=S.resp?null:fld("Lo más frecuente",incSel);
   if(sim)fZ.firstChild.textContent="¿Dónde?";
   const descTA=area("",x=>o.descripcion=x);
   const masOp=el("details",{class:"mas-op"},[el("summary",{text:"＋ Detalles o foto (opcional)"}),fld("Detalles",descTA),fotoBtn,fbox]);
