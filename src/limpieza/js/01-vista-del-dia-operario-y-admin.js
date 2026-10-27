@@ -126,6 +126,8 @@ function preguntaRepite(par){return new Promise(res=>{
     box.appendChild(fb);
     rpc("fotos_ot",{p_tok:S.tok,p_ot:p.id}).then(L=>{if(!L.length)fb.appendChild(el("p",{class:"hint",text:"Sin fotos en esa OT."}));L.slice(0,3).forEach(x=>fb.appendChild(miniFoto(x,p.titulo)));}).catch(()=>{});});
   dlg("¿Es la misma o es otra cosa?",box,[{t:"Cancelar",cls:"sec",fn:()=>{res(null);}},{t:"Es otra cosa",cls:"sec",fn:()=>{res({resp:"otra",de:par[0].id});}},{t:"Es la misma",cls:"ok",fn:()=>{res({resp:"misma",de:par[0].id});}}]);});}
+/* productos de bidón (alm_art de la tarea habitual) con su color para el botón */
+const BIDONES={"68dfcbac40e836":{c:"#9AA9B8"},"f0f770138dfe41":{c:"#F472B6"},"murbntzamwawf":{c:"#5B9BFF"},"1aad128f4c9038":{c:"#F5F5F5"},"5585ca56f03c26":{c:"#9AA9B8"},"16f8b603ea4df1":{c:"#9AA9B8"},"c2cb2372d73946":{c:"#9AA9B8"},"8ab114d9c357dc":{c:"#9AA9B8"},"da5cf6517cd2e1":{c:"#9AA9B8"}};
 async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
@@ -135,14 +137,19 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const selH=el("select",null,[el("option",{value:"",text:"— Elige el horno —"})].concat((ELS||[]).filter(x=>x.tipo==="horno"&&x.activo&&!x.borrado).sort(ordEl).map(x=>el("option",{value:x.id,text:x.codigo+" · "+x.nombre}))));
   selH.onchange=()=>{o.elemento_id=selH.value||null;};const hornoWrap=fld("¿Qué horno se limpia?",selH);hornoWrap.hidden=true;
   /* tareas habituales: una lista desplegable (solo las que puede hacer esta persona) */
-  const hsel=el("select",{"aria-label":"Tarea habitual"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});const hwrap=fld("¿Es una tarea habitual?",el("div",null,[hsel,hinfo]));hwrap.hidden=true;
+  const hsel=el("select",{"aria-label":"Tarea habitual"}),hinfo=el("p",{class:"hint",style:"margin:4px 0 0"});
+  /* los bidones, en botones de colores arriba; el resto, en el desplegable de abajo */
+  const bidBox=el("div",{class:"chips bid"});const pintaBid=()=>{bidBox.textContent="";
+    (HAB||[]).filter(h=>h.activo&&BIDONES[h.alm_art]).forEach(h=>{bidBox.appendChild(el("button",{type:"button",class:"chip bid-op","aria-pressed":String((hSel?hSel.id:"")===h.id),style:"border-color:"+BIDONES[h.alm_art].c+";color:"+BIDONES[h.alm_art].c,text:h.titulo.replace(/^Cambiar /,""),onclick:()=>{hsel.value=h.id;hsel.onchange();}}));});
+    bidBox.hidden=!bidBox.childNodes.length;};
+  const hwrap=fld("¿Es una tarea habitual?",el("div",null,[bidBox,hsel,hinfo]));hwrap.hidden=true;
   const navWrap=el("div");const esVar=()=>!!(hSel&&hSel.alm_art&&(hSel.alm_cant==null||hSel.alm_cant===""));
   const pnav=()=>{navWrap.textContent="";navWrap.hidden=!(hSel&&hSel.alm_art);if(navWrap.hidden)return;if(esVar()){navWrap.appendChild(el("p",{class:"hint",text:"Al terminarla te pediremos la nave y los kilos que repones."}));return;}
     navWrap.appendChild(fld("¿En qué nave? (obligatorio: el coste se carga ahí)",seg([["Nave 1","Nave 1"],["Nave 2","Nave 2"]],o.nave,x=>{o.nave=x;})));};
   const ph=()=>{hsel.textContent="";hsel.appendChild(el("option",{value:"",text:"— No, la escribo yo —"}));
     (HAB||[]).filter(h=>h.activo).forEach(h=>hsel.appendChild(el("option",{value:h.id,text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):"")})));
     hsel.value=hSel?hSel.id:"";
-    hinfo.textContent=hSel?(hSel.minutos_est?"Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));pnav();};
+    hinfo.textContent=hSel?(hSel.minutos_est?"Tiempo de esta tarea: "+durTxt(hSel.minutos_est)+". Si ya la has hecho, pulsa «Ya lo he hecho».":"Esta tarea no tiene tiempo puesto."):"";hornoWrap.hidden=!(hSel&&/limpieza horno/i.test(hSel.titulo));pnav();pintaBid();};
   hsel.onchange=()=>{const h=(HAB||[]).find(x=>x.id===hsel.value);if(!h){hSel=null;o.habitual_id=null;}else{hSel=h;o.habitual_id=h.id;o.titulo=h.titulo;tit.value=h.titulo;if(h.lugar){o.lugar=h.lugar;lug.value=h.lugar;pl();}if(h.alm_art){const l=String(h.lugar||"");o.nave=/nave\s*1\b/i.test(l)&&!/nave\s*2\b|\by\s*2\b/i.test(l)?"Nave 1":/nave\s*2\b/i.test(l)&&!/nave\s*1\b/i.test(l)?"Nave 2":"";}}ph();};
   habituales().then(H=>{hwrap.hidden=!H.some(h=>h.activo);ph();});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};

@@ -127,3 +127,5 @@ video.cam{width:100%;border-radius:12px;background:#000;max-height:60vh}
 label:has(> input[type=file][accept^="image"])::after{content:"Solo el sitio o la máquina. Sin personas, piezas, pantallas ni documentos.";display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:4px;line-height:1.3}
 /* incidencias frecuentes: rejilla de dos columnas del mismo tamaño */
 .chips.inc{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chips.inc .chip{text-align:center;white-space:normal;line-height:1.25;padding:10px 8px;font-size:14px}
+/* bidones: botones de colores arriba del desplegable */
+.chips.bid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.chips.bid .chip{text-align:center;white-space:normal;line-height:1.25;padding:10px 8px;font-size:14px;font-weight:600;border-width:2px;background:var(--surf2)}.chips.bid .chip[aria-pressed=true]{background:var(--surf);box-shadow:0 0 0 2px var(--acc)}
