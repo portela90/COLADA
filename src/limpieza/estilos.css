@@ -132,3 +132,5 @@ label:has(> input[type=file][accept^="image"])::after{content:"Solo el sitio o l
 /* campos sin clase de formulario (p. ej. «Añadir zona»): mismo fondo y texto que el resto, en modo claro y oscuro */
 input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),select,textarea{background:var(--surf2);color:var(--ink)}
 input::placeholder,textarea::placeholder{color:var(--mut);opacity:1}
+/* botones de los cuadros: se reparten en varias filas si no caben, sin cortar el texto */
+.dlg>.row:last-child{display:flex;flex-wrap:wrap;gap:8px}.dlg>.row:last-child>.btn{flex:1 1 130px;min-width:0;white-space:normal;line-height:1.2;text-align:center;min-height:48px}
