@@ -141,7 +141,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const fbox=el("div",{class:"fotos"});
   /* la OT se crea una sola vez: si una foto falla, al reintentar solo se suben las fotos que faltan (no se duplica la OT) */
   let creada=null;
-  const guardaBorr=()=>{const d={yo:S.yo&&S.yo.id,t:Date.now(),o:{titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,urgente:!!o.urgente}};
+  const guardaBorr=()=>{const d={yo:S.yo&&S.yo.id,t:Date.now(),ot:creada?creada.id:null,o:{titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,urgente:!!o.urgente}};
     try{sessionStorage.setItem(BORR_OT,JSON.stringify(Object.assign({fotos:fotos.slice(0,4)},d)));}catch(e){try{sessionStorage.setItem(BORR_OT,JSON.stringify(d));}catch(_){}}};
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
     if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
@@ -151,11 +151,10 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
-    if(!creada)creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});
+    if(!creada){creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});guardaBorr();}
     const r=creada;
-    borrarBorradorOT();
-    for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
-    toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");S.fecha=hoyISO();re();};
+    for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); guardaBorr(); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
+    toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");borrarBorradorOT();S.fecha=hoyISO();re();};
   const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
   const zsel=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lug.value=z;pl();marcaLug();});lug.addEventListener("input",()=>{zsel.value=(ZONAS||[]).some(z=>z.nombre===lug.value)?lug.value:"";});
@@ -184,6 +183,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const ovOT=[...document.querySelectorAll(".ov")].pop();
   if(ovOT){ovOT.addEventListener("input",guardaBorr);ovOT.addEventListener("click",()=>setTimeout(guardaBorr,0));}
   /* restaurar lo escrito (si la app se cerró al hacer la foto) */
+  if(borr&&borr.ot)creada={id:borr.ot};
   if(borr&&borr.o){ if(borr.o.titulo){o.titulo=borr.o.titulo;tit.value=borr.o.titulo;} if(borr.o.lugar){o.lugar=borr.o.lugar;lug.value=borr.o.lugar;pl();}
     if(borr.o.descripcion){o.descripcion=borr.o.descripcion;descTA.value=borr.o.descripcion;} if(borr.o.urgente){o.urgente=true;urgente.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-pressed",String(i===1)));}
     (borr.fotos||[]).forEach(d=>{fotos.push(d);fbox.appendChild(el("img",{src:d,alt:"foto"}));}); if(borr.fotos&&borr.fotos.length)masOp.open=true; marcaLug(); }
