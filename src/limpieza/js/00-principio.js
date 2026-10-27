@@ -244,6 +244,10 @@ function corregirAlm(o,re){const h=(HAB||[]).find(x=>x.id===o.habitual_id);let n
   dlg("Corregir nave y kilos",el("div",null,[el("p",{class:"hint",text:o.titulo}),fld("¿En qué nave?",nb),fld("Kilos",inp(kg,v=>kg=v,{inputmode:"decimal"}))]),
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"ok",fn:async()=>{const n=parseFloat(String(kg).replace(",","."));if(!nave){toast("Elige la nave");return false;}if(!(n>0)){toast("Pon los kilos");return false;}
       const r=await rpc("ot_consumo_editar",{p_tok:S.tok,p_ot:o.id,p_nave:nave,p_cant:n});toast("Corregido"+(r&&r.almacen?". "+r.almacen:""));re();}}]);}
+/* El jefe o el encargado cambia la respuesta: «es la misma» o «es otra cosa» */
+function cambiarRepite(o,re){const cambia=async resp=>{try{await rpc("ot_repite_cambiar",{p_tok:S.tok,p_ot:o.id,p_resp:resp});toast("Respuesta guardada");re();}catch(e){toast(e.message||"No se pudo cambiar");return false;}};
+  dlg("¿Es la misma o es otra cosa?",el("p",{class:"hint",text:o.titulo+" · "+fCorta(o.fecha)+(o.repite_resp?" · ahora: "+(o.repite_resp==="misma"?"es la misma":"es otra cosa"):"")}),
+    [{t:"Cancelar",cls:"sec"},{t:"Es otra cosa",cls:"sec",fn:()=>cambia("otra")},{t:"Es la misma",cls:"ok",fn:()=>cambia("misma")}]);}
 /* Cambio de horno ya hecho: se desmarca lo que no hizo falta y el Almacén anula ese descuento */
 function puedoCorregirMat(o){return o.estado==="hecha"&&/^cambio/.test(o.accion_horno||"")&&!!o.elemento_id;}
 function corregirMaterial(o,re){let P=[];const lista=el("div",null,el("p",{class:"hint",text:"Cargando piezas…"}));
@@ -260,11 +264,12 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
   const ck=Object.entries(o.checklist||{}).concat(Object.entries(o.checklist_final||{}));
   dlg(o.titulo,el("div",null,[o.descripcion?el("p",{style:"margin:0 0 10px",text:o.descripcion}):null,
     el("table",{class:"det"},el("tbody",null,[fila("Día",fLarga(o.fecha)),fila("Dónde",o.lugar),fila("Quién",quienTxt(o)||(sinAsignar(o)?"Sin asignar":"")),fila("Estado",(EST[o.estado]||[o.estado])[0]),
-      fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos)+(o.tiempo_auto?" (estimado: no pulsó Empezar)":o.tiempo_decl?" (indicado por el trabajador)":""):""),fila("Estimado",o.minutos_est?durTxt(o.minutos_est):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota),habAlmOT(o)?fila("Almacén",(o.nave||"sin nave")+" · "+(o.alm_cant_real!=null?String(o.alm_cant_real).replace(".",",")+" kg":"sin kilos apuntados")):null])),
+      fila("Empezó",o.inicio?hora(o.inicio):""),fila("Terminó",o.fin?hora(o.fin):""),fila("Tiempo",o.minutos!=null?durTxt(o.minutos)+(o.tiempo_auto?" (estimado: no pulsó Empezar)":o.tiempo_decl?" (indicado por el trabajador)":""):""),fila("Estimado",o.minutos_est?durTxt(o.minutos_est):""),fila("Hecho por",o.hecho_por_n),fila("Abierta por",o.origen==="rapida"?o.creado_por_n:""),fila("Nota",o.nota),o.repite_resp?fila("Repetición",o.repite_resp==="misma"?"Es la misma":"Es otra cosa (mismo sitio)"):null,habAlmOT(o)?fila("Almacén",(o.nave||"sin nave")+" · "+(o.alm_cant_real!=null?String(o.alm_cant_real).replace(".",",")+" kg":"sin kilos apuntados")):null])),
     ck.length?el("div",null,[el("h4",{text:"Checklist"}),el("div",{class:"chips"},ck.map(([k,v])=>el("span",{class:"pill "+(v==="OK"?"ok":v==="NO-OK"?"bad":""),text:k+": "+v})))]):null,
     el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),[esAdm()&&o.estado!=="hecha"?{t:"WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}}:null,
       puedoEditar(o)?{t:"Corregir",cls:"sec",fn:()=>{setTimeout(()=>editarOT(o,()=>pinta()),0);}}:null,
       puedoTiempo(o)?{t:"Tiempo",cls:"sec",fn:()=>{setTimeout(()=>corregirTiempo(o,()=>pinta()),0);}}:null,
+      (esAdm()||(S.yo&&S.yo.encargado))&&(o.repite_resp||esProblema(o.titulo,o.descripcion))?{t:"¿Es la misma?",cls:"sec",fn:()=>{setTimeout(()=>cambiarRepite(o,()=>pinta()),0);}}:null,
       puedoCorregirAlm(o)?{t:"Corregir nave y kilos",cls:"ok",fn:()=>{setTimeout(()=>corregirAlm(o,()=>pinta()),0);}}:null,puedoCorregirMat(o)?{t:"Corregir material",cls:"sec",fn:()=>{setTimeout(()=>corregirMaterial(o,()=>pinta()),0);}}:null,{t:"Cerrar",cls:"sec"}].filter(Boolean));
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))))).catch(()=>{});

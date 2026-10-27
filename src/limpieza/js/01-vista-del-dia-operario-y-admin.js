@@ -118,6 +118,14 @@ let HAB=null;async function habituales(force){if(!HAB||force){try{HAB=await rpc(
 const BORR_OT="limp.borrador_ot";
 function borradorOT(){try{const b=JSON.parse(sessionStorage.getItem(BORR_OT)||"null");if(!b||!S.yo||b.yo!==S.yo.id||Date.now()-b.t>30*60*1000)return null;return b;}catch(e){return null;}}
 function borrarBorradorOT(){try{sessionStorage.removeItem(BORR_OT);}catch(e){}}
+/* OT parecida en el mismo sitio (últimos 6 días): ¿es la misma o es otra cosa? Se ven las fotos de la anterior */
+function preguntaRepite(par){return new Promise(res=>{
+  const box=el("div",null,[el("p",{class:"hint",text:"Ya hubo algo parecido en este mismo sitio. Mira las fotos de la anterior y di si es lo mismo."})]);
+  par.forEach(p=>{const fb=el("div",{class:"fotos"});
+    box.appendChild(el("p",{style:"margin:10px 0 4px"},[el("b",{text:fCorta(p.fecha)+" · "+p.titulo}),el("span",{text:" · "+(p.lugar||"")})]));
+    box.appendChild(fb);
+    rpc("fotos_ot",{p_tok:S.tok,p_ot:p.id}).then(L=>{if(!L.length)fb.appendChild(el("p",{class:"hint",text:"Sin fotos en esa OT."}));L.slice(0,3).forEach(x=>fb.appendChild(miniFoto(x,p.titulo)));}).catch(()=>{});});
+  dlg("¿Es la misma o es otra cosa?",box,[{t:"Cancelar",cls:"sec",fn:()=>{res(null);}},{t:"Es otra cosa",cls:"sec",fn:()=>{res({resp:"otra",de:par[0].id});}},{t:"Es la misma",cls:"ok",fn:()=>{res({resp:"misma",de:par[0].id});}}]);});}
 async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
@@ -140,7 +148,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const seg=(ops,v,on)=>{const b=ops.map(([k,t])=>el("button",{type:"button","aria-pressed":String(v===k),text:t,onclick:()=>{on(k);b.forEach((x,i)=>x.setAttribute("aria-pressed",String(ops[i][0]===k)));}}));return el("div",{class:"seg sel"},b);};
   const fbox=el("div",{class:"fotos"});
   /* la OT se crea una sola vez: si una foto falla, al reintentar solo se suben las fotos que faltan (no se duplica la OT) */
-  let creada=null;
+  let creada=null,repResp=null,repDe=null,repMirado=false;
   const guardaBorr=()=>{const d={yo:S.yo&&S.yo.id,t:Date.now(),ot:creada?creada.id:null,o:{titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,urgente:!!o.urgente}};
     try{sessionStorage.setItem(BORR_OT,JSON.stringify(Object.assign({fotos:fotos.slice(0,4)},d)));}catch(e){try{sessionStorage.setItem(BORR_OT,JSON.stringify(d));}catch(_){}}};
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
@@ -151,7 +159,14 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
     const esHorno=!!(hSel&&/limpieza horno/i.test(hSel.titulo));if(esHorno&&!o.elemento_id){toast("Elige qué horno se limpia");selH.focus();return false;}
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
-    if(!creada){creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null)})});guardaBorr();}
+    /* problema o urgente: si hubo otra parecida en el mismo sitio (6 días), se pregunta si es la misma y se piden fotos */
+    if(!creada&&!repMirado&&(esProblema(o.titulo,o.descripcion)||o.urgente)){
+      const par=await rpc("ot_parecidas",{p_tok:S.tok,p_lugar:o.lugar,p_titulo:o.titulo,p_descripcion:o.descripcion}).catch(()=>[]);
+      repMirado=true;
+      if(par&&par.length){const q=await preguntaRepite(par);if(!q){repMirado=false;return false;}repResp=q.resp;repDe=q.de;}
+    }
+    if(!creada&&repResp&&!fotos.length){toast("Esta OT se parece a otra de este sitio: haz al menos una foto");masOp.open=true;fotoBtn.scrollIntoView({block:"center"});return false;}
+    if(!creada){creada=await rpc("ot_abrir",{p_tok:S.tok,p:Object.assign({},o,{hecha,auto,elemento_id:esHorno?o.elemento_id:null,asignados:(sim&&S.resp&&!hecha&&asgR)?[asgR]:(o.elegir&&!hecha?chQ.val():null),repite_resp:repResp,repite_de:repDe})});guardaBorr();}
     const r=creada;
     for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); guardaBorr(); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");borrarBorradorOT();S.fecha=hoyISO();re();};
