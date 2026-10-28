@@ -300,7 +300,7 @@ test('Base de datos: preguntas que se contestan con una frase (revisar, días, p
     ['para cuántos días tengo pistones de 60', /Pistón Ø 60: hay \d+ ud, para/], ['qué se va a acabar antes', /Lo que antes se acaba es/],
     ['qué pedidos llevan más de 15 días sin llegar', /pedidos?|No hay/], ['qué ejes están pendientes de reparar', /en el taller/],
     ['qué no se mueve desde hace 6 meses', /meses/], ['cuánto hemos gastado este mes', /se han gastado [\d.]+ €/],
-    ['qué máquina gasta más dinero en pistones', /Por máquina|se han gastado 0 €/], ['cuánto vale lo que hay en el almacén', /vale unos [\d.]+ €/],
+    ['qué máquina gasta más dinero en pistones', /Por máquina|se han gastado 0 €/], ['cuánto vale lo que hay en el almacén', /vale [\d.]+ €/],
     ['cuánto nos cuesta cada inyectora al mes', /al mes/], ['consumo de pistones de este mes comparado con el pasado', /frente a/],
     ['qué máquina cambia más pistones por semana', /por semana/], ['cuánto dura de media un pistón en la F66', /En la F66 un pistón dura de media \d+ días/],
     ['cuánto dura de media un eje', /Un eje aguanta de media|hace falta más historia/], ['qué ejes valen para la F28', /F28/],
