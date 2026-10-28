@@ -188,6 +188,9 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   const disp=tot?Math.round(c("planta")/tot*100):0;
   v.appendChild(el("dl",{class:"kpis num"},[["Total",tot],["En planta",c("planta")],["En reparación",c("reparacion")],["Preparados",c("preparado")],["Devueltos",c("devuelto")],["Disponible",disp+" %"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   const prep=ejes.filter(e=>e.estado==="preparado"),fuera=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto");
+  {const LP=listaPedir();if(LP.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Para pedir al taller ("+LP.length+")"})]),
+    el("div",{class:"lst"},LP.map(e=>el("button",{type:"button",class:"it",onclick:()=>fichaEje(e)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+" · "+ejeRef(e)}),el("div",{class:"t2",text:"En el taller desde el "+fmtF((abiertaDe(e.cod)||{}).env)})])]))),
+    el("div",{class:"bd"},el("button",{type:"button",class:"btn",style:"width:100%",text:"Enviar WhatsApp al taller",onclick:dlgListaPedir}))]));}
   v.appendChild(el("div",{class:"acciones acc2"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
@@ -286,10 +289,9 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
       {t:"Vuelve a planta",cls:"sec",fn:async()=>{if(ab&&!ab.env){await updReps([[ab,{res:"anulada",rec:f.f}]]);}await updEje(e,{estado:"planta"});toast(e.cod+" en planta");}});}
   else{if(ab&&ab.traer)acts.push({t:"Quitar «pedido traer»",cls:"sec",fn:async()=>{await updReps([[ab,{traer:null}]]);toast("Marca quitada");}});
     body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+(diasAb(ab)||0)+" días · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer):"")}):null,
-      el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:ab&&ab.traer?"Volver a pedir al taller que lo traiga":"Pedir al taller que lo traiga",onclick:async()=>{
-        const prov=(cat.ajustes||{}).taller||(cat.proveedores[0]||{}).id||"";
-        try{if(ab)await updReps([[ab,{traer:hoy()}]]);}catch(er){toast("No se pudo guardar");return;}
-        cerrarDlgs();setTimeout(()=>mensajeTaller([e],prov),0);}}),
+      ab?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:ab.apedir?"btn sec":"btn",text:ab.apedir?"✓ En la lista para pedir · quitar":"Añadir a la lista para pedir al taller",onclick:async()=>{
+          const nu=ab.apedir?null:hoy();try{await updReps([[ab,{apedir:nu}]]);}catch(er){toast("No se pudo guardar");return;}ab.apedir=nu;toast(nu?"Añadido a la lista ("+listaPedir().length+")":"Quitado de la lista");cerrarDlgs();re();}}),
+        listaPedir().length?el("button",{type:"button",class:"btn sec",text:"Ver la lista y enviar ("+listaPedir().length+")",onclick:()=>dlgListaPedir()}):null]):null,
       fecha(),fld("Albarán de recepción",inp("efA","",v=>f.alb=v,{autocomplete:"off"})),
       el("div",{class:"seg",role:"group","aria-label":"Resultado"},[["ok","OK"],["nook","NO-OK"]].map(([k,l])=>{const b=el("button",{type:"button","aria-pressed":String(f.res===k),text:l});b.onclick=()=>{f.res=k;b.parentNode.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",String(z===b)));obsF.hidden=k!=="nook";};return b;})));
     const obsF=fld("Observación NO-OK",inp("efO","",v=>f.obs=v,{autocomplete:"off"}),true);body.push(obsF);
@@ -332,7 +334,17 @@ function pedirTraer(mod){if(typeof mod!=="string")mod=null;
       const hy=hoy();const ups=[];sel0.forEach(e=>{const ab=abiertaDe(e.cod);if(ab)ups.push([ab,{traer:hy}]);});
       try{if(ups.length)await updReps(ups);if(f.prov&&(cat.ajustes||{}).taller!==f.prov){cat.ajustes=Object.assign({},cat.ajustes,{taller:f.prov});await saveCat();}}catch(e){toast("No se pudo guardar");return false;}
       setTimeout(()=>mensajeTaller(sel0,f.prov),0);}}]);}
-function mensajeTaller(list,provId){const pv=cat.proveedores.find(x=>x.id===provId)||{};
+/* ejes marcados para pedir al taller que los traiga: se van juntando y se envían todos en un WhatsApp */
+function listaPedir(){return ejes.filter(e=>(e.estado==="reparacion"||e.estado==="devuelto")&&(abiertaDe(e.cod)||{}).apedir).sort(porCod);}
+function dlgListaPedir(){const L=listaPedir();if(!L.length){toast("La lista está vacía");return;}
+  const f={prov:(cat.ajustes||{}).taller||(cat.proveedores[0]||{}).id||""};
+  dlg("Para pedir al taller ("+L.length+")",[fld("Taller",sel("lpProv",provOpts(),f.prov,v=>f.prov=v,"—")),
+    el("div",{class:"lst"},L.map(e=>{const ab=abiertaDe(e.cod);return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+" · "+ejeRef(e)}),el("div",{class:"t2",text:"En el taller desde el "+fmtF(ab.env)+" · "+(diasAb(ab)||0)+" días lab."})]),
+      el("button",{type:"button",class:"btn txt peq",text:"Quitar","aria-label":"Quitar "+e.cod,onclick:async()=>{try{await updReps([[ab,{apedir:null}]]);}catch(er){toast("No se pudo");return;}ab.apedir=null;cerrarDlgs();render(true);if(listaPedir().length)setTimeout(dlgListaPedir,250);}})]);})),
+    el("p",{class:"hint",text:"Pulsa «Preparar WhatsApp», envíalo y luego «Ya lo he enviado»: se apuntan como pedidos y la lista se vacía."})],
+    [{t:"Cerrar",cls:"sec"},{t:"Preparar WhatsApp",fn:async()=>{if(f.prov&&(cat.ajustes||{}).taller!==f.prov){cat.ajustes=Object.assign({},cat.ajustes,{taller:f.prov});try{await saveCat();}catch(e){}}
+      setTimeout(()=>mensajeTaller(L,f.prov,async()=>{const hy=hoy();const R=L.map(e=>abiertaDe(e.cod)).filter(Boolean);try{await updReps(R.map(r=>[r,{traer:hy,apedir:null}]));}catch(er){toast("No se pudo guardar");return false;}R.forEach(r=>{r.traer=hy;r.apedir=null;});toast(L.length+(L.length===1?" eje pedido al taller":" ejes pedidos al taller"));render(true);}),0);}}]);}
+function mensajeTaller(list,provId,alEnviar){const pv=cat.proveedores.find(x=>x.id===provId)||{};
   const L=["Hola, buenos días.","Desde MAPRI necesitamos que nos traigáis estos ejes reparados:"];
   list.forEach(e=>{const ab=abiertaDe(e.cod);L.push("- "+e.cod+" · "+ejeRef(e)+(ab&&ab.env?" (enviado el "+fmtF(ab.env)+")":""));});
   L.push("","Gracias. Un saludo.");const txt=L.join("\n");
@@ -342,7 +354,7 @@ function mensajeTaller(list,provId){const pv=cat.proveedores.find(x=>x.id===prov
     el("a",{class:"btn",href:url,target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Abrir en WhatsApp"}),
     el("p",{class:"hint",text:tel?"Se abre WhatsApp con el mensaje escrito para "+(pv.nom||"el taller")+" ("+(pv.wa||pv.tel)+"); solo tienes que pulsar enviar.":"No hay teléfono del taller: WhatsApp te pedirá elegir el contacto. Ponlo en Catálogo > Proveedores para que vaya directo."}),
     el("p",{class:"hint",text:"Si cambias el texto aquí, usa «Copiar» y pégalo en WhatsApp."})],
-    [{t:"Copiar",cls:"sec",fn:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Mensaje copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}return false;}},{t:"Cerrar",cls:"sec"}]);}
+    [{t:"Copiar",cls:"sec",fn:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Mensaje copiado");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}return false;}},{t:"Cerrar",cls:"sec"}].concat(alEnviar?[{t:"Ya lo he enviado",fn:alEnviar}]:[]));}
 function envioMultiple(){const list=ejes.filter(e=>e.estado==="preparado").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy()};const cl=checkList(list,true);
   dlg("Enviar a reparar",[fld("Fecha de envío",inp("emF",f.f,v=>f.f=v,{type:"date"})),el("p",{class:"hint",text:"Desmarca los que no quieras enviar todavía: se quedan como «Preparado para enviar» para otro día."}),cl.box],
     [{t:"Cancelar",cls:"sec"},{t:"Enviar",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await enviar(s,f.f);toast(s.length+" ejes enviados a reparar");}catch(er){toast("No se pudo guardar");return false;}}}]);}

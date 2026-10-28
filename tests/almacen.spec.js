@@ -375,14 +375,25 @@ test('Base de datos: dinero para informar (valor del stock, ejes en el taller, p
   expect(err).toEqual([]);
 });
 
-test('Ficha de eje en el taller: «Pedir al taller que lo traiga» prepara el mensaje', async ({ page }) => {
+test('Ejes: se van añadiendo a la lista para pedir al taller, se manda un WhatsApp y la lista se vacía', async ({ page }) => {
   const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
+    v.rep[k].items.push({ id: 'r9', eje: '3.2.B-1', desp: 'ROSCA', alta: '2026-10-10', env: '2026-10-10', rec: null, res: null }); } }); });
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
-  await page.fill('#bdQ', 'todo sobre el eje 2.8.J-2'); await page.waitForTimeout(300);
-  await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400);
-  await page.locator('button', { hasText: 'Pedir al taller que lo traiga' }).click(); await page.waitForTimeout(400);
-  expect(await page.locator('#mtTxt').inputValue()).toContain('- 2.8.J-2 · IDRA 1600 L-1255');
+  const abreEje = async c => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+    await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+    await page.fill('#bdQ', 'todo sobre el eje ' + c); await page.waitForTimeout(300);
+    await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400); };
+  await abreEje('2.8.J-2'); await page.locator('button', { hasText: 'Añadir a la lista para pedir al taller' }).click(); await page.waitForTimeout(600);
+  await expect(page.locator('button', { hasText: 'En la lista para pedir' })).toBeVisible();
+  await page.locator('.op-pg').last().locator('.op-back').click().catch(() => {}); await page.waitForTimeout(200);
+  await abreEje('3.2.B-1'); await page.locator('button', { hasText: 'Añadir a la lista para pedir al taller' }).click(); await page.waitForTimeout(600);
+  await page.locator('button', { hasText: 'Ver la lista y enviar (2)' }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Preparar WhatsApp' }).click(); await page.waitForTimeout(400);
+  const txt = await page.locator('#mtTxt').inputValue();
+  expect(txt).toContain('- 2.8.J-2'); expect(txt).toContain('- 3.2.B-1');
+  await page.locator('.dlg button', { hasText: 'Ya lo he enviado' }).click(); await page.waitForTimeout(600);
+  const reps = await page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).filter(r => r.eje === '2.8.J-2' || r.eje === '3.2.B-1').filter(r => !r.res));
+  expect(reps.every(r => r.traer && !r.apedir)).toBe(true);
   expect(err).toEqual([]);
 });
