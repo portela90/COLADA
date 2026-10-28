@@ -70,3 +70,43 @@ test('Precios: se meten y se ven en €/kg (y si se escribe en €/t se entiende
   await expect(fila('IDALSA')).toHaveValue('2,7975');
   expect(err).toEqual([]);
 });
+
+test('Consultas: el buscador responde preguntas con palabras normales', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => {
+    await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2521-B', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: '2026-10-20', proveedor: 'IDALSA', albaran: 'ALB-77' });
+    await db.doc('mov/2026-10').set({ items: [
+      { i: 'm0', t: 'C', f: '2026-10-13', u: 'Mañana', o: 'l3', fa: 2 },
+      { i: 'm1', t: 'E', f: '2026-10-20', d: 'l4', fa: 30, kg: 21000, a: 'ALB-77' },
+      { i: 'm2', t: 'C', f: '2026-10-21', u: 'Noche', o: 'l4', fa: 3, kg: 2100 },
+      { i: 'm3', t: 'C', f: '2026-10-22', u: 'Tarde', o: 'l4', fa: 1, kg: 700 }] });
+  });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.waitForTimeout(400);
+  const pregunta = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(150); return (await page.locator('.bq-res').textContent()); };
+  // consumo de una nave en un mes, repartido por relevo
+  let r = await pregunta('consumo de octubre 2026 en nave 2 por relevo');
+  expect(r).toMatch(/2\.?800 kg · 4 fardos en 2 apuntes/);
+  expect(r).toContain('Noche');
+  expect(await page.locator('.bq-resto').isHidden()).toBe(true);
+  // tocar un grupo afina
+  await page.locator('.bq-it', { hasText: 'Noche' }).click(); await page.waitForTimeout(150);
+  expect(await page.locator('.bq-resp').textContent()).toMatch(/2\.?100 kg/);
+  // stock por aleación
+  r = await pregunta('stock de AlSi12');
+  expect(r).toMatch(/18\.200 kg · 26 fardos en 1 colada/);
+  // el último camión de un proveedor
+  r = await pregunta('último camión de Idalsa');
+  expect(await page.locator('.bq-ult').textContent()).toContain('20/10/2026');
+  expect(r).toContain('ALB-77');
+  // palabras que no casan: se avisa
+  r = await pregunta('coladas de zzzz');
+  expect(r).toContain('No he encontrado «zzzz»');
+  // vacío: vuelve lo de siempre
+  await page.fill('#bqQ', ''); await page.waitForTimeout(150);
+  expect(await page.locator('.bq-resto').isHidden()).toBe(false);
+  if (process.env.CAPTURA) { await pregunta('consumo de octubre 2026 por relevo'); await page.screenshot({ path: process.env.CAPTURA, fullPage: true }); }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

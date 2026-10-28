@@ -449,7 +449,7 @@ function vConsultas(){
           const out=JSON.stringify({app:"colada",version:1,fecha:new Date().toISOString(),docs,fotos});
           await dl.save({filename:"colada-copia-"+hoy()+".json",data:out});toast("Copia descargada"+(ids.length?" con "+Object.keys(fotos).length+" foto(s)":""));
         }catch(err){if(!(err&&err.code==="declined"))toast("No se pudo hacer la copia");}finally{b.disabled=false;b.textContent=t0;}}})])]);
-  return [
+  const resto=el("div",{class:"bq-resto"},[
     vCierre(),
     cardGraficos(),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consultar movimientos"})]),filtros,resumen,botones]),
@@ -457,7 +457,8 @@ function vConsultas(){
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Detalle"}),el("span",{class:"sub",style:"margin-left:auto",text:rows.length>300?"mostrando 300 de "+fmt(rows.length):fmt(rows.length)+" apuntes"})]),
       rows.length?detalle:el("div",{class:"empty",text:"Ningún apunte con esos filtros."})]),
     copia
-  ];
+  ]);
+  return [vBuscaCol(resto),resto];
 }
 function vMin(){
   const rows=[];
