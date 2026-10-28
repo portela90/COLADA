@@ -107,7 +107,7 @@ function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
     btb:"Stock, cambios y qué máquinas las llevan",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
     quim:"Stock en kg y envases, consumo y días que quedan",iny:"Plano de las naves y la ficha completa de cada máquina",mol:"Moldes y el Ø de pistón que usa cada uno",
-    mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
+    bd:"Hornos, máquinas, ejes, consumibles… todo conectado: consulta y cuenta por tipo",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
   try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
   try{Object.entries({btb:"barra",btt:"tornillo",bth:"horno"}).forEach(([k,f])=>{const n=artsBT(f).filter(a=>nivel(a)==="bad").length;if(n)av[k]=[n+" bajo mínimo","bad"];});

@@ -141,3 +141,6 @@ button.mq-lp{cursor:pointer}button.mq-lp:hover{background:var(--surf2)}
 .sbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.sbar>i{display:block;height:100%;background:var(--accb);border-radius:3px}
 @media (max-width:600px){.op-tabs.secc-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:2px 4px;gap:0}
   .op-tabs.secc-tabs button{padding:10px 2px;font-size:13px;text-align:center;white-space:normal;line-height:1.2}}
+/* Base de datos: el grupo elegido */
+.it.sel{background:color-mix(in srgb,var(--accb) 10%,var(--surf));box-shadow:inset 3px 0 0 var(--accb)}
+.bd-tipos{flex-wrap:wrap}

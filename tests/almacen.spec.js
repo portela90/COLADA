@@ -170,3 +170,26 @@ test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, 
   await expect(page.locator('#view')).toContainText('Ideas para la app (1 pendiente)');
   expect(err).toEqual([]);
 });
+
+test('Base de datos: cada tipo se agrupa, se filtra y abre su ficha', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Hornos por modelo de horno');
+  const tipos = await page.locator('.bd-tipos .chip').allTextContents();
+  expect(tipos.length).toBeGreaterThanOrEqual(12);
+  for (const t of tipos) {
+    await page.locator('.bd-tipos .chip', { hasText: t.split(' (')[0] }).first().click(); await page.waitForTimeout(200);
+    const gs = await page.locator('#bdG option').allTextContents();
+    for (const g of gs) { await page.selectOption('#bdG', { label: g }); await page.waitForTimeout(80); }
+    expect(await desbordes(page), 'se sale en ' + t).toEqual([]);
+  }
+  await page.locator('.bd-tipos .chip', { hasText: 'Hornos' }).click(); await page.waitForTimeout(200);
+  const g1 = page.locator('#view .lst .it').first(); const n = await g1.locator('.cant b').textContent();
+  await g1.click(); await page.waitForTimeout(200);
+  await expect(page.locator('#view h2', { hasText: '(' + n + ')' })).toBeVisible();
+  await page.locator('#view button.lnk').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-pg').last()).toContainText('Lo que monta ahora');
+  expect(err).toEqual([]);
+});
