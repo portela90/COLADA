@@ -174,6 +174,14 @@ function sugerencias(q0,T){const q=nq(q0);if(!q)return["todo sobre la F25","qué
   Object.keys(T).forEach(k=>{const D=T[k];D.filas().forEach(x=>D.cols.forEach(c=>{const v=String(c[1](x));nq(v).split(" ").forEach((w,i,arr)=>{if(w.startsWith(ult)&&w!==ult&&S.length<8){const sug=v.length<28?v:arr.slice(i,i+2).join(" ");const k2=nq(sug);if(!vistos.has(k2)){vistos.add(k2);S.push(base+sug.toLowerCase());}}});}));});
   return S.slice(0,6);}
 
+const EJ_ALM=[["Lo importante",["qué hay que revisar","qué tengo que pedir esta semana","resumen del mes","qué máquina está gastando más de lo normal"]],
+  ["Stock",["qué está bajo mínimo","para cuántos días tengo pistones de 60","qué se va a acabar antes","cuántos pistones hay en la zona de usados"]],
+  ["Máquinas y ejes",["todo sobre la F25","quién cambió el último pistón de la F62","cuánto dura de media un pistón en la F15","qué ejes están pendientes de reparar"]],
+  ["Dinero",["cuánto hemos gastado este mes","qué máquina gasta más dinero en pistones","cuánto vale lo que hay en el almacén","cuánto me voy a gastar el mes que viene"]],
+  ["Catálogo",["qué modelos de horno tenemos","dónde están los contenedores A1","qué ejes valen para la F28","qué molde lleva la F30"]]];
+function ejemplosA(pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});
+  d.appendChild(el("summary",{text:"Ver ejemplos de preguntas"}));
+  EJ_ALM.forEach(([t,L])=>d.appendChild(el("div",{class:"ejs-g"},[el("div",{class:"ejs-t",text:t})].concat(L.map(q=>el("button",{type:"button",class:"ejs-q",text:q,onclick:()=>pon(q)}))))));return d;}
 function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(typeof B.q!=="string")B.q="";
   const caja=el("div",{class:"bd-caja"});const res=el("div",{id:"bdRes"});
   const q=inp("bdQ",B.q,z=>{B.q=z;B.f="";B.ef=[];B.gEv=null;pinta();},{type:"search",placeholder:"¿Qué quieres saber?",autocomplete:"off",enterkeyhint:"search","aria-label":"Pregunta"});
@@ -182,9 +190,9 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
   caja.appendChild(sug);v.appendChild(caja);v.appendChild(res);
   const pon=(t,mantener)=>{if(!mantener){B.ef=[];B.gEv=null;}B.q=t;B.f="";q.value=t;pinta();if(!mantener)q.focus();};
   function pinta(){sug.textContent="";res.textContent="";const S=sugerencias(B.q,T);
-    sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q)&&S.length)sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
-    if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));
-    if(!nq(B.q)){res.appendChild(el("p",{class:"hint",style:"margin:4px 2px",text:"Escribe lo que quieras consultar: hornos, máquinas, ejes, contenedores, moldes, pistones, barras, tornillos, recambios de horno, aceites y taladrinas… Puedes añadir una marca, una capacidad, una máquina (F28), una zona o un estado (taller, bajo mínimo)."}));return;}
+    sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q))sug.appendChild(ejemplosA(pon,B));
+    else if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));
+    if(!nq(B.q))return;
     {const I0=intencionA2(nq(B.q));if(I0&&I0.rewev){pintaEv(entenderEv(I0.rewev),res,B,pon);return;}if(I0){pintaIntA2(I0,res,pon);return;}}
     {const I=intencionA(nq(B.q));if(I&&I.modo!=="rew"){pintaIntA(I,res,pon);return;}}
     {const qn=" "+nq(B.q)+" ";if(QCO.test(qn)||/\b(entradas?|han llegado|ha llegado|llegaron)\b/.test(qn)||(/\b(ultim[oa]|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(B.q)).re){pintaEv(entenderEv(B.q),res,B,pon);return;}}

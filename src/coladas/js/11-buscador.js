@@ -86,6 +86,15 @@ function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=
 /* «hoy», «en octubre de 2026», «en los últimos 30 días»: para escribir la respuesta como una frase */
 function perTxt(P){const t=P.t;if(/^(hoy|ayer|esta |este )/.test(t))return t;if(/^últimos/.test(t))return"en los "+t;if(/^el año/.test(t))return"en "+t.slice(7);if(t==="todo el historial")return"en total";if(/^[A-Z]/.test(t)){const[m,a]=t.split(" ");return"en "+m.toLowerCase()+(a&&a!==hoy().slice(0,4)?" de "+a:"");}return t;}
 function donde(ok){const p=ok.map(f=>{const t=f.t;if(/^nave \d/.test(t))return"en "+Mayus(t);if(t==="alsi9")return"de AlSi9";if(t==="alsi12")return"de AlSi12";if(/^(manana|tarde|noche)$/.test(t))return"en el relevo de "+(t==="manana"?"mañana":t);if(t==="almacen externo")return"en el externo";return"de "+(/\d/.test(t)?t.toUpperCase():Mayus(t));});return p.length?" "+p.join(" "):"";}
+/* ejemplos: recogidos en un desplegable, por temas, para no llenar la pantalla */
+const EJ_COL=[["Stock y coladas",["para cuántos días tengo aluminio","qué colada toca gastar en nave 1","coladas más antiguas del externo","todo sobre la colada C25073"]],
+  ["Consumo",["qué relevo consume más este mes","consumo de este mes comparado con el pasado","qué día se consumió más este mes","cuánto aluminio se gasta por máquina en marcha"]],
+  ["Camiones",["qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
+  ["Dinero",["cuánto ha costado el aluminio este mes","cuánto me va a costar el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock"]],
+  ["Revisar",["qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
+function ejemplos(G,pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});
+  d.appendChild(el("summary",{text:"Ver ejemplos de preguntas"}));
+  G.forEach(([t,L])=>d.appendChild(el("div",{class:"ejs-g"},[el("div",{class:"ejs-t",text:t})].concat(L.map(q=>el("button",{type:"button",class:"ejs-q",text:q,onclick:()=>pon(q)}))))));return d;}
 function vBuscaCol(resto){
   const caja=el("div",{class:"bq-caja"});const res=el("div",{class:"bq-res"});
   const q=el("input",{type:"search",id:"bqQ",placeholder:"¿Qué quieres saber?",autocomplete:"off",enterkeyhint:"search","aria-label":"Pregunta"});q.value=bq.q;
@@ -94,9 +103,7 @@ function vBuscaCol(resto){
   caja.appendChild(el("div",{class:"bq-q"},[q]));caja.appendChild(sug);
   const pon=(t,mant)=>{if(!mant){bq.ef=[];bq.g=null;}bq.q=t;q.value=t;pinta();};
   function pinta(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
-    if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
-      ["resumen del mes","todo sobre la colada C25073","qué relevo gasta más de lo normal","pistones por tonelada de aluminio en nave 1","cuánto me va a costar el aluminio este mes","qué hay que revisar","para cuántos días tengo aluminio","cuándo tengo que pedir camión","con cuánto stock acabo el mes","qué camiones tienen que entrar mañana","cuántos camiones quedan por traer este mes","cuánto ha costado el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock","consumo de este mes comparado con el pasado","qué relevo consume más este mes","qué día se consumió más este mes","cuánto pesa de media un fardo","qué relevos no se han apuntado esta semana","qué colada toca gastar en nave 1","coladas más antiguas del externo","qué máquinas están paradas","cuánto ha entrado este mes a nave 1","último camión de Idalsa"]
-        .forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));return;}
+    if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(ejemplos(EJ_COL,pon,bq));return;}
     sug.classList.remove("bq-ej");
     const E=entenderC(bq.q),S=saldos();
     if(E.modo==="precio")return pintaPrecio(E,res);

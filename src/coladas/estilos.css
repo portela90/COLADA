@@ -252,3 +252,9 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .bq-it:hover{background:var(--surf2)}
 .bq-p{flex:1;min-width:0;display:grid;gap:2px}.bq-c{display:grid;text-align:right}
 .bq-bar{display:block;height:6px;border-radius:3px;background:var(--surf2);overflow:hidden}.bq-bar i{display:block;height:100%;background:var(--acc)}
+
+/* ejemplos del buscador, plegados */
+.ejs{width:100%}.ejs summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:14px;padding:4px 2px;list-style:none}.ejs summary::-webkit-details-marker{display:none}
+.ejs summary::before{content:"▸ ";}.ejs[open] summary::before{content:"▾ ";}
+.ejs-g{margin:8px 0 4px}.ejs-t{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:0 2px 2px}
+.ejs-q{display:block;width:100%;text-align:left;font:inherit;font-size:15px;background:none;border:0;border-bottom:1px solid var(--line2);padding:9px 2px;color:var(--ink);cursor:pointer}.ejs-q:last-child{border-bottom:0}

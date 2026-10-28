@@ -184,7 +184,7 @@ test('Base de datos: el buscador entiende las preguntas', async ({ page }) => {
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
-  await expect(page.locator('.bd-sug .chip').first()).toBeVisible();
+  await expect(page.locator('.bd-sug .ejs summary')).toBeVisible();
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
   expect(await resp('qué modelos de horno tenemos')).toContain('Hay 9 modelos de horno distintos entre 33 hornos');
   await expect(page.locator('#bdRes .it', { hasText: 'Krown 900 kg' })).toContainText('F4, F21, F22, F26, F28, F32, F33');
