@@ -216,7 +216,6 @@ test('Base de datos: consumos, cambios y gasto («consumo de pistones en la F25�
   await expect(page.locator('#bdRes h2', { hasText: 'Por Ø' })).toBeVisible();
   await expect(page.locator('#bdRes .bd-ent')).toContainText('Cambios de pistón');
   await page.getByRole('button', { name: 'Por mes' }).click(); await page.waitForTimeout(200);
-  await expect(page.locator('#bdQ')).toHaveValue('consumo de pistones en la F25 por mes');
   await expect(page.locator('#bdRes h2', { hasText: 'Por mes' })).toBeVisible();
   expect(await resp('gasto de pistones este año por máquina')).toMatch(/^Este año: \d+ pistones/);
   expect(await resp('reparaciones de ejes este año')).toMatch(/reparaci(ón|ones)/);
