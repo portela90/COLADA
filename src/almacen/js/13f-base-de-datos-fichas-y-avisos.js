@@ -2,6 +2,9 @@
    intencionA2(q) va antes que intencionA; pintaIntA2 contesta. */
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
+  if(/\bpresupuesto\b|\bcuanto (cuesta|costaria|costarian|vale|valdria|valdrian|sale|saldria)n? (un pedido|pedir|comprar|traer)\b|\bcuanto (cuestan|costarian|valen|valdrian) \d+/.test(q))return M("presupuesto");
+  if(/\bejes?\b/.test(q)&&/\b(importe|coste|costes|valor|cuesta|cuestan|costara|costaran|dinero|euros|presupuesto|cuanto (vale|valen|va|van))\b/.test(q)&&/\b(taller|reparacion\w*|reparar|pendientes?|arreglar)\b/.test(q))return M("tallereur");
+  if(/\b(precio|precios) (de|del|de los|de las)\b|\bcuanto (cuesta|cuestan|vale|valen) (un|una|el|la|los|las)\b/.test(q)&&!/\bstock\b|\bque (tengo|hay|tenemos)\b/.test(q))return M("precioart");
   if(/\brob(o|os|ad[oa]s?|aron|ado)\b|\bhurt\w*|\bdesaparecid\w*|\bperdid[oa]s?\b|\bperdidas\b|\bmermas?\b|\bdescuadres?\b|\bfaltaba\w*\b.*\brecuento|\brecuentos?\b.*\b(falta\w*|menos)\b/.test(q))return M("perdidas",{robo:/\brob|\bhurt/.test(q)});
   if(/\b(todo (sobre|de|lo de)|ficha (de|completa)|informacion (de|sobre)|dime todo|resumen de)\b/.test(q)){
     if(/\bejes?\b/.test(q))return M("todoeje",{txt:q.replace(/.*\beje\b/,"").trim()});
@@ -29,6 +32,38 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
   const y0=h.slice(0,4)+"-01-01",ano=e=>e.f>=y0;const EV=evTodo();
   const pistM=id=>todosPist().filter(p=>p.maq===id);
 
+  const copiarT=(t,txt)=>add(el("button",{type:"button",class:"btn",style:"margin-top:8px",text:t,onclick:async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado: pégalo en el correo");}catch(e){dlg(t,[el("textarea",{style:"width:100%;min-height:240px",text:txt})],[{t:"Cerrar",cls:"sec"}]);}}}));
+  const ponPrecio=(L,msg)=>add(el("div",{class:"banner w"},[el("div",{text:msg}),el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Poner precios",onclick:()=>preciosArts(L,()=>setTimeout(()=>pon(q,true),300))})]));
+  if(I.modo==="presupuesto"){const q2=q.replace(/\bespecial(es)?\b/g,"esp").replace(/\b(presupuesto|dame|dime|hazme|haz|un|una|unos|unas|de|del|para|pedido|pedir|comprar|traer|cuanto|cuesta|cuestan|costaria|costarian|vale|valen|valdria|valdrian|sale|saldria|aproximadamente|mas o menos|sobre)\b/g," ");
+    const trozos=q2.split(/\s(?:y|,|mas)\s|,/).map(t=>t.trim()).filter(Boolean),L=[],mal=[];
+    trozos.forEach(t=>{const m=t.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(pistones|piston|uds?|unidades|kg|kilos|litros|l|bidones|cajas|rollos|pares)?(?=\s|$)/);let n=null,rest=t;
+      if(m){const cand=t.match(/(\d+(?:[.,]\d+)?)\s*(pistones|piston|uds?|unidades|kg|kilos|litros|bidones|cajas|rollos|pares)\b/);const pick=cand||m;n=parseN(pick[1]);rest=t.replace(pick[0]," "+(pick[2]&&/piston/.test(pick[2])?"piston":"")+" ");}
+      const S=artsQ(rest);if(n>0&&S.L.length===1)L.push({a:S.L[0],n});else mal.push({t,n,L:S.L});});
+    ent("presupuesto");
+    if(!L.length){frase("Dime qué y cuánto, por ejemplo «presupuesto de 15 pistones de 100 especial» o «presupuesto de 20 kg de taladrina y 10 guantes».");
+      mal.filter(x=>x.L.length>1&&x.L.length<=10).forEach(x=>add(el("div",{class:"chips"},x.L.map(a=>el("button",{type:"button",class:"chip",text:nomArt(a),onclick:()=>pon("presupuesto de "+(x.n||1)+" "+nomArt(a))})))));return;}
+    const tot=L.reduce((s,x)=>s+x.n*precioDe(x.a),0),sinP=L.filter(x=>!precioDe(x.a));
+    frase("Presupuesto: "+(tot?eur(tot):"sin valorar")+(sinP.length&&tot?" (falta el precio de "+sinP.length+")":"")+", sin IVA.");
+    lista(null,L.map(x=>{const p=precioDe(x.a),c=consDia(x.a),st=stockDe(x.a.id);return it(fmtN(x.n)+" × "+nomArt(x.a),[p?eur(p)+" / "+(x.a.ud||"ud"):"Sin precio",(provN(x.a.prov)?provN(x.a.prov)+" · ":"")+(plazoArt(x.a)?"plazo "+plazoArt(x.a)+" días · ":"")+"hay "+fmtN(Math.round(st*10)/10)+(c>0?" · con el pedido, para "+diasTxt(Math.floor((st+x.n)/c)):"")],p?eur(x.n*p):"—",null,()=>ficha(x.a),p?"":"warn");}),tot?eur(tot):null);
+    if(mal.length)nota("No he sabido qué es «"+mal.map(x=>x.t).join("», «")+"»: escribe la cantidad y el artículo, por ejemplo «10 de 80».");
+    if(sinP.length)ponPrecio(sinP.map(x=>x.a),"Sin precio: "+sinP.map(x=>nomArt(x.a)).join(", ")+".");
+    copiarT("Copiar el presupuesto",["PRESUPUESTO · "+fmtF(h)].concat(L.map(x=>{const p=precioDe(x.a);return"- "+fmtN(x.n)+" "+(x.a.ud||"ud")+" "+nomArt(x.a)+(x.a.cod?" ["+x.a.cod+"]":"")+" × "+(p?eur(p):"sin precio")+" = "+(p?eur(x.n*p):"—")+(provN(x.a.prov)?" · "+provN(x.a.prov):"");})).concat(["TOTAL (sin IVA): "+(tot?eur(tot):"—")]).join("\n"));
+    nota("Con los precios del catálogo. Si el proveedor te ha dado otro precio, cámbialo en la ficha del artículo.");return;}
+  if(I.modo==="tallereur"){const L=ejes.filter(e=>["reparacion","devuelto","preparado"].includes(e.estado)).map(e=>{const md=modelo(e.mod),p=md?+md.precioRep||0:0,r=abiertaDe(e.cod);return{e,md,p,r,d:r&&r.env?diasAb(r):null};}).sort((a,b)=>b.p-a.p);
+    const tal=L.filter(x=>x.e.estado!=="preparado"),pre=L.filter(x=>x.e.estado==="preparado"),sT=tal.reduce((s,x)=>s+x.p,0),sP=pre.reduce((s,x)=>s+x.p,0);ent("importe de los ejes en reparación");
+    if(!L.length){frase("No hay ningún eje en el taller ni preparado para enviar.");return;}
+    frase(tal.length+(tal.length===1?" eje en el taller: ":" ejes en el taller: ")+eur(sT)+(pre.length?" · "+pre.length+(pre.length===1?" preparado para enviar: ":" preparados para enviar: ")+eur(sP)+" · total "+eur(sT+sP):"")+".");
+    const G={};L.forEach(x=>{const k=x.md?x.md.ref:x.e.mod;const g=G[k]=G[k]||{n:0,v:0,p:x.p};g.n++;g.v+=x.p;});
+    lista("Por modelo",Object.entries(G).sort((a,b)=>b[1].v-a[1].v).map(([k,g])=>it(k,g.n+(g.n===1?" eje":" ejes")+" × "+(g.p?eur(g.p):"sin precio"),eur(g.v),null)));
+    lista("Cada eje",L.map(x=>it(x.e.cod+" · "+(x.md?x.md.ref:x.e.mod),[(EST_E[x.e.estado]||[x.e.estado])[0]+(x.r&&x.r.env?" desde el "+fmtF(x.r.env)+" ("+x.d+" días lab.)":""),x.r&&x.r.desp?motivoRep(x.r.desp):null],x.p?eur(x.p):"—",null,()=>fichaEje(x.e),x.d!=null&&x.d>ROJO?"bad":x.d!=null&&x.d>AMBAR?"warn":"")));
+    copiarT("Copiar el informe",["EJES EN REPARACIÓN · "+fmtF(h)].concat(L.map(x=>"- "+x.e.cod+" ("+(x.md?x.md.ref:x.e.mod)+") · "+(EST_E[x.e.estado]||[x.e.estado])[0]+(x.r&&x.r.env?" desde "+fmtF(x.r.env):"")+" · "+(x.p?eur(x.p):"sin precio"))).concat(["En el taller: "+tal.length+" · "+eur(sT),pre.length?"Preparados para enviar: "+pre.length+" · "+eur(sP):null,"TOTAL: "+eur(sT+sP)].filter(Boolean)).join("\n"));
+    nota("Importe al precio de reparación de cada modelo (Ejes › modelo). La factura real puede variar.");return;}
+  if(I.modo==="precioart"){const S=artsQ(q.replace(/\bespecial(es)?\b/g,"esp").replace(/\b(precio|precios|cuanto|cuesta|cuestan|vale|valen)\b/g," "));ent("precios");
+    if(!S.L.length||S.L.length===artsActivos().filter(a=>a.fam!=="eje").length){frase("Dime de qué, por ejemplo «precio de los pistones» o «cuánto cuesta un pistón de 80».");return;}
+    const L=S.L.slice(0,40),sinP=L.filter(a=>!precioDe(a));
+    frase(L.length===1?nomArt(L[0])+": "+(precioDe(L[0])?eur(precioDe(L[0]))+" / "+(L[0].ud||"ud")+(provN(L[0].prov)?" ("+provN(L[0].prov)+")":"")+".":"no tiene precio puesto."):L.length+" artículos"+(sinP.length?", "+sinP.length+" sin precio":"")+".");
+    lista(null,L.map(a=>it(nomArt(a),provN(a.prov)||null,precioDe(a)?eur(precioDe(a)):"—",precioDe(a)?"/ "+(a.ud||"ud"):"sin precio",()=>ficha(a),precioDe(a)?"":"warn")));
+    if(sinP.length)ponPrecio(sinP,sinP.length===1?"No tiene precio.":"Hay "+sinP.length+" sin precio.");return;}
   if(I.modo==="perdidas"){const per=P.def?{d:"0000-00-00",h,t:"todo el historial"}:P,fs=artsQ(q),ids=new Set(fs.fam?fs.L.map(a=>a.id):artsActivos().map(a=>a.id));
     const L=todosMov().filter(m=>m.tipo==="ajuste"&&(+m.cant||0)<0&&m.f>=per.d&&m.f<=per.h&&ids.has(m.art)&&(!I.robo||/\brob|\bhurt/i.test(m.nota||""))).map(m=>{const a=art(m.art),c=-(+m.cant||0),p=precioDe(a);return{m,a,c,p,v:c*p,inc:(m.nota||"Recuento").replace(/\s*\(.*\)\s*$/,"")+"|"+m.f};});
     const tit=I.robo?"pistones y material robado":"lo que ha faltado en los recuentos";ent(tit,[per.t,fs.fam?"solo "+[...new Set(fs.L.map(famLbl))].join(", "):null]);

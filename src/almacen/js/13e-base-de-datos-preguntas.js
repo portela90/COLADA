@@ -43,7 +43,7 @@ function intencionA(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};cons
   if(/\bcuando (tengo|hay|tenemos|debo) que pedir\b|\bcuando pido\b|\bcuando (hay que )?pedir\b|\bcuando se pide\b/.test(q))return M("cuandopedir");
   if(/\bbajo (el )?minimo\b|\bcerca del minimo\b|\bpara pedir\b|\bque (hay que|tengo que) pedir\b|\bque falta\b/.test(q))return M("minimo");
   if(/\b(para )?cuantos dias\b|\bcuanto (me |nos )?(dura|duran|aguanta|aguantan|queda|quedan)\b|\bse (va a |van a )?(acabar|terminar|agotar)\b|\bse acaba(n)? antes\b/.test(q))return M("dias");
-  if(/\b(cuanto vale|valor (de|del)|valorad\w*|cuanto dinero hay)\b/.test(q))return M("valor");
+  if(/\b(cuanto vale|cuanto valen|valor (de|del)|valorad\w*|cuanto dinero hay|importe del stock|dinero en stock)\b/.test(q))return M("valor");
   if(/\bcompar\w*\b|\bfrente al?\b|\brespecto al?\b|\bque el mes pasado\b|\bcontra el mes\b/.test(q))return M("comp");
   if(/\b(por|a la|cada) semana\b|\bsemanal\w*\b/.test(q)&&/\b(cambia|cambian|cambios?|gasta|gastan|consum\w*)\b/.test(q))return M("ritmo");
   if(/\b(cuanto (hemos |se ha |han |se han |nos hemos )?(gastado|costado)|cuanto dinero|en euros|cuanto (nos )?cuesta|cuanto cuestan|costes?|mas dinero|gasto en dinero|gastamos)\b/.test(q))return M("dinero",{porMaq:/\b(cada (inyectora|maquina)|por maquina|que maquina|que inyectora|maquinas)\b/.test(q),alMes:/\b(al mes|cada mes|por mes|mensual\w*)\b/.test(q)});
@@ -157,9 +157,16 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     lista(null,R.slice(0,40).map(x=>it(nomArt(x.a),["Hay "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" · gasta "+fmtN(Math.round(x.c*100)/100)+" al día",x.a.pedido?"Pedido el "+fmtF(x.a.pedido):null],x.d===0?"0":fmtN(x.d),"días",()=>ficha(x.a),x.d<=7?"bad":x.d<=20?"warn":"ok")));
     nota("Días al ritmo de los últimos 60 días.");return;}
 
-  if(I.modo==="valor"){const S=artsQ(q);const G={};let tot=0,sinP=0;S.L.forEach(a=>{const st=stockDe(a.id);if(!(st>0))return;const p=precioDe(a);if(!p){sinP++;return;}const v=st*p,k=famLbl(a);G[k]=(G[k]||0)+v;tot+=v;});
-    ent("valor del almacén");ign(S.ign);frase("Lo que hay en el almacén vale unos "+eur(tot)+".");
-    lista(null,Object.entries(G).sort((a,b)=>b[1]-a[1]).map(([k,v])=>it(k,Math.round(v/tot*100)+" %",eur(v),null)));if(sinP)nota(sinP+" artículos con stock no tienen precio y no se han contado.");return;}
+  if(I.modo==="valor"){const S=artsQ(q.replace(/\bespecial(es)?\b/g,"esp"));const G={},A=[];let tot=0,uds=0;const sinP=[];S.L.forEach(a=>{const st=stockDe(a.id);if(!(st>0))return;const p=precioDe(a);if(!p){sinP.push(a);return;}const v=st*p,k=famLbl(a);G[k]=(G[k]||0)+v;tot+=v;uds+=st;A.push({a,st,p,v});});
+    const solo=S.fam||S.L.length<artsActivos().length;ent(solo?"valor del stock":"valor del almacén");ign(S.ign);
+    if(A.length===1){const x=A[0];frase(nomArt(x.a)+": hay "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" a "+eur(x.p)+" = "+eur(x.v)+".");
+      const porAlm=Object.entries(SM[x.a.id]||{}).filter(z=>Math.abs(z[1])>0.001);if(porAlm.length>1)lista("Por almacén",porAlm.sort((a,b)=>b[1]-a[1]).map(([al,n])=>it(almN(al),fmtN(n)+" "+(x.a.ud||"ud"),eur(n*x.p),null)));}
+    else{frase((solo?"El stock de eso vale ":"Lo que hay en el almacén vale ")+eur(tot)+(solo&&A.length<=40?" ("+fmtN(Math.round(uds))+" unidades)":"")+".");
+      if(solo&&A.length<=40)lista(null,A.sort((a,b)=>b.v-a.v).map(x=>it(nomArt(x.a),fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" × "+eur(x.p),eur(x.v),null,()=>ficha(x.a))));
+      else lista(null,Object.entries(G).sort((a,b)=>b[1]-a[1]).map(([k,v])=>it(k,Math.round(v/tot*100)+" %",eur(v),null)));}
+    if(sinP.length){add(el("div",{class:"banner w"},[el("div",{text:sinP.length+(sinP.length===1?" artículo con stock no tiene precio":" artículos con stock no tienen precio")+" y no se han contado"+(sinP.length<=6?": "+sinP.map(nomArt).join(", "):"")+"."}),
+      el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Poner precios",onclick:()=>preciosArts(sinP.slice(0,40),()=>setTimeout(()=>pon(q,true),300))})]));}
+    if(tot)add(el("button",{type:"button",class:"btn sec",style:"margin-top:8px",text:"Copiar",onclick:async()=>{const t=["VALOR DEL STOCK · "+fmtF(h)].concat(A.sort((a,b)=>b.v-a.v).map(x=>"- "+nomArt(x.a)+": "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" × "+eur(x.p)+" = "+eur(x.v))).concat(["TOTAL: "+eur(tot)]).join("\n");try{await navigator.clipboard.writeText(t);toast("Copiado");}catch(e){toast("No se pudo copiar");}}}));return;}
 
   /* lo que se ha gastado: dinero, comparar y ritmo */
   const fs=famEvQ(q);let E0=evTodo().filter(e=>famCasa(e,fs)&&(!I.maq||(mqEv(e)&&mqEv(e).id===I.maq.id))&&(!I.nave||enNave(mqEv(e),I.nave)||(e.nave&&nq(e.nave).startsWith(I.nave))));

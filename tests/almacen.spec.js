@@ -360,3 +360,17 @@ test('Base de datos: «informe del valor de los pistones robados» (recuentos co
   expect(t).toContain('Copiar el informe');
   expect(err).toEqual([]);
 });
+
+test('Base de datos: dinero para informar (valor del stock, ejes en el taller, presupuesto, precio)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  expect(await resp('dame el valor del stock que tenemos de pistones de 80')).toMatch(/Pistón Ø 80: hay \d+ ud a 180 € = [\d.]+ €/);
+  expect(await resp('dime el importe de las reparaciones que tenemos en el taller de los ejes')).toMatch(/ejes? en el taller: [\d.]+ €/);
+  expect(await resp('dame un presupuesto de un pedido de pistones de 100 especial de unos 15 pistones')).toMatch(/Presupuesto: 2700 €, sin IVA.*15 × Pistón Ø 100 esp/);
+  expect(await resp('presupuesto de 15 pistones de 100 especial y 10 de 80')).toMatch(/Presupuesto: 4500 €/);
+  expect(await resp('cuánto cuesta un pistón de 80')).toMatch(/Pistón Ø 80: 180 € \/ ud/);
+  expect(err).toEqual([]);
+});
