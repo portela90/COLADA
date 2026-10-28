@@ -87,7 +87,7 @@ test('Consultas: el buscador responde preguntas con palabras normales', async ({
   const pregunta = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(150); return (await page.locator('.bq-res').textContent()); };
   // consumo de una nave en un mes, repartido por relevo
   let r = await pregunta('consumo de octubre 2026 en nave 2 por relevo');
-  expect(r).toMatch(/2\.?800 kg · 4 fardos en 2 apuntes/);
+  expect(r).toMatch(/se han consumido 2\.?800 kg \(4 fardos\) en Nave 2/);
   expect(r).toContain('Noche');
   expect(await page.locator('.bq-resto').isHidden()).toBe(true);
   // tocar un grupo afina
@@ -95,11 +95,29 @@ test('Consultas: el buscador responde preguntas con palabras normales', async ({
   expect(await page.locator('.bq-resp').textContent()).toMatch(/2\.?100 kg/);
   // stock por aleación
   r = await pregunta('stock de AlSi12');
-  expect(r).toMatch(/18\.200 kg · 26 fardos en 1 colada/);
+  expect(r).toMatch(/Hay 18\.200 kg \(26 fardos\) de AlSi12 en 1 colada/);
   // el último camión de un proveedor
   r = await pregunta('último camión de Idalsa');
   expect(await page.locator('.bq-ult').textContent()).toContain('20/10/2026');
   expect(r).toContain('ALB-77');
+  // «qué relevo consume más»: lo dice directamente
+  r = await pregunta('qué relevo consume más en octubre 2026');
+  expect(await page.locator('.bq-ult').textContent()).toMatch(/que más consume.*Noche.*2\.?100 kg/);
+  expect(r).toContain('Le sigue Mañana');
+  // «cuánto ha entrado … a nave 2»: en una frase
+  r = await pregunta('cuánto ha entrado en octubre 2026 a nave 2');
+  expect(await page.locator('.bq-resp').textContent()).toMatch(/ha entrado 21\.?000 kg \(30 fardos\) en Nave 2, en 1 entrada/);
+  // «qué camiones tienen que entrar mañana»: lo planificado
+  await page.evaluate(async () => { const d = new Date(); d.setDate(d.getDate() + 1); const f = d.toISOString().slice(0, 10);
+    const app = Object.assign({}, __D.cfg.app); app.plan = { [f.slice(0, 7)]: { camiones: [], consumo: {}, entradas: [{ f, k: 'Nave 1|L-2630', fa: 33, o: 'C' }] } }; await db.doc('cfg/app').set(app); });
+  await page.fill('#bqQ', ''); await page.waitForTimeout(100);
+  r = await pregunta('qué camiones tiene que entrar mañana');
+  expect(await page.locator('.bq-resp').textContent()).toMatch(/^Mañana, .* tiene que entrar 1 camión del proveedor \(33 fardos\)/);
+  expect(r).toContain('Nave 1 · AlSi9');
+  r = await pregunta('qué camiones tienen que entrar mañana en nave 2');
+  expect(r).toContain('no hay ninguna entrada planificada');
+  r = await pregunta('qué camiones tienen que entrar hoy');
+  expect(r).toContain('La siguiente');
   // palabras que no casan: se avisa
   r = await pregunta('coladas de zzzz');
   expect(r).toContain('No he encontrado «zzzz»');

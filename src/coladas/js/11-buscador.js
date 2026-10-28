@@ -9,6 +9,19 @@ const reC=a=>new RegExp("(^|[\\s/,.(])"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+
 const STOP_C=new Set("han ha hemos he sido llevamos lleva llevan que qu cual cuales cuantos cuantas cuanto hay tenemos tiene tienen de del la el los las lo con en y a al por para son es esta estan dame dime ver lista todos todas todo un una unos unas se sus su me fabrica kg kilos fardos fardo aluminio coladas colada lotes lote stock queda quedan total mas menos vez fue ultimo ultima primer primera cuando quien".split(" "));
 const MES_C=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPO_C={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};
+/* lo que tiene que venir: «mañana», «esta semana», «este mes»… contando desde hoy */
+function periodoFut(q){const h=hoy(),y=+h.slice(0,4),mo=+h.slice(5,7),mas=n=>{const d=new Date();d.setDate(d.getDate()+n);return ymd(d);},fin=(a,b)=>a+"-"+String(b).padStart(2,"0")+"-"+String(new Date(a,b,0).getDate()).padStart(2,"0");
+  if(/\bpasado manana\b/.test(q))return{d:mas(2),h:mas(2),t:"pasado mañana"};
+  if(/\bmanana\b/.test(q))return{d:mas(1),h:mas(1),t:"mañana"};
+  if(/\bhoy\b/.test(q))return{d:h,h,t:"hoy"};
+  if(/\b(la )?(proxima|siguiente) semana\b|\bsemana que viene\b/.test(q)){const a=7-((new Date().getDay()+6)%7);return{d:mas(a),h:mas(a+6),t:"la semana que viene"};}
+  if(/\besta semana\b/.test(q))return{d:h,h:mas(6-((new Date().getDay()+6)%7)),t:"esta semana"};
+  if(/\b(el )?(proximo|siguiente) mes\b|\bmes que viene\b/.test(q)){const a=mo===12?y+1:y,b=mo===12?1:mo+1;return{d:a+"-"+String(b).padStart(2,"0")+"-01",h:fin(a,b),t:"el mes que viene"};}
+  const mi=MES_C.findIndex(x=>new RegExp("\\b"+x+"\\b").test(q));
+  if(mi>=0){const a=mi+1<mo?y+1:y,d0=a+"-"+String(mi+1).padStart(2,"0")+"-01";return{d:d0<h?h:d0,h:fin(a,mi+1),t:"en "+MES_C[mi]};}
+  if(/\beste mes\b/.test(q))return{d:h,h:fin(y,mo),t:"lo que queda de mes"};
+  return{d:h,h:"9999-12-31",t:"de aquí en adelante",todo:true};}
+const RE_FUT=/\b(tiene|tienen|tenemos) que (entrar|llegar|venir|traer)|\bvan? a (entrar|llegar|venir)|\bprevist\w*|\bplanificad\w*|\bpendientes? de (entrar|llegar)|\bfalta(n)? por (entrar|llegar|venir)|\bquedan? por (entrar|llegar|venir)|\b(entrara|entraran|llegara|llegaran|vendra|vendran)\b|\bpasado manana\b|\bsemana que viene\b|\bmes que viene\b|\bproxim[oa]s? (camion|camiones|entradas?)\b/;
 function periodoC(q){const h=hoy(),y=+h.slice(0,4),mo=+h.slice(5,7),ini=(a,b)=>a+"-"+String(b).padStart(2,"0")+"-01",fin=(a,b)=>a+"-"+String(b).padStart(2,"0")+"-"+String(new Date(a,b,0).getDate()).padStart(2,"0");
   const menos=n=>{const d=new Date();d.setDate(d.getDate()-n);return ymd(d);};let m;
   if(/\bhoy\b/.test(q))return{d:h,h,t:"hoy",re:/\bhoy\b/};
@@ -34,19 +47,28 @@ const COLS_L=[["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Dó
 const COLS_M=[["Fecha","dia"],["Tipo","tipo"],["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Relevo","relevo"],["Proveedor","prov"],["Albarán","alb"],["Kg","kg"],["Fardos","fa"],["Nota","nota"]];
 const txtFila=(x,cols)=>" "+nqC(cols.map(c=>x[c[1]]).join(" "))+" ";
 function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=" "+q+" ";
+  /* «qué camiones tienen que entrar mañana»: lo planificado, no lo apuntado */
+  const camW=/\b(camion(es)?|entradas?|entrar|llegar|venir|bp|aluminio)\b/;
+  if(RE_FUT.test(q)||(/\bmanana\b/.test(q)&&camW.test(q)&&!/\b(relevo|turno|por la)\b/.test(q))){out.modo="fut";out.per=periodoFut(q);
+    const F=[[/\bnave\s*(1|2|uno|dos)\b/,m=>"nave "+(m[1]==="uno"?"1":m[1]==="dos"?"2":m[1])],[/\b(alsi\s*9|l-?2630|blanc[oa]s?)\b/,()=>"alsi9"],[/\b(alsi\s*12|l-?2521(-b)?|azul(es)?)\b/,()=>"alsi12"],[/\b(externo|bp)\b/,()=>"externo"]];
+    F.forEach(([re,v])=>{const m=q.match(re);if(m)out.filtros.push({t:v(m)});});return out;}
+  /* «qué relevo consume más», «qué nave gasta menos», «qué proveedor ha traído más» */
+  const sup=q.match(/\b(mas|menos)\b/);const supG=[["relevo",/\b(relevos?|turnos?)\b/],["nave",/\bnaves?\b(?!\s*(1|2|uno|dos)\b)/],["prov",/\bproveedor(es)?\b/],["colada",/\bcoladas?\b/],["dia",/\bdias?\b/],["mes",/\bmes(es)?\b(?! (pasado|anterior|que viene))/],["aleacion",/\b(aleacion(es)?|material)\b/]];
+  if(sup&&/\b(que|cual|cuales|quien)\b/.test(q)){const g=supG.find(x=>x[1].test(q.replace(/\b(este|esta|el|ultimo|ultimos|cada) (mes|dia|dias)\b/g," ")));if(g){out.sup=sup[1];out.supG=g[0];}}
   const P=periodoC(q);if(P&&P.re)rest=rest.replace(P.re," ");
   out.ultimo=/\b(ultim[oa]|ultima vez|mas reciente|cuando)\b/.test(q)&&!/\bultim[oa]s? \d+/.test(q)&&!/\bultimo mes\b/.test(q);out.primero=/\b(primer[oa]?|primera vez)\b/.test(q);
   /* tipo de apunte */
-  const tipos=[];[["C",/\b(consum\w*|gast\w*|usad\w*|salidas?|fundid\w*)\b/],["E",/\b(entrad\w*|entrado|camion(es)?|llegad\w*|recibid\w*|albaran(es)?|compras?|comprad\w*)\b/],["A",/\b(ajustes?|recuentos?)\b/],["G",/\b(granalla|cobre)\b/],["T",/\b(traslad\w*)\b/]]
+  const tipos=[];[["C",/\b(consum\w*|gast\w*|usad\w*|salidas?|fundid\w*)\b/],["E",/\b(entrad\w*|entrado|entrar|entra|entran|camion(es)?|llegad\w*|llego|llegaron|recibid\w*|albaran(es)?|compras?|comprad\w*|traid\w*)\b/],["A",/\b(ajustes?|recuentos?)\b/],["G",/\b(granalla|cobre)\b/],["T",/\b(traslad\w*)\b/]]
     .forEach(([k,re])=>{if(re.test(rest)){tipos.push(k);rest=rest.replace(new RegExp(re.source,"g")," ");}});
   out.precio=/\bprecios?\b|\bcuesta\b|\bvale\b|\beuros?\b/.test(q);rest=rest.replace(/\bprecios?\b|\bcuesta\b|\bvale\b|\beuros?\b/g," ");
+  if(out.sup&&!tipos.length){tipos.push("C");}
   const mov=tipos.length||P||out.ultimo||out.primero||/\b(apuntes?|movimientos?|historial|relevos?|turnos?)\b/.test(q);
   out.modo=out.precio?"precio":mov?"mov":"col";out.tipos=tipos;
   out.per=P||(out.modo==="mov"?(out.ultimo||out.primero?{d:"0000-00-00",h:hoy(),t:"todo el historial"}:{d:ymd(new Date(Date.now()-29*864e5)),h:hoy(),t:"últimos 30 días",def:true}):null);
   /* agrupar */
   const G=[["mes",/\bpor mes(es)?\b|\bcada mes\b|\bmensual\w*\b/,"mes"],["dia",/\bpor dias?\b|\bcada dia\b|\bdiari\w*\b/,"dia"],["relevo",/\bpor (relevos?|turnos?)\b|\brelevos?\b|\bturnos?\b/,"relevo"],["nave",/\bpor naves?\b/,"nave"],
     ["aleacion",/\bpor aleacion(es)?\b|\baleaciones\b|\bpor material\b/,"aleacion"],["prov",/\bpor proveedor(es)?\b|\bproveedores\b/,"prov"],["colada",/\bpor coladas?\b/,"colada"],["donde",/\bpor (donde|sitio|almacen)\b/,"donde"]];
-  const g=G.find(x=>x[1].test(q));out.grupo=g?g[2]:null;G.forEach(x=>{rest=rest.replace(new RegExp(x[1].source,"g")," ");});
+  const g=G.find(x=>x[1].test(q));out.grupo=out.supG||(g?g[2]:null);if(out.supG)supG.forEach(x=>{if(x[0]===out.supG)rest=rest.replace(new RegExp(x[1].source,"g")," ");});G.forEach(x=>{rest=rest.replace(new RegExp(x[1].source,"g")," ");});
   /* frases con su valor */
   const F=[[/\bnave\s*(1|2|uno|dos)\b/,m=>"nave "+(m[1]==="uno"?"1":m[1]==="dos"?"2":m[1])],[/\b(alsi\s*9|l-?2630|blanc[oa]s?)\b/,()=>"alsi9"],[/\b(alsi\s*12|l-?2521(-b)?|azul(es)?)\b/,()=>"alsi12"],
     [/\b(externo|fuera)\b/,()=>"almacen externo"],[/\bmanana\b/,()=>"manana"],[/\btarde\b/,()=>"tarde"],[/\bnoche\b/,()=>"noche"],[/\b(gastadas?|agotadas?|vacias?)\b/,()=>"gastada"]];
@@ -55,6 +77,9 @@ function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=
   out.filtros.forEach(f=>{if(!f.alt)f.alt=f.t;});
   out.todas=/\b(todas|gastadas?|agotadas?)\b/.test(q);return out;}
 
+/* «hoy», «en octubre de 2026», «en los últimos 30 días»: para escribir la respuesta como una frase */
+function perTxt(P){const t=P.t;if(/^(hoy|ayer|esta |este )/.test(t))return t;if(/^últimos/.test(t))return"en los "+t;if(/^el año/.test(t))return"en "+t.slice(7);if(t==="todo el historial")return"en total";if(/^[A-Z]/.test(t)){const[m,a]=t.split(" ");return"en "+m.toLowerCase()+(a&&a!==hoy().slice(0,4)?" de "+a:"");}return t;}
+function donde(ok){const p=ok.map(f=>{const t=f.t;if(/^nave \d/.test(t))return"en "+Mayus(t);if(t==="alsi9")return"de AlSi9";if(t==="alsi12")return"de AlSi12";if(/^(manana|tarde|noche)$/.test(t))return"en el relevo de "+(t==="manana"?"mañana":t);if(t==="almacen externo")return"en el externo";return"de "+(/\d/.test(t)?t.toUpperCase():Mayus(t));});return p.length?" "+p.join(" "):"";}
 function vBuscaCol(resto){
   const caja=el("div",{class:"bq-caja"});const res=el("div",{class:"bq-res"});
   const q=el("input",{type:"search",id:"bqQ",placeholder:"¿Qué quieres saber?",autocomplete:"off",enterkeyhint:"search","aria-label":"Pregunta"});q.value=bq.q;
@@ -64,11 +89,12 @@ function vBuscaCol(resto){
   const pon=(t,mant)=>{if(!mant){bq.ef=[];bq.g=null;}bq.q=t;q.value=t;pinta();};
   function pinta(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
     if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
-      ["cuánto se ha consumido este mes en nave 1","consumo de ayer por relevo","coladas en externo","stock de AlSi12","entradas de este mes por proveedor","último camión de Idalsa","precio de Befesa este mes","consumo de AlSi9 por mes este año"]
+      ["cuánto se ha consumido este mes en nave 1","qué relevo consume más este mes","qué camiones tienen que entrar mañana","cuánto ha entrado este mes a nave 1","consumo de ayer por relevo","coladas en externo","stock de AlSi12","entradas de este mes por proveedor","último camión de Idalsa","precio de Befesa este mes","consumo de AlSi9 por mes este año"]
         .forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));return;}
     sug.classList.remove("bq-ej");
     const E=entenderC(bq.q),S=saldos();
     if(E.modo==="precio")return pintaPrecio(E,res);
+    if(E.modo==="fut")return pintaFut(E,res);
     const mov=E.modo==="mov";const cols=mov?COLS_M:COLS_L;
     let L=mov?filasApuntes(S).filter(x=>x.f>=E.per.d&&x.f<=E.per.h&&(!E.tipos.length||E.tipos.some(t=>x.r.t===t))):filasColadas(S).filter(x=>E.todas||x.estado==="Con stock");
     /* palabras que no casan: se avisa y no cuentan */
@@ -89,15 +115,29 @@ function vBuscaCol(resto){
       res.appendChild(el("div",{class:"bq-ult"},[el("div",{class:"sub",text:(E.primero?"La primera":"La última")+" "+(x.tipo==="Entrada"?"entrada":x.tipo.toLowerCase())+(ok.length?" ("+ok.map(f=>f.t).join(", ")+")":"")}),
         el("b",{class:"bq-ult-f",text:dmyA(x.f)}),el("div",{text:[x.colada,x.aleacion,x.nave,x.relevo,fmt(x.kg)+" kg",x.fa?fmt(x.fa)+" fardos":null,x.prov,x.alb?"albarán "+x.alb:null].filter(Boolean).join(" · ")}),
         x.l?el("button",{type:"button",class:"btn sec",style:"justify-self:start;margin-top:6px",text:"Ver la colada",onclick:()=>abrirFicha(x.l.id)}):null]));}
-    res.appendChild(el("p",{class:"bq-resp",text:(mov?Mayus(E.per.t)+": ":"Hay ")+fmt(sKg)+" kg · "+fmt(sFa)+" fardos"+(mov?" en "+L.length+(L.length===1?" apunte":" apuntes"):" en "+L.length+(L.length===1?" colada":" coladas"))+"."}));
+    const dond=donde(ok),fa_=n=>fmt(n)+(n===1?" fardo":" fardos"),soloE=E.tipos.length===1&&E.tipos[0]==="E",soloC=E.tipos.length===1&&E.tipos[0]==="C";
+    const nAlb=mov?new Set(L.map(x=>x.r.a||x.r.i)).size:0;
+    const frase=!mov?"Hay "+fmt(sKg)+" kg ("+fa_(sFa)+")"+dond+" en "+L.length+(L.length===1?" colada.":" coladas.")
+      :soloE?Mayus(perTxt(E.per))+" "+(L.length===1?"ha entrado ":"han entrado ")+fmt(sKg)+" kg ("+fa_(sFa)+")"+dond+", en "+nAlb+(nAlb===1?" entrada.":" entradas.")
+      :soloC?Mayus(perTxt(E.per))+" se "+(sKg===1?"ha":"han")+" consumido "+fmt(sKg)+" kg ("+fa_(sFa)+")"+dond+"."
+      :Mayus(perTxt(E.per))+": "+fmt(sKg)+" kg ("+fa_(sFa)+")"+dond+" en "+L.length+(L.length===1?" apunte.":" apuntes.");
+    if(!E.sup)res.appendChild(el("p",{class:"bq-resp",text:frase}));
     /* reparto que se toca */
-    const Gr={};L.forEach(x=>{const k=String(x[gk]||"—");const g=Gr[k]=Gr[k]||{kg:0,fa:0,n:0,ult:""};g.kg+=x.kg;g.fa+=x.fa;g.n++;const f=x.f||x.entrada||"";if(f>g.ult)g.ult=f;});
-    const GL=Object.entries(Gr).sort((a,b)=>gk==="mes"||gk==="dia"?b[1].ult.localeCompare(a[1].ult):gk==="relevo"?TURNOS.indexOf(a[0])-TURNOS.indexOf(b[0]):b[1].kg-a[1].kg);const mx=Math.max(1,...GL.map(g=>g[1].kg));
+    const Gr={};L.forEach(x=>{const k=String(x[gk]||"—");const g=Gr[k]=Gr[k]||{kg:0,fa:0,n:0,ult:"",rel:new Set()};g.kg+=x.kg;g.fa+=x.fa;g.n++;if(x.relevo)g.rel.add(x.f+"|"+x.relevo);const f=x.f||x.entrada||"";if(f>g.ult)g.ult=f;});
+    const GL=Object.entries(Gr).sort((a,b)=>E.sup?(E.sup==="menos"?a[1].kg-b[1].kg:b[1].kg-a[1].kg):gk==="mes"||gk==="dia"?b[1].ult.localeCompare(a[1].ult):gk==="relevo"?TURNOS.indexOf(a[0])-TURNOS.indexOf(b[0]):b[1].kg-a[1].kg);const mx=Math.max(1,...GL.map(g=>g[1].kg));
+    const media=g=>gk==="relevo"&&g.rel.size?" · "+fmt(g.kg/g.rel.size)+" kg de media en "+g.rel.size+(g.rel.size===1?" relevo":" relevos"):"";
+    if(E.sup&&GL.length){const[k,g]=GL[0],pc=sKg?Math.round(g.kg/sKg*100):0,sig=GL[1];
+      const verbo=soloE?(E.sup==="mas"?"más ha traído":"menos ha traído"):(E.sup==="mas"?"más consume":"menos consume");
+      res.appendChild(el("div",{class:"bq-ult"},[el("div",{class:"sub",text:"El "+nomG[gk]+" que "+verbo+" · "+perTxt(E.per)+dond}),el("b",{class:"bq-ult-f",text:k}),
+        el("div",{text:fmt(g.kg)+" kg ("+fa_(g.fa)+"), el "+pc+" % del total"+media(g)+"."}),
+        sig?el("div",{class:"sub",text:"Le sigue "+sig[0]+" con "+fmt(sig[1].kg)+" kg"+(sKg?" ("+Math.round(sig[1].kg/sKg*100)+" %)":"")+"."}):null,
+        gk==="relevo"&&GL.some(([,x])=>x.rel.size)?el("div",{class:"sub",text:(()=>{const o=GL.filter(([,x])=>x.rel.size).slice().sort((a,b)=>(E.sup==="menos"?-1:1)*(b[1].kg/b[1].rel.size-a[1].kg/a[1].rel.size))[0];
+          return o[0]===k?"Y también es el que "+(E.sup==="menos"?"menos":"más")+" gasta de media en cada relevo trabajado.":"Ojo: suma más porque ha trabajado más relevos. De media por relevo trabajado, el que "+(E.sup==="menos"?"menos":"más")+" gasta es "+o[0]+" ("+fmt(o[1].kg/o[1].rel.size)+" kg por relevo).";})()}):null]));}
     const otros=(mov?["nave","relevo","aleacion","prov","mes","dia","colada","tipo"]:["aleacion","nave","donde","prov","colada"]).filter(k=>k!==gk&&!ef.some(f=>f.g===k));
     res.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Por "+nomG[gk]})]),
       el("div",{class:"chips",style:"padding:0 14px 8px"},otros.map(k=>el("button",{type:"button",class:"chip",text:"Por "+nomG[k],onclick:()=>{bq.g=k;pon(bq.q,true);}}))),
       el("div",{class:"bq-lst"},GL.map(([k,g])=>el("button",{type:"button",class:"bq-it",onclick:()=>{bq.ef=ef.concat([{g:gk,v:k}]);bq.g=gk==="colada"?"tipo":gk==="nave"||gk==="aleacion"?"relevo":"colada";pon(bq.q,true);}},[
-        el("div",{class:"bq-p"},[el("b",{text:k}),el("span",{class:"sub",text:g.n+(mov?(g.n===1?" apunte":" apuntes"):(g.n===1?" colada":" coladas"))+" · toca para ver solo estos"}),el("i",{class:"bq-bar"},el("i",{style:"width:"+Math.round(g.kg/mx*100)+"%"}))]),
+        el("div",{class:"bq-p"},[el("b",{text:k}),el("span",{class:"sub",text:g.n+(mov?(g.n===1?" apunte":" apuntes"):(g.n===1?" colada":" coladas"))+media(g)+(sKg?" · "+Math.round(g.kg/sKg*100)+" %":"")}),el("i",{class:"bq-bar"},el("i",{style:"width:"+Math.round(g.kg/mx*100)+"%"}))]),
         el("div",{class:"bq-c num"},[el("b",{text:fmt(g.kg)+" kg"}),el("span",{class:"sub",text:fmt(g.fa)+(g.fa===1?" fardo":" fardos")})])])))]));
     /* la lista */
     const R=(mov?L.slice().sort((a,b)=>b.f.localeCompare(a.f)):L.slice().sort((a,b)=>b.kg-a.kg)).slice(0,300);
@@ -106,6 +146,25 @@ function vBuscaCol(resto){
       el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},cs.map(c=>el("th",{class:c[1]==="kg"||c[1]==="fa"?"r":"",text:c[0]})))]),
         el("tbody",{},R.map(x=>el("tr",{},cs.map(c=>el("td",{class:c[1]==="kg"||c[1]==="fa"?"r num":"","data-l":c[0]},c[1]==="colada"&&x.l?[el("button",{type:"button",class:"linkcol",text:x.colada,onclick:()=>abrirFicha(x.l.id)})]:[document.createTextNode(c[1]==="kg"||c[1]==="fa"?fmt(x[c[1]]):String(x[c[1]]||""))])))))])]),
       L.length>300?el("p",{class:"hint",style:"padding:8px 14px",text:"Salen los 300 primeros. Acota con más palabras o un periodo."}):null]));}
+  function pintaFut(E,res){const h=hoy(),P=E.per;const nv=E.filtros.find(f=>/^nave/.test(f.t)),mt=E.filtros.find(f=>/^alsi/.test(f.t)),ex=E.filtros.some(f=>f.t==="externo");
+    const todas=[];Object.keys(cfg.plan||{}).forEach(mm=>((cfg.plan[mm]||{}).entradas||[]).forEach(x=>{if(!x.rec&&x.f)todas.push(x);}));
+    const pasa=x=>{const[n,m]=(x.k||"").split("|");return(!nv||!n||nqC(n)===nv.t)&&(!mt||!m||nqC(MAT[m].nom)===mt.t)&&(!ex||x.o==="B");};
+    const T=todas.filter(pasa).sort((a,b)=>a.f.localeCompare(b.f));const L=T.filter(x=>x.f>=P.d&&x.f<=P.h);const atras=T.filter(x=>x.f<h);
+    const diaTxt=f=>{const d=new Date(f+"T12:00:00");return d.toLocaleDateString("es-ES",{weekday:"long"})+" "+dmyA(f);};
+    const kgF=x=>{const[,m]=(x.k||"|L-2630").split("|");const M=mediaCamion(m||"L-2630");return M&&M.fa?Math.round(x.fa*M.kg/M.fa):0;};
+    const lin=x=>el("div",{class:"bq-it",style:"cursor:default"},[el("div",{class:"bq-p"},[el("b",{text:x.k?etiqLinea(x.k):"Destino por decidir"}),el("span",{class:"sub",text:Mayus(diaTxt(x.f))+" · "+(x.o==="B"?"del almacén externo (BP)":"camión del proveedor")})]),
+      el("div",{class:"bq-c num"},[el("b",{text:fmt(x.fa)+" fardos"}),kgF(x)?el("span",{class:"sub",text:"≈ "+fmt(kgF(x))+" kg"}):null])]);
+    const filt=[nv?Mayus(nv.t):null,mt?(mt.t==="alsi9"?"AlSi9":"AlSi12"):null,ex?"del externo":null].filter(Boolean).join(", ");
+    res.appendChild(el("div",{class:"bq-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:"entradas planificadas"}),el("span",{class:"chip-sel on",text:P.t}),filt?el("span",{class:"chip-sel on",text:filt}):null]));
+    const fa=L.reduce((a,x)=>a+x.fa,0),camT=n=>n+(n===1?" entrada":" entradas");
+    const nC=L.filter(x=>x.o!=="B").length,nB=L.length-nC,queT=[nC?nC+(nC===1?" camión del proveedor":" camiones del proveedor"):null,nB?nB+(nB===1?" traída del externo":" traídas del externo"):null].filter(Boolean).join(" y ");
+    const cuando=P.t==="mañana"||P.t==="pasado mañana"||P.t==="hoy"?Mayus(P.t)+", "+diaTxt(P.d)+",":Mayus(P.t);
+    res.appendChild(el("p",{class:"bq-resp",text:L.length?cuando+" "+(L.length===1?"tiene que entrar ":"tienen que entrar ")+queT+" ("+fmt(fa)+" fardos)"+(filt?" · "+filt:"")+".":cuando+" no hay ninguna entrada planificada"+(filt?" ("+filt+")":"")+"."}));
+    if(L.length)res.appendChild(el("div",{class:"card"},[el("div",{class:"bq-lst"},L.map(lin))]));
+    else{const sig=T.find(x=>x.f>P.h);if(sig)res.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"La siguiente"})]),el("div",{class:"bq-lst"},[lin(sig)])]));}
+    if(atras.length)res.appendChild(el("div",{class:"banner w",text:"Hay "+camT(atras.length)+" planificadas para días que ya han pasado y no se han apuntado como recibidas ("+atras.map(x=>dmy(x.f)).join(", ")+"). Revísalas en Plan."}));
+    res.appendChild(el("p",{class:"hint",text:"Sale lo que hay colocado en el calendario de la pestaña Plan."}));
+    res.appendChild(el("button",{type:"button",class:"btn sec",text:"Abrir el Plan",onclick:()=>{tab="plan";try{localStorage.setItem("colada.tab","plan");}catch(e){}tabsUI();render();}}));}
   function pintaPrecio(E,res){const mes=E.per?E.per.d.slice(0,7):mesDe(hoy());const ok=E.filtros.filter(f=>f.t!=="alsi9"&&f.t!=="alsi12");const mats=Object.keys(MAT).filter(m=>!E.filtros.some(f=>f.t==="alsi9"||f.t==="alsi12")||E.filtros.some(f=>nqC(MAT[m].nom)===f.t));
     const provs=(cfg.proveedores||[]).filter(p=>!ok.length||ok.some(f=>reC(f.alt).test(" "+nqC(p)+" ")));
     res.appendChild(el("div",{class:"bq-ent"},[el("span",{class:"sub",text:"Precio del aluminio · "}),el("b",{text:Mayus(nomMes(mes))})]));
