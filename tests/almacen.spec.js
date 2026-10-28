@@ -224,3 +224,24 @@ test('Base de datos: consumos, cambios y gasto («consumo de pistones en la F25�
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Base de datos: se toca un grupo para ver solo esos y se vuelve a agrupar (eje con más reparaciones → por motivo)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'que eje tiene más reparaciones'); await page.waitForTimeout(250);
+  await expect(page.locator('#bdRes h2', { hasText: 'Por pieza' })).toBeVisible();
+  const eje = (await page.locator('#bdRes .lst .it .t1').first().textContent()).trim();
+  await page.locator('#bdRes .lst .it').first().click(); await page.waitForTimeout(250);
+  await expect(page.locator('#bdRes .chip[aria-pressed=true]', { hasText: eje })).toBeVisible();
+  await expect(page.locator('#bdRes h2', { hasText: 'Por motivo' })).toBeVisible();
+  await expect(page.locator('.bd-resp')).toContainText(eje + ' · ');
+  await page.getByRole('button', { name: 'Por mes' }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('#bdRes h2', { hasText: 'Por mes' })).toBeVisible();
+  await page.locator('#bdRes .chip[aria-pressed=true]', { hasText: eje }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('#bdRes .chip[aria-pressed=true]')).toHaveCount(0);
+  await page.fill('#bdQ', 'reparaciones de ejes por motivo'); await page.waitForTimeout(250);
+  await expect(page.locator('#bdRes .lst .it .t1', { hasText: 'Postizo roto' })).toBeVisible();
+  expect(err).toEqual([]);
+});

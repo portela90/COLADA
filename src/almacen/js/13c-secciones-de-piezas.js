@@ -8,13 +8,19 @@ const nomArtC=a=>a?(TEC(a.fam)?nomBT(a):a.desc):"?";
 const salidasFam=fs=>todosMov().filter(x=>x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).filter(x=>{const a=art(x.art);return a&&fs(a);})
   .map(x=>{const a=art(x.art),c=+x.cant||0;return{f:x.f,ts:x.ts||0,maq:x.maq||null,nave:x.nave||null,ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),txt:x.motivo?cap(x.motivo):(x.nota||""),ir:()=>ficha(a)};});
 /* lo que cada pieza aporta: sus cambios (para Cambios, Por máquina y Gasto) y sus referencias */
+/* el desperfecto de una reparación, en pocos tipos (está escrito a mano y cada vez de una forma) */
+const MOT_REP=[["Postizo roto",/postizo/],["Pistón agarrotado",/agarrot/],["Pistón roto",/rotura de piston|piston roto|se suelta el piston/],["Rosca",/rosca/],["Enchufes o racores de agua",/enchufe|racor/],
+  ["Fuga de agua",/fuga/],["Poros",/poro/],["Refrigeración (no circula el agua)",/circula|refrigera|obstru|conducto|tubo interior/],["Rajado o grieta",/rajad|grieta|fisura/],["Galleta",/galleta/]];
+const motivoRep=d=>{const t=gNorm(d);if(!t.trim())return"Sin indicar";const m=MOT_REP.find(([,re])=>re.test(t));return m?m[0]:"Otros";};
 const SECC={
   pist:{nom:"Pistones",base:v=>vPist(v),uno:"pistón",unos:"pistones",
     ev:()=>todosPist().map(p=>{const c=+p.cant||1,a=pistArt(p.diam);return{f:p.f,ts:p.ts||0,maq:p.maq,ref:p.diam,cant:c,ud:"ud",eur:c*precioDe(a),quien:p.resp?respTxt(p.resp):(p.por||""),txt:cap(p.motivo||""),ir:a?()=>ficha(a):null};}),
     refs:()=>artsActivos().filter(a=>a.fam==="piston").sort((a,b)=>String(a.diam).localeCompare(String(b.diam),"es",{numeric:true})).map(a=>({t:a.desc,s:"hay "+fmtN(stockDe(a.id))+" "+a.ud+(a.min?" · mínimo "+fmtN(a.min):""),ir:()=>ficha(a),n:nivel(a)}))},
   ejes:{nom:"Ejes",base:v=>vEjes(v),uno:"reparación",unos:"reparaciones",
     ev:()=>todasRep().filter(r=>r.res!=="anulada"&&!r.recuento&&r.env).map(r=>{const e=ejes.find(z=>z.cod===r.eje),ok=r.res==="ok"&&r.rec;
-      return{f:ok?r.rec:r.env,ts:r.ts||0,maq:r.maq||(e&&e.maq)||null,ref:r.eje,cant:1,ud:"rep.",eur:ok?costeRep(r).v:0,quien:r.por||"",txt:ok?"Vuelve del taller (enviado el "+fmtF(r.env)+")":r.res?cap(r.res):"En el taller desde el "+fmtF(r.env),ir:e?()=>fichaEje(e):null};}),
+      const md=modelo(modeloDeEje(r.eje));
+      return{f:ok?r.rec:r.env,ts:r.ts||0,maq:r.maq||(e&&e.maq)||null,ref:r.eje,mod:md?md.ref:"",cant:1,ud:"rep.",eur:ok?costeRep(r).v:0,quien:r.por||"",txt:motivoRep(r.desp),det:(r.desp||"").trim(),
+        est:ok?"Reparado (vuelve el "+fmtF(r.rec)+")":r.res?cap(r.res):"En el taller desde el "+fmtF(r.env),ir:e?()=>fichaEje(e):null};}),
     refs:()=>(cat.modelos||[]).slice().sort((a,b)=>String(a.cod).localeCompare(String(b.cod),"es",{numeric:true})).map(x=>{const es=ejes.filter(e=>e.mod===x.cod);return{t:x.ref+" ("+x.cod+")",s:es.filter(e=>e.estado==="planta").length+"/"+es.length+" en planta"+((x.docs||[]).length?" · con plano":" · sin plano")+(+x.precioRep>0?" · reparación "+eur(+x.precioRep):""),ir:()=>fichaModelo(x)};})},
   cont:{nom:"Contenedores",base:v=>vCont(v),uno:"cambio",
     ev:()=>todosMlog().filter(x=>x.tipo==="cont").map(x=>{const c=contDe(x.val||x.antes);return{f:x.f,ts:x.ts||0,maq:x.maq,ref:c?c.cod:"?",cant:1,ud:"cambio",eur:0,quien:x.by||"",txt:x.val?"Se pone"+(x.antes?" (sale el "+((contDe(x.antes)||{}).cod||"?")+")":""):"Se quita",ir:c?()=>fichaCont(c):null};}),
