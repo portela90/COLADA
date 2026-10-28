@@ -398,3 +398,17 @@ test('Ejes: se van añadiendo a la lista para pedir al taller, se manda un Whats
   expect(reps.every(r => r.traer && !r.apedir)).toBe(true);
   expect(err).toEqual([]);
 });
+
+test('Consultas: «qué pistones tengo en nave 2» da el stock de los almacenes de esa nave', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  expect(await resp('qué pistones tengo en nave 2')).toMatch(/En Nave 2 hay \d+ pistones: Ø/);
+  expect(await resp('pistones en la nave 1a')).toMatch(/En Nave 1A hay \d+ pistones/);
+  expect(await resp('cuántos pistones de 80 hay en nave 1')).toMatch(/En Nave 1 (hay|no hay)/);
+  expect(await resp('qué hay en el almacén general')).toMatch(/En Almacén general hay/);
+  expect(await resp('consumo de pistones en nave 2')).toMatch(/Cambios de pistón/);
+  expect(err).toEqual([]);
+});

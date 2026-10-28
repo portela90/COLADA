@@ -175,7 +175,7 @@ function sugerencias(q0,T){const q=nq(q0);if(!q)return["todo sobre la F25","qué
   return S.slice(0,6);}
 
 const EJ_ALM=[["Lo importante",["informe del valor de los pistones robados","qué hay que revisar","qué tengo que pedir esta semana","resumen del mes","qué máquina está gastando más de lo normal"]],
-  ["Stock",["qué está bajo mínimo","para cuántos días tengo pistones de 60","qué se va a acabar antes","cuántos pistones hay en la zona de usados"]],
+  ["Stock",["qué pistones tengo en nave 2","qué hay en el almacén general","qué está bajo mínimo","para cuántos días tengo pistones de 60","qué se va a acabar antes","cuántos pistones hay en la zona de usados"]],
   ["Máquinas y ejes",["todo sobre la F25","quién cambió el último pistón de la F62","cuánto dura de media un pistón en la F15","qué ejes están pendientes de reparar"]],
   ["Dinero",["valor del stock de pistones de 80","importe de los ejes que hay en el taller","presupuesto de 15 pistones de 100 especial","cuánto hemos gastado este mes","qué máquina gasta más dinero en pistones","cuánto vale lo que hay en el almacén","cuánto me voy a gastar el mes que viene"]],
   ["Catálogo",["qué modelos de horno tenemos","dónde están los contenedores A1","qué ejes valen para la F28","qué molde lleva la F30"]]];

@@ -1,7 +1,14 @@
 /* ===== BASE DE DATOS: «todo sobre…», lo raro, personas y planificar =====
    intencionA2(q) va antes que intencionA; pintaIntA2 contesta. */
+/* almacenes de los que habla: «en nave 2», «en la nave 1A», «en el almacén general», «en producción N1B» */
+function almsQ(q){const C=cat.almacenes||[];let m=q.match(/\b(?:en|de) (?:la )?nave\s*(1a|1b|1|2)\b/);
+  if(m){const n=m[1];const L=C.filter(a=>{const t=nq(a.nom+" "+(a.nave||""));return n==="1a"||n==="1b"?new RegExp("\\bn"+n+"\\b").test(t):n==="1"?/\bnave 1\b|\bn1/.test(t):/\bnave 2\b|\bn2\b/.test(t);});return L.length?{L,t:"Nave "+n.toUpperCase()}:null;}
+  m=q.match(/\b(?:en|del?) (?:el )?almacen (?:de )?([a-z0-9 ]+?)(?:\s+(?:de|del|que|hay|tengo|tenemos)\b|$)/)||q.match(/\ben (?:el )?(general|produccion\s*n?\s*(?:1a|1b|2)|consumibles(?: n1)?|baldas)\b/);
+  if(m){const w=nq(m[1]).split(" ").filter(x=>x&&!QSTOP.has(x));const L=C.filter(a=>w.length&&w.every(t=>reQ(raiz(t)).test(" "+nq(a.nom)+" ")));return L.length?{L,t:L.length===1?L[0].nom:L.map(a=>a.nom).join(", ")}:null;}
+  return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
+  {const A=almsQ(q);if(A&&!QCO.test(q)&&!/\b(ultim|primer|cuando|quien)\b/.test(q)&&(!/\b(hornos?|maquinas?|inyectoras?|ejes?|modelos?|contenedor(es)?|moldes?)\b/.test(q)||/\b(recambios?|repuestos?|piezas?) de hornos?\b/.test(q)))return M("stockalm",{alms:A.L,almT:A.t});}
   if(/\bpresupuesto\b|\bcuanto (cuesta|costaria|costarian|vale|valdria|valdrian|sale|saldria)n? (un pedido|pedir|comprar|traer)\b|\bcuanto (cuestan|costarian|valen|valdrian) \d+/.test(q))return M("presupuesto");
   if(/\bejes?\b/.test(q)&&/\b(importe|coste|costes|valor|cuesta|cuestan|costara|costaran|dinero|euros|presupuesto|cuanto (vale|valen|va|van))\b/.test(q)&&/\b(taller|reparacion\w*|reparar|pendientes?|arreglar)\b/.test(q))return M("tallereur");
   if(/\b(precio|precios) (de|del|de los|de las)\b|\bcuanto (cuesta|cuestan|vale|valen) (un|una|el|la|los|las)\b/.test(q)&&!/\bstock\b|\bque (tengo|hay|tenemos)\b/.test(q))return M("precioart");
@@ -27,6 +34,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
   const lista=(tit,items,sub)=>add(el("section",{class:"card"},[tit?el("div",{class:"hd"},[el("h2",{text:tit}),sub?el("span",{class:"der sub",text:sub}):null]):null,el("div",{class:"lst"},items)]));
   const it=(t1,t2,b,small,on,stripe)=>el(on?"button":"div",{type:on?"button":null,class:"it",style:on?null:"cursor:default",onclick:on||null},[stripe?el("span",{class:"stripe "+stripe}):null,
     el("div",{class:"ppal"},[el("div",{class:"t1",text:t1})].concat((Array.isArray(t2)?t2:[t2]).filter(Boolean).map(x=>el("div",{class:"t2",text:x})))),b!=null?el("div",{class:"cant num"},[el("b",{text:b}),small?el("small",{text:small}):null]):null]);
+  const ign=L=>{if(L&&L.length)nota("No he encontrado «"+L.join("», «")+"», así que no lo he tenido en cuenta.");};
   const kv=(tit,filas)=>add(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:tit})),el("div",{class:"bd"},el("dl",{class:"bd-kv"},[].concat(...filas.filter(Boolean).map(([k,v])=>[el("dt",{text:k}),el("dd",{text:v})]))))]));
   const copiar=(t,txt)=>add(el("button",{type:"button",class:"btn sec",style:"margin-top:8px",text:t,onclick:async e=>{try{await navigator.clipboard.writeText(txt);toast("Copiado: pégalo donde quieras");}catch(er){dlg("Para copiar",[el("textarea",{style:"width:100%;min-height:220px",text:txt})],[{t:"Cerrar",cls:"sec"}]);}}}));
   const y0=h.slice(0,4)+"-01-01",ano=e=>e.f>=y0;const EV=evTodo();
@@ -34,6 +42,16 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
 
   const copiarT=(t,txt)=>add(el("button",{type:"button",class:"btn",style:"margin-top:8px",text:t,onclick:async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado: pégalo en el correo");}catch(e){dlg(t,[el("textarea",{style:"width:100%;min-height:240px",text:txt})],[{t:"Cerrar",cls:"sec"}]);}}}));
   const ponPrecio=(L,msg)=>add(el("div",{class:"banner w"},[el("div",{text:msg}),el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Poner precios",onclick:()=>preciosArts(L,()=>setTimeout(()=>pon(q,true),300))})]));
+  if(I.modo==="stockalm"){const ids=new Set(I.alms.map(a=>a.id)),q2=q.replace(/\b(?:en|de) (?:la )?nave\s*(1a|1b|1|2)\b/," ").replace(/\b(almacen|general|produccion|n1a|n1b|n2|n1|consumibles|baldas)\b/g," ").replace(/\bespecial(es)?\b/g,"esp");
+    const S=artsQ(q2),L=S.L.map(a=>{const x=SM[a.id]||{},por=I.alms.map(al=>[al,x[al.id]||0]).filter(z=>Math.abs(z[1])>0.001),st=por.reduce((s,z)=>s+z[1],0);return{a,st,por,va:(a.alms||[]).some(id=>ids.has(id))};})
+      .filter(x=>Math.abs(x.st)>0.001||(S.fam&&x.va)).sort((a,b)=>String(a.a.diam||a.a.desc).localeCompare(String(b.a.diam||b.a.desc),"es",{numeric:true}));
+    ent("lo que hay en "+I.almT,[S.fam?[...new Set(S.L.map(famLbl))].slice(0,3).join(", "):null]);ign(S.ign);
+    if(!L.length){frase("En "+I.almT+" no hay nada de eso.");return;}
+    const pist=L.every(x=>x.a.fam==="piston"),tot=L.reduce((s,x)=>s+Math.max(0,x.st),0);
+    if(!(tot>0)){frase("En "+I.almT+" no hay "+(pist?"ningún pistón"+(L.length<=3?" de "+L.map(x=>x.a.diam).join(", "):""):"nada de eso")+".");}else
+    frase("En "+I.almT+(pist?" hay "+fmtN(tot)+(tot===1?" pistón":" pistones")+": "+L.filter(x=>x.st>0).map(x=>x.a.diam+": "+fmtN(x.st)).join(" · ")+(L.some(x=>x.st<=0)?". Sin ninguno: "+L.filter(x=>x.st<=0).map(x=>x.a.diam).join(", "):""):" hay "+L.filter(x=>x.st>0).length+" artículos con stock")+".");
+    lista(null,L.map(x=>it(nomArt(x.a),[I.alms.length>1&&x.por.length?x.por.map(([al,n])=>al.nom.replace(/^Almacén (de )?/,"")+": "+fmtN(Math.round(n*10)/10)).join(" · "):null,"En total (todos los almacenes): "+fmtN(Math.round(stockDe(x.a.id)*10)/10)],fmtN(Math.round(x.st*10)/10),x.a.ud||"ud",()=>ficha(x.a),x.st<=0?"bad":nivel(x.a)==="bad"?"warn":"")));
+    if(L.some(x=>x.st<0))nota("Un número negativo quiere decir que se ha sacado más de lo que constaba en ese almacén: falta apuntar un traslado o un recuento.");return;}
   if(I.modo==="presupuesto"){const q2=q.replace(/\bespecial(es)?\b/g,"esp").replace(/\b(presupuesto|dame|dime|hazme|haz|un|una|unos|unas|de|del|para|pedido|pedir|comprar|traer|cuanto|cuesta|cuestan|costaria|costarian|vale|valen|valdria|valdrian|sale|saldria|aproximadamente|mas o menos|sobre)\b/g," ");
     const trozos=q2.split(/\s(?:y|,|mas)\s|,/).map(t=>t.trim()).filter(Boolean),L=[],mal=[];
     trozos.forEach(t=>{const m=t.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(pistones|piston|uds?|unidades|kg|kilos|litros|l|bidones|cajas|rollos|pares)?(?=\s|$)/);let n=null,rest=t;
