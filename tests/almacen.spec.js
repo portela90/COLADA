@@ -204,3 +204,23 @@ test('Base de datos: el buscador entiende las preguntas', async ({ page }) => {
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Base de datos: consumos, cambios y gasto («consumo de pistones en la F25»)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
+  const r1 = await resp('consumo de pistones en la F25');
+  expect(r1).toMatch(/^F25 · Últimos 12 meses: \d+ pistones? · /);
+  await expect(page.locator('#bdRes h2', { hasText: 'Por Ø' })).toBeVisible();
+  await expect(page.locator('#bdRes .bd-ent')).toContainText('Cambios de pistón');
+  await page.getByRole('button', { name: 'Por mes' }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('#bdQ')).toHaveValue('consumo de pistones en la F25 por mes');
+  await expect(page.locator('#bdRes h2', { hasText: 'Por mes' })).toBeVisible();
+  expect(await resp('gasto de pistones este año por máquina')).toMatch(/^Este año: \d+ pistones/);
+  expect(await resp('reparaciones de ejes este año')).toMatch(/reparaci(ón|ones)/);
+  expect(await resp('consumo de la F4')).toMatch(/^F4 · /);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
