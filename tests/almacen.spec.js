@@ -171,25 +171,36 @@ test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, 
   expect(err).toEqual([]);
 });
 
-test('Base de datos: cada tipo se agrupa, se filtra y abre su ficha', async ({ page }) => {
+test('Base de datos: el buscador entiende las preguntas', async ({ page }) => {
+  test.setTimeout(90000);
+  const H={F4:'1a|idra1100|cerrado|krown|900kg',F10:'1a|stp500|abierto||600kg',F15:'1a|stp500|abierto||600kg',F16:'1a|stp500|abierto||600kg',F19:'1a|stp750|abierto||800kg',F20:'1a|idra700|cerrado|westofen|900kg',F21:'1a|stp900|cerrado|krown|900kg',F22:'1a|stp900|cerrado|krown|900kg',F23:'1b|idra420|abierto||600kg',F24:'1b|idra420|abierto||600kg',F25:'1b|idra1600|cerrado|westofen|2300kg',F26:'1b|stp900|cerrado|krown|900kg',F27:'1b|buhler840|cerrado|westofen|900kg',F28:'1a|idra900|cerrado|krown|900kg',F29:'1b|stp1100|cerrado|krown|1200kg',F30:'1a|idra700|cerrado|westofen|900kg',F31:'1a|buhler530|cerrado|westofen|650kg',F32:'1b|stp900|cerrado|krown|900kg',F33:'1a|stp900|cerrado|krown|900kg',F34:'1a|stp600|cerrado|krown|650kg',F51:'2|idra560|cerrado|westofen|650kg',F52:'2|idra560|cerrado|westofen|650kg',F53:'2|idra700|cerrado|westofen|900kg',F54:'2|buhler530|cerrado|westofen|650kg',F55:'2|buhler530|cerrado|westofen|650kg',F56:'2|buhler660|cerrado|westofen|900kg',F61:'2|stp900|cerrado|westofen|650kg',F62:'2|stp500|cerrado|westofen|650kg',F63:'2|buhler530|cerrado|krown|650kg',F64:'2|idra1600|cerrado|krown|1700kg',F65:'2|idra950|cerrado|westofen|900kg',F66:'2|stp1300|cerrado|krown|1200kg',F67:'2|idra560|cerrado|krown|650kg'};
   const err = await vigila(page);
+  await page.addInitScript(H => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const a = v.cat.app;
+    const op = (p, ts) => ts.map(t => ({ id: 'o-' + p + '-' + t.toLowerCase().replace(/[^a-z0-9]/g, ''), t }));
+    a.fichaIny = { campos: [{ id: 'c-zona', nom: 'Zona', ops: op('zona', ['Nave 1A', 'Nave 1B', 'Nave 2']) }, { id: 'c-maq', nom: 'Modelo de máquina', ops: op('maq', ['STP 500','STP 600','STP 750','STP 900','STP 1100','STP 1300','IDRA 420','IDRA 560','IDRA 700','IDRA 900','IDRA 950','IDRA 1100','IDRA 1600','BUHLER 530','BUHLER 660','BUHLER 840']) },
+      { id: 'c-htipo', nom: 'Tipo de horno', ops: op('htipo', ['Abierto', 'Cerrado']) }, { id: 'c-horno', nom: 'Modelo Horno', ops: op('horno', ['Krown', 'Westofen']) }, { id: 'c-hmed', nom: 'Capacidad horno', ops: op('hmed', ['600 kg','650 kg','800 kg','900 kg','1200 kg','1700 kg','2300 kg']) }] };
+    const ids=a.maquinas.map(m=>m.id);
+    a.maquinas = Object.keys(H).map(c => { const [z, mq, t, h, k] = H[c].split('|'); const f = { 'c-zona': ['o-zona-nave' + z], 'c-maq': ['o-maq-' + mq], 'c-htipo': ['o-htipo-' + t], 'c-hmed': ['o-hmed-' + k] }; if (h) f['c-horno'] = ['o-horno-' + h]; return { id: ids.includes(c)?c:c, cod: c, nave: z === '2' ? 'Nave 2' : 'Nave 1', ficha: f }; }); } }); }, H);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
-  await expect(page.locator('#view')).toContainText('Hornos por modelo de horno');
-  const tipos = await page.locator('.bd-tipos .chip').allTextContents();
-  expect(tipos.length).toBeGreaterThanOrEqual(12);
-  for (const t of tipos) {
-    await page.locator('.bd-tipos .chip', { hasText: t.split(' (')[0] }).first().click(); await page.waitForTimeout(200);
-    const gs = await page.locator('#bdG option').allTextContents();
-    for (const g of gs) { await page.selectOption('#bdG', { label: g }); await page.waitForTimeout(80); }
-    expect(await desbordes(page), 'se sale en ' + t).toEqual([]);
-  }
-  await page.locator('.bd-tipos .chip', { hasText: 'Hornos' }).click(); await page.waitForTimeout(200);
-  const g1 = page.locator('#view .lst .it').first(); const n = await g1.locator('.cant b').textContent();
-  await g1.click(); await page.waitForTimeout(200);
-  await expect(page.locator('#view h2', { hasText: '(' + n + ')' })).toBeVisible();
-  await page.locator('#view button.lnk').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.bd-sug .chip').first()).toBeVisible();
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
+  expect(await resp('qué modelos de horno tenemos')).toContain('Hay 9 modelos de horno distintos entre 33 hornos');
+  await expect(page.locator('#bdRes .it', { hasText: 'Krown 900 kg' })).toContainText('F4, F21, F22, F26, F28, F32, F33');
+  expect(await resp('que marcas de horno hay')).toContain('Hay 3 marcas distintas');
+  expect(await resp('hornos westofen')).toContain('14 hornos');
+  expect(await resp('máquinas con horno krown de 900')).toContain('7 máquinas');
+  expect(await resp('cuántas STP hay')).toContain('6 modelos de máquina distintos entre 14 máquinas');
+  expect(await resp('hornos de la nave 2')).toContain('13 hornos');
+  expect(await resp('F28')).toContain('1 máquina');
+  await page.locator('#bdRes button.lnk', { hasText: 'F28' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.op-pg').last()).toContainText('Lo que monta ahora');
+  await page.locator('.op-pg').last().locator('.op-back').click();
+  expect(await resp('zzzz hornos')).toContain('33 hornos');
+  await expect(page.locator('#bdRes')).toContainText('No he encontrado «zzzz»');
+  await page.fill('#bdQ', 'hornos we'); await page.waitForTimeout(200);
+  expect((await page.locator('.bd-sug .chip').allTextContents()).some(t => t.includes('westofen'))).toBe(true);
+  expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
