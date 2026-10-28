@@ -28,6 +28,7 @@ const famCasa=(e,fs)=>!fs||fs.some(f=>nq(e.fam).startsWith(nq(f).slice(0,6)));
 
 function intencionA(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\b(que hay que revisar|que tengo que revisar|que va mal|algo mal|algun problema|problemas|avisos|que falla)\b/.test(q))return M("revisar");
+  if(/\busad[oa]s?\b|\bchatarra\b|\bpara recuperar\b|\brecuperad\w*\b/.test(q)&&!QCO.test(q.replace(/\busad[oa]s?\b/g,"")))return M("usados",{d:(q.match(/\b(50|60|70|80|90|100)( esp)?\b/)||[])[0]||null});
   if(/\bbeatriz\b|\binforme de pistones\b|\b(sin|por|falta(n)? por) (mandar|enviar)\b/.test(q))return M("beatriz");
   /* contenedores: «tipo B3», «dónde están los A1» → la base de datos de contenedores */
   const ct=q.match(/\b([a-e])\s?([1-5])\b/);if(ct&&(/\bcontenedor(es)?\b|\btipo\b|\bdonde (esta|estan)\b|\bcuantos\b/.test(q)))return M("rew",{rew:"contenedores "+ct[1]+ct[2]+(/\bdonde\b/.test(q)?" por dónde está":"")});
@@ -67,6 +68,15 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     const malos=R.filter(x=>x[0]>0);frase(malos.length?"Hay "+malos.length+(malos.length===1?" cosa":" cosas")+" que revisar.":"Todo en orden.");
     lista(null,R.map(x=>it(x[0]?x[0]+" "+x[1]:"Sin "+x[1].replace(/^(bajo|para|pedidos|ejes|consumos|artículos|cambios)/,m=>m),x[0]?"Toca para verlo":null,x[0]?"⚠":"✓",null,x[0]?()=>x[2]==="stock negativo"?irA("res"):pon(x[2]):null,x[0]?"warn":"ok")));return;}
 
+  if(I.modo==="usados"){const E=puEstado();ent("pistones usados",[I.d?"Ø "+I.d:null]);
+    if(!E){frase("Todavía no se ha hecho el primer recuento de pistones usados. Se hace en Pistones › Pistones usados › «Contar pistones usados».");return;}
+    const ds=DIAM.filter(d=>!I.d||nq(d)===nq("Ø "+I.d)),t=b=>ds.reduce((s,d)=>s+(E.S[d][b]||0),0),lin=b=>ds.filter(d=>E.S[d][b]).map(d=>d+": "+E.S[d][b]).join(" · ");
+    const Z=t("Z"),Rr=t("R"),Mm=t("M"),C=t("C");
+    frase(Z?"En la zona de pistones usados debe haber "+Z+(Z===1?" pistón":" pistones")+(I.d?"":" ("+lin("Z")+")")+".":"La zona de pistones usados debería estar vacía"+(I.d?" de Ø "+I.d:"")+".");
+    lista(null,[it("En la zona de usados (sin seleccionar)",Z?lin("Z"):null,String(Z),"uds"),it("Seleccionados para recuperar",Rr?lin("R"):null,String(Rr),"uds"),
+      it("En "+PU_REC+" (recuperándose)",Mm?lin("M"):null,String(Mm),"uds"),it("En el cajón de chatarra",C?lin("C"):null,String(C),"uds")]);
+    nota("Sale de los cambios de pistón apuntados desde la última retirada de la zona"+(puCambiosZona().length?" ("+puCambiosZona().length+" cambios)":"")+". Si al contar no cuadra, haz un recuento en Pistones › Pistones usados.");
+    add(el("button",{type:"button",class:"btn sec",style:"margin-top:8px",text:"Ir a pistones usados",onclick:()=>irA("pist")}));return;}
   if(I.modo==="beatriz"){const L=pistPend(),aj=cat.ajustes||{};ent("cambios de pistón para el informe de "+destPist().nom.split(" ")[0]);
     frase(L.length?"Faltan por mandar "+L.length+(L.length===1?" cambio de pistón":" cambios de pistón")+(aj.ultInfPist?" (el último informe llegaba hasta el "+fmtF(aj.ultInfPist)+")":"")+".":"No falta ningún cambio de pistón por mandar"+(aj.ultInfPist?": el último informe llegaba hasta el "+fmtF(aj.ultInfPist):"")+".");
     if(L.length){const G={};L.forEach(p=>{G[p.diam]=(G[p.diam]||0)+(+p.cant||1);});nota("Por Ø: "+Object.entries(G).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),"es",{numeric:true})).map(([d,n])=>d+": "+n).join(" · "));

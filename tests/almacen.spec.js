@@ -306,8 +306,23 @@ test('Base de datos: preguntas que se contestan con una frase (revisar, días, p
     ['cuánto dura de media un eje', /Un eje aguanta de media|hace falta más historia/], ['qué ejes valen para la F28', /F28/],
     ['dónde está el eje 2.8.J-2', /El eje 2\.8\.J-2 .* está en el taller/], ['cuántos cambios de pistón faltan por mandar a Beatriz', /Faltan por mandar \d+ cambios|No falta/],
     ['qué máquinas llevan más tiempo sin cambiar pistón', /La que más tiempo lleva sin cambiar pistón es la F\d+/], ['qué entradas han llegado hoy', /Entradas/],
-    ['qué se sacó ayer en el relevo de noche', /ayer/], ['cuándo tengo que pedir pistones', /hay que pedirlo|ya está pedido|No hay consumo/]];
+    ['qué se sacó ayer en el relevo de noche', /ayer/], ['cuándo tengo que pedir pistones', /hay que pedirlo|ya está pedido|No hay consumo/],
+    ['cuántos pistones hay en la zona de pistones usados', /zona de pistones usados|primer recuento/], ['pistones usados de 60', /usados|primer recuento/]];
   for (const [q, re] of casos) { const t = await resp(q); expect(t, q).toMatch(re); expect(t, q).not.toContain('undefined'); }
   expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Base de datos: «cuántos pistones hay en la zona de usados» sale del recuento y los cambios', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.pusados = { ev: [{ t: 'cuenta', f: '2026-01-01', ts: 1, b: { Z: { 'Ø 60': 3, 'Ø 80': 2 }, R: { 'Ø 70': 1 }, M: {}, C: { 'Ø 90': 4 } } }] }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'cuántos pistones hay en la zona de pistones usados'); await page.waitForTimeout(250);
+  const u = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(u).toMatch(/En la zona de pistones usados debe haber \d+ pistones \(Ø 60: \d+/);
+  expect(u).toMatch(/En el cajón de chatarra Ø 90: 4/);
   expect(err).toEqual([]);
 });
