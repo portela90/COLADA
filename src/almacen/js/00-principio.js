@@ -97,6 +97,10 @@ async function delMov(id,f){if(db.itemsDelId){await db.itemsDelId("mov",mesDe(f)
 async function addPists(list){const g={};list.forEach(r=>{r.id=r.id||uid();r.ts=Date.now();(g[r.f.slice(0,4)]=g[r.f.slice(0,4)]||[]).push(r);});for(const k of Object.keys(g)){if(db.itemsAdd)await db.itemsAdd("pist",k,g[k]);else{const ref=db.doc("pist/"+k),sn=await ref.get();await ref.set({items:(sn.exists?(sn.data().items||[]):[]).concat(g[k])});}}}
 async function addPist(rec){rec.id=uid();rec.ts=Date.now();if(db.itemsAdd){await db.itemsAdd("pist",rec.f.slice(0,4),[rec]);return;}const ref=db.doc("pist/"+rec.f.slice(0,4)),sn=await ref.get();
   const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});}
+/* borrar un movimiento: si es la salida de un cambio de pistón, se borra también el cambio (si no, seguiría saliendo en el informe para Beatriz) */
+const pistDeMov=id=>todosPist().find(p=>p.movId===id);
+const txtBorraMov=m=>{const p=pistDeMov(m.id);return p?" También se borra el cambio de pistón ("+p.diam+" en "+maqN(p.maq)+"), así no sale en el informe para "+destPist().nom.split(" ")[0]+".":"";};
+async function borraMov(m){const p=pistDeMov(m.id);if(p)await delPist(p);else await delMov(m.id,m.f);}
 async function delPist(p){if(db.itemsDelId)await db.itemsDelId("pist",p.f.slice(0,4),[p.id]);else{const ref=db.doc("pist/"+p.f.slice(0,4)),sn=await ref.get();if(!sn.exists)return;
   await ref.set({items:(sn.data().items||[]).filter(x=>x.id!==p.id)});}if(p.movId)await delMov(p.movId,p.f);try{await quitarPendPist(p.id);}catch(e){}}
 

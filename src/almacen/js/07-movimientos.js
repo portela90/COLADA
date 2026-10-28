@@ -74,7 +74,7 @@ function vHist(v){const h=draft.hm;const ms=Object.keys(meses).filter(k=>meses[k
         el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.nota].filter(Boolean).join(" · ")}),
           m.foto?el("img",{class:"thumb",src:fotoUrl(m.foto),alt:"Albarán",loading:"lazy",onclick:()=>lightbox(fotoUrl(m.foto))}):null]),
         el("td",{class:"r num",text:signo(m)+(a?" "+a.ud:"")}),el("td",{text:dondeTxt(m)}),
-        el("td",{},el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula.","Borrar",async()=>{await delMov(m.id,m.f);toast("Movimiento borrado");})}))]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
+        el("td",{},el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Movimiento borrado");})}))]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
   v.appendChild(card);}
 
 /* ===== PISTONES ===== */

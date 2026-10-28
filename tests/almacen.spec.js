@@ -261,3 +261,29 @@ test('Base de datos: «quién cambió el último pistón de la F25» responde co
   await expect(page.locator('.bd-resp')).toContainText('Últimos 30 días');
   expect(err).toEqual([]);
 });
+
+test('Borrar la salida de un cambio de pistón borra también el cambio (no sale en el informe para Beatriz)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
+  await page.selectOption('#pMaq', maq);
+  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value');
+  await page.selectOption('#pDiam', diam);
+  if (await page.locator('#pResp').count()) await page.fill('#pResp', 'Prueba borrar');
+  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  await page.locator('#pBtn').click(); await page.waitForTimeout(500);
+  const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"movId"').length);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(400);
+  const hoyTxt = await page.evaluate(() => { const d = new Date(); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2); });
+  const fila = page.locator('tr', { hasText: hoyTxt }).filter({ hasText: 'Pistón ' + diam }).first();
+  await fila.getByRole('button', { name: 'Borrar movimiento' }).click();
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('También se borra el cambio de pistón');
+  await d.getByRole('button', { name: 'Borrar' }).click(); await page.waitForTimeout(500);
+  const despues = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"movId"').length);
+  expect(despues).toBe(antes - 1);
+  expect(err).toEqual([]);
+});

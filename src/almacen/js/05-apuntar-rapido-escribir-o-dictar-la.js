@@ -266,7 +266,7 @@ function apuntesHoy(v){const hy=hoy();
       el("div",{class:"t2",text:[cap(p.motivo),cap(p.dest||""),p.resp?respTxt(p.resp):null].filter(Boolean).join(" · ")})]),
       el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+(p.movId?". El pistón vuelve al stock.":"."),"Borrar",async()=>{await delPist(p);toast("Borrado");})})]))
     .concat(ms.map(m=>{const a=art(m.art);return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a?a.desc:"(borrado)"}),el("div",{class:"t2",text:TIPOS[m.tipo]+" · "+dondeTxt(m)})]),
-      el("b",{class:"num",text:signo(m)}),el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",TIPOS[m.tipo]+" · "+(a?a.desc:""),"Borrar",async()=>{await delMov(m.id,m.f);toast("Borrado");})})]);}));
+      el("b",{class:"num",text:signo(m)}),el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",TIPOS[m.tipo]+" · "+(a?a.desc:"")+"."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Borrado");})})]);}));
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Apuntado hoy ("+rows.length+")"})),rows.length?el("div",{class:"lst"},rows):el("div",{class:"empty",text:"Nada todavía."})]));}
 
 /* descripciones para el historial de cambios */
