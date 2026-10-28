@@ -25,20 +25,12 @@ function barras(meses,vals,fmt){const mx=Math.max(...vals,1);return el("div",{st
     el("div",{class:"num",style:"font-size:10px;color:var(--ink2)",text:vals[i]?fmt(vals[i]):""}),
     el("div",{style:"width:100%;border-radius:3px 3px 0 0;background:var(--acc,#2F5D46);opacity:"+(i===meses.length-1?".55":".85")+";height:"+Math.max(vals[i]?3:0,Math.round(vals[i]/mx*80))+"px"}),
     el("div",{style:"font-size:10px;color:var(--ink2)",text:MESES[+m.slice(5)-1].slice(0,3)})])));}
+/* lo que sale debajo del buscador de Consultas: lo importante, la tendencia y la consulta a mano (plegada) */
 function vAnalisis(v){const re=()=>render(true);
-  /* asistente */
-  const A=draft.ia=draft.ia||{preg:"",cargando:false,res:null,err:""};
-  const ta=el("textarea",{id:"iaP",rows:"2",placeholder:"Pregunta lo que quieras: «¿Qué máquinas han roto pistón más de 2 veces en un mes este año y qué eje llevaban?»",style:"width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:inherit;resize:vertical"});ta.value=A.preg;ta.addEventListener("input",()=>{A.preg=ta.value;});
-  const ej=["¿Qué máquina gasta más pistones y por qué motivo?","¿Qué ejes se reparan más y cada cuánto?","Compara Nave 1A, 1B y 2 en pistones este año","¿Cuándo me quedo sin pistones de cada medida?"];
-  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Pregúntale a la app"})),el("div",{class:"bd frm",style:"gap:8px"},[ta,
-    el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},ej.map(t=>el("button",{type:"button",class:"chip",style:"white-space:normal;text-align:left;flex:0 1 auto;max-width:100%",text:t,onclick:()=>{A.preg=t;preguntarIA();}}))),
-    el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:A.cargando?"Pensando…":"Preguntar",disabled:A.cargando,onclick:()=>{A.preg=ta.value;preguntarIA();}}),A.res?el("button",{type:"button",class:"btn sec",text:"Borrar respuesta",onclick:()=>{A.res=null;A.err="";re();}}):null]),
-    el("p",{class:"hint",text:"Usa Claude para entender la pregunta (unos céntimos cada una). Las cifras las calcula la app con tus datos reales."}),
-    A.err?el("div",{class:"banner b",text:A.err}):null,A.res?respIA(A.res):null])]));
   /* lo importante ahora */
-  const AL=alertasAnalisis();
-  v.appendChild(el("section",{class:"card"+(AL.some(a=>a.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},el("h2",{text:"Lo importante ahora ("+AL.length+")"})),
-    AL.length?el("div",{class:"lst"},AL.slice(0,15).map(a=>el("button",{type:"button",class:"it",onclick:()=>{if(a.ir){irA(a.ir);return;}draft.q=Object.assign(Q0(),a.q);const b=document.getElementById("qBuilder");render(true);setTimeout(()=>{const x=document.getElementById("qBuilder");if(x)x.scrollIntoView({behavior:"smooth"});},50);}},[
+  const AL=alertasAnalisis(),nAL=draft.alTodas?15:5;
+  v.appendChild(el("section",{class:"card"+(AL.some(a=>a.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Lo importante ahora ("+AL.length+")"}),AL.length>5?el("button",{type:"button",class:"btn txt peq der",text:draft.alTodas?"Ver menos":"Ver todas",onclick:()=>{draft.alTodas=!draft.alTodas;re();}}):null]),
+    AL.length?el("div",{class:"lst"},AL.slice(0,nAL).map(a=>el("button",{type:"button",class:"it",onclick:()=>{if(a.ir){irA(a.ir);return;}draft.q=Object.assign(Q0(),a.q);draft.qAb=true;const b=document.getElementById("qBuilder");render(true);setTimeout(()=>{const x=document.getElementById("qBuilder");if(x)x.scrollIntoView({behavior:"smooth"});},50);}},[
       el("span",{class:"stripe "+a.niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.t}),el("div",{class:"t2",text:a.d})]),el("div",{class:"cant"},el("small",{text:"ver ›"}))]))):el("p",{class:"hint",style:"padding:10px 14px",text:"Nada fuera de lo normal."})]));
   /* tendencias */
   const T=tendencias(),n=T.meses.length-1,hy=hoy();const dm=+hy.slice(8),dmes=new Date(+hy.slice(0,4),+hy.slice(5,7),0).getDate();const proy=Math.round(T.pist[n]/Math.max(1,dm)*dmes);
@@ -48,7 +40,9 @@ function vAnalisis(v){const re=()=>render(true);
     el("div",{},[el("div",{class:"sub",text:"Ejes mandados al taller por mes"}),barras(T.meses,T.rep,fmtN)]),
     T.eur.some(x=>x)?el("div",{},[el("div",{class:"sub",text:"Gasto por mes (lo que tiene precio)"}),barras(T.meses,T.eur,x=>Math.round(x)+"")]):null])]));
   /* consultas a mano */
-  const box=el("div",{id:"qBuilder"});v.appendChild(box);vConsultas(box);}
+  const det=el("details",{class:"card qmano"});if(draft.qAb||draft.qPre)det.open=true;det.addEventListener("toggle",()=>{draft.qAb=det.open;});
+  det.appendChild(el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"Consulta a mano (filtros, guardadas y Excel)"})));
+  const box=el("div",{id:"qBuilder",style:"padding:0 0 4px"});det.appendChild(box);v.appendChild(det);vConsultas(box);}
 /* ---------- asistente: Claude hace el plan, la app calcula ---------- */
 function ctxConsulta(){const H=qHechos("gasto");return{
   maquinas:cat.maquinas.map(m=>({cod:m.cod,zona:zonaDe(m),horno:hornoTxt(m)||"",modeloMaq:valFicha(m,"c-maq")||""})),
@@ -107,7 +101,7 @@ function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
     btb:"Stock, cambios y qué máquinas las llevan",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
     quim:"Stock en kg y envases, consumo y días que quedan",iny:"Plano de las naves y la ficha completa de cada máquina",mol:"Moldes y el Ø de pistón que usa cada uno",
-    bd:"Hornos, máquinas, ejes, consumibles… todo conectado: consulta y cuenta por tipo",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
+    bd:"Pregunta lo que necesites, lo importante ahora, tendencias y consultas a mano",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
   try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
   try{Object.entries({btb:"barra",btt:"tornillo",bth:"horno"}).forEach(([k,f])=>{const n=artsBT(f).filter(a=>nivel(a)==="bad").length;if(n)av[k]=[n+" bajo mínimo","bad"];});

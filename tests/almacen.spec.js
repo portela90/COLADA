@@ -12,7 +12,7 @@ test('abre y recorre todas las pantallas sin errores', async ({ page }) => {
     await page.waitForTimeout(350);
     expect(await desbordes(page), 'se sale de la pantalla en ' + t).toEqual([]);
   }
-  const subs = ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones', 'Inyectoras', 'Moldes', 'Movimientos', 'Análisis', 'Catálogo'];
+  const subs = ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones', 'Inyectoras', 'Moldes', 'Movimientos', 'Consultas', 'Catálogo'];
   for (const t of subs) {
     await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
     await page.waitForTimeout(250);
@@ -51,12 +51,13 @@ test('ficha de artículo y de inyectora se abren', async ({ page }) => {
   expect(err).toEqual([]);
 });
 
-test('Análisis dibuja los gráficos y al tocar una barra se abre el detalle', async ({ page }) => {
+test('Consultas › consulta a mano dibuja los gráficos y al tocar una barra se abre el detalle', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.waitForTimeout(250);
-  await pulsa(page, 'Análisis'); await page.waitForTimeout(300);
+  await pulsa(page, 'Consultas'); await page.waitForTimeout(300);
+  await page.locator('.qmano > summary').click(); await page.waitForTimeout(200);
   await pulsa(page, 'Todo el gasto'); await pulsa(page, '12 meses'); await page.waitForTimeout(1500);
   await expect(page.getByText('Gráficos')).toBeVisible();
   expect(await page.locator('.card svg').count()).toBeGreaterThanOrEqual(1);
@@ -183,7 +184,7 @@ test('Base de datos: el buscador entiende las preguntas', async ({ page }) => {
     a.maquinas = Object.keys(H).map(c => { const [z, mq, t, h, k] = H[c].split('|'); const f = { 'c-zona': ['o-zona-nave' + z], 'c-maq': ['o-maq-' + mq], 'c-htipo': ['o-htipo-' + t], 'c-hmed': ['o-hmed-' + k] }; if (h) f['c-horno'] = ['o-horno-' + h]; return { id: ids.includes(c)?c:c, cod: c, nave: z === '2' ? 'Nave 2' : 'Nave 1', ficha: f }; }); } }); }, H);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.bd-sug .ejs summary')).toBeVisible();
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
   expect(await resp('qué modelos de horno tenemos')).toContain('Hay 9 modelos de horno distintos entre 33 hornos');
@@ -209,7 +210,7 @@ test('Base de datos: consumos, cambios y gasto («consumo de pistones en la F25�
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
   const r1 = await resp('consumo de pistones en la F25');
   expect(r1).toMatch(/^F25 · Últimos 12 meses: \d+ pistones? · /);
@@ -228,7 +229,7 @@ test('Base de datos: se toca un grupo para ver solo esos y se vuelve a agrupar (
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'que eje tiene más reparaciones'); await page.waitForTimeout(250);
   await expect(page.locator('#bdRes h2', { hasText: 'Por pieza' })).toBeVisible();
   const eje = (await page.locator('#bdRes .lst .it .t1').first().textContent()).trim();
@@ -249,7 +250,7 @@ test('Base de datos: «quién cambió el último pistón de la F25» responde co
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'quién cambió el último pistón de la F25'); await page.waitForTimeout(250);
   const u = page.locator('.bd-ult');
   await expect(u).toContainText('El último cambio de pistón de la F25');
@@ -293,7 +294,7 @@ test('Base de datos: preguntas que se contestan con una frase (revisar, días, p
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
   const casos = [
     ['qué hay que revisar', /que revisar|Todo en orden/], ['qué está bajo mínimo', /bajo mínimo y \d+ para pedir|Nada bajo mínimo/],
@@ -319,7 +320,7 @@ test('Base de datos: «cuántos pistones hay en la zona de usados» sale del rec
     v.cat.app.pusados = { ev: [{ t: 'cuenta', f: '2026-01-01', ts: 1, b: { Z: { 'Ø 60': 3, 'Ø 80': 2 }, R: { 'Ø 70': 1 }, M: {}, C: { 'Ø 90': 4 } } }] }; } }); });
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'cuántos pistones hay en la zona de pistones usados'); await page.waitForTimeout(250);
   const u = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
   expect(u).toMatch(/En la zona de pistones usados debe haber \d+ pistones \(Ø 60: \d+/);
@@ -332,7 +333,7 @@ test('Base de datos: «todo sobre…», lo raro, personas y planificar', async (
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
   const casos = [['todo sobre la F25', /F25 \(.*\): este año lleva \d+ cambios? de pistón/], ['todo sobre el eje 2.8.J-2', /El eje 2\.8\.J-2 .* está en reparación/], ['todo sobre el pistón de 80', /Pistón Ø 80: hay \d+ ud/],
     ['qué máquina está gastando más de lo normal', /más de lo normal/], ['qué pistones se han roto antes de tiempo', /antes de lo normal|menos de la mitad/], ['qué ejes vuelven al taller por lo mismo', /mismo motivo/],
@@ -350,7 +351,7 @@ test('Base de datos: «informe del valor de los pistones robados» (recuentos co
       { id: 'r2', f: '2026-10-19', ts: 1, alm: 'n1', art: 'c1', cant: -2, nota: 'Robo 19/10/2026', tipo: 'ajuste', contado: 0, teorico: 2 }); } }); });
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'informe del valor de los pistones robados'); await page.waitForTimeout(250);
   let t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/Robado: 5 unidades con un valor de 900 €/);
@@ -365,7 +366,7 @@ test('Base de datos: dinero para informar (valor del stock, ejes en el taller, p
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
   expect(await resp('dame el valor del stock que tenemos de pistones de 80')).toMatch(/Pistón Ø 80: hay \d+ ud a 180 € = [\d.]+ €/);
   expect(await resp('dime el importe de las reparaciones que tenemos en el taller de los ejes')).toMatch(/ejes? en el taller: [\d.]+ €/);
@@ -381,7 +382,7 @@ test('Ejes: se van añadiendo a la lista para pedir al taller, se manda un Whats
     v.rep[k].items.push({ id: 'r9', eje: '3.2.B-1', desp: 'ROSCA', alta: '2026-10-10', env: '2026-10-10', rec: null, res: null }); } }); });
   await page.goto(url); await page.waitForTimeout(1200);
   const abreEje = async c => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
-    await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+    await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
     await page.fill('#bdQ', 'todo sobre el eje ' + c); await page.waitForTimeout(300);
     await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400); };
   await abreEje('2.8.J-2'); await page.locator('button', { hasText: 'Añadir a la lista para pedir al taller' }).click(); await page.waitForTimeout(600);
