@@ -160,12 +160,21 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
   const hist=H.length?el("div",{class:"lst"},H.slice(0,80).map(x=>el(x.ir?"button":"div",Object.assign({class:"it"},x.ir?{type:"button",onclick:abre(x.ir)}:{style:"cursor:default"}),[el("span",{class:"mq-ht",text:x.t}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.d}),el("div",{class:"t2",text:[fmtF(x.f),x.q].filter(Boolean).join(" · ")})])]))):el("p",{class:"hint",text:"Todavía no hay nada apuntado en esta máquina."});
   /* --- Gasto: pistones y material, este mes, el anterior y el año --- */
   const gastoDe=desde=>{const ps=all.filter(p=>p.f>=desde),ms=todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=desde&&!/^Cambio de pistón/.test(x.nota||""));
-    const eP=ps.reduce((t,p)=>t+(+p.cant||1)*precioDe(pistArt(p.diam)),0),fam={};ms.forEach(x=>{const a=art(x.art);const k=a?(a.fam==="horno"?"Horno":TEC(a.fam)?"Barras y tornillos":"Consumibles"):"Otros";fam[k]=(fam[k]||0)+(+x.cant||0)*precioDe(a);});
-    return{pist:ps.reduce((t,p)=>t+(+p.cant||1),0),eP,fam,tot:eP+Object.values(fam).reduce((a,b)=>a+b,0)};};
+    const R={},sinP=new Map(),add=(k,n,e,a)=>{const r=R[k]=R[k]||{n:0,e:0,sp:0};r.n+=n;r.e+=e;if(!e&&n){r.sp+=n;if(a)sinP.set(a.id,a);}};
+    ps.forEach(p=>{const a=pistArt(p.diam),c=+p.cant||1;add("Pistones",c,c*precioDe(a),a);});
+    todasRep().filter(r=>r.res==="ok"&&r.rec&&r.rec>=desde&&(r.maq===m.cod||r.maq===m.id)).forEach(r=>{const v=costeRep(r).v;add("Reparación de ejes",1,v,null);});
+    ms.forEach(x=>{const a=art(x.art);const k=a?(a.fam==="horno"?"Horno":TEC(a.fam)?"Barras y tornillos":"Consumibles"):"Otros";const c=+x.cant||0;add(k,c,c*precioDe(a),a);});
+    return{R,sinP,pist:ps.reduce((t,p)=>t+(+p.cant||1),0),tot:Object.values(R).reduce((a,r)=>a+r.e,0)};};
   const mes0=hy.slice(0,8)+"01",ano0=hy.slice(0,5)+"01-01";const GM=gastoDe(mes0),GA=gastoDe(ano0),G12=gastoDe(sumaDias(hy,-365));
-  const hayP=GA.tot>0||G12.tot>0;
-  const gasto=el("div",{style:"display:grid;gap:10px"},[el("dl",{class:"kpis num"},[["Este mes",hayP?eur(GM.tot):GM.pist+" pistones"],["Este año",hayP?eur(GA.tot):GA.pist+" pistones"],["Últimos 12 meses",hayP?eur(G12.tot):G12.pist+" pistones"],["Pistones en el año",String(GA.pist)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
-    hayP?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},["","Este mes","Este año"].map((t,i)=>el("th",{class:i?"r":"",text:t})))),el("tbody",{},[["Pistones",GM.eP,GA.eP]].concat(["Consumibles","Barras y tornillos","Horno","Otros"].map(k=>[k,GM.fam[k]||0,GA.fam[k]||0])).filter(r=>r[1]||r[2]).map(r=>el("tr",{},[el("td",{text:r[0]}),el("td",{class:"r num",text:eur(r[1])}),el("td",{class:"r num",text:eur(r[2])})])))])):el("p",{class:"hint",text:"Cuando los artículos tengan precio (Catálogo › artículo), aquí saldrá el gasto en euros de esta máquina."})]);
+  const FILAS=["Pistones","Reparación de ejes","Consumibles","Barras y tornillos","Horno","Otros"],celda=(G,k)=>{const r=G.R[k];if(!r||!r.n)return"—";return r.e?eur(r.e)+(r.sp?" + "+fmtN(r.sp)+" sin precio":""):fmtN(r.n)+(k==="Reparación de ejes"?(r.n===1?" rep.":" rep."):" ud")+" · sin precio";};
+  const sinPA=[...G12.sinP.values()];
+  const gasto=el("div",{style:"display:grid;gap:10px"},[el("dl",{class:"kpis num"},[["Este mes",eur(GM.tot)],["Este año",eur(GA.tot)],["Últimos 12 meses",eur(G12.tot)],["Pistones en el año",String(GA.pist)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
+    el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},["","Este mes","Este año","12 meses"].map((t,i)=>el("th",{class:i?"r":"",text:t})))),
+      el("tbody",{},FILAS.filter(k=>G12.R[k]&&G12.R[k].n).map(k=>el("tr",{},[el("td",{text:k}),el("td",{class:"r num",text:celda(GM,k)}),el("td",{class:"r num",text:celda(GA,k)}),el("td",{class:"r num",text:celda(G12,k)})]))),
+      el("tfoot",{},el("tr",{},[el("td",{},el("b",{text:"Total"})),el("td",{class:"r num"},el("b",{text:eur(GM.tot)})),el("td",{class:"r num"},el("b",{text:eur(GA.tot)})),el("td",{class:"r num"},el("b",{text:eur(G12.tot)}))]))])),
+    sinPA.length?el("div",{class:"banner w"},[el("div",{text:sinPA.length+(sinPA.length===1?" artículo usado en esta máquina no tiene precio":" artículos usados en esta máquina no tienen precio")+", así que su gasto no suma en euros."}),
+      el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Poner precios",onclick:()=>preciosArts(sinPA,reabre(4))})]):null,
+    el("p",{class:"hint",text:"Las reparaciones de eje cuentan cuando el eje vuelve del taller, al precio de reparación de su modelo."})]);
   /* --- Documentos: los de la máquina y los planos de lo que monta --- */
   const planos=[];mods.forEach(x=>{if((x.docs||[]).length)planos.push({t:"Eje "+x.ref,s:(x.docs||[]).length+" plano"+((x.docs||[]).length>1?"s":""),ir:()=>fichaModelo(x)});});
   asign0.filter(a=>TEC(a.fam)&&revVig(a)).forEach(a=>planos.push({t:FAM[a.fam]+" "+nomBT(a),s:"plano "+revTxt(revVig(a).n),ir:()=>ficha(a)}));

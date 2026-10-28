@@ -262,6 +262,12 @@ async function qExcel(q,L,titulo,btn){if(!downloads){toast("Esta vista no permit
     X.utils.book_append_sheet(wb,X.utils.json_to_sheet(qOrdDet(L,q).map(h=>({"Fecha":h.f,"Tipo":h.tipo,"Máquina":h.maq,"Zona":h.zona,"Artículo / modelo":h.art,"Eje":h.eje,"Ø":h.diam,"Motivo":h.motivo,"Responsable":h.resp,"Cantidad":h.cant,"Unidad":h.ud,"Gasto (€)":r2(h.eur),"Estado":h.estado||"","Notas":h.nota}))),"Detalle");
     await downloads.save({filename:"Consulta "+titulo.replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}
   catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
+/* poner precio a varios artículos de golpe (los que se han usado sin precio) */
+function preciosArts(L,despues){const val={};L.forEach(a=>{val[a.id]=a.precio||"";});
+  dlg("Precios (€ por "+(L.every(a=>(a.ud||"ud")==="ud")?"unidad":"unidad de cada uno")+")",[el("p",{class:"hint",text:"Con el precio puesto, la ficha de la máquina, las consultas y los informes calculan el gasto en euros."}),
+    el("div",{style:"display:grid;gap:8px"},L.map(a=>fld(nomArt(a)+" (€/"+(a.ud||"ud")+")",inp("pa"+a.id,val[a.id],v=>val[a.id]=v,{inputmode:"decimal",class:"num",placeholder:"€"}))))],
+   [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{let n=0;for(const a0 of L){const s=String(val[a0.id]||"").trim();const p=s?parseN(s):NaN;if(s&&!(p>=0)){toast("Precio no válido en "+nomArt(a0));return false;}const a=art(a0.id);const nue=s?String(p):null;if(a&&(a.precio||null)!==nue){a.precio=nue;n++;}}
+     if(n)await saveCat();toast(n?"Precios guardados":"Sin cambios");render(true);if(despues)despues();}}]);}
 function preciosPist(){const P=DIAM.map(d=>({d,a:pistArt(d)})).filter(x=>x.a);const val={};P.forEach(x=>{val[x.a.id]=x.a.precio||"";});
   dlg("Precios de pistones (€ por unidad)",[el("p",{class:"hint",text:"Con el precio puesto, las consultas y los informes calculan el gasto en euros."}),
     el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:8px"},P.map(x=>fld(x.d,inp("pp"+x.a.id,val[x.a.id],v=>val[x.a.id]=v,{inputmode:"decimal",class:"num",placeholder:"€"}))))],
