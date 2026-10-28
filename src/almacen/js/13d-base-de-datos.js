@@ -174,7 +174,7 @@ function sugerencias(q0,T){const q=nq(q0);if(!q)return["todo sobre la F25","qué
   Object.keys(T).forEach(k=>{const D=T[k];D.filas().forEach(x=>D.cols.forEach(c=>{const v=String(c[1](x));nq(v).split(" ").forEach((w,i,arr)=>{if(w.startsWith(ult)&&w!==ult&&S.length<8){const sug=v.length<28?v:arr.slice(i,i+2).join(" ");const k2=nq(sug);if(!vistos.has(k2)){vistos.add(k2);S.push(base+sug.toLowerCase());}}});}));});
   return S.slice(0,6);}
 
-const EJ_ALM=[["Lo importante",["qué hay que revisar","qué tengo que pedir esta semana","resumen del mes","qué máquina está gastando más de lo normal"]],
+const EJ_ALM=[["Lo importante",["informe del valor de los pistones robados","qué hay que revisar","qué tengo que pedir esta semana","resumen del mes","qué máquina está gastando más de lo normal"]],
   ["Stock",["qué está bajo mínimo","para cuántos días tengo pistones de 60","qué se va a acabar antes","cuántos pistones hay en la zona de usados"]],
   ["Máquinas y ejes",["todo sobre la F25","quién cambió el último pistón de la F62","cuánto dura de media un pistón en la F15","qué ejes están pendientes de reparar"]],
   ["Dinero",["cuánto hemos gastado este mes","qué máquina gasta más dinero en pistones","cuánto vale lo que hay en el almacén","cuánto me voy a gastar el mes que viene"]],

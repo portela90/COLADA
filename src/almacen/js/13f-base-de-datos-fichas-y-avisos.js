@@ -2,6 +2,7 @@
    intencionA2(q) va antes que intencionA; pintaIntA2 contesta. */
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
+  if(/\brob(o|os|ad[oa]s?|aron|ado)\b|\bhurt\w*|\bdesaparecid\w*|\bperdid[oa]s?\b|\bperdidas\b|\bmermas?\b|\bdescuadres?\b|\bfaltaba\w*\b.*\brecuento|\brecuentos?\b.*\b(falta\w*|menos)\b/.test(q))return M("perdidas",{robo:/\brob|\bhurt/.test(q)});
   if(/\b(todo (sobre|de|lo de)|ficha (de|completa)|informacion (de|sobre)|dime todo|resumen de)\b/.test(q)){
     if(/\bejes?\b/.test(q))return M("todoeje",{txt:q.replace(/.*\beje\b/,"").trim()});
     if(o.cod)return M("todomaq");
@@ -28,6 +29,23 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
   const y0=h.slice(0,4)+"-01-01",ano=e=>e.f>=y0;const EV=evTodo();
   const pistM=id=>todosPist().filter(p=>p.maq===id);
 
+  if(I.modo==="perdidas"){const per=P.def?{d:"0000-00-00",h,t:"todo el historial"}:P,fs=artsQ(q),ids=new Set(fs.fam?fs.L.map(a=>a.id):artsActivos().map(a=>a.id));
+    const L=todosMov().filter(m=>m.tipo==="ajuste"&&(+m.cant||0)<0&&m.f>=per.d&&m.f<=per.h&&ids.has(m.art)&&(!I.robo||/\brob|\bhurt/i.test(m.nota||""))).map(m=>{const a=art(m.art),c=-(+m.cant||0),p=precioDe(a);return{m,a,c,p,v:c*p,inc:(m.nota||"Recuento").replace(/\s*\(.*\)\s*$/,"")+"|"+m.f};});
+    const tit=I.robo?"pistones y material robado":"lo que ha faltado en los recuentos";ent(tit,[per.t,fs.fam?"solo "+[...new Set(fs.L.map(famLbl))].join(", "):null]);
+    if(!L.length){frase(I.robo?"No hay ningún robo apuntado"+(per.todo||P.def?"":" en "+per.t)+". Para que salga aquí, apúntalo como recuento con la nota «Robo» (lo que había y lo que queda).":"En los recuentos no ha faltado nada en "+per.t+".");return;}
+    const tot=L.reduce((s,x)=>s+x.v,0),uds=L.reduce((s,x)=>s+x.c,0),sinP=L.filter(x=>!x.p),inc={};L.forEach(x=>{(inc[x.inc]=inc[x.inc]||[]).push(x);});
+    frase((I.robo?"Robado: ":"Ha faltado: ")+fmtN(uds)+" unidades"+(tot?" con un valor de "+eur(tot):"")+(sinP.length?(tot?" (más ":" (")+sinP.length+(sinP.length===1?" artículo sin precio)":" artículos sin precio)"):"")+", en "+Object.keys(inc).length+(Object.keys(inc).length===1?" vez.":" veces."));
+    const txt=["INFORME · "+(I.robo?"MATERIAL ROBADO":"MATERIAL QUE HA FALTADO EN RECUENTOS"),"Fecha del informe: "+fmtF(h)+" · Periodo: "+per.t,""];
+    Object.entries(inc).sort((a,b)=>b[0].split("|")[1].localeCompare(a[0].split("|")[1])).forEach(([k,xs])=>{const[nt,f]=k.split("|"),v=xs.reduce((s,x)=>s+x.v,0),n=xs.reduce((s,x)=>s+x.c,0);
+      lista(nt+" · "+fmtF(f),xs.sort((a,b)=>b.v-a.v||b.c-a.c).map(x=>it(nomArt(x.a),[almN(x.m.alm)+" · había "+fmtN(x.m.teorico!=null?x.m.teorico:x.c)+", quedan "+fmtN(x.m.contado!=null?x.m.contado:0),x.p?eur(x.p)+" / "+(x.a.ud||"ud"):"sin precio"],fmtN(x.c),x.p?eur(x.v):(x.a.ud||"ud"),()=>ficha(x.a),x.p?"bad":"warn")),fmtN(n)+" uds"+(v?" · "+eur(v):""));
+      txt.push(nt.toUpperCase()+" ("+fmtF(f)+")");xs.forEach(x=>txt.push("- "+nomArt(x.a)+(x.a.cod?" ["+x.a.cod+"]":"")+": "+fmtN(x.c)+" "+(x.a.ud||"ud")+" × "+(x.p?eur(x.p):"sin precio")+" = "+(x.p?eur(x.v):"—")+" · "+almN(x.m.alm)));txt.push("  Subtotal: "+fmtN(n)+" uds"+(v?" · "+eur(v):""),"");});
+    txt.push("TOTAL: "+fmtN(uds)+" unidades"+(tot?" · "+eur(tot):"")+(sinP.length?" (sin valorar: "+sinP.map(x=>nomArt(x.a)).join(", ")+")":""));
+    if(sinP.length)add(el("div",{class:"banner w"},[el("div",{text:"Hay "+sinP.length+(sinP.length===1?" artículo sin precio: ":" artículos sin precio: ")+"su valor no se suma."}),el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Poner precios",onclick:()=>preciosArts([...new Map(sinP.map(x=>[x.a.id,x.a])).values()],()=>setTimeout(()=>pon(q,true),300))})]));
+    add(el("div",{class:"acciones",style:"margin-top:8px"},[el("button",{type:"button",class:"btn",text:"Copiar el informe",onclick:async()=>{try{await navigator.clipboard.writeText(txt.join("\n"));toast("Informe copiado: pégalo en el correo");}catch(e){dlg("Informe",[el("textarea",{style:"width:100%;min-height:260px",text:txt.join("\n")})],[{t:"Cerrar",cls:"sec"}]);}}}),
+      el("button",{type:"button",class:"btn sec",text:"Excel",onclick:async e=>{const b=e.currentTarget;if(!downloads){toast("Esta vista no permite descargar archivos");return;}b.disabled=true;try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
+        X.utils.book_append_sheet(wb,X.utils.json_to_sheet(L.map(x=>({"Fecha":x.m.f,"Motivo":x.inc.split("|")[0],"Artículo":nomArt(x.a),"Código":x.a.cod||"","Almacén":almN(x.m.alm),"Cantidad":x.c,"Unidad":x.a.ud||"ud","Precio (€)":x.p||"","Valor (€)":x.p?Math.round(x.v*100)/100:""}))),I.robo?"Robado":"Faltas");
+        await downloads.save({filename:(I.robo?"Robo":"Faltas")+"_"+h+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}catch(er){toast(er&&er.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}b.disabled=false;}})]));
+    nota("Sale de los recuentos que dejan menos de lo que había. Para un robo, apúntalo como recuento y escribe «Robo» en la nota: así se separa de los descuadres normales. El valor es al precio actual del catálogo.");return;}
   if(I.modo==="todomaq"){const m=I.maq;if(!m){ent("máquina",[I.cod]);frase("No encuentro la máquina "+I.cod+".");return;}
     const hd=hoyDe(m),ej=ejeEnMaq(m.cod),ps=pistM(m.id).filter(p=>p.f>=y0),u=ultimoPist(m.id),fs=[...new Set(pistM(m.id).map(p=>p.f))].sort(),iv=fs.slice(1).map((f,i)=>dias(fs[i],f));
     const E=EV.filter(e=>{const x=mqEv(e);return x&&x.id===m.id;}),Ea=E.filter(ano),eu=Ea.reduce((s,e)=>s+e.eur,0),G={};Ea.forEach(e=>{G[e.fam]=(G[e.fam]||0)+e.eur;});

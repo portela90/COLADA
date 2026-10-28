@@ -342,3 +342,21 @@ test('Base de datos: «todo sobre…», lo raro, personas y planificar', async (
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Base de datos: «informe del valor de los pistones robados» (recuentos con la nota Robo)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.mov[k].items.push({ id: 'r1', f: '2026-10-19', ts: 1, alm: 'n1', art: 'pist-60', cant: -5, nota: 'Robo 19/10/2026 (recuento: no queda ninguno)', tipo: 'ajuste', contado: 0, teorico: 5 },
+      { id: 'r2', f: '2026-10-19', ts: 1, alm: 'n1', art: 'c1', cant: -2, nota: 'Robo 19/10/2026', tipo: 'ajuste', contado: 0, teorico: 2 }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'informe del valor de los pistones robados'); await page.waitForTimeout(250);
+  let t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Robado: 5 unidades con un valor de 900 €/);
+  await page.fill('#bdQ', 'valor de todo lo robado'); await page.waitForTimeout(250);
+  t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Robado: 7 unidades con un valor de 900 € \(más 1 artículo sin precio\)/);
+  expect(t).toContain('Copiar el informe');
+  expect(err).toEqual([]);
+});
