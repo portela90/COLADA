@@ -82,16 +82,16 @@ function entender(q0,T){const q=nq(q0);const out={q,t:null,grupo:null,filtros:[]
     /* «qué modelos de horno»: si el grupo coincide con un filtro, no filtrar por él */}
   out.casa=x=>casaFila(D,x,out.filtros);return out;}
 /* ---------- consumos, cambios y gasto: lo que ha pasado ---------- */
-const QCO=/\b(consum\w*|gast\w*|cambios?|cambiad\w*|cambia|reparacion\w*|reparad\w*|salidas?|sacad\w*|usad\w*|historial|movimientos?)\b/;
+const QCO=/\b(consum\w*|gast\w*|cambios?|cambiad\w*|cambia|cambiaron|puso|pusieron|reparo|repararon|reparacion\w*|reparad\w*|salidas?|sacad\w*|usad\w*|historial|movimientos?)\b/;
 const MESES_Q=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const evCols=[["Fecha",e=>fmtF(e.f)],["Mes",e=>cap(fmtMes(e.f.slice(0,7)))],["Pieza",e=>e.ref],["Modelo",e=>e.mod||""],["Máquina",e=>maqTxt(e)],["Cantidad",e=>fmtN(Math.round(e.cant*10)/10)+" "+e.ud],["Importe",e=>e.eur?eur(e.eur):"—"],["Motivo",e=>e.txt||"—"],["Detalle",e=>e.det||""],["Estado",e=>e.est||""],["Quién",e=>e.quien||"—"]];
 const evColsDe=L=>evCols.filter(c=>c[0]!=="Mes"&&(!["Modelo","Detalle","Estado"].includes(c[0])||L.some(e=>c[1](e))));
 function evTipos(){const otros=()=>salidasFam(a=>!["piston","barra","tornillo","horno"].includes(a.fam)&&!GRUPOS_Q.includes(grupoDe(a)));
-  const mk=(nom,uno,unos,f,ref)=>({nom,uno,unos,filas:f,ref});
-  return{pist:mk("Cambios de pistón","pistón","pistones",()=>SECC.pist.ev(),"Ø"),ejes:mk("Reparaciones de ejes","reparación","reparaciones",()=>SECC.ejes.ev(),"eje"),cont:mk("Cambios de contenedor","cambio","cambios",()=>SECC.cont.ev(),"contenedor"),
-    btb:mk("Cambios de barras expulsoras","barra","barras",()=>SECC.btb.ev(),"barra"),btt:mk("Cambios de tornillos tope","tornillo","tornillos",()=>SECC.btt.ev(),"tornillo"),bth:mk("Recambios de horno gastados","pieza","piezas",()=>SECC.bth.ev(),"pieza"),
-    quim:mk("Consumo de aceites, taladrinas y jabones","consumo","consumos",()=>SECC.quim.ev(),"producto"),otros:mk("Otros consumibles gastados","consumo","consumos",otros,"producto"),
-    todo:mk("Todo lo gastado","apunte","apuntes",()=>SECC.pist.ev().concat(salidasFam(()=>true)),"pieza")};}
+  const mk=(nom,uno,unos,f,ref,ult,pri)=>({nom,uno,unos,filas:f,ref,ult,pri});
+  return{pist:mk("Cambios de pistón","pistón","pistones",()=>SECC.pist.ev(),"Ø",["El último cambio de pistón","El primer cambio de pistón"]),ejes:mk("Reparaciones de ejes","reparación","reparaciones",()=>SECC.ejes.ev(),"eje",["La última reparación de eje","La primera reparación de eje"]),cont:mk("Cambios de contenedor","cambio","cambios",()=>SECC.cont.ev(),"contenedor",["El último cambio de contenedor","El primer cambio de contenedor"]),
+    btb:mk("Cambios de barras expulsoras","barra","barras",()=>SECC.btb.ev(),"barra",["El último cambio de barra expulsora","El primer cambio de barra expulsora"]),btt:mk("Cambios de tornillos tope","tornillo","tornillos",()=>SECC.btt.ev(),"tornillo",["El último cambio de tornillo tope","El primer cambio de tornillo tope"]),bth:mk("Recambios de horno gastados","pieza","piezas",()=>SECC.bth.ev(),"pieza",["El último recambio de horno","El primer recambio de horno"]),
+    quim:mk("Consumo de aceites, taladrinas y jabones","consumo","consumos",()=>SECC.quim.ev(),"producto",["El último consumo","El primer consumo"]),otros:mk("Otros consumibles gastados","consumo","consumos",otros,"producto",["El último consumo","El primer consumo"]),
+    todo:mk("Todo lo gastado","apunte","apuntes",()=>SECC.pist.ev().concat(salidasFam(()=>true)),"pieza",["Lo último apuntado","Lo primero apuntado"])};}
 function periodoQ(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini=(yy,mm)=>yy+"-"+String(mm).padStart(2,"0")+"-01",fin=(yy,mm)=>{const d=new Date(yy,mm,0);return yy+"-"+String(mm).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
   let m;
   if(/\bhoy\b/.test(q))return{d:hy,h:hy,t:"hoy",re:/\bhoy\b/};
@@ -106,14 +106,16 @@ function periodoQ(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini
   if((m=q.match(/\b(20\d\d)\b/)))return{d:m[1]+"-01-01",h:m[1]+"-12-31",t:"el año "+m[1],re:/\b(en |el )?20\d\d\b/};
   return{d:sumaDias(hy,-365),h:hy,t:"últimos 12 meses",re:null,def:true};}
 function entenderEv(q0){const q=nq(q0),EV=evTipos();const out={q,ev:true,filtros:[],ignoradas:[]};let rest=" "+q+" ";
-  const P=periodoQ(q);out.per=P;if(P.re)rest=rest.replace(P.re," ");
+  out.ultimo=/\b(ultim[oa]|ultima vez|mas reciente|cuando)\b/.test(q)&&!/\bultim[oa]s? \d+/.test(q)&&!/\bultimo mes\b/.test(q);out.primero=/\b(primer[oa]?|primera vez|mas antigu[oa])\b/.test(q);
+  let P=periodoQ(q);if(P.def&&(out.ultimo||out.primero))P={d:"0000-00-00",h:hoy(),t:"todo el historial",re:null,def:false,todo:true};out.per=P;if(P.re)rest=rest.replace(P.re," ");
+  rest=rest.replace(/\b(ultim[oa]|ultima vez|mas reciente|cuando|primer[oa]?|primera vez|mas antigu[oa]|vez)\b/g," ");
   const mapa={pistones:"pist",ejes:"ejes",modelos:"ejes",contenedores:"cont",barras:"btb",tornillos:"btt",rhorno:"bth",hornos:"bth",quim:"quim",otros:"otros",maquinas:"todo",moldes:"todo"};
   let best=null,bi=1e9;for(const [k,re] of QE){const m=rest.match(re);if(m){if(m.index<bi){bi=m.index;best=k;}if(k!=="quim")rest=rest.replace(re,s0=>" ".repeat(s0.length));}}
   out.t=best?mapa[best]:"todo";const D=EV[out.t];out.D=D;
   rest=rest.replace(QCO," ").replace(new RegExp(QCO.source,"g")," ");
-  const g=/\bpor mes(es)?\b|\bmensual|\bcada mes\b/.test(q)?"Mes":/\bpor maquinas?\b|\bque maquinas?\b|\bdonde\b|\ben que maquinas?\b/.test(q)?"Máquina":/\bpor motivos?\b|\bmotivos?\b|\bpor que\b|\bdesperfectos?\b|\baverias?\b/.test(q)?"Motivo":/\bpor quien\b|\bquien\b/.test(q)?"Quién":/\bpor modelos?\b/.test(q)?"Modelo":"Pieza";
+  const g=/\bpor mes(es)?\b|\bmensual|\bcada mes\b/.test(q)?"Mes":/\bpor maquinas?\b|\bque maquinas?\b|\bdonde\b|\ben que maquinas?\b/.test(q)?"Máquina":/\bpor motivos?\b|\bmotivos?\b|\bpor que\b|\bdesperfectos?\b|\baverias?\b/.test(q)?"Motivo":/\bpor quien\b/.test(q)||(/\bquien\b/.test(q)&&!/\b(ultim|primer|cuando)/.test(q))?"Quién":/\bpor modelos?\b/.test(q)?"Modelo":"Pieza";
   out.grupo=g;rest=rest.replace(/\bpor (mes(es)?|maquinas?|motivos?|quien|modelos?)\b|\bcada mes\b|\bmensual\w*\b|\bdesperfectos?\b|\baverias?\b/g," ");
-  const words=rest.split(" ").filter(w=>w&&!QSTOP.has(w)&&!/^(tipos?|modelos?|cuanto|cuantos|cuantas|total|gastado|euros?|dinero|coste|precio|veces|donde|motivos?|quien|meses|mes|dias|ano|anos|mas|menos|mayor|menor|tiene|tienen|lleva|llevan|cual|cuales)$/.test(w));
+  const words=rest.split(" ").filter(w=>w&&!QSTOP.has(w)&&!/^(fue|fueron|ultimo|ultima|quien|quienes|cambio|puso|pusieron|hizo|apunto|vez|veces|cuando|tipos?|modelos?|cuanto|cuantos|cuantas|total|gastado|euros?|dinero|coste|precio|veces|donde|motivos?|quien|meses|mes|dias|ano|anos|mas|menos|mayor|menor|tiene|tienen|lleva|llevan|cual|cuales)$/.test(w));
   const E0=D.filas().filter(e=>e.f&&e.f>=P.d&&e.f<=P.h);const txt=e=>" "+nq(evCols.map(c=>c[1](e)).join(" "))+" ";
   words.forEach(w=>{const f={t:w,alt:[raiz(w)]};if(E0.some(e=>f.alt.some(a=>reQ(a).test(txt(e)))))out.filtros.push(f);else out.ignoradas.push(w);});
   out.filas=E0.filter(e=>out.filtros.every(f=>f.alt.some(a=>reQ(a).test(txt(e))))).sort((a,b)=>(b.f+String(b.ts||0).padStart(15,"0")).localeCompare(a.f+String(a.ts||0).padStart(15,"0")));
@@ -123,11 +125,19 @@ function pintaEv(E,res,B,pon){const D=E.D,L0=E.filas;
   const ef=(B.ef||[]).filter(f=>evCols.some(c=>c[0]===f.g));const L=L0.filter(e=>ef.every(f=>String(evCols.find(c=>c[0]===f.g)[1](e))===f.v));
   const regrupa=g=>{B.gEv=g;pon(B.q,true);};if(B.gEv)E.grupo=B.gEv;const uds=[...new Set(L.map(e=>e.ud))];const tot=L.reduce((s,e)=>s+e.cant,0),eu=L.reduce((s,e)=>s+e.eur,0);
   const maq=E.filtros.find(f=>/^[fm]\d+$/.test(f.t));
-  res.appendChild(el("div",{class:"bd-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:D.nom}),el("span",{class:"pill info",text:E.per.t}),...E.filtros.map(f=>el("span",{class:"pill info",text:f.t.toUpperCase()===f.t?f.t:/^[fm]\d+$/.test(f.t)?f.t.toUpperCase():f.t})),el("span",{class:"sub",text:" · por "+E.grupo.toLowerCase()})]));
+  res.appendChild(el("div",{class:"bd-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:D.nom}),el("span",{class:"pill info",text:E.per.t}),...E.filtros.map(f=>el("span",{class:"pill info",text:/\d/.test(f.t)&&/^[a-z0-9.\-]+$/.test(f.t)?f.t.toUpperCase():f.t})),el("span",{class:"sub",text:" · por "+E.grupo.toLowerCase()})]));
   if(ef.length)res.appendChild(el("div",{class:"chips",style:"margin:2px 0 8px"},[el("span",{class:"sub",text:"Solo:"})].concat(ef.map((f,i)=>el("button",{type:"button",class:"chip","aria-pressed":"true",text:f.v+"  ✕","aria-label":"Quitar "+f.v,onclick:()=>{B.ef=ef.filter((_,j)=>j!==i);pon(B.q,true);}})))));
   if(E.ignoradas.length)res.appendChild(el("p",{class:"hint",style:"margin:4px 2px",text:"No he encontrado «"+E.ignoradas.join("», «")+"» en "+D.nom.toLowerCase()+" ("+E.per.t+"), así que no lo he tenido en cuenta."}));
   if(E.per.def)res.appendChild(el("div",{class:"chips",style:"margin:2px 0 8px"},[el("span",{class:"sub",text:"Periodo:"})].concat(["este mes","el mes pasado","este año"].map(t=>el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(B.q+" "+t)})))));
   if(!L.length){res.appendChild(el("div",{class:"card"},el("p",{class:"hint",style:"padding:12px 14px",text:"No hay nada apuntado"+(maq?" en la "+maq.t.toUpperCase():"")+" en "+E.per.t+"."})));return;}
+  if((E.ultimo||E.primero)&&D.ult){const e=E.primero?L[L.length-1]:L[0];const otros=E.filtros.filter(f=>f!==maq).map(f=>/\d/.test(f.t)&&/^[a-z0-9.\-]+$/.test(f.t)?f.t.toUpperCase():f.t);
+    const dias_=dias(e.f,hoy());
+    res.appendChild(el("div",{class:"bd-ult"},[el("div",{class:"sub",text:(E.primero?D.ult[1]:D.ult[0])+(maq?" de la "+maq.t.toUpperCase():"")+(otros.length?" ("+otros.join(", ")+")":"")}),
+      el("b",{class:"bd-ult-f",text:fmtF(e.f)+(dias_===0?" · hoy":dias_===1?" · ayer":" · hace "+dias_+" días")}),
+      el("div",{class:"bd-ult-d",text:[e.ref,e.mod,!maq&&e.maq?maqTxt(e):null,e.cant!==1||!contable(e.ud)?fmtN(e.cant)+" "+e.ud:null,e.txt&&e.txt!=="—"?e.txt:null,e.det&&gNorm(e.det)!==gNorm(e.txt)?e.det:null,e.est||null].filter(Boolean).join(" · ")}),
+      el("div",{class:"bd-ult-q"},["Lo hizo: ",el("b",{text:e.quien||"no consta"})]),
+      e.ir?el("button",{type:"button",class:"btn sec peq",style:"justify-self:start;margin-top:6px",text:"Ver la ficha",onclick:e.ir}):null]));
+    res.appendChild(el("p",{class:"hint",style:"margin:10px 2px 6px",text:"Todo lo apuntado ("+E.per.t+"):"}));}
   const cantTxt=uds.length===1?fmtN(Math.round(tot*10)/10)+" "+(contable(uds[0])?(tot===1?D.uno:D.unos):uds[0]):L.length+" "+(L.length===1?D.uno:D.unos);
   res.appendChild(el("p",{class:"bd-resp",text:(maq?maq.t.toUpperCase()+" · ":"")+ef.map(f=>f.v+" · ").join("")+cap(E.per.t)+": "+cantTxt+(eu?" · "+eur(eu):"")+(uds.length===1&&L.length!==tot?" en "+L.length+" "+(L.length===1?"apunte":"apuntes"):"")+"."}));
   /* reparto */
@@ -151,7 +161,7 @@ async function excelEv(D,L,btn){if(!downloads){toast("Esta vista no permite desc
   catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}
 const plGrupo=g=>{const w=g.toLowerCase().split(" ");w[0]=/[aeiou]$/.test(w[0])?w[0]+"s":/ø/.test(w[0])?w[0]:w[0]+"es";return w.join(" ");};
 /* lo que se sugiere mientras se escribe */
-function sugerencias(q0,T){const q=nq(q0);if(!q)return["qué modelos de horno tenemos","consumo de pistones en la F25","gasto de pistones este año por máquina","hornos westofen","cuántas STP hay","reparaciones de ejes este año","consumo de taladrina el mes pasado","ejes en taller","contenedores D5","barras sin plano"];
+function sugerencias(q0,T){const q=nq(q0);if(!q)return["qué modelos de horno tenemos","quién cambió el último pistón de la F62","consumo de pistones en la F25","gasto de pistones este año por máquina","hornos westofen","cuántas STP hay","reparaciones de ejes este año","consumo de taladrina el mes pasado","ejes en taller","contenedores D5","barras sin plano"];
   const ult=q.split(" ").pop();if(ult.length<2)return[];const vistos=new Set(),S=[];
   const base=q.slice(0,q.length-ult.length);
   Object.keys(T).forEach(k=>{const D=T[k];if(nq(D.nom).startsWith(ult)&&!vistos.has(D.nom)){vistos.add(D.nom);S.push(base+D.nom.toLowerCase());}});
@@ -169,7 +179,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
     sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q)&&S.length)sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
     if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));
     if(!nq(B.q)){res.appendChild(el("p",{class:"hint",style:"margin:4px 2px",text:"Escribe lo que quieras consultar: hornos, máquinas, ejes, contenedores, moldes, pistones, barras, tornillos, recambios de horno, aceites y taladrinas… Puedes añadir una marca, una capacidad, una máquina (F28), una zona o un estado (taller, bajo mínimo)."}));return;}
-    if(QCO.test(" "+nq(B.q)+" ")){pintaEv(entenderEv(B.q),res,B,pon);return;}
+    {const qn=" "+nq(B.q)+" ";if(QCO.test(qn)||(/\b(ultim[oa]|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(B.q)).re){pintaEv(entenderEv(B.q),res,B,pon);return;}}
     const E=entender(B.q,T),D=T[E.t];const L=D.filas().filter(E.casa);
     /* lo que ha entendido */
     res.appendChild(el("div",{class:"bd-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:D.nom}),

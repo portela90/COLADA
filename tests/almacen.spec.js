@@ -244,3 +244,20 @@ test('Base de datos: se toca un grupo para ver solo esos y se vuelve a agrupar (
   await expect(page.locator('#bdRes .lst .it .t1', { hasText: 'Postizo roto' })).toBeVisible();
   expect(err).toEqual([]);
 });
+
+test('Base de datos: «quién cambió el último pistón de la F25» responde con fecha, qué y quién', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'quién cambió el último pistón de la F25'); await page.waitForTimeout(250);
+  const u = page.locator('.bd-ult');
+  await expect(u).toContainText('El último cambio de pistón de la F25');
+  await expect(u).toContainText('Lo hizo:');
+  await expect(u.locator('.bd-ult-f')).toHaveText(/^\d\d\/\d\d\/\d\d · (hoy|ayer|hace \d+ días)$/);
+  await page.fill('#bdQ', 'cuando fue la primera vez que se cambio pistón en la F4'); await page.waitForTimeout(250);
+  await expect(page.locator('.bd-ult')).toContainText('El primer cambio de pistón de la F4');
+  await page.fill('#bdQ', 'pistones de los últimos 30 días'); await page.waitForTimeout(250);
+  await expect(page.locator('.bd-resp')).toContainText('Últimos 30 días');
+  expect(err).toEqual([]);
+});
