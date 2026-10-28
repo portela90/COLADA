@@ -287,3 +287,27 @@ test('Borrar la salida de un cambio de pistón borra también el cambio (no sale
   expect(despues).toBe(antes - 1);
   expect(err).toEqual([]);
 });
+
+test('Base de datos: preguntas que se contestan con una frase (revisar, días, pedir, dinero, comparar, duración…)', async ({ page }) => {
+  test.setTimeout(90000);
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  const casos = [
+    ['qué hay que revisar', /que revisar|Todo en orden/], ['qué está bajo mínimo', /bajo mínimo y \d+ para pedir|Nada bajo mínimo/],
+    ['para cuántos días tengo pistones de 60', /Pistón Ø 60: hay \d+ ud, para/], ['qué se va a acabar antes', /Lo que antes se acaba es/],
+    ['qué pedidos llevan más de 15 días sin llegar', /pedidos?|No hay/], ['qué ejes están pendientes de reparar', /en el taller/],
+    ['qué no se mueve desde hace 6 meses', /meses/], ['cuánto hemos gastado este mes', /se han gastado [\d.]+ €/],
+    ['qué máquina gasta más dinero en pistones', /Por máquina|se han gastado 0 €/], ['cuánto vale lo que hay en el almacén', /vale unos [\d.]+ €/],
+    ['cuánto nos cuesta cada inyectora al mes', /al mes/], ['consumo de pistones de este mes comparado con el pasado', /frente a/],
+    ['qué máquina cambia más pistones por semana', /por semana/], ['cuánto dura de media un pistón en la F66', /En la F66 un pistón dura de media \d+ días/],
+    ['cuánto dura de media un eje', /Un eje aguanta de media|hace falta más historia/], ['qué ejes valen para la F28', /F28/],
+    ['dónde está el eje 2.8.J-2', /El eje 2\.8\.J-2 .* está en el taller/], ['cuántos cambios de pistón faltan por mandar a Beatriz', /Faltan por mandar \d+ cambios|No falta/],
+    ['qué máquinas llevan más tiempo sin cambiar pistón', /La que más tiempo lleva sin cambiar pistón es la F\d+/], ['qué entradas han llegado hoy', /Entradas/],
+    ['qué se sacó ayer en el relevo de noche', /ayer/], ['cuándo tengo que pedir pistones', /hay que pedirlo|ya está pedido|No hay consumo/]];
+  for (const [q, re] of casos) { const t = await resp(q); expect(t, q).toMatch(re); expect(t, q).not.toContain('undefined'); }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
