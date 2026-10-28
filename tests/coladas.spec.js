@@ -133,3 +133,41 @@ test('Consultas: el buscador responde preguntas con palabras normales', async ({
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Consultas: preguntas de dinero, planificación, lo que falta, coladas y máquinas', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => {
+    const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
+    await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2630', nave: 'Nave 1', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA' });
+    await db.doc('mov/' + mes).set({ items: [
+      { i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'ALB-9' },
+      { i: 'c1', t: 'C', f: f(-2), u: 'Mañana', o: 'l4', fa: 4 }, { i: 'c2', t: 'C', f: f(-1), u: 'Tarde', o: 'l4', fa: 5 }] });
+    await db.doc('maq/' + mes).set({ items: [{ i: 'q1', f: f(-5), u: 'Mañana', m: 'F55', on: false, cu: false, az: false }] });
+    const app = Object.assign({}, __D.cfg.app, { proveedores: ['IDALSA', 'BEFESA'], minimos: { 'Nave 1|L-2630': { fardosNave: 30 } },
+      precios: { [mes]: { prov: { IDALSA: 2900, BEFESA: 2800 } } }, plan: { [mes]: { camiones: [{ p: 'IDALSA', m: 'L-2630', n: 3 }], consumo: {}, entradas: [] } } });
+    await db.doc('cfg/app').set(app);
+  });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.waitForTimeout(400);
+  const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(200); return (await page.locator('.bq-res').textContent()); };
+  expect(await resp('qué hay que revisar')).toMatch(/que revisar|Todo en orden/);
+  expect(await resp('qué proveedor sale más barato')).toContain('el más barato es BEFESA');
+  expect(await resp('cuánto vale lo que tengo en stock')).toMatch(/vale unos [\d.]+ €/);
+  expect(await resp('cuánto ha costado el aluminio este mes')).toMatch(/ha costado unos [\d.]+ €/);
+  expect(await resp('consumo de este mes comparado con el pasado')).toContain('frente a');
+  expect(await resp('cuánto pesa de media un fardo de Idalsa')).toContain('pesa de media 700 kg');
+  expect(await resp('qué relevos no se han apuntado esta semana')).toMatch(/relevo|No falta/);
+  expect(await resp('qué entradas faltan por completar')).toContain('No hay ninguna entrada pendiente');
+  expect(await resp('qué líneas están bajo mínimo')).toContain('Nave 1 · AlSi9');
+  expect(await resp('hay algo en negativo')).toMatch(/negativo/);
+  expect(await resp('cuántos camiones quedan por traer este mes')).toContain('Quedan por traer 2 camiones de 3');
+  expect(await resp('con cuánto stock acabo el mes')).toMatch(/final de mes|Con lo planificado/);
+  expect(await resp('cuándo tengo que pedir camión para nave 1')).toMatch(/Nave 1 · AlSi9|no hace falta/);
+  expect(await resp('qué colada toca gastar en nave 1')).toContain('Nave 1 · AlSi9: C25');
+  expect(await resp('coladas más antiguas del externo')).toContain('La más antigua es C2500');
+  expect(await resp('qué máquinas están paradas en nave 2')).toContain('Nave 2: 1 parada (F55)');
+  expect(await resp('cómo está la F55')).toContain('F55 (Nave 2) está ahora parada');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
