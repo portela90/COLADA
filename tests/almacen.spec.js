@@ -374,3 +374,15 @@ test('Base de datos: dinero para informar (valor del stock, ejes en el taller, p
   expect(await resp('cuánto cuesta un pistón de 80')).toMatch(/Pistón Ø 80: 180 € \/ ud/);
   expect(err).toEqual([]);
 });
+
+test('Ficha de eje en el taller: «Pedir al taller que lo traiga» prepara el mensaje', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'todo sobre el eje 2.8.J-2'); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Pedir al taller que lo traiga' }).click(); await page.waitForTimeout(400);
+  expect(await page.locator('#mtTxt').inputValue()).toContain('- 2.8.J-2 · IDRA 1600 L-1255');
+  expect(err).toEqual([]);
+});

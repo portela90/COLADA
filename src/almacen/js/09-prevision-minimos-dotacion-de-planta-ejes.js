@@ -285,7 +285,12 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
     acts.push({t:"Enviar a reparar",fn:async()=>{await enviar([e],f.f);toast(e.cod+" enviado a reparar");}},
       {t:"Vuelve a planta",cls:"sec",fn:async()=>{if(ab&&!ab.env){await updReps([[ab,{res:"anulada",rec:f.f}]]);}await updEje(e,{estado:"planta"});toast(e.cod+" en planta");}});}
   else{if(ab&&ab.traer)acts.push({t:"Quitar «pedido traer»",cls:"sec",fn:async()=>{await updReps([[ab,{traer:null}]]);toast("Marca quitada");}});
-    body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+(diasAb(ab)||0)+" días · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer):"")}):null,fecha(),fld("Albarán de recepción",inp("efA","",v=>f.alb=v,{autocomplete:"off"})),
+    body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+(diasAb(ab)||0)+" días · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer):"")}):null,
+      el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:ab&&ab.traer?"Volver a pedir al taller que lo traiga":"Pedir al taller que lo traiga",onclick:async()=>{
+        const prov=(cat.ajustes||{}).taller||(cat.proveedores[0]||{}).id||"";
+        try{if(ab)await updReps([[ab,{traer:hoy()}]]);}catch(er){toast("No se pudo guardar");return;}
+        cerrarDlgs();setTimeout(()=>mensajeTaller([e],prov),0);}}),
+      fecha(),fld("Albarán de recepción",inp("efA","",v=>f.alb=v,{autocomplete:"off"})),
       el("div",{class:"seg",role:"group","aria-label":"Resultado"},[["ok","OK"],["nook","NO-OK"]].map(([k,l])=>{const b=el("button",{type:"button","aria-pressed":String(f.res===k),text:l});b.onclick=()=>{f.res=k;b.parentNode.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",String(z===b)));obsF.hidden=k!=="nook";};return b;})));
     const obsF=fld("Observación NO-OK",inp("efO","",v=>f.obs=v,{autocomplete:"off"}),true);body.push(obsF);
     acts.push({t:"Registrar recepción",fn:async()=>{if(f.res==="nook"&&!f.obs.trim()){toast("Explica por qué es NO-OK");return false;}await recibir([e],f.f,f.alb,f.res,f.obs);toast(e.cod+(f.res==="ok"?" recibido OK":" devuelto a reparar"));if(f.res==="ok")trasRecibir([e]);}});}
