@@ -171,3 +171,26 @@ test('Consultas: preguntas de dinero, planificación, lo que falta, coladas y m�
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Consultas: «todo sobre la colada», relevos raros, coste previsto y cruces con el Almacén (por tonelada, resumen del mes)', async ({ page }) => { const err = await vigila(page);
+  await page.addInitScript(() => { const rows=[{col:'alm_cat',id:'app',data:{maquinas:[{id:'m1',cod:'F25'},{id:'m2',cod:'F55'}],articulos:[{fam:'piston',diam:'Ø 60',precio:'180'}],modelos:[{cod:'X',precioRep:'200'}]}},
+     {col:'alm_pist',id:'2026',data:{items:[{f:new Date().toISOString().slice(0,10),maq:'m1',diam:'Ø 60',cant:1},{f:'2026-10-02',maq:'m2',diam:'Ø 60',cant:2}]}},{col:'alm_rep',id:'2026',data:{items:[{eje:'E1',rec:'2026-10-05',res:'ok',maq:'F25'}]}},{col:'alm_ejes',id:'e1',data:{cod:'E1',mod:'X',estado:'planta'}},{col:'alm_mov',id:'2026-10',data:{items:[]}}];
+    window.sbColada={from:()=>({select:()=>({in:async()=>({data:rows})})})}; });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const h=new Date(),f=d=>{const x=new Date(h);x.setDate(x.getDate()+d);return x.toISOString().slice(0,10);},mes=f(0).slice(0,7);
+    await db.doc('mov/'+mes).set({items:[{i:'c1',t:'C',f:f(-2),u:'Mañana',o:'l3',fa:4},{i:'c2',t:'C',f:f(-1),u:'Tarde',o:'l1',fa:5},{i:'a1',t:'A',f:f(-1),o:'l2',fa:-1}]});
+    await db.doc('maq/'+mes).set({items:[{i:'q1',f:f(-20),u:'Mañana',m:'F55',on:false}]}); });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(400); return (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); };
+  expect(await resp('todo sobre la colada C25001')).toMatch(/La colada C25001 \(AlSi9, Nave 1\)/);
+  expect(await resp('qué relevo gasta más de lo normal')).toMatch(/Fardos por máquina/);
+  expect(await resp('qué proveedor me ha mandado menos kilos')).toMatch(/recuentos/);
+  expect(await resp('cuánto aluminio se gasta por máquina en marcha')).toMatch(/kg por máquina y relevo/);
+  expect(await resp('cuánto me va a costar el aluminio este mes')).toMatch(/Este mes el aluminio costará unos/);
+  expect(await resp('pistones por tonelada de aluminio en nave 1')).toMatch(/Nave 1: [\d,]+ pistones por tonelada/);
+  expect(await resp('qué gasta más por tonelada')).toMatch(/€ por tonelada/);
+  const r = await resp('resumen del mes');
+  expect(r).toMatch(/RESUMEN ESTE MES/); expect(r).toMatch(/Pistones cambiados: 3/); expect(r).not.toContain('undefined');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

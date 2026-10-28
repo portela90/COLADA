@@ -231,3 +231,4 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .bj .bjx{appearance:none;width:44px;height:44px;border:0;border-radius:10px;background:none;color:var(--mut);font-size:20px;cursor:pointer}
 
 .g-tit{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink2)}
+.bd-kv{display:grid;grid-template-columns:minmax(110px,auto) 1fr;gap:6px 12px;margin:0}.bd-kv dt{color:var(--mut);font-size:13px}.bd-kv dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}

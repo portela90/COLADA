@@ -47,6 +47,7 @@ const COLS_L=[["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Dó
 const COLS_M=[["Fecha","dia"],["Tipo","tipo"],["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Relevo","relevo"],["Proveedor","prov"],["Albarán","alb"],["Kg","kg"],["Fardos","fa"],["Nota","nota"]];
 const txtFila=(x,cols)=>" "+nqC(cols.map(c=>x[c[1]]).join(" "))+" ";
 function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=" "+q+" ";
+  const I2=intencionC2(q);if(I2)return I2;
   const I=intencionC(q);if(I)return I;
   /* «para cuántos días tengo aluminio en nave 1»: lo que hay entre lo que se gasta */
   if(/\b(para )?cuantos dias\b|\bdias de (material|aluminio|stock|cobre|granalla)\b|\bcuanto (me |nos )?(dura|duran|aguanta|aguantan)\b|\bhasta cuando\b|\bautonomia\b|\bcobertura\b/.test(q)){out.modo="dias";
@@ -94,13 +95,14 @@ function vBuscaCol(resto){
   const pon=(t,mant)=>{if(!mant){bq.ef=[];bq.g=null;}bq.q=t;q.value=t;pinta();};
   function pinta(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
     if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
-      ["qué hay que revisar","para cuántos días tengo aluminio","cuándo tengo que pedir camión","con cuánto stock acabo el mes","qué camiones tienen que entrar mañana","cuántos camiones quedan por traer este mes","cuánto ha costado el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock","consumo de este mes comparado con el pasado","qué relevo consume más este mes","qué día se consumió más este mes","cuánto pesa de media un fardo","qué relevos no se han apuntado esta semana","qué colada toca gastar en nave 1","coladas más antiguas del externo","qué máquinas están paradas","cuánto ha entrado este mes a nave 1","último camión de Idalsa"]
+      ["resumen del mes","todo sobre la colada C25073","qué relevo gasta más de lo normal","pistones por tonelada de aluminio en nave 1","cuánto me va a costar el aluminio este mes","qué hay que revisar","para cuántos días tengo aluminio","cuándo tengo que pedir camión","con cuánto stock acabo el mes","qué camiones tienen que entrar mañana","cuántos camiones quedan por traer este mes","cuánto ha costado el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock","consumo de este mes comparado con el pasado","qué relevo consume más este mes","qué día se consumió más este mes","cuánto pesa de media un fardo","qué relevos no se han apuntado esta semana","qué colada toca gastar en nave 1","coladas más antiguas del externo","qué máquinas están paradas","cuánto ha entrado este mes a nave 1","último camión de Idalsa"]
         .forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));return;}
     sug.classList.remove("bq-ej");
     const E=entenderC(bq.q),S=saldos();
     if(E.modo==="precio")return pintaPrecio(E,res);
     if(E.modo==="fut")return pintaFut(E,res);
     if(E.modo==="dias")return pintaDias(E,res);
+    if(E.modo2)return pintaIntC2(E,res,pon);
     if(!["col","mov","precio","fut","dias"].includes(E.modo))return pintaIntencion(E,res,pon);
     const mov=E.modo==="mov";const cols=mov?COLS_M:COLS_L;
     let L=mov?filasApuntes(S).filter(x=>x.f>=E.per.d&&x.f<=E.per.h&&(!E.tipos.length||E.tipos.some(t=>x.r.t===t))):filasColadas(S).filter(x=>E.todas||x.estado==="Con stock");

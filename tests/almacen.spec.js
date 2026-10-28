@@ -326,3 +326,19 @@ test('Base de datos: «cuántos pistones hay en la zona de usados» sale del rec
   expect(u).toMatch(/En el cajón de chatarra Ø 90: 4/);
   expect(err).toEqual([]);
 });
+
+test('Base de datos: «todo sobre…», lo raro, personas y planificar', async ({ page }) => {
+  test.setTimeout(90000);
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Base de datos$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  const casos = [['todo sobre la F25', /F25 \(.*\): este año lleva \d+ cambios? de pistón/], ['todo sobre el eje 2.8.J-2', /El eje 2\.8\.J-2 .* está en reparación/], ['todo sobre el pistón de 80', /Pistón Ø 80: hay \d+ ud/],
+    ['qué máquina está gastando más de lo normal', /más de lo normal/], ['qué pistones se han roto antes de tiempo', /antes de lo normal|menos de la mitad/], ['qué ejes vuelven al taller por lo mismo', /mismo motivo/],
+    ['qué cambios se apuntaron sin responsable', /sin responsable/], ['qué ha hecho Josu este año', /Josu ha apuntado \d+ cosas/], ['quién cambia más pistones por rotura', /por quién/],
+    ['qué tengo que pedir esta semana', /hay que pedir|no hace falta/], ['cuánto me voy a gastar el mes que viene', /se gastarán unos/], ['qué ejes me van a faltar', /reserva/], ['resumen del mes', /RESUMEN ALMACÉN/]];
+  for (const [q, re] of casos) { const t = await resp(q); expect(t, q).toMatch(re); expect(t, q).not.toContain('undefined'); }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
