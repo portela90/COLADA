@@ -88,3 +88,6 @@ begin
   end if;
   return jsonb_build_object('ot', p_ot, 'repite_resp', p_resp);
 end $f$;
+
+-- 28/10/2026 · ot_parecidas ignora las tareas habituales (cambio de bidón, GRG…) y las de horno: no son problemas.
+-- (aplicada como ot_parecidas_sin_habituales en limpieza-cie)

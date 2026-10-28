@@ -128,6 +128,8 @@ function preguntaRepite(par){return new Promise(res=>{
   dlg("¿Es la misma o es otra cosa?",box,[{t:"Cancelar",cls:"sec",fn:()=>{res(null);}},{t:"Es otra cosa",cls:"sec",fn:()=>{res({resp:"otra",de:par[0].id});}},{t:"Es la misma",cls:"ok",fn:()=>{res({resp:"misma",de:par[0].id});}}]);});}
 /* productos de bidón (alm_art de la tarea habitual) con su color para el botón */
 const BIDONES={"68dfcbac40e836":{c:"#9AA9B8"},"f0f770138dfe41":{c:"#F472B6"},"murbntzamwawf":{c:"#5B9BFF"},"1aad128f4c9038":{c:"#F5F5F5"},"5585ca56f03c26":{c:"#9AA9B8"},"16f8b603ea4df1":{c:"#9AA9B8"},"c2cb2372d73946":{c:"#9AA9B8"},"8ab114d9c357dc":{c:"#9AA9B8"},"da5cf6517cd2e1":{c:"#9AA9B8"}};
+/* una tarea habitual (cambio de bidón, GRG…) no es un problema aunque lleve la palabra «taladrina» o «aceite» */
+const esProbOT=o=>!o.habitual_id&&esProblema(o.titulo,o.descripcion);
 async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});await trabajadores().catch(()=>{});await habituales(true).catch(()=>{});const admin=esAdm();const o={titulo:"",lugar:"",descripcion:"",urgente:false,yo:true,habitual_id:null};const fotos=[];let hSel=null;
   const tit=inp("",x=>{o.titulo=x;if(hSel&&x!==hSel.titulo){hSel=null;o.habitual_id=null;ph();}},{placeholder:"p. ej. Derrame de aceite",enterkeyhint:"next"});
   const lug=inp("",x=>{o.lugar=x;pl();},{placeholder:"p. ej. F28, pasillo Nave 2…"});
@@ -159,7 +161,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
   const guardaBorr=()=>{const d={yo:S.yo&&S.yo.id,t:Date.now(),ot:creada?creada.id:null,o:{titulo:o.titulo,lugar:o.lugar,descripcion:o.descripcion,urgente:!!o.urgente}};
     try{sessionStorage.setItem(BORR_OT,JSON.stringify(Object.assign({fotos:fotos.slice(0,4)},d)));}catch(e){try{sessionStorage.setItem(BORR_OT,JSON.stringify(d));}catch(_){}}};
   const guardar=async hecha=>{if(!o.titulo.trim()){toast("Escribe qué hay que hacer o toca una tarea habitual");tit.focus();return false;}
-    if(esProblema(o.titulo,o.descripcion)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
+    if(esProbOT(o)&&!(o.lugar||"").trim()){toast(MSG_LUG);(sim?zsel:lug).focus();lug.classList.add("falta");return false;}
     if(esVar()&&hecha){toast("Queda abierta: al terminarla te pediremos la nave y los kilos que repones");}
     if(esVar())hecha=false;
     if(hSel&&hSel.alm_art&&!esVar()&&!/^Nave [12]$/.test(o.nave||"")){toast("Elige si es Nave 1 o Nave 2: el coste se carga en esa nave");navWrap.scrollIntoView({block:"center"});return false;}
@@ -167,7 +169,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
     const auto=!!admin&&o.yo===false&&!o.elegir;if(auto&&(!o.turno||!o.nave)){toast("Elige el relevo y la nave");return false;}
     if(o.elegir&&!chQ.val().length){toast("Elige a quién se la das");return false;}
     /* problema o urgente: si hubo otra parecida en el mismo sitio (6 días), se pregunta si es la misma y se piden fotos */
-    if(!creada&&!repMirado&&(esProblema(o.titulo,o.descripcion)||o.urgente)){
+    if(!creada&&!repMirado&&(esProbOT(o)||o.urgente)){
       const par=await rpc("ot_parecidas",{p_tok:S.tok,p_lugar:o.lugar,p_titulo:o.titulo,p_descripcion:o.descripcion}).catch(()=>[]);
       repMirado=true;
       if(par&&par.length){const q=await preguntaRepite(par);if(!q){repMirado=false;return false;}repResp=q.resp;repDe=q.de;}
@@ -177,7 +179,7 @@ async function abrirOT(re,borr){await zonasL();await elementosL().catch(()=>{});
     const r=creada;
     for(const d of [...fotos]){ try{ await guardarFoto(r.id,d); fotos.splice(fotos.indexOf(d),1); guardaBorr(); }catch(er){ toast("La OT ya está guardada, pero la foto no se ha subido: "+(er.message||"error")+". Pulsa otra vez para reintentar la foto."); return false; } }
     toast(hecha?"Apuntado como hecho"+(r.minutos!=null?" ("+durTxt(r.minutos)+")":""):auto?(r.asignados&&r.asignados.length?"Trabajo abierto y asignado al del relevo y nave":"Trabajo abierto: no hay nadie en ese relevo y nave, queda sin asignar"):o.elegir?"Trabajo abierto y asignado":o.yo||admin?"Trabajo abierto y apuntado a tu nombre":"Trabajo abierto: el jefe lo asignará");borrarBorradorOT();S.fecha=hoyISO();re();};
-  const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProblema(o.titulo,o.descripcion);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
+  const fLug=fld("¿Dónde?",lug);const marcaLug=()=>{const ob=esProbOT(o);fLug.firstChild.textContent=ob?"¿Dónde? (obligatorio)":"¿Dónde?";if(!ob||(o.lugar||"").trim())lug.classList.remove("falta");};
   tit.addEventListener("input",marcaLug);lug.addEventListener("input",marcaLug);
   const zsel=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lug.value=z;pl();marcaLug();});lug.addEventListener("input",()=>{zsel.value=(ZONAS||[]).some(z=>z.nombre===lug.value)?lug.value:"";});
   const fZ=fld("Zona (elige de la lista)",zsel);

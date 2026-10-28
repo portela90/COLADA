@@ -269,7 +269,7 @@ function detalle(o){const fbox=el("div",{class:"fotos"}),hbox=el("div",null,el("
     el("h4",{text:"Fotos"}),fbox,el("h4",{text:"Historial"}),hbox]),[esAdm()&&o.estado!=="hecha"?{t:"WhatsApp",cls:"wa",fn:()=>{enviarOTWA(o);return false;}}:null,
       puedoEditar(o)?{t:"Corregir",cls:"sec",fn:()=>{setTimeout(()=>editarOT(o,()=>pinta()),0);}}:null,
       puedoTiempo(o)?{t:"Tiempo",cls:"sec",fn:()=>{setTimeout(()=>corregirTiempo(o,()=>pinta()),0);}}:null,
-      (esAdm()||(S.yo&&S.yo.encargado))&&(o.repite_resp||esProblema(o.titulo,o.descripcion))?{t:"¿Es la misma?",cls:"sec",fn:()=>{setTimeout(()=>cambiarRepite(o,()=>pinta()),0);}}:null,
+      (esAdm()||(S.yo&&S.yo.encargado))&&(o.repite_resp||esProbOT(o))?{t:"¿Es la misma?",cls:"sec",fn:()=>{setTimeout(()=>cambiarRepite(o,()=>pinta()),0);}}:null,
       puedoCorregirAlm(o)?{t:"Corregir nave y kilos",cls:"ok",fn:()=>{setTimeout(()=>corregirAlm(o,()=>pinta()),0);}}:null,puedoCorregirMat(o)?{t:"Corregir material",cls:"sec",fn:()=>{setTimeout(()=>corregirMaterial(o,()=>pinta()),0);}}:null,{t:"Cerrar",cls:"sec"}].filter(Boolean));
   rpc("ot_historial",{p_tok:S.tok,p_ot:o.id}).then(H=>{hbox.textContent="";hbox.appendChild(H.length?el("ol",{class:"hist"},H.map(h=>el("li",null,[el("b",{text:hora(h.cuando)}),diaDe(h.cuando)!==o.fecha?el("small",{text:" "+fCorta(diaDe(h.cuando))}):null," · "+(ACC[h.accion]||h.accion)+(h.detalle?": "+h.detalle:"")+" — "+h.quien]))):el("p",{class:"hint",text:"Sin movimientos registrados."}));}).catch(e=>hbox.textContent=e.message);
   if(o.nfotos)rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>L.forEach(x=>fbox.appendChild(miniFoto(x,o.titulo+(x.por?" · "+x.por:"")+" · "+hora(x.creado))))).catch(()=>{});
