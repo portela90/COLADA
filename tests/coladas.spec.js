@@ -118,6 +118,11 @@ test('Consultas: el buscador responde preguntas con palabras normales', async ({
   expect(r).toContain('no hay ninguna entrada planificada');
   r = await pregunta('qué camiones tienen que entrar hoy');
   expect(r).toContain('La siguiente');
+  // «para cuántos días tengo aluminio»
+  r = await pregunta('para cuántos días tengo aluminio en nave 1');
+  expect(r).toContain('Nave 1 · AlSi9');
+  expect(r).toContain('fardos en la nave');
+  expect(r).not.toContain('Nave 2');
   // palabras que no casan: se avisa
   r = await pregunta('coladas de zzzz');
   expect(r).toContain('No he encontrado «zzzz»');

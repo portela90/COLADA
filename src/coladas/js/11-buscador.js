@@ -47,6 +47,10 @@ const COLS_L=[["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Dó
 const COLS_M=[["Fecha","dia"],["Tipo","tipo"],["Colada","colada"],["Aleación","aleacion"],["Nave","nave"],["Relevo","relevo"],["Proveedor","prov"],["Albarán","alb"],["Kg","kg"],["Fardos","fa"],["Nota","nota"]];
 const txtFila=(x,cols)=>" "+nqC(cols.map(c=>x[c[1]]).join(" "))+" ";
 function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=" "+q+" ";
+  /* «para cuántos días tengo aluminio en nave 1»: lo que hay entre lo que se gasta */
+  if(/\b(para )?cuantos dias\b|\bdias de (material|aluminio|stock|cobre|granalla)\b|\bcuanto (me |nos )?(dura|duran|aguanta|aguantan)\b|\bhasta cuando\b|\bautonomia\b|\bcobertura\b/.test(q)){out.modo="dias";
+    const F=[[/\bnave\s*(1|2|uno|dos)\b/,m=>"Nave "+(m[1]==="uno"?"1":m[1]==="dos"?"2":m[1])],[/\b(alsi\s*9|l-?2630|blanc[oa]s?)\b/,()=>"L-2630"],[/\b(alsi\s*12|l-?2521(-b)?|azul(es)?)\b/,()=>"L-2521-B"]];
+    out.nave=(q.match(F[0][0])||[])[0]?F[0][1](q.match(F[0][0])):null;out.mat=F[1][0].test(q)?"L-2630":F[2][0].test(q)?"L-2521-B":null;out.cobre=/\b(cobre|granalla)\b/.test(q);out.soloCobre=out.cobre&&!/\baluminio\b|\bnave\b|\balsi/.test(q);return out;}
   /* «qué camiones tienen que entrar mañana»: lo planificado, no lo apuntado */
   const camW=/\b(camion(es)?|entradas?|entrar|llegar|venir|bp|aluminio)\b/;
   if(RE_FUT.test(q)||(/\bmanana\b/.test(q)&&camW.test(q)&&!/\b(relevo|turno|por la)\b/.test(q))){out.modo="fut";out.per=periodoFut(q);
@@ -89,12 +93,13 @@ function vBuscaCol(resto){
   const pon=(t,mant)=>{if(!mant){bq.ef=[];bq.g=null;}bq.q=t;q.value=t;pinta();};
   function pinta(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
     if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(el("span",{class:"sub",text:"Prueba con:"}));
-      ["cuánto se ha consumido este mes en nave 1","qué relevo consume más este mes","qué camiones tienen que entrar mañana","cuánto ha entrado este mes a nave 1","consumo de ayer por relevo","coladas en externo","stock de AlSi12","entradas de este mes por proveedor","último camión de Idalsa","precio de Befesa este mes","consumo de AlSi9 por mes este año"]
+      ["cuánto se ha consumido este mes en nave 1","qué relevo consume más este mes","qué camiones tienen que entrar mañana","para cuántos días tengo aluminio","cuánto ha entrado este mes a nave 1","consumo de ayer por relevo","coladas en externo","stock de AlSi12","entradas de este mes por proveedor","último camión de Idalsa","precio de Befesa este mes","consumo de AlSi9 por mes este año"]
         .forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));return;}
     sug.classList.remove("bq-ej");
     const E=entenderC(bq.q),S=saldos();
     if(E.modo==="precio")return pintaPrecio(E,res);
     if(E.modo==="fut")return pintaFut(E,res);
+    if(E.modo==="dias")return pintaDias(E,res);
     const mov=E.modo==="mov";const cols=mov?COLS_M:COLS_L;
     let L=mov?filasApuntes(S).filter(x=>x.f>=E.per.d&&x.f<=E.per.h&&(!E.tipos.length||E.tipos.some(t=>x.r.t===t))):filasColadas(S).filter(x=>E.todas||x.estado==="Con stock");
     /* palabras que no casan: se avisa y no cuentan */
@@ -165,6 +170,30 @@ function vBuscaCol(resto){
     if(atras.length)res.appendChild(el("div",{class:"banner w",text:"Hay "+camT(atras.length)+" planificadas para días que ya han pasado y no se han apuntado como recibidas ("+atras.map(x=>dmy(x.f)).join(", ")+"). Revísalas en Plan."}));
     res.appendChild(el("p",{class:"hint",text:"Sale lo que hay colocado en el calendario de la pestaña Plan."}));
     res.appendChild(el("button",{type:"button",class:"btn sec",text:"Abrir el Plan",onclick:()=>{tab="plan";try{localStorage.setItem("colada.tab","plan");}catch(e){}tabsUI();render();}}));}
+  /* Días = fardos ÷ gasto diario. El gasto diario sale de los últimos 30 días (fardos gastados ÷ días con consumo),
+     que es el ritmo de ahora; la media de siempre (la de Stock) se enseña al lado. */
+  function pintaDias(E,res){const {B}=bloques(),h=hoy(),d30=ymd(new Date(Date.now()-30*864e5));
+    const C=movs().filter(r=>r.t==="C"&&r.f&&r.f>=d30&&r.f<=h),dd=new Set(C.map(r=>r.f)).size||1,c30={};
+    C.forEach(r=>{const l=lotes.find(x=>x.id===r.o);if(!l)return;const k=key(l.nave,l.material);c30[k]=(c30[k]||0)+(typeof r.fa==="number"?r.fa:0);});
+    const pend={};Object.keys(cfg.plan||{}).forEach(mm=>((cfg.plan[mm]||{}).entradas||[]).forEach(x=>{if(!x.rec&&x.k&&x.f&&x.o!=="B")pend[x.k]=(pend[x.k]||0)+x.fa;}));
+    const lin=Object.keys(B).filter(k=>{const b=B[k];return(!E.nave||b.nave===E.nave)&&(!E.mat||b.mat===E.mat)&&(b.fa>0||c30[k]||pend[k]);});
+    const dTx=n=>n==null?"—":n<1?"menos de 1 día":"≈ "+fmt(n)+(Math.round(n)===1?" día":" días");
+    res.appendChild(el("div",{class:"bq-ent"},[el("span",{class:"sub",text:"Para cuántos días hay · "}),el("b",{text:[E.nave,E.mat?MAT[E.mat].nom:null].filter(Boolean).join(" · ")||(E.soloCobre?"granalla de cobre":"todas las líneas")})]));
+    if(!E.soloCobre){
+      if(!lin.length){res.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No hay material ni consumo en esa línea."})]));}
+      const filas=lin.map(k=>{const b=B[k],dia=c30[k]?c30[k]/dd:0,dN=dia?b.faN/dia:null,dT=dia?b.fa/dia:null,dP=dia&&pend[k]?(b.fa+pend[k])/dia:null;return{k,b,dia,dN,dT,dP};})
+        .sort((a,b)=>(a.dN==null?1e9:a.dN)-(b.dN==null?1e9:b.dN));
+      if(filas.length){const f0=filas[0];if(f0.dN!=null)res.appendChild(el("p",{class:"bq-resp",text:(filas.length>1?"La que menos aguanta es "+etiqLinea(f0.k)+": ":etiqLinea(f0.k)+": ")+dTx(f0.dN)+" con lo que hay en la nave"+(f0.b.faE>0?" y "+dTx(f0.dT).replace("≈ ","")+" contando el externo":"")+"."}));}
+      res.appendChild(el("div",{class:"card"},[el("div",{class:"bq-lst"},filas.map(x=>el("div",{class:"bq-it",style:"cursor:default;align-items:flex-start"},[
+        el("div",{class:"bq-p"},[el("b",{text:etiqLinea(x.k)}),
+          el("span",{class:"sub",text:fmt(x.b.faN)+" fardos en la nave"+(x.b.faE>0?" · "+fmt(x.b.faE)+" en el externo":"")+" · gasta "+(x.dia?(Math.round(x.dia*10)/10).toLocaleString("es-ES")+" fardos al día":"nada en 30 días")}),
+          x.dT!=null&&x.b.faE>0?el("span",{class:"sub",text:"Contando el externo: "+dTx(x.dT)}):null,
+          x.dP!=null?el("span",{class:"sub",text:"Con los camiones planificados (+"+fmt(pend[x.k])+" fardos): "+dTx(x.dP)}):null,
+          x.b.medio>0?el("span",{class:"sub",text:"Con la media de siempre (Stock): "+dTx(x.b.faN/x.b.medio)+" en nave"}):null]),
+        el("div",{class:"bq-c num"},[el("b",{text:x.dN==null?"—":x.dN<1?"<1":fmt(x.dN)}),el("span",{class:"sub",text:"días en nave"})])])))]));}
+    if(E.cobre){const gk=granallaKg(),G=movs().filter(r=>r.t==="G"&&!r.aj&&r.f&&r.f>=d30&&r.f<=h&&typeof r.kg==="number"&&r.kg<0),gd=new Set(G.map(r=>r.f)).size,gg=G.reduce((a,r)=>a-r.kg,0);
+      const dia=gd?gg/dd:0;res.appendChild(el("p",{class:"bq-resp",text:"Granalla de cobre: "+fmt(gk)+" kg"+(dia?", para "+dTx(gk/dia).replace("≈ ","unos ")+" (gasta unos "+fmt(dia)+" kg al día).":". No hay consumo apuntado en los últimos 30 días.")}));}
+    res.appendChild(el("p",{class:"hint",text:"Días de trabajo, al ritmo de los últimos 30 días: fardos gastados entre los "+dd+" días con consumo. Los camiones planificados son los del calendario de Plan que aún no se han recibido; las traídas del externo no suman porque ese material ya está contado."}));}
   function pintaPrecio(E,res){const mes=E.per?E.per.d.slice(0,7):mesDe(hoy());const ok=E.filtros.filter(f=>f.t!=="alsi9"&&f.t!=="alsi12");const mats=Object.keys(MAT).filter(m=>!E.filtros.some(f=>f.t==="alsi9"||f.t==="alsi12")||E.filtros.some(f=>nqC(MAT[m].nom)===f.t));
     const provs=(cfg.proveedores||[]).filter(p=>!ok.length||ok.some(f=>reC(f.alt).test(" "+nqC(p)+" ")));
     res.appendChild(el("div",{class:"bq-ent"},[el("span",{class:"sub",text:"Precio del aluminio · "}),el("b",{text:Mayus(nomMes(mes))})]));
