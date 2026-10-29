@@ -189,8 +189,6 @@ async function vAjustes(v){
 
 pinta();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!document.querySelector(".ov")&&S.tab!=="check"&&S.tab!=="ajustes"&&S.tab!=="excel")pinta();});
-})();
-
 /* ---- Conversación de la incidencia: los dos (encargado y jefe) escriben y ven los mensajes, con foto opcional ---- */
 async function cargarConv(x,box){
   let M; try{ M=await rpc("enc_incidencia_msgs",{p_tok:S.tok,p_id:x.id}); }catch(e){ box.textContent=e.message; return; }
@@ -212,3 +210,4 @@ async function cargarConv(x,box){
   box.appendChild(ta); box.appendChild(ft);
   box.appendChild(el("div",{class:"row",style:"margin:6px 0 0"},[botonFoto("Añadir foto",d=>{ foto=d; pf(); }),enviar]));
 }
+})();
