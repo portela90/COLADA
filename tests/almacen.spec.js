@@ -426,3 +426,17 @@ test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }
   await expect(page.locator('.dlg').last()).toContainText('Pistón Ø 80');
   expect(err).toEqual([]);
 });
+
+test('Ficha de inyectora: fecha de fabricación del horno', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'todo sobre la F25'); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha de la F25' }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Editar ficha' }).last().click(); await page.waitForTimeout(300);
+  await page.fill('#mqHFab', '2019-03'); await page.locator('.dlg button', { hasText: 'Guardar' }).last().click(); await page.waitForTimeout(800);
+  const m = await page.evaluate(() => window.__D.cat.app.maquinas.find(x => x.cod === 'F25'));
+  expect(m.hornoFab).toBe('2019-03');
+  expect(err).toEqual([]);
+});

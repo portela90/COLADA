@@ -151,7 +151,7 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
     linea("Contenedor",co?co.cod:"",co?[ct?CT_L[ct[0]].mm+" mm · Ø"+CT_D[ct[1]]:null,h.contF?"desde "+fmtF(h.contF):null,dpN&&ct&&CT_D[ct[1]]!==dpN?"¡no es el Ø del pistón!":null].filter(Boolean).join(" · "):letraMaq(m)?"lleva largo "+letraMaq(m)+" ("+CT_L[letraMaq(m)].mm+" mm)":null,co?()=>fichaCont(co,()=>reabre(0)()):null,()=>{cerrarDlgs();cambioCont(m,{volver:true});},co?(dpN&&ct&&CT_D[ct[1]]!==dpN?"warn":""):"mut"),
     ...(bar.length?bar:[null]).map(a=>linea("Barras expulsoras",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud+(revVig(a)?" · plano "+revTxt(revVig(a).n):""):null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
     ...(tor.length?tor:[null]).map(a=>linea("Tornillo tope",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud:null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
-    linea("Horno",hornoTxt(m)||"",hornoA.length?hornoA.length+" recambios en su lista (pestaña Consumibles)":null,null,null,hornoTxt(m)?"":"mut")]);
+    linea("Horno",hornoTxt(m)||"",[hornoFabTxt(m),hornoA.length?hornoA.length+" recambios en su lista (pestaña Consumibles)":null].filter(Boolean).join(" · ")||null,null,null,hornoTxt(m)?"":"mut")]);
   /* --- Historial: todo lo que ha pasado en la máquina, en una sola lista --- */
   const H=[];todosMlog().filter(x=>x.maq===m.id).forEach(x=>H.push({f:x.f,ts:x.ts||0,t:x.tipo==="molde"?"Molde":"Contenedor",d:x.tipo==="molde"?"Se pone el "+(((moldeDe(x.val)||{}).cod)||"?"):(x.val?"Se pone el "+(((contDe(x.val)||{}).cod)||"?"):"Se quita")+(x.antes?" · sale el "+((x.tipo==="molde"?(moldeDe(x.antes)||{}).cod:(contDe(x.antes)||{}).cod)||"?")+(x.destino?" ("+((CT_EST[x.destino]||[x.destino])[0]).toLowerCase()+")":""):""),q:x.by,ir:x.tipo==="cont"&&contDe(x.val||x.antes)?()=>fichaCont(contDe(x.val||x.antes)):null}));
   all.forEach(p=>H.push({f:p.f,ts:p.ts||0,t:"Pistón",d:p.diam+" · "+cap(p.motivo||"")+((+p.cant||1)>1?" · "+p.cant+" pistones":""),q:p.resp?respTxt(p.resp):p.por||""}));
@@ -191,6 +191,8 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
     acts:[{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},{t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
       {t:"Cambio de pistón",fn:()=>{Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});setTimeout(()=>{irA("pist");const f=document.getElementById("pForm");if(f)f.scrollIntoView();},0);}}]});}
 /* editar lo que monta una máquina: en cada campo se tocan las opciones */
+/* fecha de fabricación del horno (mes y año de la placa) y los años que tiene */
+const hornoFabTxt=m=>{if(!m.hornoFab)return"";const[y,mo]=m.hornoFab.split("-").map(Number),h=hoy(),a=+h.slice(0,4)-y-((+h.slice(5,7))<mo?1:0);return"fabricado "+String(mo).padStart(2,"0")+"/"+y+" ("+(a<1?"menos de 1 año":a===1?"1 año":a+" años")+")";};
 function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const P=JSON.parse(JSON.stringify(plantilla()));let tocada=false;
   const val=JSON.parse(JSON.stringify(ex?valoresDe(m0):{}));
   const enUso=ex&&(todosMov().some(x=>x.maq===m.id)||todosPist().some(p=>p.maq===m.id));
@@ -232,11 +234,12 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
   dlg(ex?"Ficha de la "+m0.cod:"Nueva inyectora",[
     el("div",{class:"row"},[fld("Código (p. ej. F53)",codI),fld("Nave",sel("mqNave",[["Nave 1","Nave 1"],["Nave 2","Nave 2"]],m.nave,v=>m.nave=v,"—"))]),
     el("p",{class:"hint",text:"Toca lo que monta esta máquina. Vuelve a tocar para quitarlo. Si falta una opción, «＋ otra»."}),campos,
+    fld("Fecha de fabricación del horno (la de la placa)",inp("mqHFab",m.hornoFab||"",v=>m.hornoFab=v,{type:"month",max:hoy().slice(0,7)})),
     fld("Notas",inp("mqNot",m.notas,v=>m.notas=v,{autocomplete:"off"}))],
    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const cod=String(m.cod||"").trim().toUpperCase();if(!cod){toast("Pon el código");return false;}
      if(cat.maquinas.some(z=>z.id!==m.id&&z.cod.toUpperCase()===cod)){toast("Ya existe "+cod);return false;}
      const ficha={};Object.keys(val).forEach(k=>{if((val[k]||[]).length)ficha[k]=val[k];});
-     const nue=Object.assign({},m0||{},{id:ex?m0.id:cod,cod,nave:m.nave||null,notas:String(m.notas||"").trim()||null,ficha});
+     const nue=Object.assign({},m0||{},{id:ex?m0.id:cod,cod,nave:m.nave||null,notas:String(m.notas||"").trim()||null,ficha,hornoFab:/^\d{4}-\d{2}$/.test(m.hornoFab||"")?m.hornoFab:null});
      ["modelo","cierre","horno","hornoKg","canaleta","cazo","alea","molde"].forEach(k=>delete nue[k]);
      const i=cat.maquinas.findIndex(z=>z.id===nue.id);if(i>=0)cat.maquinas[i]=nue;else cat.maquinas.push(nue);
      /* lo automático se guarda donde vive: modelos de eje, artículos y Ø de pistón */

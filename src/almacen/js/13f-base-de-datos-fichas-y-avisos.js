@@ -105,7 +105,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     const reps=todasRep().filter(r=>r.env&&r.res!=="anulada"&&(r.maq===m.cod||r.maq===m.id)),repA=reps.filter(r=>r.env>=y0);
     const ultQ=E.slice().sort((a,b)=>(b.f+String(b.ts).padStart(15,"0")).localeCompare(a.f+String(a.ts).padStart(15,"0"))).find(e=>e.quien);
     ent("todo sobre",[m.cod]);frase(m.cod+" ("+zonaDe(m)+"): este año lleva "+ps.length+(ps.length===1?" cambio de pistón":" cambios de pistón")+", "+repA.length+(repA.length===1?" reparación de eje":" reparaciones de eje")+" y "+eur(eu)+" gastados.");
-    kv("Lo que monta ahora",[["Molde",moldeTxt(moldeDe(hd.molde))||"—"],["Contenedor",(contDe(hd.cont)||{}).cod||"—"],["Eje",ej?ej.cod+" · "+ejeRef(ej):"—"],["Pistón",diamDe(m)||"—"],["Horno",hornoTxt?hornoTxt(m)||"—":"—"]]);
+    kv("Lo que monta ahora",[["Molde",moldeTxt(moldeDe(hd.molde))||"—"],["Contenedor",(contDe(hd.cont)||{}).cod||"—"],["Eje",ej?ej.cod+" · "+ejeRef(ej):"—"],["Pistón",diamDe(m)||"—"],["Horno",[hornoTxt(m),hornoFabTxt(m)].filter(Boolean).join(" · ")||"—"]]);
     kv("Pistones",[["Último cambio",u?fmtF(u.f)+" ("+hace(dias(u.f,h))+") · "+u.diam+(u.resp?" · "+respTxt(u.resp):""):"—"],["Dura de media",iv.length?fmtN(Math.round(iv.reduce((s,x)=>s+x,0)/iv.length))+" días":"—"],["Cambios este año",String(ps.length)]]);
     lista("Gasto de este año",Object.entries(G).sort((a,b)=>b[1]-a[1]).map(([k,v])=>it(k,null,eur(v),null)),eur(eu));
     if(reps.length)lista("Reparaciones de eje",reps.slice(-6).reverse().map(r=>it(r.eje+" · "+fmtF(r.env),[motivoRep(r.desp),r.res==="ok"&&r.rec?"Volvió el "+fmtF(r.rec):"En el taller"],null,null)));
