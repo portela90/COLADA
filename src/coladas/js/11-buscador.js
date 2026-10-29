@@ -89,7 +89,7 @@ function donde(ok){const p=ok.map(f=>{const t=f.t;if(/^nave \d/.test(t))return"e
 /* ejemplos: recogidos en un desplegable, por temas, para no llenar la pantalla */
 const EJ_COL=[["Stock y coladas",["para cuántos días tengo aluminio","qué colada toca gastar en nave 1","coladas más antiguas del externo","todo sobre la colada C25073"]],
   ["Consumo",["qué relevo consume más este mes","consumo de este mes comparado con el pasado","qué día se consumió más este mes","cuánto aluminio se gasta por máquina en marcha"]],
-  ["Camiones",["qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
+  ["Camiones",["cuántos camiones han entrado este mes en cada nave, del proveedor y del externo","qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
   ["Dinero",["cuánto ha costado el aluminio este mes","cuánto me va a costar el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock"]],
   ["Revisar",["lo que tengo, lo que ha entrado y lo que ha consumido cada nave este mes","qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
 function ejemplos(G,pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});

@@ -208,3 +208,16 @@ test('Consultas: «lo que tengo, lo que ha entrado y lo que ha consumido cada na
   expect(t).toContain('Copiar el informe');
   expect(err).toEqual([]);
 });
+
+test('Consultas: «cuántos camiones han entrado en cada nave, del proveedor y del externo»', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
+    await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA' });
+    await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'A1' }, { i: 't1', t: 'T', f: f(-2), o: 'l1', d: 'l1', kg: 0, fa: 0, n: 'Subida entera del almacén externo (24 fardos)' }] }); });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'cuántos camiones han entrado en nave 1 y nave 2 y cuántos del almacén externo y cuántos del proveedor'); await page.waitForTimeout(300);
+  const t = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/han llegado a las naves 2 camiones: 1 del proveedor y 1 del almacén externo/);
+  expect(err).toEqual([]);
+});

@@ -1,6 +1,7 @@
 /* ---------- Buscador: «todo sobre la colada…», lo raro, previsión de coste y cruces con el Almacén ----------
    Los cruces (pistones y ejes por tonelada, resumen del mes) leen los datos del Almacén de la misma base de datos. */
-function intencionC2(q){const o={q,nave:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+function intencionC2(q){const o={q,nave:/\bnave\s*(1|uno)\b/.test(q)&&/\bnave\s*(2|dos)\b|\by (la )?(2|dos)\b/.test(q)?null:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\b(camion(es)?|cargas?|viajes?|bp)\b/.test(q)&&!/\b(quedan?|faltan?|por traer|contratad\w*|tiene que|tienen que|va a|van a|previst\w*|planificad\w*|manana|pasado manana|proxim\w*|pedir|pido)\b/.test(q)&&(/\b(cuantos|cuantas|entrad\w*|entrado|llegad\w*|llegado|venido|traid\w*|externo|proveedor(es)?|bp|subid\w*)\b/.test(q)||o.prov||periodoC(q))&&!/\bultim[oa]\b/.test(q))return M("camiones",{per:periodoC(q)});
   {const c=[/\b(tengo|tenemos|hay|stock|queda|quedan|existencias)\b/,/\b(entrad\w*|entrado|llegad\w*|recibid\w*)\b/,/\b(consum\w*|gastad\w*|gasto)\b/].filter(re=>re.test(q)).length;
     if(c>=2||/\b(informe|balance|movimiento) (de|del|por) (cada )?naves?\b|\b(informe|balance) (del )?aluminio\b|\bcada nave\b.*\b(informe|balance)\b/.test(q))return M("balance",{per:periodoC(q)});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen",{per:periodoC(q)});
@@ -38,6 +39,23 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
   const consNave=(d,hh)=>{const o={};movs().forEach(r=>{if(r.t!=="C"||!r.f||r.f<d||r.f>hh)return;const l=lotes.find(x=>x.id===r.o);if(!l)return;o[l.nave]=(o[l.nave]||0)+Math.abs(kgAp(r,S));});return o;};
   const mesesAtras=n=>{const out=[];for(let i=n-1;i>=0;i--){const d=new Date(+h.slice(0,4),+h.slice(5,7)-1-i,1);out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));}return out;};
 
+  if(E.modo==="camiones"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"},hh=P.h>h?h:P.h,Sf=conCorte(hh,saldos);
+    const V=[];todosMovs().forEach(r=>{if(r.h||!r.f||r.f<P.d||r.f>hh)return;const l=lotes.find(x=>x.id===(r.t==="E"?r.d:r.o));if(!l||!MAT[l.material])return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;
+      if(r.t==="E"){if(E.prov&&nqC(l.proveedor||r.p||"")!==nqC(E.prov))return;V.push({t:"P",f:r.f,nave:l.nave,mat:l.material,fa:Math.abs(r.fa||0),kg:Math.abs(kgAp(r,Sf)),prov:l.proveedor||r.p||"Sin proveedor",ext:dondeEn(l,r.f)==="externo",col:l.nombre,alb:r.a||l.albaran||""});}
+      else if(r.t==="T"&&!E.prov){const n=Math.abs(r.fa||0)||+((String(r.n||"").match(/(\d+) fardos/)||[])[1]||0),rt=(Sf[l.id]&&Sf[l.id].ratio)||0;V.push({t:"B",f:r.f,nave:l.nave,mat:l.material,fa:n,kg:Math.abs(r.kg||0)||Math.round(n*rt),col:l.nombre});}});
+    const pv=V.filter(x=>x.t==="P"),aN=pv.filter(x=>!x.ext),aE=pv.filter(x=>x.ext),bp=V.filter(x=>x.t==="B");
+    ent("camiones que han entrado",[P.t,E.nave,E.mat?MAT[E.mat].nom:null,E.prov]);
+    if(!V.length){frase("No ha entrado ningún camión "+perTxt(P)+".");return;}
+    const sumF=L=>L.reduce((a,x)=>a+x.fa,0),sumK=L=>L.reduce((a,x)=>a+x.kg,0),cam=n=>n+(n===1?" camión":" camiones"),porNave=L=>NAVES.map(n=>[n,L.filter(x=>x.nave===n)]).filter(z=>z[1].length);
+    if(E.prov)frase(Mayus(perTxt(P))+" han llegado "+cam(pv.length)+" de "+E.prov+" ("+porNave(pv).map(([n,L])=>n+": "+L.length).join(" · ")+")"+(aE.length?", "+aE.length+" de ellos directos al externo":"")+".");else
+    frase(Mayus(perTxt(P))+" han llegado "+(E.nave?"a "+E.nave+" ":"a las naves ")+cam(aN.length+bp.length)+": "+aN.length+" del proveedor y "+bp.length+" del almacén externo"+(aE.length?". Además, "+cam(aE.length)+" del proveedor fueron directos al externo":"")+".");
+    add(el("div",{class:"card"},[tabla(["","Del proveedor","Del externo (BP)","Total a nave"],porNave(aN.concat(bp)).map(([n,L])=>{const a=L.filter(x=>x.t==="P"),b=L.filter(x=>x.t==="B");return[n,cam(a.length)+" · "+fmt(sumF(a))+" f",cam(b.length)+" · "+fmt(sumF(b))+" f",cam(L.length)+" · "+fmt(sumK(L))+" kg"];}).concat([["Total",cam(aN.length)+" · "+fmt(sumF(aN))+" f",cam(bp.length)+" · "+fmt(sumF(bp))+" f",cam(aN.length+bp.length)+" · "+fmt(sumK(aN.concat(bp)))+" kg"]]),[1,2,3])]));
+    if(aE.length)card("Del proveedor directos al externo",[el("div",{class:"bq-lst"},aE.map(x=>it(x.col+" · "+dmyA(x.f),x.nave+" · "+MAT[x.mat].nom+" · "+x.prov,fmt(x.fa)+" f",fmt(x.kg)+" kg")))]);
+    const GP={};pv.forEach(x=>{const g=GP[x.prov]=GP[x.prov]||{n:0,fa:0,kg:0};g.n++;g.fa+=x.fa;g.kg+=x.kg;});
+    if(pv.length)card("Del proveedor, por proveedor",[el("div",{class:"bq-lst"},Object.entries(GP).sort((a,b)=>b[1].n-a[1].n).map(([p,g])=>it(p,fmt(g.fa)+" fardos · "+fmt(g.kg)+" kg",cam(g.n),null)))]);
+    card("Cada camión",[el("div",{class:"bq-lst"},V.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(x=>it(Mayus(diaLargo(x.f))+" · "+(x.t==="B"?"del externo (BP)":x.ext?"proveedor → externo":"proveedor"),[x.nave+" · "+MAT[x.mat].nom+" · "+x.col,x.t==="P"?x.prov+(x.alb?" · albarán "+x.alb:""):null],fmt(x.fa)+" f",fmt(x.kg)+" kg")))]);
+    copiar("Copiar",["CAMIONES · "+Mayus(P.t)+" ("+dmyA(P.d)+" a "+dmyA(hh)+")"].concat(porNave(aN.concat(bp)).map(([n,L])=>{const a=L.filter(x=>x.t==="P"),b=L.filter(x=>x.t==="B");return"- "+n+": "+cam(L.length)+" ("+a.length+" del proveedor, "+b.length+" del externo)";})).concat(["TOTAL a nave: "+cam(aN.length+bp.length)+" ("+aN.length+" del proveedor · "+bp.length+" del externo)",aE.length?"Del proveedor al externo: "+cam(aE.length):null].filter(Boolean)).join("\n"));
+    nota("Cada entrada con su albarán cuenta como un camión del proveedor; cada subida del almacén externo a la nave, como un camión del externo (BP).");return;}
   if(E.modo==="balance"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"},hh=P.h>h?h:P.h,d0=diaAntes(P.d);const Si=conCorte(d0,saldos),Sf=conCorte(hh,saldos);
     const R={};LINEAS.forEach(([n,m])=>{R[key(n,m)]={n,m,ini:{N:0,E:0,kgN:0,kgE:0},fin:{N:0,E:0,kgN:0,kgE:0},ent:{fa:0,kg:0},sub:{fa:0,kg:0},con:{fa:0,kg:0},aju:{fa:0,kg:0}};});
     const suma=(o,SS,f)=>lotes.forEach(l=>{const x=SS[l.id],y=R[key(l.nave,l.material)];if(!x||!y||(!x.fa&&Math.abs(x.kg)<1))return;const t=y[o];if(dondeEn(l,f)==="externo"){t.E+=x.fa;t.kgE+=x.kg;}else{t.N+=x.fa;t.kgN+=x.kg;}});
