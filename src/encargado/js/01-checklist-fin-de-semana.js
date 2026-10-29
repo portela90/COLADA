@@ -74,7 +74,7 @@ function tarjetaI(x){const [et,ec]=EST_I[x.estado]||[x.estado,""];const ic=(TIPO
     el("div",{style:"display:flex;gap:8px;align-items:center"},[el("b",{style:"flex:1;font-size:16px",text:ic+" "+x.tipo}),x.urgente&&x.estado!=="resuelta"?el("span",{class:"pill bad",text:"Urgente"}):null,el("span",{class:"pill "+ec,text:et})]),
     el("div",{class:"meta"},[x.lugar?el("span",{text:""+x.lugar}):null,el("span",{text:cuando(x.creado)+" · "+nom1(x.creado_por_n)}),x.tiene_foto?el("span",{text:"Fotos"}):null]),
     x.texto?el("div",{style:"font-size:14px",text:x.texto}):null,x.nota_res?el("div",{class:"meta",text:""+x.nota_res}):null]);}
-function detalleI(x){const ft=el("div",{class:"fotos"});
+function detalleI(x){const ft=el("div",{class:"fotos"});const conv=el("div",{style:"margin-top:12px"});cargarConv(x,conv);
   if(x.tiene_foto)rpc("enc_incidencia_foto",{p_tok:S.tok,p_id:x.id}).then(d=>{if(d)ft.appendChild(el("img",{src:d,alt:"foto",onclick:()=>verFoto(d)}));}).catch(()=>{});
   let nota="";const bot=[{t:"Cerrar",cls:"sec"}];
   const est=async e=>{await rpc("enc_incidencia_estado",{p_tok:S.tok,p_id:x.id,p_estado:e,p_nota:nota});toast(EST_I[e][0]);re();};
@@ -84,7 +84,7 @@ function detalleI(x){const ft=el("div",{class:"fotos"});
   dlg(x.tipo,el("div",null,[el("div",{class:"meta",style:"margin:0 0 8px"},[el("span",{class:"pill "+ec,text:et}),x.urgente?el("span",{class:"pill bad",text:"Urgente"}):null]),
     x.lugar?el("p",{style:"margin:0 0 6px",text:""+x.lugar}):null,x.texto?el("p",{style:"margin:0 0 6px;white-space:pre-wrap",text:x.texto}):null,
     el("p",{class:"hint",text:"Avisó "+(x.creado_por_n||"")+" · "+cuando(x.creado)+(x.resuelta_en?" · Resuelta por "+nom1(x.resuelta_por_n)+" "+cuando(x.resuelta_en):"")}),
-    x.nota_res?el("p",{text:""+x.nota_res}):null,ft,
+    x.nota_res?el("p",{text:""+x.nota_res}):null,ft,conv,
     esJefe()?fld("Respuesta para el encargado (opcional)",inp("",v=>nota=v,{placeholder:"p. ej. Pedidos guantes, llegan el lunes"})):null,
     esJefe()?el("button",{class:"btn sec peq",style:"margin-top:6px",text:"Borrar incidencia",onclick:async()=>{if(!confirm("¿Borrar esta incidencia?"))return;try{await rpc("enc_incidencia_borrar",{p_tok:S.tok,p_id:x.id});document.querySelector(".ov").remove();toast("Borrada");re();}catch(e){toast(e.message);}}}):null]),bot);}
 function formInc(x0){const x=Object.assign({tipo:"",lugar:"",texto:"",urgente:false,foto:null},x0);
@@ -190,3 +190,25 @@ async function vAjustes(v){
 pinta();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!document.querySelector(".ov")&&S.tab!=="check"&&S.tab!=="ajustes"&&S.tab!=="excel")pinta();});
 })();
+
+/* ---- Conversación de la incidencia: los dos (encargado y jefe) escriben y ven los mensajes, con foto opcional ---- */
+async function cargarConv(x,box){
+  let M; try{ M=await rpc("enc_incidencia_msgs",{p_tok:S.tok,p_id:x.id}); }catch(e){ box.textContent=e.message; return; }
+  box.textContent="";
+  box.appendChild(el("div",{class:"hd"},el("h2",{text:"Mensajes"})));
+  if(!M.length) box.appendChild(el("p",{class:"hint",text:"Todavía no hay mensajes. Escribe lo que haga falta (y una foto si ayuda)."}));
+  M.forEach(m=>{ const f=el("div",{class:"fotos"});
+    if(m.tiene_foto) rpc("enc_incidencia_msg_foto",{p_tok:S.tok,p_id:m.id}).then(d=>{ if(d) f.appendChild(el("img",{src:d,alt:"foto",onclick:()=>verFoto(d)})); }).catch(()=>{});
+    box.appendChild(el("div",{class:"linea",style:"display:grid;gap:4px"},[el("div",{class:"meta",text:nom1(m.quien_n)+" · "+cuando(m.creado)}),m.texto?el("div",{style:"white-space:pre-wrap",text:m.texto}):null,f])); });
+  let txt="", foto=null;
+  const ft=el("div",{class:"fotos"});
+  const pf=()=>{ ft.textContent=""; if(foto) ft.appendChild(el("img",{src:foto,alt:"foto",onclick:()=>verFoto(foto)})); };
+  const ta=area("",v=>txt=v,2); ta.placeholder="Escribe un mensaje…";
+  const enviar=el("button",{class:"btn sec peq",text:"Enviar",onclick:async e=>{ const b=e.currentTarget;
+    if(!txt.trim()&&!foto){ toast("Escribe algo o añade una foto"); return; }
+    busy(b,true);
+    try{ await rpc("enc_incidencia_responder",{p_tok:S.tok,p_id:x.id,p:{texto:txt,foto:foto}}); toast("Enviado"); cargarConv(x,box); }
+    catch(err){ busy(b,false); toast(err.message,true); } }});
+  box.appendChild(ta); box.appendChild(ft);
+  box.appendChild(el("div",{class:"row",style:"margin:6px 0 0"},[botonFoto("Añadir foto",d=>{ foto=d; pf(); }),enviar]));
+}
