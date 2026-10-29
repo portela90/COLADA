@@ -79,12 +79,10 @@ async function pantallaEncToolbox(a,mes){
   catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
   const tr=id=>trab.find(t=>t.id===id)||{id,nombre:'(sin nombre)',categoria:''};
   const lista=(d.sesion.previstos||[]).map(tr);
-  let h=htmlLectura(d.toolbox)+`<div class="card"><label class="check"><input type="checkbox" id="leido"><span>El trabajador ha leído (o le he explicado) este Toolbox y lo ha entendido.</span></label>
-    <div class="small muted" style="margin-top:6px">Marca esto antes de recoger cada firma.</div></div>`;
+  let h=htmlLectura(d.toolbox);
   h+=`<div class="h2">Firmas</div><div class="card">`+(lista.map(t=>{ const f=d.firmas.find(x=>x.trabajador===t.id);
-    return `<div class="li"><span class="dot ${f?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span><br><span class="small muted">${f?'Firmó '+fmtFH(f.firmado_en):esc(t.categoria||'Pendiente')}</span></span>${f?`<img class="sg" src="${f.firma}" alt="">`:`<button class="btn ghost" data-sig="${esc(t.id)}" disabled>Firmar</button>`}</div>`; }).join('')||`<div class="empty">Nadie convocado.</div>`)+`</div>`;
+    return `<div class="li"><span class="dot ${f?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span><br><span class="small muted">${f?'Firmó '+fmtFH(f.firmado_en):esc(t.categoria||'Pendiente')}</span></span>${f?`<img class="sg" src="${f.firma}" alt="">`:`<button class="btn ghost" data-sig="${esc(t.id)}">Firmar</button>`}</div>`; }).join('')||`<div class="empty">Nadie convocado.</div>`)+`</div>`;
   $('#w').innerHTML=h;
-  $('#leido').onchange=()=>document.querySelectorAll('[data-sig]').forEach(b=>b.disabled=!$('#leido').checked);
   document.querySelectorAll('[data-sig]').forEach(b=>b.onclick=()=>{ const t=tr(b.dataset.sig);
     hojaFirma(t.nombre, `Toolbox de ${MESES[mes-1]}: ${esc(d.toolbox.compromiso||'')}<br>Al firmar confirma que ha recibido esta formación.`, async png=>{
       await rpc('prl_firmar',{p_tok:S.tok,p_anio:a,p_mes:mes,p_trab:t.id,p_puesto:t.categoria||'',p_firma:png});
