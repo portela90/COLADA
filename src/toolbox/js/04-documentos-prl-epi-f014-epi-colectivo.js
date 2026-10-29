@@ -172,8 +172,8 @@ function sumaMeses(f,n){ const d=new Date(f+'T12:00:00'); d.setMonth(d.getMonth(
 async function pantallaDocEditar(tipo, d){
   pararVoz(); const nuevo=!d; d=d||{datos:{}}; tipo=tipo||d.tipo; const x=JSON.parse(JSON.stringify(d.datos||{}));
   view(barra((nuevo?'Nuevo: ':'Editar: ')+DOC_INFO[tipo].t, `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"><div class="empty"><span class="spin dk"></span></div></div>`);
-  $('#bk').onclick=()=> nuevo? pantallaDocumentos() : pantallaDocDetalle(d.id);
-  try{ S.trabX=await rpc('prl_trab_lista',{p_tok:S.tok}); S.cfg=await rpc('prl_config_leer',{p_tok:S.tok}); }catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
+  $('#bk').onclick=()=> nuevo? docsVolver() : docVer(d.id);
+  try{ S.trabX=await rpc('prl_trab_lista',{p_tok:S.tok}); S.cfg=S.yo.rol==='admin'? await rpc('prl_config_leer',{p_tok:S.tok}) : {}; }catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
   const ops=S.trabX.filter(t=>t.rol==='operario');
   let h='';
   if(tipo!=='botiquin'){
@@ -263,7 +263,7 @@ async function pantallaDocEditar(tipo, d){
     busy(btn,true);
     try{ const r=await rpc('prl_doc_guardar',{p_tok:S.tok,p});
       if(enviar){ const e=await rpc('prl_doc_enviar',{p_tok:S.tok,p_ids:r.ids}); toast(`Guardado y enviado a ${e.avisados}`); } else toast('Guardado');
-      nuevo && r.ids.length>1 ? pantallaDocumentos() : pantallaDocDetalle(r.ids[0]); }
+      nuevo && r.ids.length>1 ? docsVolver() : docVer(r.ids[0]); }
     catch(err){ busy(btn,false); toast(err.message,true); } };
   $('#g1').onclick=e=>guardar(false,e.currentTarget); if($('#g2')) $('#g2').onclick=e=>guardar(true,e.currentTarget);
 }

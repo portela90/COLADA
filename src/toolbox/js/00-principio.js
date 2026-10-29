@@ -114,10 +114,11 @@ async function inicio(){
   // Enlace directo a un mes (desde el aviso del móvil o el botón de la app de limpieza)
   let a=null,m=null,f=null; try{ const q=new URLSearchParams(location.search); a=+q.get('a')||null; m=+q.get('m')||null; f=q.get('f'); S._d=q.get('d'); if(q.get('s')==='form') S.seccion='form'; history.replaceState(null,'',location.pathname); }catch(e){}
   const dq=new URLSearchParams(location.search).get('d')||S._d;
-  if(dq && /^[0-9a-f-]{36}$/i.test(dq)){ if(S.yo.rol==='admin'){ S.seccion='docs'; return pantallaDocDetalle(dq); } return pantallaDocLeer(dq); }
+  if(dq && /^[0-9a-f-]{36}$/i.test(dq)){ if(S.yo.rol==='admin'){ S.seccion='docs'; return pantallaDocDetalle(dq); } if(S.yo.encargado) return pantallaEncDoc(dq); return pantallaDocLeer(dq); }
   if(f && /^[0-9a-f-]{36}$/i.test(f)){ if(S.yo.rol==='admin'){ S.seccion='form'; return pantallaFormDetalle(f); } return pantallaFormLeer(f); }
   if(a&&m){ S.anio=a; return S.yo.rol==='admin' ? pantallaMes(m) : pantallaLeer(a,m); }
   if(S.yo.rol==='admin') return pantallaAnio();
+  if(S.yo.encargado) return pantallaEncargado();
   return pantallaOperario();
 }
 
