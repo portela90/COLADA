@@ -39,3 +39,19 @@ function tarjetaFinde(o,sab,dom,recargar){
     hecha?null:elegir
   ]));
 }
+
+/* ---------------- HOY (pantalla de inicio del encargado) ---------------- */
+async function vHoy(v){
+  const h=hoyISO();
+  v.appendChild(el("div",{class:"h2",style:"margin-top:0",text:"Hoy · "+fCorta(h)}));
+  const bloque=(titulo,texto,fn,aviso)=>el("button",{class:"card",type:"button",style:"width:100%;text-align:left;display:grid;gap:4px;margin:0 0 10px;cursor:pointer",onclick:fn},[
+    el("div",{style:"display:flex;gap:8px;align-items:center"},[el("b",{style:"flex:1;font-size:17px",text:titulo}),aviso?el("span",{class:"pill warn",text:aviso}):null]),
+    el("span",{class:"meta",text:texto})]);
+  const ir=t=>()=>{S.tab=t;ls.set("enc.tab",t);pinta();window.scrollTo(0,0);};
+  v.appendChild(bloque("Trabajos del fin de semana","Revísalos a primera hora y cambia el día si hace falta",ir("excel")));
+  v.appendChild(bloque("Checklist de hoy","Lo que hay que revisar en la nave",ir("check")));
+  const ab=S.res.inc_abiertas||0, ur=S.res.inc_urgentes||0;
+  v.appendChild(bloque("Problemas abiertos",ab?(ab+" sin resolver"+(ur?" · "+ur+" urgente"+(ur>1?"s":""):"")):"No hay ninguno abierto",ir("inc"),ur?"Urgente":null));
+  const sin=S.res.traspasos_sin_leer||0;
+  v.appendChild(bloque("Instrucciones de Cristian",sin?(sin+" sin leer"):"Al día",ir("inicio"),sin?"Nuevo":null));
+}

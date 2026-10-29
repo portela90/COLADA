@@ -59,7 +59,7 @@ const tipoDe=it=>/m[aá]quina|fregadora|barredora|aspirador|plataforma|carretill
 const TIPOS=[["Faltan EPIs",""],["Falta material",""],["Máquina averiada",""],["Derrame / limpieza urgente",""],["Seguridad",""],["Instalaciones (luz, agua, puertas…)",""],["Otro",""]];
 const EST_I={abierta:["Abierta","bad"],en_proceso:["En proceso","warn"],resuelta:["Resuelta","ok"]};
 async function vInc(v){
-  if(!esJefe())v.appendChild(el("button",{class:"btn grande bad",text:"Avisar de una incidencia",onclick:()=>formInc({})}));
+  if(!esJefe())v.appendChild(el("button",{class:"btn grande bad",text:"Avisar de un problema",onclick:()=>formInc({})}));
   else v.appendChild(el("p",{class:"hint",text:"Las incidencias que avisa el encargado. Cuando la soluciones, márcala como resuelta y le llega el aviso."}));
   const box=el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);
   let L;try{L=await rpc("enc_incidencias",{p_tok:S.tok});}catch(e){box.firstChild.textContent=e.message;return;}
@@ -90,7 +90,7 @@ function detalleI(x){const ft=el("div",{class:"fotos"});const conv=el("div",{sty
 function formInc(x0){const x=Object.assign({tipo:"",lugar:"",texto:"",urgente:false,foto:null},x0);
   const tipos=el("div",{class:"chips"});const pt=()=>{tipos.textContent="";TIPOS.forEach(([t,i])=>tipos.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(x.tipo===t),text:i+" "+t,onclick:()=>{x.tipo=t;pt();}})));};pt();
   const ft=el("div",{class:"fotos"});const pf=()=>{ft.textContent="";if(x.foto)ft.appendChild(el("img",{src:x.foto,alt:"foto",onclick:()=>verFoto(x.foto)}));};pf();
-  dlg("Avisar de una incidencia",el("div",null,[el("div",{class:"f"},[el("span",{text:"¿Qué pasa?"}),tipos]),
+  dlg("Avisar de un problema",el("div",null,[el("div",{class:"f"},[el("span",{text:"¿Qué pasa?"}),tipos]),
     fld("¿Dónde?",inp(x.lugar,v=>x.lugar=v,{placeholder:"p. ej. Nave 2, F28, vestuario…"})),
     fld("Explica un poco",area(x.texto,v=>x.texto=v,3)),
     el("label",{style:"display:flex;gap:10px;align-items:center;margin:0 0 10px;font-weight:700;color:var(--bad)"},[el("input",{type:"checkbox",checked:x.urgente,style:"width:22px;height:22px",onchange:e=>x.urgente=e.target.checked}),"Es urgente (hay que solucionarlo ya)"]),

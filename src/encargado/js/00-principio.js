@@ -30,15 +30,22 @@ function comprime(f){return new Promise((ok,ko)=>{const r=new FileReader();r.onl
 function verFoto(src){const v=el("div",{class:"visor",onclick:()=>v.remove()},el("img",{src,alt:"foto"}));document.body.appendChild(v);}
 function botonFoto(txt,on){return el("label",{class:"btn sec peq",style:"cursor:pointer"},[txt,el("input",{type:"file",accept:"image/*",style:"display:none",onchange:async e=>{const f=e.target.files[0];if(!f)return;try{on(await comprime(f));}catch(er){toast("Esa foto no se ha podido leer");}e.target.value="";}})]);}
 
-const S={tok:ls.get("limp.tok"),yo:JSON.parse(ls.get("limp.yo")||"null"),tab:ls.get("enc.tab")||"inicio",rol:null,res:null};
+const S={tok:ls.get("limp.tok"),yo:JSON.parse(ls.get("limp.yo")||"null"),tab:ls.get("enc.tab")||"hoy",rol:null,res:null};
 const Q=new URLSearchParams(location.search);const IR={t:Q.get("t"),c:Q.get("c"),i:Q.get("i")};
 if(IR.t)S.tab="inicio";if(IR.c)S.tab="check";if(IR.i)S.tab="inc";
 if(Q.toString())history.replaceState(null,"",location.pathname);
 const esJefe=()=>S.rol==="admin";
 
 const TABS=[["inicio","","Instrucciones"],["excel","","Trabajos"],["check","","Checklist"],["inc","","Incidencias"]];
+/* Encargado: dos pestañas (Hoy e Incidencias). Instrucciones, trabajos y checklist se abren desde Hoy. */
+const SUB_ENC=["inicio","excel","check"];
 function pintaNav(){const n=$("nav");n.hidden=false;n.textContent="";
-  const L=TABS.concat(esJefe()?[["ajustes","","Ajustes"]]:[]);
+  if(!esJefe()){
+    [["hoy","Hoy"],["inc","Incidencias"]].forEach(([k,t])=>{const act=k==="hoy"?(S.tab==="hoy"||SUB_ENC.includes(S.tab)):S.tab===k;
+      const cnt=k==="inc"?S.res.inc_abiertas:0;
+      n.appendChild(el("button",{"aria-selected":String(act),onclick:()=>{S.tab=k;ls.set("enc.tab",k);pinta();window.scrollTo(0,0);}},[el("span",{text:""}),t,cnt?el("b",{class:"n",text:String(cnt)}):null]));});
+    return;}
+  const L=TABS.concat([["ajustes","","Ajustes"]]);
   L.forEach(([k,i,t])=>{const cnt=k==="inicio"&&!esJefe()?S.res.traspasos_sin_leer:k==="inc"?S.res.inc_abiertas:0;
     n.appendChild(el("button",{"aria-selected":String(S.tab===k),onclick:()=>{S.tab=k;ls.set("enc.tab",k);pinta();window.scrollTo(0,0);}},[el("span",{text:i}),t,cnt?el("b",{class:"n",text:String(cnt)}):null]));});}
 
@@ -48,9 +55,13 @@ async function pinta(){const v=$("v");v.textContent="";
   try{S.res=await rpc("enc_resumen",{p_tok:S.tok});}catch(e){v.appendChild(el("div",{class:"empty",text:e.message}));return;}
   S.rol=S.res.rol;
   if(S.rol==="no"){v.appendChild(el("div",{class:"card"},el("div",{class:"bd"},[el("p",{text:"Este apartado es solo para el encargado y el jefe."}),el("a",{class:"btn",href:"limpieza.html",text:"Volver a la app"})])));return;}
-  if(S.tab==="ajustes"&&!esJefe())S.tab="inicio";
+  if(S.tab==="ajustes"&&!esJefe())S.tab="hoy";
+  if(esJefe()&&S.tab==="hoy")S.tab="inicio";
+  if(!esJefe()&&!["hoy","inc"].includes(S.tab)&&!SUB_ENC.includes(S.tab))S.tab="hoy";
   pintaNav();
-  ({inicio:vInicio,excel:vExcel,check:vCheck,inc:vInc,ajustes:vAjustes})[S.tab](v);}
+  if(!esJefe()&&SUB_ENC.includes(S.tab)){ /* secciones abiertas desde Hoy: botón para volver */
+    v.appendChild(el("button",{class:"btn sec peq",style:"margin-bottom:10px",text:"‹ Hoy",onclick:()=>{S.tab="hoy";ls.set("enc.tab","hoy");pinta();window.scrollTo(0,0);}})); }
+  ({hoy:vHoy,inicio:vInicio,excel:vExcel,check:vCheck,inc:vInc,ajustes:vAjustes})[S.tab](v);}
 const re=()=>pinta();
 
 /* ---------------- INSTRUCCIONES ---------------- */
