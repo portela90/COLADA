@@ -50,8 +50,6 @@ async function vHoy(v){
   const ir=t=>()=>{S.tab=t;ls.set("enc.tab",t);pinta();window.scrollTo(0,0);};
   v.appendChild(bloque("Trabajos del fin de semana","Revísalos a primera hora y cambia el día si hace falta",ir("excel")));
   v.appendChild(bloque("Checklist de hoy","Lo que hay que revisar en la nave",ir("check")));
-  const ab=S.res.inc_abiertas||0, ur=S.res.inc_urgentes||0;
-  v.appendChild(bloque("Problemas abiertos",ab?(ab+" sin resolver"+(ur?" · "+ur+" urgente"+(ur>1?"s":""):"")):"No hay ninguno abierto",ir("inc"),ur?"Urgente":null));
   const sin=S.res.traspasos_sin_leer||0;
   v.appendChild(bloque("Instrucciones de Cristian",sin?(sin+" sin leer"):"Al día",ir("inicio"),sin?"Nuevo":null));
 }
