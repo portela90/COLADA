@@ -242,3 +242,20 @@ test('Consultas: el buscador aprende (enseñar una palabra, guardar la pregunta 
   expect(T.consultas_log[0]).toMatchObject({ app: 'coladas', util: 1 });
   expect(err).toEqual([]);
 });
+
+test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
+    await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA', albaran: 'ALB-7788' });
+    await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'ALB-7788' }] }); });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'albarán ALB-7788'); await page.waitForTimeout(300);
+  await page.locator('.bq-res button', { hasText: 'Abrir el albarán ALB-7788' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.alb-ov')).toBeVisible();
+  await page.evaluate(() => document.querySelector('.alb-ov').remove());
+  await page.fill('#bqQ', 'entradas de este mes'); await page.waitForTimeout(300);
+  await page.locator('.bq-res td button.linkcol', { hasText: 'ALB-7788' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.alb-ov')).toBeVisible();
+  expect(err).toEqual([]);
+});

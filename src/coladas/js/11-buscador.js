@@ -107,6 +107,8 @@ function vBuscaCol(resto){
     if(!nqC(bq.q)){sug.classList.add("bq-ej");const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplos(EJ_COL,pon,bq));return;}
     sug.classList.remove("bq-ej");
     const E=entenderC(window.BuscaAprende?BuscaAprende.aplicar("coladas",bq.q):bq.q),S=saldos();
+    {const qa=" "+nqC(bq.q).replace(/\s+/g," ")+" ",AL=albaranes(),hit=Object.values(AL).filter(a=>{const k=albKey(a.alb);return k.length>=4&&(qa.replace(/\s/g,"").includes(k));}).slice(0,3);
+      if(hit.length)res.appendChild(el("div",{class:"bq-ult"},[el("div",{class:"sub",text:hit.length===1?"Albarán encontrado":"Albaranes encontrados"})].concat(hit.map(a=>el("button",{type:"button",class:"btn",style:"justify-self:start",text:"Abrir el albarán "+a.alb+(a.prov?" · "+a.prov:"")+(a.f?" · "+dmyA(a.f):""),onclick:()=>abrirAlbaran(a.alb)})))));}
     if(E.modo==="precio")return pintaPrecio(E,res);
     if(E.modo==="fut")return pintaFut(E,res);
     if(E.modo==="dias")return pintaDias(E,res);
@@ -131,7 +133,7 @@ function vBuscaCol(resto){
     if(mov&&(E.ultimo||E.primero)){const x=E.primero?L.slice().sort((a,b)=>a.f.localeCompare(b.f))[0]:L.slice().sort((a,b)=>b.f.localeCompare(a.f))[0];
       res.appendChild(el("div",{class:"bq-ult"},[el("div",{class:"sub",text:(E.primero?"La primera":"La última")+" "+(x.tipo==="Entrada"?"entrada":x.tipo.toLowerCase())+(ok.length?" ("+ok.map(f=>f.t).join(", ")+")":"")}),
         el("b",{class:"bq-ult-f",text:dmyA(x.f)}),el("div",{text:[x.colada,x.aleacion,x.nave,x.relevo,fmt(x.kg)+" kg",x.fa?fmt(x.fa)+" fardos":null,x.prov,x.alb?"albarán "+x.alb:null].filter(Boolean).join(" · ")}),
-        x.l?el("button",{type:"button",class:"btn sec",style:"justify-self:start;margin-top:6px",text:"Ver la colada",onclick:()=>abrirFicha(x.l.id)}):null]));}
+        el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"},[x.l?el("button",{type:"button",class:"btn sec",text:"Ver la colada",onclick:()=>abrirFicha(x.l.id)}):null,x.alb?el("button",{type:"button",class:"btn sec",text:"Ver el albarán",onclick:()=>abrirAlbaran(x.alb)}):null])]));}
     const dond=donde(ok),fa_=n=>fmt(n)+(n===1?" fardo":" fardos"),soloE=E.tipos.length===1&&E.tipos[0]==="E",soloC=E.tipos.length===1&&E.tipos[0]==="C";
     const nAlb=mov?new Set(L.map(x=>x.r.a||x.r.i)).size:0;
     const frase=!mov?"Hay "+fmt(sKg)+" kg ("+fa_(sFa)+")"+dond+" en "+L.length+(L.length===1?" colada.":" coladas.")
@@ -161,7 +163,7 @@ function vBuscaCol(resto){
     const cs=cols.filter(c=>R.some(x=>x[c[1]]!==""&&x[c[1]]!=null));
     res.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:L.length+(mov?(L.length===1?" apunte":" apuntes"):(L.length===1?" colada":" coladas"))})]),
       el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},cs.map(c=>el("th",{class:c[1]==="kg"||c[1]==="fa"?"r":"",text:c[0]})))]),
-        el("tbody",{},R.map(x=>el("tr",{},cs.map(c=>el("td",{class:c[1]==="kg"||c[1]==="fa"?"r num":"","data-l":c[0]},c[1]==="colada"&&x.l?[el("button",{type:"button",class:"linkcol",text:x.colada,onclick:()=>abrirFicha(x.l.id)})]:[document.createTextNode(c[1]==="kg"||c[1]==="fa"?fmt(x[c[1]]):String(x[c[1]]||""))])))))])]),
+        el("tbody",{},R.map(x=>el("tr",{},cs.map(c=>el("td",{class:c[1]==="kg"||c[1]==="fa"?"r num":"","data-l":c[0]},c[1]==="colada"&&x.l?[el("button",{type:"button",class:"linkcol",text:x.colada,onclick:()=>abrirFicha(x.l.id)})]:c[1]==="alb"&&x.alb?[el("button",{type:"button",class:"linkcol",text:x.alb,onclick:()=>abrirAlbaran(x.alb)})]:[document.createTextNode(c[1]==="kg"||c[1]==="fa"?fmt(x[c[1]]):String(x[c[1]]||""))])))))])]),
       L.length>300?el("p",{class:"hint",style:"padding:8px 14px",text:"Salen los 300 primeros. Acota con más palabras o un periodo."}):null]));}
   function pintaFut(E,res){const h=hoy(),P=E.per;const nv=E.filtros.find(f=>/^nave/.test(f.t)),mt=E.filtros.find(f=>/^alsi/.test(f.t)),ex=E.filtros.some(f=>f.t==="externo");
     const todas=[];Object.keys(cfg.plan||{}).forEach(mm=>((cfg.plan[mm]||{}).entradas||[]).forEach(x=>{if(!x.rec&&x.f)todas.push(x);}));

@@ -413,3 +413,16 @@ test('Consultas: «qué pistones tengo en nave 2» da el stock de los almacenes 
   expect(await resp('consumo de pistones en nave 2')).toMatch(/Cambios de pistón/);
   expect(err).toEqual([]);
 });
+
+test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.mov[k].items.push({ id: 'ea1', f: '2026-10-20', ts: 1, alm: 'gen', art: 'pist-80', cant: 5, tipo: 'entrada', alb: '001465A26' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'albarán 001465A26'); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Abrir el albarán 001465A26' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.dlg').last()).toContainText('Pistón Ø 80');
+  expect(err).toEqual([]);
+});
