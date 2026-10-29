@@ -14,8 +14,9 @@ async function pantallaEncargado(){
       <button class="mcard" data-nuevo="epi" style="min-height:auto"><span class="mn" style="font-size:15px">＋ Entrega de EPI</span><span class="tt">SH-CORP-SP-FO-014</span></button>
       <button class="mcard" data-nuevo="epi_col" style="min-height:auto"><span class="mn" style="font-size:15px">＋ EPI de uso colectivo</span><span class="tt">SH-CORP-SP-FO-072</span></button>
     </div>
+    <div id="tbx"></div>
     <div id="w" class="empty"><span class="spin dk"></span></div></div>`);
-  $('#out').onclick=volverLimpieza;
+  $('#out').onclick=volverLimpieza; cargarTbxEnc();
   $('#prev').onclick=()=>{S.anio--; pantallaEncargado();}; $('#next').onclick=()=>{S.anio++; pantallaEncargado();};
   document.querySelectorAll('[data-nuevo]').forEach(b=>b.onclick=()=>pantallaDocEditar(b.dataset.nuevo));
   let L; try{ L=await rpc('prl_doc_lista',{p_tok:S.tok,p_anio:S.anio}); }catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
@@ -52,4 +53,40 @@ async function pantallaEncDoc(id){
       await rpc('prl_doc_firmar_enc',{p_tok:S.tok,p_id:id,p_firma:png}); toast('Firma guardada'); pantallaEncDoc(id); });
   }
   $('#edit').onclick=()=>pantallaDocEditar(d.tipo,d);
+}
+
+/* ---- Toolbox del mes: el encargado recoge en su móvil las firmas de los operarios convocados ---- */
+async function cargarTbxEnc(){
+  const hoy=new Date(), y=hoy.getFullYear(), m=hoy.getMonth()+1;
+  const cand=[[y,m],[m===1?y-1:y,m===1?12:m-1]];   // mes actual y el anterior (por si aún está abierto)
+  for(const [a,mes] of cand){
+    let d; try{ d=await rpc('prl_mes',{p_tok:S.tok,p_anio:a,p_mes:mes}); }catch(e){ continue; }
+    if(!d.sesion||!d.sesion.enviada_en||d.sesion.estado==='cerrada') continue;
+    const convocados=(d.sesion.previstos||[]).length, firmados=d.firmas.filter(f=>(d.sesion.previstos||[]).includes(f.trabajador)).length;
+    const box=$('#tbx'); if(!box) return;
+    box.innerHTML=`<div class="card"><b>Toolbox de ${MESES[mes-1]}</b><div class="small muted" style="margin:4px 0 10px">${firmados} de ${convocados} firmas</div><button class="btn big" id="tbxgo">Recoger firmas del Toolbox</button></div>`;
+    $('#tbxgo').onclick=()=>pantallaEncToolbox(a,mes);
+    return;
+  }
+}
+
+async function pantallaEncToolbox(a,mes){
+  pararVoz();
+  view(barra(`Toolbox de ${MESES[mes-1]}`, `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"><div class="empty"><span class="spin dk"></span></div></div>`);
+  $('#bk').onclick=()=>pantallaEncargado();
+  let d, trab;
+  try{ [d,trab]=await Promise.all([rpc('prl_mes',{p_tok:S.tok,p_anio:a,p_mes:mes}), rpc('prl_trabajadores',{p_tok:S.tok})]); }
+  catch(e){ $('#w').innerHTML=`<div class="card">${esc(e.message)}</div>`; return; }
+  const tr=id=>trab.find(t=>t.id===id)||{id,nombre:'(sin nombre)',categoria:''};
+  const lista=(d.sesion.previstos||[]).map(tr);
+  let h=htmlLectura(d.toolbox)+`<div class="card"><label class="check"><input type="checkbox" id="leido"><span>El trabajador ha leído (o le he explicado) este Toolbox y lo ha entendido.</span></label>
+    <div class="small muted" style="margin-top:6px">Marca esto antes de recoger cada firma.</div></div>`;
+  h+=`<div class="h2">Firmas</div><div class="card">`+(lista.map(t=>{ const f=d.firmas.find(x=>x.trabajador===t.id);
+    return `<div class="li"><span class="dot ${f?'ok':''}"></span><span class="grow"><span class="nm">${esc(t.nombre)}</span><br><span class="small muted">${f?'Firmó '+fmtFH(f.firmado_en):esc(t.categoria||'Pendiente')}</span></span>${f?`<img class="sg" src="${f.firma}" alt="">`:`<button class="btn ghost" data-sig="${esc(t.id)}" disabled>Firmar</button>`}</div>`; }).join('')||`<div class="empty">Nadie convocado.</div>`)+`</div>`;
+  $('#w').innerHTML=h;
+  $('#leido').onchange=()=>document.querySelectorAll('[data-sig]').forEach(b=>b.disabled=!$('#leido').checked);
+  document.querySelectorAll('[data-sig]').forEach(b=>b.onclick=()=>{ const t=tr(b.dataset.sig);
+    hojaFirma(t.nombre, `Toolbox de ${MESES[mes-1]}: ${esc(d.toolbox.compromiso||'')}<br>Al firmar confirma que ha recibido esta formación.`, async png=>{
+      await rpc('prl_firmar',{p_tok:S.tok,p_anio:a,p_mes:mes,p_trab:t.id,p_puesto:t.categoria||'',p_firma:png});
+      toast('Firma guardada'); pantallaEncToolbox(a,mes); }); });
 }

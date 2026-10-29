@@ -116,3 +116,52 @@ begin t := _admin_o_enc(p_tok);
     from prl_doc d where not d.borrado and extract(year from d.fecha)=p_anio
     and (t.rol='admin' or d.tipo in ('epi','epi_col'))),'[]');
 end $function$;
+
+-- 7) Toolbox mensual: el encargado recoge en su móvil la firma de los operarios convocados
+--    (prl_firmar comprueba que el firmante está convocado; prl_mes le deja ver las firmas del mes)
+create or replace function public.prl_firmar(p_tok uuid, p_anio integer, p_mes integer, p_trab uuid, p_puesto text, p_firma text)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare t trabajadores; w trabajadores; s prl_sesion;
+begin t:=_yo(p_tok);
+  if p_trab<>t.id and t.rol<>'admin' and not _es_enc(t) then raise exception 'NO_ADMIN'; end if;
+  if p_firma is null or p_firma !~ '^data:image/(png|jpeg);base64,' or length(p_firma) > 400000 then raise exception 'FIRMA_INVALIDA'; end if;
+  if not exists(select 1 from prl_toolbox where anio=p_anio and mes=p_mes) then raise exception 'SIN_TOOLBOX'; end if;
+  select * into w from trabajadores where id=p_trab and activo;
+  if not found then raise exception 'NO_EXISTE'; end if;
+  if t.rol<>'admin' then
+    select * into s from prl_sesion where anio=p_anio and mes=p_mes;
+    if s.id is null or s.enviada_en is null or not (w.id = any(s.previstos)) then raise exception 'NO_ENVIADO'; end if;
+  else
+    s := _prl_sesion(p_anio,p_mes);
+  end if;
+  if s.estado='cerrada' then raise exception 'CERRADA'; end if;
+  insert into prl_firma(sesion,trabajador,nombre,puesto,firma,por)
+  values (s.id,w.id,w.nombre,coalesce(nullif(trim(p_puesto),''),w.categoria),p_firma,t.id)
+  on conflict (sesion,trabajador) do update set puesto=excluded.puesto, firma=excluded.firma, por=excluded.por, firmado_en=now();
+  if not (w.id = any(s.previstos)) then update prl_sesion set previstos=array_append(previstos,w.id) where id=s.id; end if;
+  return jsonb_build_object('ok',true);
+end $function$;
+
+create or replace function public.prl_mes(p_tok uuid, p_anio integer, p_mes integer)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare t trabajadores; s prl_sesion; tb prl_toolbox; adm boolean;
+begin t:=_yo(p_tok); adm := t.rol='admin' or _es_enc(t);
+  select * into tb from prl_toolbox where anio=p_anio and mes=p_mes;
+  if not found then raise exception 'SIN_TOOLBOX'; end if;
+  select * into s from prl_sesion where anio=p_anio and mes=p_mes;
+  return jsonb_build_object(
+    'toolbox', to_jsonb(tb),
+    'sesion', case when s.id is null then null else to_jsonb(s) end,
+    'firmas', coalesce((select jsonb_agg(jsonb_build_object('id',f.id,'trabajador',f.trabajador,'nombre',f.nombre,'puesto',f.puesto,
+                 'firmado_en',f.firmado_en,'firma',f.firma) order by f.firmado_en)
+               from prl_firma f where f.sesion=s.id and (adm or f.trabajador=t.id)),'[]'),
+    'yo', jsonb_build_object('id',t.id,'nombre',t.nombre,'rol',t.rol,'categoria',t.categoria));
+end $function$;
