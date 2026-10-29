@@ -45,14 +45,15 @@ function diaPersona(w,f,c,re){const L=c.ots;
       o.estado==="hecha"?null:el("button",{class:"btn sec peq",text:"Pasar a otro",onclick:()=>{document.querySelectorAll(".ov").forEach(x=>x.remove());formOT(o,re);}})]))):el("p",{class:"empty",text:"No tiene trabajos asignados."})]),
     [{t:"＋ Darle trabajo",fn:()=>{setTimeout(()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana",asignados:[w.id]},re),0);}},{t:"Ver el día",cls:"sec",fn:()=>{S.fecha=f;S.tab="hoy";S.fil={quien:w.nombre};pinta();}},{t:"Cerrar",cls:"sec"}]);}
 /* ---------- corregir y borrar ---------- */
-const puedoEditar=o=>esAdm()||(o.creado_por===S.yo.id&&o.fecha>=sumaD(hoyISO(),-1)&&o.estado!=="hecha");
+const puedoEditar=o=>esAdm()||(esEnc()&&o.estado!=="hecha")||(o.creado_por===S.yo.id&&o.fecha>=sumaD(hoyISO(),-1)&&o.estado!=="hecha");
 const puedoTiempo=o=>o.estado==="hecha"&&(esAdm()||o.hecho_por===S.yo.id);
 function cerrarTodo(){document.querySelectorAll(".ov").forEach(x=>x.remove());}
-function editarOT(o,re){if(esAdm()){formOT(o,re);return;}const x={titulo:o.titulo,lugar:o.lugar||"",descripcion:o.descripcion||"",urgente:o.prioridad==="alta"};
-  dlg("Corregir la OT",el("div",null,[fld("¿Qué hay que hacer?",inp(x.titulo,v=>x.titulo=v)),fld("¿Dónde?",inp(x.lugar,v=>x.lugar=v)),fld("Detalles",area(x.descripcion,v=>x.descripcion=v)),
+function editarOT(o,re){if(esAdm()){formOT(o,re);return;}const x={titulo:o.titulo,lugar:o.lugar||"",descripcion:o.descripcion||"",urgente:o.prioridad==="alta",fecha:o.fecha};
+  /* el encargado puede cambiar el día en que se hace (p. ej. pasar un trabajo del sábado al domingo) */
+  dlg("Corregir la OT",el("div",null,[fld("¿Qué hay que hacer?",inp(x.titulo,v=>x.titulo=v)),...(esEnc()&&o.estado!=="hecha"?[fld("Día en que se hace",inp(x.fecha,v=>x.fecha=v,{type:"date"}))]:[]),fld("¿Dónde?",inp(x.lugar,v=>x.lugar=v)),fld("Detalles",area(x.descripcion,v=>x.descripcion=v)),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:x.urgente,onchange:e=>x.urgente=e.target.checked}),"Urgente"])]),
     [{t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar este trabajo? Se quita de la lista."))return false;await rpc("ot_mia_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}},
-     {t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(esProblema(x.titulo,x.descripcion)&&!(x.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_mia_editar",{p_tok:S.tok,p_ot:o.id,p:x});toast("Corregida");re();}}]);}
+     {t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!o.habitual_id&&esProblema(x.titulo,x.descripcion)&&!(x.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_mia_editar",{p_tok:S.tok,p_ot:o.id,p:x});toast("Corregida");re();}}]);}
 function corregirTiempo(o,re){const w=preguntaTiempo(Object.assign({},o,{minutos_est:o.minutos||o.minutos_est,inicio:null}));
   w.querySelector("b").textContent="¿Cuánto se tardó de verdad?";w.querySelector("p").textContent="Ahora pone "+(o.minutos!=null?durTxt(o.minutos):"sin tiempo")+". Elige el tiempo correcto.";
   dlg("Corregir tiempo · "+o.titulo,w,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!w.val()){toast("Elige el tiempo");return false;}await rpc("tiempo_corregir",{p_tok:S.tok,p_ot:o.id,p_minutos:w.val()});toast("Tiempo corregido: "+durTxt(w.val()));re();}}]);}

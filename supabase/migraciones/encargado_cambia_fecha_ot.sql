@@ -1,0 +1,2 @@
+-- 29/10/2026 · El encargado puede cambiar el día de un trabajo que aún no está hecho (p. ej. pasar del sábado al domingo).
+-- ot_mia_editar: admin o encargado pueden editar; la fecha solo cambia si la OT no está hecha. Aplicado en limpieza-cie.
