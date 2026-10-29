@@ -194,3 +194,17 @@ test('Consultas: «todo sobre la colada», relevos raros, coste previsto y cruce
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Consultas: «lo que tengo, lo que ha entrado y lo que ha consumido cada nave este mes»', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
+    await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2521-B', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA' });
+    await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'A1' }, { i: 'c1', t: 'C', f: f(-2), u: 'Mañana', o: 'l4', fa: 4 }] }); });
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'dime lo que tengo en cada nave de aluminio lo que ha entrado a cada nave y lo que ha consumido cada nave este mes'); await page.waitForTimeout(300);
+  const t = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Nave 2: tiene 18\.?200 kg \(26 fardos\) en la nave; este mes han entrado 21\.?000 kg \(30 f\) y ha consumido 2\.?800 kg \(4 f\)/);
+  expect(t).toContain('Copiar el informe');
+  expect(err).toEqual([]);
+});

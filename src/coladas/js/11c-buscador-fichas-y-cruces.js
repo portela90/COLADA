@@ -1,6 +1,8 @@
 /* ---------- Buscador: «todo sobre la colada…», lo raro, previsión de coste y cruces con el Almacén ----------
    Los cruces (pistones y ejes por tonelada, resumen del mes) leen los datos del Almacén de la misma base de datos. */
 function intencionC2(q){const o={q,nave:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  {const c=[/\b(tengo|tenemos|hay|stock|queda|quedan|existencias)\b/,/\b(entrad\w*|entrado|llegad\w*|recibid\w*)\b/,/\b(consum\w*|gastad\w*|gasto)\b/].filter(re=>re.test(q)).length;
+    if(c>=2||/\b(informe|balance|movimiento) (de|del|por) (cada )?naves?\b|\b(informe|balance) (del )?aluminio\b|\bcada nave\b.*\b(informe|balance)\b/.test(q))return M("balance",{per:periodoC(q)});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen",{per:periodoC(q)});
   if(/\bpor tonelada\b|\bpor cada tonelada\b|\bpor (cada )?(1000|mil) kg\b|\bpor tn\b/.test(q))return M(/\b(gasta|gastan|dinero|euros|coste|cuesta)\b/.test(q)?"gastotn":"pisttn",{per:periodoC(q)});
   if(/\b(todo (sobre|de)|ficha (de|completa)|historia de|informacion (de|sobre)|dime todo)\b/.test(q)){const l=lotes.find(x=>reC(nqC(x.nombre)).test(" "+q+" "));return M("todocol",{lote:l||null});}
@@ -36,6 +38,26 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
   const consNave=(d,hh)=>{const o={};movs().forEach(r=>{if(r.t!=="C"||!r.f||r.f<d||r.f>hh)return;const l=lotes.find(x=>x.id===r.o);if(!l)return;o[l.nave]=(o[l.nave]||0)+Math.abs(kgAp(r,S));});return o;};
   const mesesAtras=n=>{const out=[];for(let i=n-1;i>=0;i--){const d=new Date(+h.slice(0,4),+h.slice(5,7)-1-i,1);out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));}return out;};
 
+  if(E.modo==="balance"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"},hh=P.h>h?h:P.h,d0=diaAntes(P.d);const Si=conCorte(d0,saldos),Sf=conCorte(hh,saldos);
+    const R={};LINEAS.forEach(([n,m])=>{R[key(n,m)]={n,m,ini:{N:0,E:0,kgN:0,kgE:0},fin:{N:0,E:0,kgN:0,kgE:0},ent:{fa:0,kg:0},sub:{fa:0,kg:0},con:{fa:0,kg:0},aju:{fa:0,kg:0}};});
+    const suma=(o,SS,f)=>lotes.forEach(l=>{const x=SS[l.id],y=R[key(l.nave,l.material)];if(!x||!y||(!x.fa&&Math.abs(x.kg)<1))return;const t=y[o];if(dondeEn(l,f)==="externo"){t.E+=x.fa;t.kgE+=x.kg;}else{t.N+=x.fa;t.kgN+=x.kg;}});
+    suma("ini",Si,d0);suma("fin",Sf,hh);
+    todosMovs().forEach(r=>{if(r.h||!r.f||r.f<P.d||r.f>hh)return;const l=lotes.find(x=>x.id===(r.o||r.d));if(!l)return;const y=R[key(l.nave,l.material)];if(!y)return;
+      const fa=Math.abs(typeof r.fa==="number"?r.fa:0),kg=Math.abs(kgAp(r,Sf));
+      if(r.t==="E"){y.ent.fa+=fa;y.ent.kg+=kg;}else if(r.t==="C"){y.con.fa+=fa;y.con.kg+=kg;}else if(r.t==="A"){const sg=r.d?1:-1;y.aju.fa+=sg*fa;y.aju.kg+=sg*kg;}
+      else if(r.t==="T"){const n=fa||+((String(r.n||"").match(/(\d+) fardos/)||[])[1]||0),rt=(Sf[l.id]&&Sf[l.id].ratio)||(Si[l.id]&&Si[l.id].ratio)||0;y.sub.fa+=n;y.sub.kg+=kg||Math.round(n*rt);}});
+    const L=Object.values(R).filter(x=>(!E.nave||x.n===E.nave)&&(!E.mat||x.m===E.mat)&&(x.ini.N||x.ini.E||x.fin.N||x.fin.E||x.ent.kg||x.con.kg||x.sub.fa));
+    const ahora=hh===h,ftx=ahora?"ahora":"el "+dmyA(hh);ent("aluminio por nave",[P.t,E.nave,E.mat?MAT[E.mat].nom:null]);
+    if(!L.length){frase("No hay movimientos ni stock de aluminio "+perTxt(P)+".");return;}
+    const porN={};L.forEach(x=>{const g=porN[x.n]=porN[x.n]||{N:0,E:0,kgN:0,kgE:0,ent:0,entF:0,con:0,conF:0,sub:0};g.N+=x.fin.N;g.E+=x.fin.E;g.kgN+=x.fin.kgN;g.kgE+=x.fin.kgE;g.ent+=x.ent.kg;g.entF+=x.ent.fa;g.con+=x.con.kg;g.conF+=x.con.fa;g.sub+=x.sub.fa;});
+    const fr=Object.entries(porN).map(([n,g])=>n+": "+(ahora?"tiene ":"tenía ")+fmt(g.kgN)+" kg ("+fmt(g.N)+" fardos) en la nave"+(g.E?" y "+fmt(g.kgE)+" kg ("+fmt(g.E)+" f) en el externo":"")+"; "+perTxt(P)+" han entrado "+fmt(g.ent)+" kg ("+fmt(g.entF)+" f)"+(g.sub?", se han subido "+fmt(g.sub)+" f del externo":"")+" y ha consumido "+fmt(g.con)+" kg ("+fmt(g.conF)+" f)");
+    fr.forEach(t=>frase(t+"."));
+    const c=(kg,fa)=>fmt(kg)+" kg · "+fmt(fa)+" f";
+    L.forEach(x=>card(etiqLinea(key(x.n,x.m)),[tabla(["","Kilos · fardos"],[["Al empezar ("+dmyA(P.d)+")",c(x.ini.kgN+x.ini.kgE,x.ini.N+x.ini.E)],["Ha entrado",c(x.ent.kg,x.ent.fa)],x.sub.fa?["Subido del externo",c(x.sub.kg,x.sub.fa)]:null,["Consumido",c(x.con.kg,x.con.fa)],
+      (x.aju.kg||x.aju.fa)?["Ajustes de recuento",(x.aju.kg>0?"+":"")+c(x.aju.kg,x.aju.fa)]:null,["En la nave "+ftx,c(x.fin.kgN,x.fin.N)],x.fin.E||x.ini.E?["En el externo "+ftx,c(x.fin.kgE,x.fin.E)]:null].filter(Boolean),[1])]));
+    const tx=["ALUMINIO POR NAVE · "+Mayus(P.t)+" ("+dmyA(P.d)+" a "+dmyA(hh)+")",""].concat(...L.map(x=>[etiqLinea(key(x.n,x.m)).toUpperCase(),"- Al empezar: "+c(x.ini.kgN+x.ini.kgE,x.ini.N+x.ini.E),"- Ha entrado: "+c(x.ent.kg,x.ent.fa),x.sub.fa?"- Subido del externo: "+c(x.sub.kg,x.sub.fa):null,"- Consumido: "+c(x.con.kg,x.con.fa),
+      (x.aju.kg||x.aju.fa)?"- Ajustes: "+c(x.aju.kg,x.aju.fa):null,"- En la nave "+ftx+": "+c(x.fin.kgN,x.fin.N),x.fin.E?"- En el externo "+ftx+": "+c(x.fin.kgE,x.fin.E):null,""].filter(v=>v!==null)));
+    copiar("Copiar el informe",tx.join("\n"));nota("«Ha entrado» son los camiones del proveedor; lo que se sube del almacén externo a la nave va aparte porque ya estaba en stock.");return;}
   if(E.modo==="todocol"){const l=E.lote;if(!l){ent("todo sobre una colada");frase("Dime el código de la colada, por ejemplo «todo sobre la colada C25073».");return;}
     const s=S[l.id]||{kg:0,fa:0},ms=todosMovs().filter(r=>r.o===l.id||r.d===l.id).sort((a,b)=>(a.f||"").localeCompare(b.f||""));const C=ms.filter(r=>r.t==="C"&&r.o===l.id),en=ms.find(r=>r.t==="E"&&r.d===l.id);
     const pr=precioDe((l.entrada||h).slice(0,7),l.proveedor,l.material),kgC=C.reduce((a,r)=>a+Math.abs(kgAp(r,S)),0),faC=C.reduce((a,r)=>a+(r.fa||0),0);

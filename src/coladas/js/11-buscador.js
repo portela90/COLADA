@@ -91,7 +91,7 @@ const EJ_COL=[["Stock y coladas",["para cuántos días tengo aluminio","qué col
   ["Consumo",["qué relevo consume más este mes","consumo de este mes comparado con el pasado","qué día se consumió más este mes","cuánto aluminio se gasta por máquina en marcha"]],
   ["Camiones",["qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
   ["Dinero",["cuánto ha costado el aluminio este mes","cuánto me va a costar el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock"]],
-  ["Revisar",["qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
+  ["Revisar",["lo que tengo, lo que ha entrado y lo que ha consumido cada nave este mes","qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
 function ejemplos(G,pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});
   d.appendChild(el("summary",{text:"Ver ejemplos de preguntas"}));
   G.forEach(([t,L])=>d.appendChild(el("div",{class:"ejs-g"},[el("div",{class:"ejs-t",text:t})].concat(L.map(q=>el("button",{type:"button",class:"ejs-q",text:q,onclick:()=>pon(q)}))))));return d;}
