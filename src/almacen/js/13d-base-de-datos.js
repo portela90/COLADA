@@ -189,14 +189,15 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
   caja.appendChild(el("div",{class:"bd-q"},[(()=>{const l=el("span",{class:"bd-lupa","aria-hidden":"true"});l.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';return l;})(),q]));
   caja.appendChild(sug);v.appendChild(caja);v.appendChild(res);const resto=el("div",{id:"bdResto"});v.appendChild(resto);try{vAnalisis(resto);}catch(e){console.warn(e);}
   const pon=(t,mantener)=>{if(!mantener){B.ef=[];B.gEv=null;}B.q=t;B.f="";q.value=t;pinta();if(!mantener)q.focus();};
-  function pinta(){sug.textContent="";res.textContent="";resto.hidden=!!nq(B.q);const S=sugerencias(B.q,T);
-    sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q))sug.appendChild(ejemplosA(pon,B));
+  function pinta(){pinta0();if(window.BuscaAprende&&nq(B.q))BuscaAprende.tras("almacen",res,B.q,["pistones","ejes","taladrina","aceite","jabón","consumo","stock","nave 1","nave 2"],()=>pinta());}
+  function pinta0(){const QQ=window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q;sug.textContent="";res.textContent="";resto.hidden=!!nq(B.q);const S=sugerencias(B.q,T);
+    sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q)){const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplosA(pon,B));}
     else if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));
     if(!nq(B.q))return;
-    {const I0=intencionA2(nq(B.q));if(I0&&I0.rewev){pintaEv(entenderEv(I0.rewev),res,B,pon);return;}if(I0){pintaIntA2(I0,res,pon);return;}}
-    {const I=intencionA(nq(B.q));if(I&&I.modo!=="rew"){pintaIntA(I,res,pon);return;}}
-    {const qn=" "+nq(B.q)+" ";if(QCO.test(qn)||/\b(entradas?|han llegado|ha llegado|llegaron)\b/.test(qn)||(/\b(ultim[oa]|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(B.q)).re){pintaEv(entenderEv(B.q),res,B,pon);return;}}
-    const I2=intencionA(nq(B.q)),E=entender(I2&&I2.rew?I2.rew:B.q,T),D=T[E.t];const L=D.filas().filter(E.casa);
+    {const I0=intencionA2(nq(QQ));if(I0&&I0.rewev){pintaEv(entenderEv(I0.rewev),res,B,pon);return;}if(I0){pintaIntA2(I0,res,pon);return;}}
+    {const I=intencionA(nq(QQ));if(I&&I.modo!=="rew"){pintaIntA(I,res,pon);return;}}
+    {const qn=" "+nq(QQ)+" ";if(QCO.test(qn)||/\b(entradas?|han llegado|ha llegado|llegaron)\b/.test(qn)||(/\b(ultim[oa]|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(QQ)).re){pintaEv(entenderEv(QQ),res,B,pon);return;}}
+    const I2=intencionA(nq(QQ)),E=entender(I2&&I2.rew?I2.rew:QQ,T),D=T[E.t];const L=D.filas().filter(E.casa);
     /* lo que ha entendido */
     res.appendChild(el("div",{class:"bd-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:D.nom}),
       ...E.filtros.map(f=>el("span",{class:"pill info",text:f.t})),E.grupo?el("span",{class:"sub",text:" · agrupado por "+E.grupo.toLowerCase()}):null]));
@@ -220,7 +221,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
         el("button",{type:"button",class:"btn sec peq der",text:"Excel",onclick:e=>excelBD(T,e.currentTarget,{t:E.t,filas:R})})]),
       cTabla(D.cols.map(c=>c[0]),R.map(x=>D.cols.map((c,i)=>i===0?el("button",{type:"button",class:"lnk",text:String(c[1](x)),onclick:()=>D.abrir(x)}):c[1](x))))]));
     else res.appendChild(el("p",{class:"hint",style:"margin:6px 2px",text:"Toca un grupo para ver la lista con todos sus datos."}));}
-  pinta();setTimeout(()=>{try{if(!B.q)q.focus();}catch(e){}},50);}
+  pinta();if(window.BuscaAprende)BuscaAprende.cargar("almacen").then(()=>{if(!nq(B.q))pinta();});setTimeout(()=>{try{if(!B.q)q.focus();}catch(e){}},50);}
 
 async function excelBD(T,btn,sel){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();

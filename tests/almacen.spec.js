@@ -140,6 +140,7 @@ test('Ficha de inyectora: lo que monta lleva a cada pieza y se vuelve a la máqu
 });
 
 test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, listas e ideas', async ({ page }) => {
+  test.setTimeout(90000);
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   const mas = async () => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(200); };

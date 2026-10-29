@@ -102,10 +102,11 @@ function vBuscaCol(resto){
   const sug=el("div",{class:"chips bq-sug"});
   caja.appendChild(el("div",{class:"bq-q"},[q]));caja.appendChild(sug);
   const pon=(t,mant)=>{if(!mant){bq.ef=[];bq.g=null;}bq.q=t;q.value=t;pinta();};
-  function pinta(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
-    if(!nqC(bq.q)){sug.classList.add("bq-ej");sug.appendChild(ejemplos(EJ_COL,pon,bq));return;}
+  function pinta(){pinta0();if(window.BuscaAprende&&nqC(bq.q))BuscaAprende.tras("coladas",res,bq.q,["AlSi9","AlSi12","Nave 1","Nave 2","externo","consumo","entradas"].concat(cfg.proveedores||[]),()=>pinta());}
+  function pinta0(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
+    if(!nqC(bq.q)){sug.classList.add("bq-ej");const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplos(EJ_COL,pon,bq));return;}
     sug.classList.remove("bq-ej");
-    const E=entenderC(bq.q),S=saldos();
+    const E=entenderC(window.BuscaAprende?BuscaAprende.aplicar("coladas",bq.q):bq.q),S=saldos();
     if(E.modo==="precio")return pintaPrecio(E,res);
     if(E.modo==="fut")return pintaFut(E,res);
     if(E.modo==="dias")return pintaDias(E,res);
@@ -212,4 +213,4 @@ function vBuscaCol(resto){
     res.appendChild(el("div",{class:"card"},[el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"})].concat(mats.map(m=>el("th",{class:"r",text:MAT[m].nom+" €/kg"}))))]),
       el("tbody",{},provs.map(p=>el("tr",{},[el("td",{text:p})].concat(mats.map(m=>{const pr=precioDe(mes,p,m);return el("td",{class:"r num",text:pr.v?eurKg(pr.v)+(pr.m!==mes?" ("+nomMes(pr.m).split(" ")[0]+")":""):"—"});})))))])]),
       el("p",{class:"hint",style:"padding:8px 14px",text:"Entre paréntesis, si ese mes no tiene precio propio y se usa el del mes anterior. Se cambian en la pestaña Precios."})]));}
-  pinta();return el("div",{class:"card bq"},[el("div",{class:"hd"},[el("h2",{text:"Pregunta lo que necesites"})]),caja,res]);}
+  pinta();if(window.BuscaAprende)BuscaAprende.cargar("coladas").then(()=>{if(!nqC(bq.q))pinta();});return el("div",{class:"card bq"},[el("div",{class:"hd"},[el("h2",{text:"Pregunta lo que necesites"})]),caja,res]);}

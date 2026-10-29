@@ -221,3 +221,24 @@ test('Consultas: «cuántos camiones han entrado en cada nave, del proveedor y d
   expect(t).toMatch(/han llegado a las naves 2 camiones: 1 del proveedor y 1 del almacén externo/);
   expect(err).toEqual([]);
 });
+
+const stubAprende = () => { const T = { sinonimos: [], consultas_log: [] }; let id = 0;
+  const q = (t) => { let rows = () => T[t]; const api = { _f: [], select() { return api; }, eq(k, v) { api._f.push(r => r[k] === v); return api; }, order() { return api; }, limit() { return api; },
+    then(res) { res({ data: T[t].filter(r => api._f.every(f => f(r))), error: null }); },
+    insert(o) { const r = Object.assign({ id: ++id, util: null }, o); T[t].push(r); return { select: () => ({ single: async () => ({ data: r, error: null }) }) }; },
+    update(o) { return { eq: async (k, v) => { T[t].filter(r => r[k] === v).forEach(r => Object.assign(r, o)); return { error: null }; } }; },
+    upsert: async (o) => { T[t] = T[t].filter(r => !(r.app === o.app && r.palabra === o.palabra)); T[t].push(o); return { error: null }; } }; return api; };
+  window.__T = T; window.sbColada = { from: q }; };
+test('Consultas: el buscador aprende (enseñar una palabra, guardar la pregunta y «¿te ha servido?»)', async ({ page }) => { const err = await vigila(page); await page.addInitScript(stubAprende);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'stock de las blanquitas'); await page.waitForTimeout(300);
+  await expect(page.locator('.ba-ens')).toContainText('«blanquitas»');
+  await page.locator('.ba-ens .ba-b', { hasText: 'AlSi9' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.bq-resp')).toContainText('de AlSi9');
+  await page.waitForTimeout(2800); await page.locator('.ba-voto .ba-b', { hasText: 'Sí' }).click(); await page.waitForTimeout(500);
+  const T = await page.evaluate(() => window.__T);
+  expect(T.sinonimos[0]).toMatchObject({ app: 'coladas', palabra: 'blanquitas', significa: 'AlSi9' });
+  expect(T.consultas_log[0]).toMatchObject({ app: 'coladas', util: 1 });
+  expect(err).toEqual([]);
+});
