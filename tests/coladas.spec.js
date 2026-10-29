@@ -259,3 +259,13 @@ test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }
   await expect(page.locator('.alb-ov')).toBeVisible();
   expect(err).toEqual([]);
 });
+
+test('Consultas: tocar una fila de la respuesta abre la colada', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'coladas en externo'); await page.waitForTimeout(300);
+  await page.locator('.bq-res tr.fila-link td[data-l="Aleación"]').first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.ficha-ov').last()).toContainText('C2500');
+  expect(err).toEqual([]);
+});

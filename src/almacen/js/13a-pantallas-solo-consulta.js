@@ -48,7 +48,7 @@ const cKpis=L=>el("dl",{class:"kpis num"},L.map(([a,b])=>el("div",{},[el("dt",{t
 /* clsR: columnas de números (a la derecha); anchas: columnas que en el móvil ocupan toda la ficha */
 function cTabla(cab,filas,clsR,anchas){const cl=i=>[(clsR||[]).includes(i)?"r num":"",(anchas||[]).includes(i)?"tm-ancha cw":""].join(" ").trim();
   return el("div",{class:"tw"},[el("table",{class:"ct"},[el("thead",{},[el("tr",{},cab.map((c,i)=>el("th",{class:(clsR||[]).includes(i)?"r":"",text:c})))]),
-  el("tbody",{},filas.map(f=>el("tr",{},f.map((x,i)=>x&&x.nodeType?el("td",{class:cl(i),"data-l":cab[i]},[x]):el("td",{class:cl(i),"data-l":cab[i],text:x==null?"":String(x)})))))])]);}
+  el("tbody",{},filas.map(f=>el("tr",f.__ir?{class:"fila-link",onclick:ev=>{if(ev.target.closest("button,a"))return;f.__ir();}}:{},f.map((x,i)=>x&&x.nodeType?el("td",{class:cl(i),"data-l":cab[i]},[x]):el("td",{class:cl(i),"data-l":cab[i],text:x==null?"":String(x)})))))])]);}
 const cMeses=L=>{const s=new Set(L.map(x=>mesDe(x.f)));s.add(mesDe(hoy()));return[...s].filter(Boolean).sort().reverse();};
 function cSelMes(L,re){return fld("Mes",sel("cqMes",[["todo","Todo"]].concat(cMeses(L).map(m=>[m,cap(fmtMes(m))])),CQ.mes,v=>{CQ.mes=v;re();}));}
 const cEnMes=x=>CQ.mes==="todo"||mesDe(x.f)===CQ.mes;

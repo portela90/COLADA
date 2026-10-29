@@ -240,3 +240,4 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .ejs-q{display:block;width:100%;text-align:left;font:inherit;font-size:15px;background:none;border:0;border-bottom:1px solid var(--line2);padding:9px 2px;color:var(--ink);cursor:pointer}.ejs-q:last-child{border-bottom:0}
 #bdResto{display:grid;gap:12px;margin-top:12px}#bdResto[hidden]{display:none}
 .qmano>summary{list-style:none}.qmano>summary::-webkit-details-marker{display:none}.qmano>summary h2::before{content:"▸ ";color:var(--acc)}.qmano[open]>summary h2::before{content:"▾ "}
+.fila-link{cursor:pointer}.fila-link:hover td{background:var(--surf2)}

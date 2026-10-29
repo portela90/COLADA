@@ -158,7 +158,7 @@ function pintaEv(E,res,B,pon){const D=E.D,L0=E.filas;if(E.rel)L0.__rel=true;
       el("div",{class:"sbar",style:"margin-top:6px"},el("i",{style:"width:"+Math.round((eu&&!porN?g.eu:g.c)/mx*100)+"%"}))]),el("div",{class:"cant num"},[el("b",{text:fmtN(Math.round(g.c*10)/10)}),el("small",{text:(contable(g.ud)?(g.c===1?D.uno:D.unos):g.ud)+(g.eu?" · "+eur(g.eu):"")})])])))]));
   /* cada apunte */
   res.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:L.length+(L.length===1?" apunte":" apuntes")}),el("button",{type:"button",class:"btn sec peq der",text:"Excel",onclick:e=>excelEv(D,L,e.currentTarget)})]),
-    (()=>{const CS=evColsDe(L);return cTabla(CS.map(c=>c[0]),L.slice(0,300).map(e=>CS.map(c=>c[0]==="Pieza"&&e.ir?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:e.ir}):c[0]==="Detalle"&&e.alb?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:()=>{const d=albaranes()[e.alb];if(d)fichaAlbaran(e.alb,d);}}):c[0]==="Máquina"&&e.maq&&maqDe(e.maq)?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:()=>fichaIny(maqDe(e.maq))}):c[1](e))));})(),
+    (()=>{const CS=evColsDe(L);return cTabla(CS.map(c=>c[0]),L.slice(0,300).map(e=>{const fila=CS.map(c=>c[0]==="Pieza"&&e.ir?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:e.ir}):c[0]==="Detalle"&&e.alb?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:()=>{const d=albaranes()[e.alb];if(d)fichaAlbaran(e.alb,d);}}):c[0]==="Máquina"&&e.maq&&maqDe(e.maq)?el("button",{type:"button",class:"lnk",text:String(c[1](e)),onclick:()=>fichaIny(maqDe(e.maq))}):c[1](e));if(e.ir)fila.__ir=e.ir;else if(e.alb){const d=albaranes()[e.alb];if(d)fila.__ir=()=>fichaAlbaran(e.alb,d);}return fila;}));})(),
     L.length>300?el("p",{class:"hint",style:"padding:8px 14px",text:"Salen los 300 últimos; en el Excel van todos."}):null]));}
 async function excelEv(D,L,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const rows=L.map(e=>({"Fecha":e.f,"Pieza":e.ref,"Modelo":e.mod||"","Máquina":maqTxt(e),"Cantidad":Math.round(e.cant*100)/100,"Unidad":e.ud,"Importe (€)":e.eur?Math.round(e.eur*100)/100:"","Motivo":e.txt||"","Detalle":e.det||"","Estado":e.est||"","Quién":e.quien||""}));
@@ -222,7 +222,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
     const gc=E.grupo&&D.cols.find(c=>c[0]===E.grupo);const R=B.f&&gc?L.filter(x=>String(gc[1](x))===B.f):L;
     if(!E.grupo||B.f)res.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:(B.f?B.f+" · ":"")+R.length+" "+(R.length===1?D.uno:D.nom.toLowerCase())}),
         el("button",{type:"button",class:"btn sec peq der",text:"Excel",onclick:e=>excelBD(T,e.currentTarget,{t:E.t,filas:R})})]),
-      cTabla(D.cols.map(c=>c[0]),R.map(x=>D.cols.map((c,i)=>i===0?el("button",{type:"button",class:"lnk",text:String(c[1](x)),onclick:()=>D.abrir(x)}):c[1](x))))]));
+      cTabla(D.cols.map(c=>c[0]),R.map(x=>{const fila=D.cols.map((c,i)=>i===0?el("button",{type:"button",class:"lnk",text:String(c[1](x)),onclick:()=>D.abrir(x)}):c[1](x));fila.__ir=()=>D.abrir(x);return fila;}))]));
     else res.appendChild(el("p",{class:"hint",style:"margin:6px 2px",text:"Toca un grupo para ver la lista con todos sus datos."}));}
   pinta();if(window.BuscaAprende)BuscaAprende.cargar("almacen").then(()=>{if(!nq(B.q))pinta();});setTimeout(()=>{try{if(!B.q)q.focus();}catch(e){}},50);}
 

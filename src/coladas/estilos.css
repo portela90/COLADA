@@ -258,3 +258,5 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .ejs summary::before{content:"▸ ";}.ejs[open] summary::before{content:"▾ ";}
 .ejs-g{margin:8px 0 4px}.ejs-t{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:0 2px 2px}
 .ejs-q{display:block;width:100%;text-align:left;font:inherit;font-size:15px;background:none;border:0;border-bottom:1px solid var(--line2);padding:9px 2px;color:var(--ink);cursor:pointer}.ejs-q:last-child{border-bottom:0}
+
+.fila-link{cursor:pointer}.fila-link:hover td{background:var(--surf2)}
