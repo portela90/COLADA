@@ -64,7 +64,7 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
     const dias_=new Set(C.map(r=>r.f)),ult=C.length?C[C.length-1].f:null;ent("todo sobre la colada",[l.nombre]);
     frase("La colada "+l.nombre+" ("+MAT[l.material].nom+", "+l.nave+") "+(s.fa>0?"tiene "+fmt(s.fa)+" fardos ("+fmt(s.kg)+" kg)"+(l.donde==="externo"?" en el almacén externo":" en la nave"):"está gastada")+". Se han consumido "+fmt(faC)+" fardos ("+fmt(kgC)+" kg) en "+dias_.size+(dias_.size===1?" día.":" días."));
     card("Datos",[tabla(["Dato","Valor"],[["Entrada",l.entrada?dmyA(l.entrada):"—"],["Proveedor",l.proveedor||"—"],["Albarán",l.albaran||(en&&en.a)||"—"],["Entró",(en?fmt(en.fa||0)+" fardos · "+fmt(en.kg||0)+" kg":fmt(l.fardosInv||0)+" fardos · "+fmt(l.kgInv||0)+" kg (inventario)")],
-      ["Peso por fardo",S[l.id]&&S[l.id].ratio?fmt(S[l.id].ratio)+" kg":"—"],["Precio",pr.v?eurKg(pr.v)+" €/kg · vale "+eurE(s.kg*pr.v/1000)+" lo que queda":"sin precio"],["Último consumo",ult?dmyA(ult):"—"]])]);
+      ["Peso por fardo",S[l.id]&&S[l.id].ratio?fmt(S[l.id].ratio)+" kg":"—"],["Precio",pr.v?eurKg(pr.v)+" €/kg"+(s.kg>1?" · vale "+eurE(s.kg*pr.v/1000)+" lo que queda":""):"sin precio"],["Último consumo",ult?dmyA(ult):"—"]])]);
     const R={};C.forEach(r=>{const k=r.f+"|"+(r.u||"");R[k]=(R[k]||0)+(r.fa||0);});
     if(C.length)card("Consumos",[el("div",{class:"bq-lst"},Object.entries(R).reverse().slice(0,40).map(([k,fa])=>{const[f,u]=k.split("|");return it(Mayus(diaLargo(f)),u?"Relevo de "+u.toLowerCase():null,fmt(fa)+(fa===1?" fardo":" fardos"),null);}))]);
     const otros=ms.filter(r=>r.t==="T"||r.t==="A");if(otros.length)card("Traslados y recuentos",[el("div",{class:"bq-lst"},otros.map(r=>it((r.t==="T"?"Traslado":"Recuento")+" · "+dmyA(r.f),r.n||null,(r.fa>0?"+":"")+fmt(r.fa||0)+" fardos",null)))]);
@@ -75,7 +75,7 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
     C.forEach(r=>{const l=lotes.find(x=>x.id===r.o);if(!l)return;if(E.nave&&l.nave!==E.nave)return;const k=r.f+"|"+r.u+"|"+l.nave+"|"+l.material;R[k]=(R[k]||0)+(r.fa||0);});
     const X=Object.entries(R).map(([k,fa])=>{const[f,u,n,m]=k.split("|"),c=cuentaMaq(estadoMaq(f,u),n),mq=m==="L-2521-B"?c.a:c.b;return{f,u,n,m,fa,mq,por:mq>0?fa/mq:null};}).filter(x=>x.por!=null);
     const med={};X.forEach(x=>{const k=x.n+"|"+x.m;(med[k]=med[k]||[]).push(x.por);});const mm=k=>{const v=med[k];return v.reduce((a,b)=>a+b,0)/v.length;};
-    const raros=X.filter(x=>med[x.n+"|"+x.m].length>=6&&x.por>mm(x.n+"|"+x.m)*1.5).sort((a,b)=>b.por/mm(b.n+"|"+b.m)-a.por/mm(a.n+"|"+a.m));
+    const raros=X.filter(x=>med[x.n+"|"+x.m].length>=6&&x.por>mm(x.n+"|"+x.m)*1.5&&x.fa-mm(x.n+"|"+x.m)*x.mq>=2).sort((a,b)=>b.por/mm(b.n+"|"+b.m)-a.por/mm(a.n+"|"+a.m));
     ent("relevos que gastan más de lo normal",["últimos 30 días",E.nave]);
     frase(raros.length?raros.length+(raros.length===1?" relevo ha gastado":" relevos han gastado")+" más de 1,5 veces lo normal por máquina en marcha. El que más: "+diaLargo(raros[0].f)+", "+raros[0].u.toLowerCase()+" en "+raros[0].n+" ("+fmt(raros[0].fa)+" fardos con "+raros[0].mq+" máquinas).":"Ningún relevo de los últimos 30 días se sale de lo normal.");
     const porT={};X.forEach(x=>{const k=x.n+" · "+MAT[x.m].nom+"|"+x.u;(porT[k]=porT[k]||[]).push(x.por);});
@@ -120,6 +120,7 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
       frase(Object.entries(tot).map(([n,T])=>n+": "+(T.t?(din?eurE(T.eu/T.t)+" por tonelada":(Math.round(T.np/T.t*100)/100).toLocaleString("es-ES")+" pistones por tonelada"):"sin consumo de aluminio")+" ("+fmt(T.t)+" t)").join(" · ")+".");
       card("Por mes",[tabla(din?["Mes","Nave","Toneladas","Pistones €","Ejes €","Consumibles €","€ por t"]:["Mes","Nave","Toneladas","Pistones","Por tonelada"],
         filas.filter(x=>x.t||x.np||x.ep||x.er||x.es).map(x=>din?[Mayus(nomMes(x.m)),x.n,fmt(x.t),eurE(x.ep),eurE(x.er),eurE(x.es),x.t?eurE((x.ep+x.er+x.es)/x.t):"—"]:[Mayus(nomMes(x.m)),x.n,fmt(x.t),fmt(x.np),x.t?(Math.round(x.np/x.t*100)/100).toLocaleString("es-ES"):"—"]),din?[2,3,4,5,6]:[2,3,4])]);
+      if(din&&!Object.values(tot).some(T=>T.eu>0))nota("Sale 0 € porque los artículos del Almacén aún no tienen precio (pistones, consumibles…) y las reparaciones de eje no tienen máquina apuntada. En cuanto pongas precios en el Almacén, saldrá aquí.");
       nota("El aluminio se apunta por nave, no por máquina, así que el cruce es por nave: pistones y gasto del Almacén de las máquinas de cada nave entre las toneladas de aluminio consumidas en ella.");return;}
     if(E.modo==="resumen"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"},al=consNave(P.d,P.h);const {B}=bloques();
       const ent_=movs().filter(r=>r.t==="E"&&r.f&&r.f>=P.d&&r.f<=P.h).reduce((a,r)=>a+Math.abs(kgAp(r,S)),0);let coste=0;movs().forEach(r=>{if(r.t!=="C"||!r.f||r.f<P.d||r.f>P.h)return;const l=lotes.find(x=>x.id===r.o);if(l)coste+=Math.abs(kgAp(r,S))*precioMedio(r.f.slice(0,7),l.material).v/1000;});

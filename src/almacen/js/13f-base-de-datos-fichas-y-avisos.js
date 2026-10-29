@@ -173,7 +173,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
       .sort((a,b)=>(a.n==="bad"?0:1)-(b.n==="bad"?0:1)||(a.dp==null?0:a.dp)-(b.dp==null?0:b.dp));
     ent("lo que hay que pedir esta semana");frase(L.length?"Esta semana hay que pedir "+L.length+(L.length===1?" artículo.":" artículos.")+(L.some(x=>x.n==="bad")?" "+L.filter(x=>x.n==="bad").length+" ya están bajo mínimo.":""):"Esta semana no hace falta pedir nada.");
     if(L.length){const porP={};L.forEach(x=>{const p=provN(x.a.prov)||"Sin proveedor";(porP[p]=porP[p]||[]).push(x);});
-      Object.entries(porP).forEach(([p,xs])=>lista(p,xs.map(x=>it(nomArt(x.a),["Hay "+fmtN(Math.round(x.st*10)/10)+" · punto de pedido "+fmtN(Math.round(x.pp*10)/10),x.n==="bad"?"Bajo mínimo":x.dp!=null&&x.dp>0?"Llega al punto de pedido en "+Math.ceil(x.dp)+" días":"En el punto de pedido"],fmtN(x.cant),x.a.ud||"ud",()=>ficha(x.a),x.n==="bad"?"bad":"warn")),fmtN(xs.length)+" artículos"));
+      Object.entries(porP).forEach(([p,xs])=>lista(p,xs.map(x=>it(nomArt(x.a),["Hay "+fmtN(Math.round(x.st*10)/10)+" · punto de pedido "+fmtN(Math.round(x.pp*10)/10),x.st<=0?"Agotado":x.n==="bad"?"Bajo mínimo":x.dp!=null&&x.dp>0?"Llega al punto de pedido en "+Math.ceil(x.dp)+" días":"En el punto de pedido"],fmtN(x.cant),x.a.ud||"ud",()=>ficha(x.a),x.n==="bad"?"bad":"warn")),fmtN(xs.length)+" artículos"));
       copiar("Copiar la lista para compras",["PEDIDO SEMANA "+fmtF(h)].concat(...Object.entries(porP).map(([p,xs])=>["",p.toUpperCase()].concat(xs.map(x=>"- "+nomArt(x.a)+(x.a.cod?" ("+x.a.cod+")":"")+": "+fmtN(x.cant)+" "+(x.a.ud||"ud"))))).join("\n"));}
     nota("Cantidad = lo que falta para llegar al punto de pedido más dos semanas de consumo (o la sugerencia de Previsión, si es mayor).");return;}
 

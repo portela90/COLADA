@@ -5,7 +5,7 @@ const naveQ=q=>{const m=q.match(NAVE_RE);return m?"Nave "+(m[1]==="uno"?"1":m[1]
 const matQ=q=>AL9_RE.test(q)?"L-2630":AL12_RE.test(q)?"L-2521-B":null;
 const provQ=q=>(cfg.proveedores||[]).find(p=>reC(raizC(nqC(p))).test(" "+q+" "))||null;
 const diaLargo=f=>{const d=new Date(+f.slice(0,4),+f.slice(5,7)-1,+f.slice(8,10));return d.toLocaleDateString("es-ES",{weekday:"long"})+" "+dmyA(f);};
-const elDia=f=>f===hoy()?"hoy":f===diaSig(hoy())?"mañana ("+diaLargo(f)+")":elDia(f);
+const elDia=f=>f===hoy()?"hoy":f===diaSig(hoy())?"mañana ("+diaLargo(f)+")":"el "+diaLargo(f);
 const pc=(a,b)=>b?Math.round((a-b)/b*100):null;
 const eurE=v=>Math.round(v).toLocaleString("es-ES")+" €";
 /* «el lunes», «el 12/10», «ayer», «hoy»: un día concreto (para máquinas) */
@@ -114,7 +114,7 @@ function pintaIntencion(E,res,pon){const h=hoy(),S=saldos();
     if(ahorro&&mats.includes("L-2630"))nota("Entre el más barato y el más caro de AlSi9 hay unos "+eurE(ahorro)+" por camión de "+fmt(KG_CAM/1000)+" t.");return;}
 
   if(E.modo==="coste"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"};const C=movs().filter(r=>r.t==="C"&&r.f&&r.f>=P.d&&r.f<=P.h);let tot=0,kgT=0,sin=0;const G={};
-    C.forEach(r=>{const l=lotes.find(x=>x.id===r.o);if(!l)return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;const kg=Math.abs(kgAp(r,S)),p=precioMedio(r.f.slice(0,7),l.material).v;if(!p){sin+=kg;return;}
+    C.forEach(r=>{const l=lotes.find(x=>x.id===r.o)||(r.h&&r.nv&&r.ml?{nave:r.nv,material:r.ml}:null);if(!l||!MAT[l.material])return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;const kg=Math.abs(kgAp(r,S)),p=precioMedio(r.f.slice(0,7),l.material).v;if(!p){sin+=kg;return;}
       const v=kg*p/1000;tot+=v;kgT+=kg;const k=l.nave+" · "+MAT[l.material].nom;const g=G[k]=G[k]||{v:0,kg:0};g.v+=v;g.kg+=kg;});
     ent("coste del aluminio consumido",[P.t,E.nave,E.mat?MAT[E.mat].nom:null]);
     frase(Mayus(perTxt(P))+" el aluminio consumido"+donde([E.nave?{t:nqC(E.nave)}:null,E.mat?{t:E.mat==="L-2630"?"alsi9":"alsi12"}:null].filter(Boolean))+" ha costado unos "+eurE(tot)+" ("+fmt(kgT)+" kg"+(kgT?", "+eurKg(tot/kgT*1000)+" €/kg de media":"")+").");
@@ -131,7 +131,7 @@ function pintaIntencion(E,res,pon){const h=hoy(),S=saldos();
     nota("Solo entradas con albarán (kilos reales), sin las de kilos estimados.");return;}
 
   if(E.modo==="comp"){let P1=periodoC(E.q),P0;const sum=(d,hh)=>{const o={};let tot=0,fa=0;const dias=new Set();
-      movs().forEach(r=>{if(r.t!==E.tipo||!r.f||r.f<d||r.f>hh)return;const l=lotes.find(x=>x.id===(r.o||r.d));if(!l)return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;
+      movs().forEach(r=>{if(r.t!==E.tipo||!r.f||r.f<d||r.f>hh)return;const l=lotes.find(x=>x.id===(r.o||r.d))||(r.h&&r.nv&&r.ml?{nave:r.nv,material:r.ml}:null);if(!l||!MAT[l.material])return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;
         const kg=Math.abs(kgAp(r,S)),k=l.nave+" · "+MAT[l.material].nom;o[k]=o[k]||{kg:0,fa:0};o[k].kg+=kg;o[k].fa+=r.fa||0;tot+=kg;fa+=r.fa||0;dias.add(r.f);});return{o,tot,fa,dias:dias.size};};
     if(E.sem&&!P1){const w=(new Date().getDay()+6)%7;P1={d:ymd(new Date(Date.now()-w*864e5)),h,t:"esta semana"};}
     if(!P1)P1={d:mesDe(h)+"-01",h,t:"este mes"};
@@ -160,7 +160,7 @@ function pintaIntencion(E,res,pon){const h=hoy(),S=saldos();
     const r0=R.find(x=>x.bajo);
     frase(!r0?"Con lo que hay y lo planificado no hace falta ningún camión en los próximos 60 días.":etiqLinea(r0.k)+" es la primera que lo necesita: baja "+(r0.s.min?"del mínimo ("+fmt(r0.s.min)+" fardos)":"a cero")+" "+elDia(r0.bajo.f)+(r0.tope?". El camión tendría que descargar como tarde "+elDia(r0.tope)+".":r0.bajo.f<=h?": hace falta cuanto antes.":"."));
     card(null,[el("div",{class:"bq-lst"},R.map(x=>it(etiqLinea(x.k),[x.bajo?(x.s.min?"Baja del mínimo el ":"Se acaba el ")+diaLargo(x.bajo.f):"Aguanta más de 60 días",x.tope?"Descargar como tarde el "+diaLargo(x.tope):null,x.cero&&x.bajo&&x.cero.f!==x.bajo.f?"Sin material el "+diaLargo(x.cero.f):null,
-      x.s.pend.length?"Ya cuenta "+x.s.pend.length+(x.s.pend.length===1?" entrada planificada":" entradas planificadas"):"Sin entradas planificadas"],x.bajo?dmy(x.bajo.f):"—",x.bajo?"baja del mínimo":"")))]);
+      x.s.pend.length?"Ya cuenta "+x.s.pend.length+(x.s.pend.length===1?" entrada planificada":" entradas planificadas"):"Sin entradas planificadas",x.bajo&&x.s.b.faE>0?"En el externo hay "+fmt(x.s.b.faE)+" fardos: puedes subir una BP en vez de pedir camión":null],x.bajo?dmy(x.bajo.f):"—",x.bajo?"baja del mínimo":"")))]);
     nota("Los viernes y los días sin trabajo no se descarga. Se cuentan las entradas que ya hay en el Plan; si pides un camión, colócalo allí y esto se recalcula.");add(lnk("Abrir el Plan",()=>irTab("plan")));return;}
 
   if(E.modo==="camq"){const mes=mesDe(h),cam=((cfg.plan||{})[mes]||{}).camiones||[],ents=entradasMes(mes).filter(x=>!x.r.h&&x.r.t==="E");

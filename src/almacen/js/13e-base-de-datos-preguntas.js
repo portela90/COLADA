@@ -31,6 +31,7 @@ function intencionA(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};cons
   if(/\busad[oa]s?\b|\bchatarra\b|\bpara recuperar\b|\brecuperad\w*\b/.test(q)&&!QCO.test(q.replace(/\busad[oa]s?\b/g,"")))return M("usados",{d:(q.match(/\b(50|60|70|80|90|100)( esp)?\b/)||[])[0]||null});
   if(/\bbeatriz\b|\binforme de pistones\b|\b(sin|por|falta(n)? por) (mandar|enviar)\b/.test(q))return M("beatriz");
   /* contenedores: «tipo B3», «dónde están los A1» → la base de datos de contenedores */
+  if(/\bcontenedor(es)?\b/.test(q)&&!(cat.contens||[]).length)return M("sincont");
   const ct=q.match(/\b([a-e])\s?([1-5])\b/);if(ct&&(/\bcontenedor(es)?\b|\btipo\b|\bdonde (esta|estan)\b|\bcuantos\b/.test(q)))return M("rew",{rew:"contenedores "+ct[1]+ct[2]+(/\bdonde\b/.test(q)?" por dónde está":"")});
   if(/\bmoldes?\b/.test(q)&&(o.cod||/\b(en que|que) maquina\b|\bdonde esta\b/.test(q))&&!QCO.test(q))return M("molde");
   if(/\b(cuanto|cuantos dias) (dura|duran|aguanta|aguantan)\b.*\b(de media|cada uno|un piston|un eje)\b|\bde media\b.*\b(dura|duran)\b|\bduracion\b|\bcada cuanto\b.*\b(cambia|cambian|repara|reparan)\b|\bvida (media|util)\b/.test(q))return M("dura",{eje:/\bejes?\b/.test(q)});
@@ -68,6 +69,7 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     const malos=R.filter(x=>x[0]>0);frase(malos.length?"Hay "+malos.length+(malos.length===1?" cosa":" cosas")+" que revisar.":"Todo en orden.");
     lista(null,R.map(x=>it(x[0]?x[0]+" "+x[1]:"Sin "+x[1].replace(/^(bajo|para|pedidos|ejes|consumos|artículos|cambios)/,m=>m),x[0]?"Toca para verlo":null,x[0]?"⚠":"✓",null,x[0]?()=>x[2]==="stock negativo"?irA("res"):pon(x[2]):null,x[0]?"warn":"ok")));return;}
 
+  if(I.modo==="sincont"){ent("contenedores");frase("Todavía no hay contenedores dados de alta. Se dan de alta en Más › Contenedores › Inventario rápido, y después ya se puede preguntar «dónde están los A1».");add(el("button",{type:"button",class:"btn sec",style:"margin-top:8px",text:"Ir a Contenedores",onclick:()=>irA("cont")}));return;}
   if(I.modo==="usados"){const E=puEstado();ent("pistones usados",[I.d?"Ø "+I.d:null]);
     if(!E){frase("Todavía no se ha hecho el primer recuento de pistones usados. Se hace en Pistones › Pistones usados › «Contar pistones usados».");return;}
     const ds=DIAM.filter(d=>!I.d||nq(d)===nq("Ø "+I.d)),t=b=>ds.reduce((s,d)=>s+(E.S[d][b]||0),0),lin=b=>ds.filter(d=>E.S[d][b]).map(d=>d+": "+E.S[d][b]).join(" · ");
@@ -153,13 +155,15 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     const R=L.filter(x=>x.c>0).sort((a,b)=>a.d-b.d);ent(S.fam||S.L.length<artsActivos().length?"para cuántos días hay":"qué se va a acabar antes");ign(S.ign);
     if(!R.length){frase("No hay consumo en los últimos 60 días para calcularlo.");return;}
     if(R.length===1)frase(nomArt(R[0].a)+": hay "+fmtN(Math.round(R[0].st*10)/10)+" "+(R[0].a.ud||"ud")+", para "+diasTxt(R[0].d)+" (gasta "+fmtN(Math.round(R[0].c*100)/100)+" al día).");
-    else frase("Lo que antes se acaba es "+nomArt(R[0].a)+": para "+diasTxt(R[0].d)+".");
+    else frase("Lo que antes se acaba es "+nomArt(R[0].a)+": "+(R[0].d===0?"ya está agotado":"para "+diasTxt(R[0].d))+".");
     lista(null,R.slice(0,40).map(x=>it(nomArt(x.a),["Hay "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" · gasta "+fmtN(Math.round(x.c*100)/100)+" al día",x.a.pedido?"Pedido el "+fmtF(x.a.pedido):null],x.d===0?"0":fmtN(x.d),"días",()=>ficha(x.a),x.d<=7?"bad":x.d<=20?"warn":"ok")));
     nota("Días al ritmo de los últimos 60 días.");return;}
 
   if(I.modo==="valor"){const S=artsQ(q.replace(/\bespecial(es)?\b/g,"esp"));const G={},A=[];let tot=0,uds=0;const sinP=[];S.L.forEach(a=>{const st=stockDe(a.id);if(!(st>0))return;const p=precioDe(a);if(!p){sinP.push(a);return;}const v=st*p,k=famLbl(a);G[k]=(G[k]||0)+v;tot+=v;uds+=st;A.push({a,st,p,v});});
     const solo=S.fam||S.L.length<artsActivos().length;ent(solo?"valor del stock":"valor del almacén");ign(S.ign);
-    if(A.length===1){const x=A[0];frase(nomArt(x.a)+": hay "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" a "+eur(x.p)+" = "+eur(x.v)+".");
+    if(!A.length&&sinP.length===1){const a=sinP[0];frase(nomArt(a)+": hay "+fmtN(Math.round(stockDe(a.id)*10)/10)+" "+(a.ud||"ud")+", pero no tiene precio y no se puede valorar.");}
+    else if(!A.length&&sinP.length){frase("Hay "+sinP.length+" artículos con stock, pero ninguno tiene precio y no se pueden valorar.");}
+    else if(A.length===1){const x=A[0];frase(nomArt(x.a)+": hay "+fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" a "+eur(x.p)+" = "+eur(x.v)+".");
       const porAlm=Object.entries(SM[x.a.id]||{}).filter(z=>Math.abs(z[1])>0.001);if(porAlm.length>1)lista("Por almacén",porAlm.sort((a,b)=>b[1]-a[1]).map(([al,n])=>it(almN(al),fmtN(n)+" "+(x.a.ud||"ud"),eur(n*x.p),null)));}
     else{frase((solo?"El stock de eso vale ":"Lo que hay en el almacén vale ")+eur(tot)+(solo&&A.length<=40?" ("+fmtN(Math.round(uds))+" unidades)":"")+".");
       if(solo&&A.length<=40)lista(null,A.sort((a,b)=>b.v-a.v).map(x=>it(nomArt(x.a),fmtN(Math.round(x.st*10)/10)+" "+(x.a.ud||"ud")+" × "+eur(x.p),eur(x.v),null,()=>ficha(x.a))));
@@ -177,10 +181,10 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     const P0={d:m0+"-01",h:finMes(m0+"-01"),t:cap(fmtMes(m0))};const A=E0.filter(e=>e.f>=P1.d&&e.f<=P1.h),B=E0.filter(e=>e.f>=P0.d&&e.f<=P0.h);
     const n=L=>L.reduce((s,e)=>s+(contable(e.ud)?e.cant:1),0),eu=L=>L.reduce((s,e)=>s+e.eur,0),pc=(a,b)=>b?Math.round((a-b)/b*100):null;
     ent(cap(P1.t)+" frente a "+P0.t.toLowerCase(),etq);const c=pc(eu(A),eu(B));
-    frase(cap(P1.t)+": "+fmtN(n(A))+(fs&&fs.length===1&&fs[0]==="Pistones"?" pistones":" apuntes")+" · "+eur(eu(A))+". "+P0.t+": "+fmtN(n(B))+" · "+eur(eu(B))+"."+(c!=null?" En dinero, "+(c>0?"un "+c+" % más.":c<0?"un "+(-c)+" % menos.":"lo mismo."):""));
+    const pz=fs&&fs.length===1&&fs[0]==="Pistones"?" pistones":" apuntes",cn=pc(n(A),n(B));frase(cap(P1.t)+": "+fmtN(n(A))+pz+(eu(A)?" · "+eur(eu(A)):"")+". "+P0.t+": "+fmtN(n(B))+pz+(eu(B)?" · "+eur(eu(B)):"")+"."+(!(eu(A)||eu(B))&&cn!=null?" "+(cn>0?"Un "+cn+" % más.":cn<0?"Un "+(-cn)+" % menos.":"Lo mismo."):"")+(c!=null&&(eu(A)||eu(B))?" En dinero, "+(c>0?"un "+c+" % más.":c<0?"un "+(-c)+" % menos.":"lo mismo."):""));
     if(P1.t==="este mes")nota("Ojo: este mes aún no ha terminado (va por el día "+(+h.slice(8,10))+").");
-    const GA=porMaq(A),GB=porMaq(B),ks=[...new Set(Object.keys(GA).concat(Object.keys(GB)))].sort((a,b)=>((GA[b]||{eu:0}).eu-(GA[a]||{eu:0}).eu));
-    add(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Por máquina"})),cTabla(["Máquina",cap(P1.t),P0.t,"€ ahora","€ antes"],ks.map(k=>[k,fmtN((GA[k]||{n:0}).n),fmtN((GB[k]||{n:0}).n),eur((GA[k]||{eu:0}).eu),eur((GB[k]||{eu:0}).eu)]))]));return;}
+    const GA=porMaq(A),GB=porMaq(B),ks=[...new Set(Object.keys(GA).concat(Object.keys(GB)))].sort((a,b)=>((GA[b]||{eu:0}).eu-(GA[a]||{eu:0}).eu)||((GA[b]||{n:0}).n-(GA[a]||{n:0}).n));
+    add(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Por máquina"})),(eu(A)||eu(B)?cTabla(["Máquina",cap(P1.t),P0.t,"€ ahora","€ antes"],ks.map(k=>[k,fmtN((GA[k]||{n:0}).n),fmtN((GB[k]||{n:0}).n),eur((GA[k]||{eu:0}).eu),eur((GB[k]||{eu:0}).eu)])):cTabla(["Máquina",cap(P1.t),P0.t],ks.map(k=>[k,fmtN((GA[k]||{n:0}).n),fmtN((GB[k]||{n:0}).n)])))]));return;}
 
   if(I.modo==="ritmo"){const per=P.def?{d:sumaDias(h,-84),h,t:"últimas 12 semanas"}:P;const L=E0.filter(e=>e.f>=per.d&&e.f<=per.h),sem=Math.max(1,dias(per.d,per.h)/7);const G=porMaq(L);
     const R=Object.entries(G).sort((a,b)=>b[1].c-a[1].c);ent("cambios por semana",etq.concat([per.t]));if(!R.length){frase("No hay nada apuntado en "+per.t+".");return;}
@@ -192,7 +196,7 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     frase((/^últimos/.test(per.t)?"En los "+per.t:/^el año/.test(per.t)?"En "+per.t.slice(3):/^[A-Z]/.test(per.t)?"En "+per.t.toLowerCase():cap(per.t))+" se han gastado "+eur(tot)+(I.maq?" en la "+I.maq.cod:"")+(fs?" en "+fs.join(", ").toLowerCase():"")+(I.alMes&&meses_>1?": unos "+eur(tot/meses_)+" al mes.":"."));
     const G={};if(I.porMaq){Object.entries(porMaq(L)).forEach(([k,g])=>{G[k]={eu:g.eu,n:g.n,m:g.m};});}else L.forEach(e=>{const g=G[e.fam]=G[e.fam]||{eu:0,n:0};g.eu+=e.eur;g.n++;});
     const R=Object.entries(G).filter(x=>x[1].eu>0).sort((a,b)=>b[1].eu-a[1].eu);
-    if(I.porMaq&&R.length)res.insertBefore(el("div",{class:"banner",text:"La que más: "+R[0][0]+" ("+eur(R[0][1].eu)+(I.alMes&&meses_>1?", "+eur(R[0][1].eu/meses_)+" al mes":"")+")."}),res.children[2]||null);
+    const R0=R.filter(x=>x[1].m);if(I.porMaq&&R0.length)res.insertBefore(el("div",{class:"banner",text:"La que más: "+R0[0][0]+" ("+eur(R0[0][1].eu)+(I.alMes&&meses_>1?", "+eur(R0[0][1].eu/meses_)+" al mes":"")+")."}),res.children[2]||null);
     lista(I.porMaq?"Por máquina":"Por tipo",R.map(([k,g])=>it(k,g.n+(g.n===1?" apunte":" apuntes")+(tot?" · "+Math.round(g.eu/tot*100)+" %":""),eur(I.alMes&&meses_>1?g.eu/meses_:g.eu),I.alMes&&meses_>1?"al mes":null,g.m?()=>fichaIny(g.m):null)));
     const sinP=L.filter(e=>!e.eur&&e.fam!=="Reparación de ejes").length;if(sinP)nota(sinP+" apuntes son de artículos sin precio y no suman dinero.");return;}
 }

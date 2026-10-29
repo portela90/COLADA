@@ -178,7 +178,7 @@ function vBuscaCol(resto){
     res.appendChild(el("p",{class:"bq-resp",text:L.length?cuando+" "+(L.length===1?"tiene que entrar ":"tienen que entrar ")+queT+" ("+fmt(fa)+" fardos)"+(filt?" · "+filt:"")+".":cuando+" no hay ninguna entrada planificada"+(filt?" ("+filt+")":"")+"."}));
     if(L.length)res.appendChild(el("div",{class:"card"},[el("div",{class:"bq-lst"},L.map(lin))]));
     else{const sig=T.find(x=>x.f>P.h);if(sig)res.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"La siguiente"})]),el("div",{class:"bq-lst"},[lin(sig)])]));}
-    if(atras.length)res.appendChild(el("div",{class:"banner w",text:"Hay "+camT(atras.length)+" planificadas para días que ya han pasado y no se han apuntado como recibidas ("+atras.map(x=>dmy(x.f)).join(", ")+"). Revísalas en Plan."}));
+    if(atras.length)res.appendChild(el("div",{class:"banner w",text:"Hay "+camT(atras.length)+(atras.length===1?" planificada":" planificadas")+" para días que ya han pasado y no se han apuntado como recibidas ("+atras.map(x=>dmy(x.f)).join(", ")+"). Revísalas en Plan."}));
     res.appendChild(el("p",{class:"hint",text:"Sale lo que hay colocado en el calendario de la pestaña Plan."}));
     res.appendChild(el("button",{type:"button",class:"btn sec",text:"Abrir el Plan",onclick:()=>{tab="plan";try{localStorage.setItem("colada.tab","plan");}catch(e){}tabsUI();render();}}));}
   /* Días = fardos ÷ gasto diario. El gasto diario sale de los últimos 30 días (fardos gastados ÷ días con consumo),
