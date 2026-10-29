@@ -96,6 +96,7 @@ const CAMPOS=[["titulo","Trabajo",/^(trabajos?|tareas?|actividad(es)?|puntos?|su
   ["quien","Quién",/^(quien|operari[oa]s?|responsables?|asignad[oa]s?|personas?|trabajador(es)?|nombres?)\b/],["descripcion","Notas",/^(observaciones?|notas?|detalles?|comentarios?|instrucciones?)\b/],["minutos","Tiempo",/^(tiempo|horas?|minutos?|duracion)\b/],["urgente","Urgente",/^(urgente|prioridad)\b/]];
 const EX={trab:null};
 async function vExcel(v){
+  if(!esJefe()) return vTrabFinde(v); /* el encargado no sube el Excel: revisa los trabajos */
   v.appendChild(el("p",{class:"hint",text:"Sube el Excel con los trabajos del fin de semana. Elige el día de cada uno y, si quieres, quién lo hace. Los que no tengan persona solo los verá el encargado."}));
   const inpF=el("input",{type:"file",accept:".xlsx,.xls,.csv,.ods",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f)leerExcel(f,v);e.target.value="";}});
   v.appendChild(el("label",{class:"btn grande",style:"text-align:center;cursor:pointer"},["Subir el Excel del fin de semana",inpF]));
