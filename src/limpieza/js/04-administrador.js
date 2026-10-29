@@ -73,17 +73,21 @@ let TRAB=null;async function trabajadores(force){if(!TRAB||force)TRAB=await rpc(
 function chipsTrab(L,sel0,multi){const s=new Set(sel0||[]);const box=el("div",{class:"chips"});const pint=()=>{box.textContent="";L.filter(w=>w.activo).forEach(w=>box.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(s.has(w.id)),text:w.nombre,onclick:()=>{if(s.has(w.id))s.delete(w.id);else{if(!multi)s.clear();s.add(w.id);}pint();}})));};pint();box.val=()=>Array.from(s);return box;}
 async function formOT(o0,re){const [L,H]=await Promise.all([trabajadores(),habituales(),zonasL()]);const o=Object.assign({fecha:hoyISO(),equipo:"Semana",prioridad:"normal",asignados:[],todo_equipo:false},o0);
   const ch=chipsTrab(L,o.asignados,true);
-  let cerrarF=()=>{};const hab=!o.id&&H.some(h=>h.activo)?fld("Rellenar con una tarea habitual",el("div",{class:"chips hab"},H.filter(h=>h.activo).map(h=>el("button",{type:"button",class:"chip","aria-pressed":String(o.habitual_id===h.id),text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):""),
+  let cerrarF=()=>{};
+  /* encargado (no admin): formulario corto. El día (fin de semana o no) decide el equipo; turno, prioridad y “todo el equipo” se dejan como estaban */
+  const simple=!esAdm();
+  const hab=!simple&&!o.id&&H.some(h=>h.activo)?fld("Rellenar con una tarea habitual",el("div",{class:"chips hab"},H.filter(h=>h.activo).map(h=>el("button",{type:"button",class:"chip","aria-pressed":String(o.habitual_id===h.id),text:h.titulo+(h.minutos_est?" · "+durTxt(h.minutos_est):""),
     onclick:()=>{cerrarF();formOT(Object.assign({},o,{titulo:h.titulo,lugar:h.lugar||o.lugar,descripcion:h.descripcion||o.descripcion,minutos_est:h.minutos_est,habitual_id:h.id,asignados:ch.val()}),re);}})))):null;
   const lugF=inp(o.lugar,v=>{o.lugar=v;zsF.value=(ZONAS||[]).some(z=>z.nombre===v)?v:"";},{placeholder:"p. ej. F28, pasillo Nave 2…"});
   const zsF=selZona(o.lugar,z=>{if(!z)return;o.lugar=z;lugF.value=z;});
-  const cuerpo=el("div",null,[hab,fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Zona (elige de la lista)",zsF),fld("Dónde (o escríbelo)",lugF),fld("Tiempo estimado (opcional)",campoTiempo(o.minutos_est,v=>o.minutos_est=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
+  const cuerpo=simple?el("div",null,[fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Zona (elige de la lista)",zsF),fld("Fecha",inp(o.fecha,v=>o.fecha=v,{type:"date"})),fld("Tiempo estimado (opcional)",campoTiempo(o.minutos_est,v=>o.minutos_est=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),fld("Quién lo hace",ch)])
+  :el("div",null,[hab,fld("Título",inp(o.titulo,v=>o.titulo=v)),fld("Zona (elige de la lista)",zsF),fld("Dónde (o escríbelo)",lugF),fld("Tiempo estimado (opcional)",campoTiempo(o.minutos_est,v=>o.minutos_est=v)),fld("Descripción",area(o.descripcion,v=>o.descripcion=v)),
     el("div",{class:"row"},[fld("Fecha",inp(o.fecha,v=>o.fecha=v,{type:"date"})),fld("Equipo",sel([["Semana","Semana"],["Finde","Finde"]],o.equipo,v=>o.equipo=v))]),
     el("div",{class:"row"},[fld("Turno",sel([["","—"]].concat(TURNOS_S.concat(TURNOS_F).map(t=>[t,t])),o.turno,v=>o.turno=v)),fld("Prioridad",sel([["normal","Normal"],["alta","Urgente"]],o.prioridad,v=>o.prioridad=v))]),
     fld("Quién lo hace",ch),el("label",{style:"display:flex;gap:8px;align-items:center;margin:0 0 10px"},[el("input",{type:"checkbox",checked:o.todo_equipo,onchange:e=>o.todo_equipo=e.target.checked}),"Lo ve todo el equipo"])]);
   const bot=[{t:"Cancelar",cls:"sec"}];
   if(o.id&&esAdm())bot.push({t:"Borrar",cls:"bad",fn:async()=>{if(!confirm("¿Borrar este trabajo?"))return false;await rpc("ot_borrar",{p_tok:S.tok,p_ot:o.id});toast("Borrada");re();}});
-  bot.push({t:"Guardar",fn:async()=>{const p={id:o.id||null,habitual_id:o.habitual_id||null,titulo:o.titulo,lugar:o.lugar,minutos_est:o.minutos_est||null,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
+  bot.push({t:"Guardar",fn:async()=>{const fd=new Date((o.fecha||hoyISO())+"T12:00:00").getDay();const p={id:o.id||null,habitual_id:o.habitual_id||null,titulo:o.titulo,lugar:o.lugar,minutos_est:o.minutos_est||null,descripcion:o.descripcion,tipo:o.tipo,fecha:o.fecha,equipo:simple?(fd===0||fd===6?"Finde":"Semana"):o.equipo,turno:o.turno,prioridad:o.prioridad,asignados:ch.val(),todo_equipo:o.todo_equipo};
     if(!p.asignados.length&&!p.todo_equipo){toast("Elige quién lo hace");return false;}if(!o.id&&esProblema(p.titulo,p.descripcion)&&!(p.lugar||"").trim()){toast(MSG_LUG);return false;}await rpc("ot_guardar",{p_tok:S.tok,p});toast("Guardada");re();}});
   cerrarF=dlg(o.id?(sinAsignar(o)?"Asignar trabajo":"Editar trabajo"):"Nuevo trabajo",cuerpo,bot);}
 /* ---------- horas del día y del mes (solo administrador) ---------- */
