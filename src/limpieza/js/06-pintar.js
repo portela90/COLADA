@@ -27,6 +27,11 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
           fila("","Calendario laboral","Festivos, vacaciones y firmas",pag("calendario.html")),
           fila("","Errores de la app","Lo que ha fallado en los móviles de cualquiera",verErrores),
           fila("","Probar como operario","Ver la app como la ve un trabajador",()=>{S.verOp=true;S.tab="hoy";pinta();window.scrollTo(0,0);})]),[{t:"Cerrar",cls:"sec"}]);}));}}
+  else if(esEnc()){nav.hidden=false;nav.textContent="";
+    /* encargado (sin ser admin): solo Día y acceso a la app de toolbox para entregar EPIs y recoger firmas */
+    nav.appendChild(el("button",{"aria-selected":"true",onclick:()=>{S.tab="hoy";pinta();window.scrollTo(0,0);}},[el("span",{text:"Día"})]));
+    nav.appendChild(el("button",{"aria-selected":"false",onclick:()=>{location.href="toolbox.html?v="+Date.now();}},[el("span",{text:"Toolbox EPI"})]));
+  }
   else{nav.hidden=true;S.tab="hoy";}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
