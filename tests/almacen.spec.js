@@ -460,3 +460,19 @@ test('Consultas: «quién cambió las barras de la F28» dice quién, cuándo y 
   expect(await page.locator('#bdRes').innerText()).toMatch(/Pistones/);
   expect(err).toEqual([]);
 });
+
+test('Consultas: la taladrina y el aceite van por nave (no se asignan a una máquina)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'tq1', desc: 'TALADRINA ECOCOOL', fam: 'consumible', grupo: 'taladrina', ud: 'kg', alms: ['n2'], iny: [v.cat.app.maquinas[0].id] });
+    v.mov[k].items.push({ id: 'tx1', f: '2026-10-20', ts: 1, alm: 'n2', art: 'tq1', cant: 190, nota: 'Limpieza: Cambiar bidón de taladrina · Nave 2', tipo: 'salida' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'consumo de taladrina por nave'); await page.waitForTimeout(300);
+  const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toContain('Por nave'); expect(t).toContain('Nave 2');
+  await page.fill('#bdQ', 'qué máquina consume más de todo'); await page.waitForTimeout(300);
+  expect((await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ')).toContain('Nave 2 (general)');
+  expect(err).toEqual([]);
+});

@@ -6,10 +6,12 @@
 const SECC_T=[["res","Resumen"],["cam","Cambios"],["maq","Por máquina"],["gas","Gasto"],["ref","Referencias"],["mas","Más cosas"]];
 const nomArtC=a=>a?(TEC(a.fam)?nomBT(a):a.desc):"?";
 /* consumo sin máquina apuntada: se saca de la nota («Horno H-F25: …») o, si el artículo solo está asignado a una máquina, de esa */
-function maqDeSalida(x,a){const m=String(x.nota||"").match(/\bH-?([FM]\d{1,3})\b|\b([FM]\d{1,3})\b/i);if(m){const c=(m[1]||m[2]).toUpperCase(),q=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(q)return q.id;}
+function maqDeSalida(x,a){if(a&&typeof GRUPOS_Q!=="undefined"&&GRUPOS_Q.includes(grupoDe(a)))return null;/* aceites, taladrinas y jabones van por nave */const m=String(x.nota||"").match(/\bH-?([FM]\d{1,3})\b|\b([FM]\d{1,3})\b/i);if(m){const c=(m[1]||m[2]).toUpperCase(),q=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(q)return q.id;}
   if(a&&(a.iny||[]).length===1&&cat.maquinas.some(z=>z.id===a.iny[0]))return a.iny[0];return null;}
+/* nave de un consumo general: la apuntada, la de la nota («… · Nave 2») o la del almacén de donde sale */
+function naveDeSalida(x){const m=String(x.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);if(m)return"Nave "+m[1].toUpperCase();const al=(cat.almacenes||[]).find(z=>z.id===x.alm);if(al&&al.nave){const n=String(al.nom||"").match(/\bN(1A|1B|2)\b/i);return n?"Nave "+n[1].toUpperCase():al.nave;}return null;}
 const salidasFam=fs=>todosMov().filter(x=>x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).filter(x=>{const a=art(x.art);return a&&fs(a);})
-  .map(x=>{const a=art(x.art),c=+x.cant||0;return{f:x.f,ts:x.ts||0,maq:x.maq||maqDeSalida(x,a),nave:x.nave||null,fam:typeof famLbl==="function"?famLbl(a):"",ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),txt:x.motivo?cap(x.motivo):(x.nota||""),ir:()=>ficha(a)};});
+  .map(x=>{const a=art(x.art),c=+x.cant||0;return{f:x.f,ts:x.ts||0,maq:x.maq||maqDeSalida(x,a),nave:x.nave||naveDeSalida(x),fam:typeof famLbl==="function"?famLbl(a):"",ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),txt:x.motivo?cap(x.motivo):(x.nota||""),ir:()=>ficha(a)};});
 /* lo que cada pieza aporta: sus cambios (para Cambios, Por máquina y Gasto) y sus referencias */
 /* el desperfecto de una reparación, en pocos tipos (está escrito a mano y cada vez de una forma) */
 const MOT_REP=[["Postizo roto",/postizo/],["Pistón agarrotado",/agarrot/],["Pistón roto",/rotura de piston|piston roto|se suelta el piston/],["Rosca",/rosca/],["Enchufes o racores de agua",/enchufe|racor/],
@@ -37,7 +39,7 @@ function refsBT(f){return artsBT(f).map(a=>({t:nomBT(a),s:["hay "+fmtN(stockDe(a
 const seccDe=id=>{cat.secc=cat.secc||{};const s=cat.secc[id]=cat.secc[id]||{};["avisos","docs","enlaces","listas"].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[];});return s;};
 const PER_S=[["30","30 días"],["90","3 meses"],["365","1 año"],["todo","Todo"]];
 const desdePer=k=>k==="todo"?"0000":sumaDias(hoy(),-(+k));
-const maqTxt=e=>e.maq?maqN(e.maq):e.nave||"Sin máquina";
+const maqTxt=e=>e.maq?maqN(e.maq):e.nave?e.nave+" (general)":"Sin máquina";
 
 function vSecc(id,v){const S=SECC[id];draft.st=draft.st||{};const t=draft.st[id]||"res";
   v.appendChild(el("div",{class:"op-tabs secc-tabs",role:"tablist","aria-label":S.nom},SECC_T.map(([k,n])=>el("button",{type:"button",role:"tab","aria-selected":String(t===k),text:n+(k==="mas"&&nExtras(id)?" ("+nExtras(id)+")":""),onclick:()=>{draft.st[id]=k;render(true);}}))));
