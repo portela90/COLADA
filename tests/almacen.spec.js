@@ -504,3 +504,22 @@ test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y
   expect(await page.locator('#bdRes').innerText()).toMatch(/Consumo de aceite y glicol/);
   expect(err).toEqual([]);
 });
+
+test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'ater', desc: 'ACEITE TÉRMICO BESTERM HT', fam: 'consumible', grupo: 'aceite', ud: 'kg', alms: ['gen'] });
+    const h = new Date(), f = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    // GRG de 870 kg (≈ 1000 l) el día 20 antes; otro el día 6 antes; los contadores marcan 700 l entre medias → desfase
+    v.mov[k].items.push({ id: 'g1', f: f(20), alm: 'gen', art: 'ater', cant: 870, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite térmico' },
+      { id: 'g2', f: f(6), alm: 'gen', art: 'ater', cant: 870, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite térmico' });
+    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'r1', f: f(20), nave: 'Nave 1', c: { ter: 0 }, ts: 1 }, { id: 'r2', f: f(13), nave: 'Nave 1', c: { ter: 400 }, ts: 2 }, { id: 'r3', f: f(6), nave: 'Nave 1', c: { ter: 700 }, ts: 3 }, { id: 'r4', f: f(1), nave: 'Nave 1', c: { ter: 800 }, ts: 4 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#view')).toContainText('Térmico: desfase de -30 %');
+  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/870 kg ≈ 1000 l/); expect(t).toMatch(/-300 l \(-30 %\)/); expect(t).toMatch(/en uso · quedan ≈ 900 l/);
+  expect(err).toEqual([]);
+});

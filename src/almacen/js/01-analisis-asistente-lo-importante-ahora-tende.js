@@ -142,6 +142,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   const ejP=R.E.L.filter(x=>x.pedir>0||x.faltan>0);if(ejP.length)T(ejP.some(x=>x.faltan)?"bad":"warn","Pedir "+ejP.reduce((t,x)=>t+x.pedir,0)+" ejes al taller",ejP.map(x=>x.m.cod+(x.pedir?" ×"+x.pedir:"")+(x.faltan?" (faltan "+x.faltan+")":"")).join(", "),"Ver previsión",ir("repo",()=>{draft.rv="prev";render(true);}));
   const prevP=R.arts.filter(x=>x.pedir>0&&!(x.a.pedido));if(prevP.length)T("info","Pedido previsto hasta fin de "+nomMes(S.mesSig)+": "+prevP.length+" artículos",prevP.slice(0,4).map(x=>x.a.desc+" "+fmtN(x.pedir)).join(", ")+(prevP.length>4?"…":""),"Ver previsión",ir("repo",()=>{draft.rv="prev";render(true);}));
   {const fl=faltaLectHoy();if(fl.length&&new Date().getHours()>=10)T("warn","Falta la lectura de los contadores de aceite",fl.join(" y ")+" · hoy","Apuntar",()=>formLect(fl[0]));
+    cotejoResumen().filter(x=>x.niv==="bad").forEach(x=>T("bad","Desfase entre cambios de aceite y contadores",x.t,"Ver",()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])));
     const RC=rarosCont(3);if(RC.length)T("bad","Consumo raro de aceite o glicol",RC.map(t=>nomCont(t.k)+" "+t.n+(t.raro==="baja"?" (el contador baja)":" ("+fmtL(t.lpd)+"/día)")).join(", "),"Ver",()=>informeCont());}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);

@@ -56,7 +56,8 @@ function cardContadores(){const h=hoy(),m0=h.slice(0,7)+"-01",falta=faltaLectHoy
     el("div",{class:"bd",style:"display:grid;gap:10px"},[
       falta.length?el("div",{class:"banner w",text:"Falta la lectura de hoy de "+falta.join(" y ")+"."}):null,
       R.length?el("div",{class:"banner b",text:"Consumo raro: "+R.map(t=>nomCont(t.k)+" "+t.n+" el "+fmtF(t.f)+" ("+(t.raro==="baja"?"el contador marca menos que antes":fmtL(t.lpd)+"/día, lo normal "+fmtL(t.normal)+"/día")+")").join(" · ")}):null,
-      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()})]),
+      (()=>{const CR=cotejoResumen();return CR.length?el("div",{class:"banner "+(CR.some(x=>x.niv==="bad")?"b":"w"),text:CR.map(x=>x.t).join(" · ")}):null;})(),
+      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),el("button",{type:"button",class:"btn sec",text:"Cotejo con los cambios",onclick:()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])})]),
       cTabla(["Nave","Contador","Última lectura","Último consumo","Este mes",""],filas,[2,3,4])])]);}
 
 /* informe: litros por día y por mes, por nave y contador */
@@ -87,3 +88,40 @@ async function excelCont(btn){if(!downloads){toast("Esta vista no permite descar
   catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}
 /* para Consultas: cada tramo es un «consumo» con litros */
 const evCont=()=>{const o=[];NAVES_CT.forEach(n=>CONT.forEach(([k,nom])=>tramos(n,k).forEach(t=>{if(t.dif<0)return;o.push({f:t.f,ts:t.r.ts||0,maq:null,nave:n,ref:nom,cant:t.dif,ud:"l",eur:0,quien:t.por,txt:t.raro?"Consumo raro":"",det:t.lab>1?"en "+t.lab+" días laborables":"",fam:"Contadores"});})));return o;};
+
+/* ===== COTEJO: cambios de GRG/bidón (salidas del almacén) frente a lo que marcan los contadores =====
+   Cada cambio mete un GRG en el grifo; lo que marcan los contadores hasta el siguiente cambio tendría que ser lo que traía (en litros).
+   Cada contador va unido a un artículo y a una densidad (kg por litro) que se pueden cambiar en «Ajustes del cotejo». */
+const DENS0={e220:0.89,ter:0.87,pre:0.80,i46:0.87,gli:1.06};
+const ART_RE={e220:/\b(iso\s*220|engrase)\b/i,ter:/t[eé]rmico/i,pre:/prensa/i,i46:/\b46\b/,gli:/glicol/i};
+function cfgCot(k){const c=((cat.contCfg||{})[k])||{};const art0=c.art!==undefined?c.art:((artsActivos().find(a=>ART_RE[k].test(a.desc))||{}).id||null);return{art:art0,dens:+c.dens>0?+c.dens:DENS0[k]};}
+const naveSalida=x=>typeof naveDeSalida==="function"?naveDeSalida(x):null;
+function cotejo(k){const C=cfgCot(k);if(!C.art)return{C,cambios:[],iv:[]};
+  const cam=todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:nv?(/^1/.test(nv[1])?"Nave 1":"Nave 2"):null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
+  const conL=NAVES_CT.filter(nv=>lectDe(nv).some(r=>r.c&&typeof r.c[k]==="number"));
+  const lit=(n,d0,d1)=>{const ns=n?[n]:conL;let s=0,cub=ns.length>0;ns.forEach(nv=>{const T=tramos(nv,k);const L=lectDe(nv).filter(r=>typeof r.c[k]==="number");if(!L.length||L[0].f>d0)cub=false;const ms=x=>Date.parse(x+"T12:00:00");T.forEach(t=>{if(!(t.dif>0))return;const a=Math.max(ms(t.f0),ms(d0)),z=Math.min(ms(t.f),d1?ms(d1):Infinity),tot=ms(t.f)-ms(t.f0);if(z<=a||tot<=0)return;s+=t.dif*(z-a)/tot;});});return{s,cub};};
+  const iv=cam.map((c,i)=>{const sig=cam.slice(i+1).find(x=>!c.nave||!x.nave||x.nave===c.nave);const r=lit(c.nave,c.f,sig?sig.f:null);
+    const des=sig?r.s-c.l:null;return Object.assign({},c,{hasta:sig?sig.f:null,cont:r.s,cub:r.cub,des,pct:sig&&c.l?Math.round((r.s-c.l)/c.l*100):null,queda:sig?null:Math.max(0,c.l-r.s)});});
+  return{C,cambios:cam,iv};}
+function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
+  CONT.forEach(([k,nom])=>{const R=cotejo(k);const a=R.C.art?art(R.C.art):null;
+    const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:""),fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l),x.cub?fmtL(x.cont):"sin lecturas",
+      x.hasta?(x.cub?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)":"—"):(x.cub?"en uso · quedan ≈ "+fmtL(x.queda):"en uso")]);
+    const mal=R.iv.filter(x=>x.hasta&&x.cub&&Math.abs(x.pct)>=10);
+    box.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:nom}),el("span",{class:"der sub",text:a?nomArt(a)+" · "+R.C.dens+" kg/l":"sin artículo unido"})]),
+      el("div",{class:"bd",style:"display:grid;gap:8px"},[!a?el("p",{class:"hint",style:"margin:0",text:"Une este contador con su artículo en «Ajustes del cotejo» para poder comparar."}):!R.iv.length?el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ningún cambio de "+nomArt(a)+" apuntado como salida del almacén."}):null,
+        mal.length?el("div",{class:"banner b",text:"Desfase de más del 10 % en "+mal.length+(mal.length===1?" cambio":" cambios")+": revisa si se apuntó bien el cambio o si hay una fuga o un contador que no marca."}):null,
+        filas.length?cTabla(["Cambio","Traía","Marcan los contadores","Desfase"],filas,[1,2,3]):null])]));});
+  box.appendChild(el("p",{class:"hint",text:"Lo que marcan los contadores entre un cambio y el siguiente tendría que ser lo que traía el GRG (en litros, con la densidad de cada aceite). Si el cambio lleva la nave en la nota, se compara solo con los contadores de esa nave; si no, con los de las dos naves. Solo cuenta cuando ya había lecturas el día del cambio."}));
+  box.appendChild(el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Ajustes del cotejo",onclick:()=>ajustesCotejo()}));
+  return box;}
+function ajustesCotejo(){const val={};CONT.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",",")};});
+  const ops=[["","— sin unir —"]].concat(artsActivos().filter(a=>a.fam!=="eje"&&a.fam!=="piston").sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>[a.id,nomArt(a)]));
+  dlg("Ajustes del cotejo",[el("p",{class:"hint",text:"Une cada contador con el artículo que se cambia en su grifo y pon la densidad de su ficha técnica (kg por litro). Las que vienen puestas son aproximadas."})].concat(CONT.map(([k,nom])=>el("div",{class:"row"},[
+    fld(nom,sel("cfA"+k,ops,val[k].art,v=>val[k].art=v)),fld("kg/l",inp("cfD"+k,val[k].dens,v=>val[k].dens=v,{inputmode:"decimal",class:"num"}))]))),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const o={};for(const [k,nom] of CONT){const d=parseN(val[k].dens);if(!(d>0.5&&d<2)){toast("Densidad no válida en "+nom);return false;}o[k]={art:val[k].art||null,dens:d};}
+      cat.contCfg=o;try{await saveCat();}catch(e){return false;}toast("Ajustes guardados");}}]);}
+/* resumen corto para la tarjeta: cómo va el GRG que está puesto y los desfases */
+function cotejoResumen(){const out=[];CONT.forEach(([k,nom])=>{const R=cotejo(k),u=R.iv[R.iv.length-1];if(!u)return;
+  const mal=R.iv.filter(x=>x.hasta&&x.cub&&Math.abs(x.pct)>=10);if(mal.length)out.push({niv:"bad",t:nom+": desfase de "+(mal[mal.length-1].pct>0?"+":"")+mal[mal.length-1].pct+" % en el cambio del "+fmtF(mal[mal.length-1].f)});
+  else if(u.cub&&!u.hasta&&u.l>0&&u.queda/u.l<0.15)out.push({niv:"warn",t:nom+": al GRG del "+fmtF(u.f)+" le quedan ≈ "+fmtL(u.queda)});});return out;}
