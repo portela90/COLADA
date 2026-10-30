@@ -1,7 +1,7 @@
 /* ===== CONTADORES DE ACEITE Y GLICOL =====
    En cada nave hay 4 grifos con contador (Engrase 220, Térmico, Prensa, ISO 46) y un contador general de glicol.
    Se apunta la lectura cada día laborable; los litros consumidos son la diferencia con la lectura anterior.
-   Guardado en la colección «cont» (un documento por año, items {id,f,nave,c:{e220,ter,pre,i46,gli},por,ts}). No toca el stock. */
+   Guardado en la colección «cont» (un documento por año, items {id,f,nave,c:{e220,ter,pre,i46,gli},grg:{k:{ab}},por,ts}). No toca el stock. */
 const CONT=[["e220","Engrase 220"],["ter","Térmico"],["pre","Prensa"],["i46","ISO 46"],["gli","Glicol"]];
 const NAVES_CT=["Nave 1","Nave 2"];
 let contAnos={};
@@ -28,7 +28,7 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const L=lectDe(f.nave),esta=L.find(r=>r.f===f.f),ant=L.filter(r=>r.f<f.f).pop();
     if(esta&&!f.cargada){CONT.forEach(([k])=>{if(typeof esta.c[k]==="number")f.v[k]=String(esta.c[k]).replace(".",",");});f.cargada=true;}
-    box.appendChild(el("div",{class:"seg",role:"group","aria-label":"Nave"},NAVES_CT.map(n=>{const b=el("button",{type:"button","aria-pressed":String(f.nave===n),text:n});b.onclick=()=>{f.nave=n;f.v={};f.cargada=false;pinta();};return b;})));
+    box.appendChild(el("div",{class:"seg",role:"group","aria-label":"Nave"},NAVES_CT.map(n=>{const b=el("button",{type:"button","aria-pressed":String(f.nave===n),text:n});b.onclick=()=>{f.nave=n;f.v={};f.cargada=false;f.g={};f.gcarg=false;pinta();};return b;})));
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:ant?"Lectura anterior: "+fmtF(ant.f)+(ant.por?" ("+ant.por+")":"")+". Escribe lo que marca ahora cada contador.":"Primera lectura de "+f.nave+": a partir de la siguiente ya se calculan los litros."}));
     if(esta)box.appendChild(el("div",{class:"banner w",text:"Ya hay lectura de "+f.nave+" el "+fmtF(f.f)+": si guardas, se corrige."}));
     CONT.forEach(([k,nom])=>{const pv=ant&&typeof ant.c[k]==="number"?ant.c[k]:null;const out=el("div",{class:"sub",style:"min-height:18px"});
@@ -38,12 +38,22 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
         out.textContent="= "+fmtL(d)+(lab>1?" en "+lab+" días ("+fmtL(d/lab)+"/día)":"")+(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10?" · mucho más de lo normal ("+fmtL(med)+"/día)":"");
         if(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10)out.className="sub neg";};
       const i=inp("ct"+k,f.v[k]||"",v=>{f.v[k]=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:pv!=null?fmtN(pv):"lectura"});
-      box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[i,out])));calc();});};
+      box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[i,out])));calc();});
+    /* cambio del GRG de arriba: nivel del de abajo */
+    if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{f.g[k]=String(esta.grg[k].ab).replace(".",",");});f.gcarg=true;}
+    f.g=f.g||{};const gb=el("div",{class:"card",style:"padding:10px 12px;display:grid;gap:8px"});
+    gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"¿Hoy se ha cambiado algún GRG?"}));
+    gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]="";pinta();}}))));
+    CONT.filter(([k])=>f.g[k]!=null).forEach(([k,nom])=>{const cap=cfgCot(k).cap;const i=inp("ctG"+k,f.g[k],v=>{f.g[k]=v;},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"litros"});
+      gb.appendChild(fld("Nivel del GRG de abajo · "+nom,el("div",{style:"display:grid;gap:6px"},[i,el("div",{class:"chips"},[["Lleno",1],["¾",.75],["½",.5],["¼",.25]].map(([t,x])=>el("button",{type:"button",class:"chip",text:t,onclick:()=>{f.g[k]=String(Math.round(cap*x));i.value=f.g[k];}})))])));});
+    if(Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Mira la escala del lateral del GRG de abajo y pon los litros que tiene justo al cambiar el de arriba."}));
+    box.appendChild(gb);};
   pinta();
-  dlg("Lectura de contadores",[fld("Fecha",inp("ctF",f.f,v=>{f.f=v;f.cargada=false;f.v={};pinta();},{type:"date",max:hoy()})),box],
+  dlg("Lectura de contadores",[fld("Fecha",inp("ctF",f.f,v=>{f.f=v;f.cargada=false;f.v={};f.g={};f.gcarg=false;pinta();},{type:"date",max:hoy()})),box],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const c={};let n=0;for(const [k,nom] of CONT){const s=String(f.v[k]==null?"":f.v[k]).trim();if(!s)continue;const x=parseN(s);if(!isFinite(x)||x<0){toast("Lectura no válida en "+nom);return false;}c[k]=x;n++;}
       if(!n){toast("Escribe al menos una lectura");return false;}
-      const esta=lectDe(f.nave).find(r=>r.f===f.f);try{await guardaLect({f:f.f,nave:f.nave,c},esta);}catch(e){toast("No se pudo guardar");return false;}
+      const grg={};for(const k of Object.keys(f.g||{})){const x=parseN(String(f.g[k]).trim());if(String(f.g[k]).trim()===""||!isFinite(x)||x<0||x>cfgCot(k).cap*1.2){toast("Pon el nivel del GRG de abajo de "+nomCont(k)+" (en litros)");return false;}grg[k]={ab:x};}
+      const esta=lectDe(f.nave).find(r=>r.f===f.f),rec={f:f.f,nave:f.nave,c};if(Object.keys(grg).length)rec.grg=grg;try{await guardaLect(rec,esta);}catch(e){toast("No se pudo guardar");return false;}
       toast("Lecturas de "+f.nave+" guardadas");const otra=faltaLectHoy().filter(x=>x!==f.nave)[0];if(otra&&f.f===hoy())setTimeout(()=>confirmar("¿Seguimos con "+otra+"?","Falta apuntar hoy los contadores de "+otra+".","Apuntar "+otra,()=>formLect(otra)),400);render(true);}}]);}
 
 /* tarjeta en Aceites, taladrinas y jabones */
@@ -94,34 +104,55 @@ const evCont=()=>{const o=[];NAVES_CT.forEach(n=>CONT.forEach(([k,nom])=>tramos(
    Cada contador va unido a un artículo y a una densidad (kg por litro) que se pueden cambiar en «Ajustes del cotejo». */
 const DENS0={e220:0.89,ter:0.87,pre:0.80,i46:0.87,gli:1.06};
 const ART_RE={e220:/\b(iso\s*220|engrase)\b/i,ter:/t[eé]rmico/i,pre:/prensa/i,i46:/\b46\b/,gli:/glicol/i};
-function cfgCot(k){const c=((cat.contCfg||{})[k])||{};const art0=c.art!==undefined?c.art:((artsActivos().find(a=>ART_RE[k].test(a.desc))||{}).id||null);return{art:art0,dens:+c.dens>0?+c.dens:DENS0[k]};}
-const naveSalida=x=>typeof naveDeSalida==="function"?naveDeSalida(x):null;
-function cotejo(k){const C=cfgCot(k);if(!C.art)return{C,cambios:[],iv:[]};
-  const cam=todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:nv?(/^1/.test(nv[1])?"Nave 1":"Nave 2"):null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
+function cfgCot(k){const c=((cat.contCfg||{})[k])||{};const art0=c.art!==undefined?c.art:((artsActivos().find(a=>ART_RE[k].test(a.desc))||{}).id||null);return{art:art0,dens:+c.dens>0?+c.dens:DENS0[k],cap:+c.cap>0?+c.cap:1000};}
+/* En cada grifo hay dos GRG: el de arriba (el que se cambia, siempre vacío) y el de abajo (siempre puesto, del que se consume).
+   Al cambiar el de arriba se apunta en la lectura cuánto tiene el de abajo (rec.grg[k]={ab:litros}).
+   Gastado entre dos cambios = lo que traía el nuevo + lo que tenía abajo en el cambio − lo que tiene abajo en el cambio siguiente. */
+const msD=x=>Date.parse(x+"T12:00:00");
+function notasGRG(k){const o=[];todasLect().forEach(r=>{const g=r.grg&&r.grg[k];if(g&&typeof g.ab==="number")o.push({f:r.f,nave:r.nave,ab:g.ab,r});});return o;}
+function cotejo(k){const C=cfgCot(k);const N=notasGRG(k),usada=new Set();
+  const cam=(C.art?todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f):[]).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:nv?(/^1/.test(nv[1])?"Nave 1":"Nave 2"):null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
+  /* une cada cambio del almacén con la nota de la lectura (misma nave si se sabe, hasta 3 días de diferencia) */
+  cam.forEach(c=>{const cand=N.filter(x=>!usada.has(x)&&(!c.nave||x.nave===c.nave)&&Math.abs(msD(x.f)-msD(c.f))<=3*864e5).sort((a,b)=>Math.abs(msD(a.f)-msD(c.f))-Math.abs(msD(b.f)-msD(c.f)))[0];
+    if(cand){usada.add(cand);c.ab=cand.ab;c.nave=c.nave||cand.nave;c.fl=cand.f;}});
+  const sueltas=N.filter(x=>!usada.has(x));
   const conL=NAVES_CT.filter(nv=>lectDe(nv).some(r=>r.c&&typeof r.c[k]==="number"));
-  const lit=(n,d0,d1)=>{const ns=n?[n]:conL;let s=0,cub=ns.length>0;ns.forEach(nv=>{const T=tramos(nv,k);const L=lectDe(nv).filter(r=>typeof r.c[k]==="number");if(!L.length||L[0].f>d0)cub=false;const ms=x=>Date.parse(x+"T12:00:00");T.forEach(t=>{if(!(t.dif>0))return;const a=Math.max(ms(t.f0),ms(d0)),z=Math.min(ms(t.f),d1?ms(d1):Infinity),tot=ms(t.f)-ms(t.f0);if(z<=a||tot<=0)return;s+=t.dif*(z-a)/tot;});});return{s,cub};};
-  const iv=cam.map((c,i)=>{const sig=cam.slice(i+1).find(x=>!c.nave||!x.nave||x.nave===c.nave);const r=lit(c.nave,c.f,sig?sig.f:null);
-    const des=sig?r.s-c.l:null;return Object.assign({},c,{hasta:sig?sig.f:null,cont:r.s,cub:r.cub,des,pct:sig&&c.l?Math.round((r.s-c.l)/c.l*100):null,queda:sig?null:Math.max(0,c.l-r.s)});});
-  return{C,cambios:cam,iv};}
+  const lit=(n,d0,d1)=>{const ns=n?[n]:conL;let s=0,cub=ns.length>0;ns.forEach(nv=>{const T=tramos(nv,k);const L=lectDe(nv).filter(r=>typeof r.c[k]==="number");if(!L.length||L[0].f>d0)cub=false;
+    T.forEach(t=>{if(!(t.dif>0))return;const a=Math.max(msD(t.f0),msD(d0)),z=Math.min(msD(t.f),d1?msD(d1):Infinity),tot=msD(t.f)-msD(t.f0);if(z<=a||tot<=0)return;s+=t.dif*(z-a)/tot;});});return{s,cub};};
+  const iv=cam.map((c,i)=>{const sig=cam.slice(i+1).find(x=>!c.nave||!x.nave||x.nave===c.nave);const d0=c.fl||c.f,d1=sig?(sig.fl||sig.f):null,r=lit(c.nave,d0,d1);
+    const exacto=!!sig&&c.ab!=null&&sig.ab!=null,esp=sig?c.l+(exacto?c.ab-sig.ab:0):null,des=sig?r.s-esp:null;
+    return Object.assign({},c,{hasta:sig?sig.f:null,cont:r.s,cub:r.cub,esp,exacto,des,pct:sig&&esp?Math.round(des/esp*100):null,queda:sig?null:Math.max(0,c.l-r.s)});});
+  /* acumulado desde el primer cambio con lecturas hasta el último cerrado: se va diluyendo el error del GRG de abajo */
+  const cer=iv.filter(x=>x.hasta&&x.cub);let acu=null;
+  if(cer.length>=2){const p=cer[0],u=cer[cer.length-1],sig=iv.find(x=>x.f===u.hasta&&x!==u)||{};const ext=p.ab!=null&&sig.ab!=null;
+    const esp=cer.reduce((s,x)=>s+x.l,0)+(ext?p.ab-sig.ab:0),cont=cer.reduce((s,x)=>s+x.cont,0);acu={n:cer.length,desde:p.f,hasta:u.hasta,esp,cont,des:cont-esp,pct:esp?Math.round((cont-esp)/esp*100):0,exacto:ext};}
+  /* aviso: con el nivel de abajo apuntado basta un cambio; sin él, dos cambios seguidos con el mismo desfase, o el acumulado */
+  const malos=[];cer.forEach((x,i)=>{if(Math.abs(x.pct)<10)return;if(x.exacto)malos.push(x);else{const y=cer[i-1];if(y&&!y.exacto&&Math.abs(y.pct)>=10&&Math.sign(y.pct)===Math.sign(x.pct))malos.push(x);}});
+  const acuMal=acu&&Math.abs(acu.pct)>=10&&(acu.exacto||acu.n>=5);
+  return{C,cambios:cam,iv,acu,malos,acuMal,sueltas};}
 function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
   CONT.forEach(([k,nom])=>{const R=cotejo(k);const a=R.C.art?art(R.C.art):null;
-    const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:""),fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l),x.cub?fmtL(x.cont):"sin lecturas",
-      x.hasta?(x.cub?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)":"—"):(x.cub?"en uso · quedan ≈ "+fmtL(x.queda):"en uso")]);
-    const mal=R.iv.filter(x=>x.hasta&&x.cub&&Math.abs(x.pct)>=10);
+    const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:""),fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l)+(x.ab!=null?" · abajo "+fmtL(x.ab):""),x.cub?fmtL(x.cont):"sin lecturas",
+      x.hasta?(x.cub?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)"+(x.exacto?"":" aprox."):"—"):(x.cub?"en uso · quedan arriba ≈ "+fmtL(x.queda):"en uso")]);
+    const A=R.acu;
     box.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:nom}),el("span",{class:"der sub",text:a?nomArt(a)+" · "+R.C.dens+" kg/l":"sin artículo unido"})]),
       el("div",{class:"bd",style:"display:grid;gap:8px"},[!a?el("p",{class:"hint",style:"margin:0",text:"Une este contador con su artículo en «Ajustes del cotejo» para poder comparar."}):!R.iv.length?el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ningún cambio de "+nomArt(a)+" apuntado como salida del almacén."}):null,
-        mal.length?el("div",{class:"banner b",text:"Desfase de más del 10 % en "+mal.length+(mal.length===1?" cambio":" cambios")+": revisa si se apuntó bien el cambio o si hay una fuga o un contador que no marca."}):null,
-        filas.length?cTabla(["Cambio","Traía","Marcan los contadores","Desfase"],filas,[1,2,3]):null])]));});
-  box.appendChild(el("p",{class:"hint",text:"Lo que marcan los contadores entre un cambio y el siguiente tendría que ser lo que traía el GRG (en litros, con la densidad de cada aceite). Si el cambio lleva la nave en la nota, se compara solo con los contadores de esa nave; si no, con los de las dos naves. Solo cuenta cuando ya había lecturas el día del cambio."}));
+        R.malos.length||R.acuMal?el("div",{class:"banner b",text:(R.malos.length?"Desfase de más del 10 % en "+R.malos.length+(R.malos.length===1?" cambio":" cambios"):"El acumulado se desvía un "+A.pct+" %")+": revisa si se apuntó bien el cambio o si hay una fuga o un contador que no marca."}):null,
+        R.sueltas.length?el("div",{class:"banner w",text:"Hay "+R.sueltas.length+(R.sueltas.length===1?" cambio apuntado":" cambios apuntados")+" en las lecturas sin salida del almacén ("+R.sueltas.map(x=>fmtF(x.f)+" "+x.nave).join(", ")+"): falta apuntar el GRG en el almacén."}):null,
+        filas.length?cTabla(["Cambio","Traía","Marcan los contadores","Desfase"],filas,[1,2,3]):null,
+        A?el("p",{class:"sub",style:"margin:0",text:"Acumulado desde el "+fmtF(A.desde)+" ("+A.n+" cambios): traían "+fmtL(A.esp)+", los contadores marcan "+fmtL(A.cont)+" → "+(A.des>=0?"+":"")+fmtL(A.des)+" ("+(A.pct>0?"+":"")+A.pct+" %)"+(A.exacto?"":" · sin el nivel de abajo puede variar hasta un GRG")}):null])]));});
+  box.appendChild(el("p",{class:"hint",text:"Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, al apuntar las lecturas del día del cambio marca «Hoy se ha cambiado el GRG» y pon el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
   box.appendChild(el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Ajustes del cotejo",onclick:()=>ajustesCotejo()}));
   return box;}
-function ajustesCotejo(){const val={};CONT.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",",")};});
+function ajustesCotejo(){const val={};CONT.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",","),cap:String(c.cap)};});
   const ops=[["","— sin unir —"]].concat(artsActivos().filter(a=>a.fam!=="eje"&&a.fam!=="piston").sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>[a.id,nomArt(a)]));
-  dlg("Ajustes del cotejo",[el("p",{class:"hint",text:"Une cada contador con el artículo que se cambia en su grifo y pon la densidad de su ficha técnica (kg por litro). Las que vienen puestas son aproximadas."})].concat(CONT.map(([k,nom])=>el("div",{class:"row"},[
-    fld(nom,sel("cfA"+k,ops,val[k].art,v=>val[k].art=v)),fld("kg/l",inp("cfD"+k,val[k].dens,v=>val[k].dens=v,{inputmode:"decimal",class:"num"}))]))),
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const o={};for(const [k,nom] of CONT){const d=parseN(val[k].dens);if(!(d>0.5&&d<2)){toast("Densidad no válida en "+nom);return false;}o[k]={art:val[k].art||null,dens:d};}
+  dlg("Ajustes del cotejo",[el("p",{class:"hint",text:"Une cada contador con el artículo que se cambia en su grifo, pon la densidad de su ficha técnica (kg por litro) y los litros que caben en el GRG. Las densidades que vienen puestas son aproximadas."})].concat(CONT.map(([k,nom])=>el("div",{class:"row"},[
+    fld(nom,sel("cfA"+k,ops,val[k].art,v=>val[k].art=v)),fld("kg/l",inp("cfD"+k,val[k].dens,v=>val[k].dens=v,{inputmode:"decimal",class:"num"})),fld("GRG (l)",inp("cfC"+k,val[k].cap,v=>val[k].cap=v,{inputmode:"numeric",class:"num"}))]))),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const o={};for(const [k,nom] of CONT){const d=parseN(val[k].dens),c=parseN(val[k].cap);if(!(d>0.5&&d<2)){toast("Densidad no válida en "+nom);return false;}if(!(c>=50&&c<=5000)){toast("Litros del GRG no válidos en "+nom);return false;}o[k]={art:val[k].art||null,dens:d,cap:c};}
       cat.contCfg=o;try{await saveCat();}catch(e){return false;}toast("Ajustes guardados");}}]);}
 /* resumen corto para la tarjeta: cómo va el GRG que está puesto y los desfases */
 function cotejoResumen(){const out=[];CONT.forEach(([k,nom])=>{const R=cotejo(k),u=R.iv[R.iv.length-1];if(!u)return;
-  const mal=R.iv.filter(x=>x.hasta&&x.cub&&Math.abs(x.pct)>=10);if(mal.length)out.push({niv:"bad",t:nom+": desfase de "+(mal[mal.length-1].pct>0?"+":"")+mal[mal.length-1].pct+" % en el cambio del "+fmtF(mal[mal.length-1].f)});
-  else if(u.cub&&!u.hasta&&u.l>0&&u.queda/u.l<0.15)out.push({niv:"warn",t:nom+": al GRG del "+fmtF(u.f)+" le quedan ≈ "+fmtL(u.queda)});});return out;}
+  if(R.malos.length){const m=R.malos[R.malos.length-1];out.push({niv:"bad",t:nom+": desfase de "+(m.pct>0?"+":"")+m.pct+" % en el cambio del "+fmtF(m.f)});}
+  else if(R.acuMal)out.push({niv:"bad",t:nom+": desde el "+fmtF(R.acu.desde)+" los contadores se desvían un "+(R.acu.pct>0?"+":"")+R.acu.pct+" % de lo que traían los GRG"});
+  else if(u.cub&&!u.hasta&&u.l>0&&u.queda/u.l<0.15)out.push({niv:"warn",t:nom+": al GRG de arriba del "+fmtF(u.f)+" le quedan ≈ "+fmtL(u.queda)});
+  if(R.sueltas.length&&R.C.art)out.push({niv:"warn",t:nom+": cambio de GRG apuntado el "+fmtF(R.sueltas[R.sueltas.length-1].f)+" sin salida en el almacén"});});return out;}

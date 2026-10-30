@@ -513,13 +513,18 @@ test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores'
     // GRG de 870 kg (≈ 1000 l) el día 20 antes; otro el día 6 antes; los contadores marcan 700 l entre medias → desfase
     v.mov[k].items.push({ id: 'g1', f: f(20), alm: 'gen', art: 'ater', cant: 870, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite térmico' },
       { id: 'g2', f: f(6), alm: 'gen', art: 'ater', cant: 870, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite térmico' });
-    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'r1', f: f(20), nave: 'Nave 1', c: { ter: 0 }, ts: 1 }, { id: 'r2', f: f(13), nave: 'Nave 1', c: { ter: 400 }, ts: 2 }, { id: 'r3', f: f(6), nave: 'Nave 1', c: { ter: 700 }, ts: 3 }, { id: 'r4', f: f(1), nave: 'Nave 1', c: { ter: 800 }, ts: 4 }] } }; } }); });
+    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'r1', f: f(20), nave: 'Nave 1', c: { ter: 0 }, grg: { ter: { ab: 900 } }, ts: 1 }, { id: 'r2', f: f(13), nave: 'Nave 1', c: { ter: 400 }, ts: 2 }, { id: 'r3', f: f(6), nave: 'Nave 1', c: { ter: 700 }, grg: { ter: { ab: 900 } }, ts: 3 }, { id: 'r4', f: f(1), nave: 'Nave 1', c: { ter: 800 }, ts: 4 }] } }; } }); });
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#view')).toContainText('Térmico: desfase de -30 %');
   await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
-  expect(t).toMatch(/870 kg ≈ 1000 l/); expect(t).toMatch(/-300 l \(-30 %\)/); expect(t).toMatch(/en uso · quedan ≈ 900 l/);
+  expect(t).toMatch(/870 kg ≈ 1000 l · abajo 900 l/); expect(t).toMatch(/-300 l \(-30 %\)/); expect(t).not.toMatch(/-30 %\) aprox/); expect(t).toMatch(/quedan arriba ≈ 900 l/);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await d.locator('.chip', { hasText: /^Térmico$/ }).click(); await d.locator('.chip', { hasText: '½' }).click();
+  await expect(d.locator('#ctGter')).toHaveValue('500');
   expect(err).toEqual([]);
 });
