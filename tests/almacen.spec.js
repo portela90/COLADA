@@ -525,6 +525,31 @@ test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores'
   await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
   await d.locator('.chip', { hasText: /^Térmico$/ }).click(); await d.locator('.chip', { hasText: '½' }).click();
-  await expect(d.locator('#ctGter')).toHaveValue('500');
+  await expect(d.locator('#ctGabter')).toHaveValue('500');
+  expect(err).toEqual([]);
+});
+
+test('Contadores: el primer día se apunta el nivel de arriba y abajo y el cotejo ya es exacto', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'apre', desc: 'ACEITE PRENSA METALFORM V106', fam: 'consumible', grupo: 'aceite', ud: 'kg', alms: ['gen'] });
+    const h = new Date(), f = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    v.mov[k].items.push({ id: 'g1', f: f(3), alm: 'gen', art: 'apre', cant: 800, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite de prensa' });
+    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'r1', f: f(10), nave: 'Nave 2', c: { pre: 0 }, grg: { pre: { ar: 600, ab: 1000 } }, ts: 1 },
+      { id: 'r2', f: f(3), nave: 'Nave 2', c: { pre: 640 }, grg: { pre: { ab: 950 } }, ts: 2 }, { id: 'r3', f: f(1), nave: 'Nave 2', c: { pre: 700 }, ts: 3 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
+  // 600 arriba + 1000 abajo − 950 abajo al cambiar = 650 l; los contadores marcan 640 → -10 l, exacto
+  expect(t).toMatch(/arriba 600 l · abajo 1000 l/); expect(t).toMatch(/-10 l \(-2 %\)(?! aprox)/); expect(t).toMatch(/800 kg ≈ 1000 l · abajo 950 l/);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('Primera vez');
+  await d.locator('.chip', { hasText: /^Térmico$/ }).click();
+  await expect(d.locator('button', { hasText: 'Solo apunto el nivel' })).toHaveAttribute('aria-pressed', 'true');
+  await d.locator('#ctGarter').fill('300'); await d.locator('#ctGabter').fill('1000');
   expect(err).toEqual([]);
 });

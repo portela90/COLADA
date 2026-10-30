@@ -39,20 +39,29 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
         if(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10)out.className="sub neg";};
       const i=inp("ct"+k,f.v[k]||"",v=>{f.v[k]=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:pv!=null?fmtN(pv):"lectura"});
       box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[i,out])));calc();});
-    /* cambio del GRG de arriba: nivel del de abajo */
-    if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{f.g[k]=String(esta.grg[k].ab).replace(".",",");});f.gcarg=true;}
+    /* GRG: cambio del de arriba (nivel del de abajo) o solo apuntar cuánto hay (arriba y abajo), p. ej. el primer día */
+    if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{const g=esta.grg[k];f.g[k]={m:g.ar!=null?"n":"c",ab:String(g.ab).replace(".",","),ar:g.ar!=null?String(g.ar).replace(".",","):""};});f.gcarg=true;}
     f.g=f.g||{};const gb=el("div",{class:"card",style:"padding:10px 12px;display:grid;gap:8px"});
-    gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"¿Hoy se ha cambiado algún GRG?"}));
-    gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]="";pinta();}}))));
-    CONT.filter(([k])=>f.g[k]!=null).forEach(([k,nom])=>{const cap=cfgCot(k).cap;const i=inp("ctG"+k,f.g[k],v=>{f.g[k]=v;},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"litros"});
-      gb.appendChild(fld("Nivel del GRG de abajo · "+nom,el("div",{style:"display:grid;gap:6px"},[i,el("div",{class:"chips"},[["Lleno",1],["¾",.75],["½",.5],["¼",.25]].map(([t,x])=>el("button",{type:"button",class:"chip",text:t,onclick:()=>{f.g[k]=String(Math.round(cap*x));i.value=f.g[k];}})))])));});
-    if(Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Mira la escala del lateral del GRG de abajo y pon los litros que tiene justo al cambiar el de arriba."}));
+    const sinNivel=CONT.filter(([k])=>!notasGRG(k).some(x=>x.nave===f.nave));
+    gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"GRG: ¿se ha cambiado alguno o quieres apuntar cuánto hay?"}));
+    if(sinNivel.length&&!Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Primera vez: toca cada aceite, elige «Solo apunto el nivel» y pon lo que hay arriba y abajo. Así el cotejo es exacto desde hoy."}));
+    gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]={m:sinNivel.some(c=>c[0]===k)?"n":"c",ab:"",ar:""};pinta();}}))));
+    const nivel=(k,campo,lab,cap)=>{const g=f.g[k];const i=inp("ctG"+campo+k,g[campo],v=>{g[campo]=v;},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"litros"});
+      return fld(lab,el("div",{style:"display:grid;gap:6px"},[i,el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},[["Lleno",1],["¾",.75],["½",.5],["¼",.25]].concat(campo==="ar"?[["Vacío",0]]:[]).map(([t,x])=>el("button",{type:"button",class:"chip",text:t,onclick:()=>{g[campo]=String(Math.round(cap*x));i.value=g[campo];}})))]));};
+    CONT.filter(([k])=>f.g[k]!=null).forEach(([k,nom])=>{const cap=cfgCot(k).cap,g=f.g[k];
+      const w=el("div",{style:"display:grid;gap:8px;border-top:1px solid var(--line);padding-top:8px"},[el("div",{class:"sub",style:"font-weight:600",text:nom}),
+        el("div",{class:"seg",role:"group"},[["c","Se ha cambiado"],["n","Solo apunto el nivel"]].map(([m,t])=>{const b=el("button",{type:"button","aria-pressed":String(g.m===m),text:t});b.onclick=()=>{g.m=m;pinta();};return b;}))]);
+      if(g.m==="n")w.appendChild(nivel(k,"ar","GRG de arriba",cap));
+      w.appendChild(nivel(k,"ab","GRG de abajo",cap));gb.appendChild(w);});
+    if(Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Mira la escala del lateral de cada GRG. Si se ha cambiado, solo hace falta el de abajo (el de arriba se cambia vacío)."}));
     box.appendChild(gb);};
   pinta();
   dlg("Lectura de contadores",[fld("Fecha",inp("ctF",f.f,v=>{f.f=v;f.cargada=false;f.v={};f.g={};f.gcarg=false;pinta();},{type:"date",max:hoy()})),box],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const c={};let n=0;for(const [k,nom] of CONT){const s=String(f.v[k]==null?"":f.v[k]).trim();if(!s)continue;const x=parseN(s);if(!isFinite(x)||x<0){toast("Lectura no válida en "+nom);return false;}c[k]=x;n++;}
       if(!n){toast("Escribe al menos una lectura");return false;}
-      const grg={};for(const k of Object.keys(f.g||{})){const x=parseN(String(f.g[k]).trim());if(String(f.g[k]).trim()===""||!isFinite(x)||x<0||x>cfgCot(k).cap*1.2){toast("Pon el nivel del GRG de abajo de "+nomCont(k)+" (en litros)");return false;}grg[k]={ab:x};}
+      const grg={};for(const k of Object.keys(f.g||{})){const g=f.g[k],cap=cfgCot(k).cap,lee=v=>{const t=String(v==null?"":v).trim(),x=parseN(t);return t===""||!isFinite(x)||x<0||x>cap*1.2?null:x;};
+        const ab=lee(g.ab);if(ab==null){toast("Pon cuánto tiene el GRG de abajo de "+nomCont(k)+" (en litros)");return false;}grg[k]={ab};
+        if(g.m==="n"){const ar=lee(g.ar);if(ar==null){toast("Pon cuánto tiene el GRG de arriba de "+nomCont(k)+" (en litros)");return false;}grg[k].ar=ar;}}
       const esta=lectDe(f.nave).find(r=>r.f===f.f),rec={f:f.f,nave:f.nave,c};if(Object.keys(grg).length)rec.grg=grg;try{await guardaLect(rec,esta);}catch(e){toast("No se pudo guardar");return false;}
       toast("Lecturas de "+f.nave+" guardadas");const otra=faltaLectHoy().filter(x=>x!==f.nave)[0];if(otra&&f.f===hoy())setTimeout(()=>confirmar("¿Seguimos con "+otra+"?","Falta apuntar hoy los contadores de "+otra+".","Apuntar "+otra,()=>formLect(otra)),400);render(true);}}]);}
 
@@ -109,39 +118,43 @@ function cfgCot(k){const c=((cat.contCfg||{})[k])||{};const art0=c.art!==undefin
    Al cambiar el de arriba se apunta en la lectura cuánto tiene el de abajo (rec.grg[k]={ab:litros}).
    Gastado entre dos cambios = lo que traía el nuevo + lo que tenía abajo en el cambio − lo que tiene abajo en el cambio siguiente. */
 const msD=x=>Date.parse(x+"T12:00:00");
-function notasGRG(k){const o=[];todasLect().forEach(r=>{const g=r.grg&&r.grg[k];if(g&&typeof g.ab==="number")o.push({f:r.f,nave:r.nave,ab:g.ab,r});});return o;}
+function notasGRG(k){const o=[];todasLect().forEach(r=>{const g=r.grg&&r.grg[k];if(g&&typeof g.ab==="number")o.push({f:r.f,nave:r.nave,ab:g.ab,ar:typeof g.ar==="number"?g.ar:null,r});});return o;}
 function cotejo(k){const C=cfgCot(k);const N=notasGRG(k),usada=new Set();
   const cam=(C.art?todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f):[]).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:nv?(/^1/.test(nv[1])?"Nave 1":"Nave 2"):null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
   /* une cada cambio del almacén con la nota de la lectura (misma nave si se sabe, hasta 3 días de diferencia) */
-  cam.forEach(c=>{const cand=N.filter(x=>!usada.has(x)&&(!c.nave||x.nave===c.nave)&&Math.abs(msD(x.f)-msD(c.f))<=3*864e5).sort((a,b)=>Math.abs(msD(a.f)-msD(c.f))-Math.abs(msD(b.f)-msD(c.f)))[0];
+  N.filter(x=>x.ar!=null).forEach(x=>usada.add(x));
+  cam.forEach(c=>{const cand=N.filter(x=>!usada.has(x)&&x.ar==null&&(!c.nave||x.nave===c.nave)&&Math.abs(msD(x.f)-msD(c.f))<=3*864e5).sort((a,b)=>Math.abs(msD(a.f)-msD(c.f))-Math.abs(msD(b.f)-msD(c.f)))[0];
     if(cand){usada.add(cand);c.ab=cand.ab;c.nave=c.nave||cand.nave;c.fl=cand.f;}});
   const sueltas=N.filter(x=>!usada.has(x));
+  /* «solo apunto el nivel»: punto de control con lo que hay arriba y abajo (no es un cambio) */
+  N.filter(x=>x.ar!=null).forEach(x=>cam.push({f:x.f,fl:x.f,nave:x.nave,ab:x.ab,ar:x.ar,l:x.ar,kg:null,nivel:true}));cam.sort((a,b)=>(a.fl||a.f).localeCompare(b.fl||b.f));
   const conL=NAVES_CT.filter(nv=>lectDe(nv).some(r=>r.c&&typeof r.c[k]==="number"));
   const lit=(n,d0,d1)=>{const ns=n?[n]:conL;let s=0,cub=ns.length>0;ns.forEach(nv=>{const T=tramos(nv,k);const L=lectDe(nv).filter(r=>typeof r.c[k]==="number");if(!L.length||L[0].f>d0)cub=false;
     T.forEach(t=>{if(!(t.dif>0))return;const a=Math.max(msD(t.f0),msD(d0)),z=Math.min(msD(t.f),d1?msD(d1):Infinity),tot=msD(t.f)-msD(t.f0);if(z<=a||tot<=0)return;s+=t.dif*(z-a)/tot;});});return{s,cub};};
   const iv=cam.map((c,i)=>{const sig=cam.slice(i+1).find(x=>!c.nave||!x.nave||x.nave===c.nave);const d0=c.fl||c.f,d1=sig?(sig.fl||sig.f):null,r=lit(c.nave,d0,d1);
-    const exacto=!!sig&&c.ab!=null&&sig.ab!=null,esp=sig?c.l+(exacto?c.ab-sig.ab:0):null,des=sig?r.s-esp:null;
+    /* lo que había al empezar (arriba + abajo) − lo que había al llegar al siguiente (abajo, y arriba si es un punto de control); si falta el de abajo, se supone igual */
+    const exacto=!!sig&&c.ab!=null&&sig.ab!=null,abI=c.ab!=null?c.ab:(sig&&sig.ab!=null?sig.ab:0),abJ=sig?(sig.ab!=null?sig.ab:abI):0;
+    const esp=sig?c.l+abI-((sig.nivel?sig.ar:0)+abJ):null,des=sig?r.s-esp:null;
     return Object.assign({},c,{hasta:sig?sig.f:null,cont:r.s,cub:r.cub,esp,exacto,des,pct:sig&&esp?Math.round(des/esp*100):null,queda:sig?null:Math.max(0,c.l-r.s)});});
   /* acumulado desde el primer cambio con lecturas hasta el último cerrado: se va diluyendo el error del GRG de abajo */
   const cer=iv.filter(x=>x.hasta&&x.cub);let acu=null;
-  if(cer.length>=2){const p=cer[0],u=cer[cer.length-1],sig=iv.find(x=>x.f===u.hasta&&x!==u)||{};const ext=p.ab!=null&&sig.ab!=null;
-    const esp=cer.reduce((s,x)=>s+x.l,0)+(ext?p.ab-sig.ab:0),cont=cer.reduce((s,x)=>s+x.cont,0);acu={n:cer.length,desde:p.f,hasta:u.hasta,esp,cont,des:cont-esp,pct:esp?Math.round((cont-esp)/esp*100):0,exacto:ext};}
+  if(cer.length>=2){const p=cer[0],u=cer[cer.length-1];const esp=cer.reduce((t,x)=>t+x.esp,0),cont=cer.reduce((t,x)=>t+x.cont,0);acu={n:cer.length,desde:p.f,hasta:u.hasta,esp,cont,des:cont-esp,pct:esp?Math.round((cont-esp)/esp*100):0,exacto:cer.every(x=>x.exacto)};}
   /* aviso: con el nivel de abajo apuntado basta un cambio; sin él, dos cambios seguidos con el mismo desfase, o el acumulado */
   const malos=[];cer.forEach((x,i)=>{if(Math.abs(x.pct)<10)return;if(x.exacto)malos.push(x);else{const y=cer[i-1];if(y&&!y.exacto&&Math.abs(y.pct)>=10&&Math.sign(y.pct)===Math.sign(x.pct))malos.push(x);}});
   const acuMal=acu&&Math.abs(acu.pct)>=10&&(acu.exacto||acu.n>=5);
   return{C,cambios:cam,iv,acu,malos,acuMal,sueltas};}
 function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
   CONT.forEach(([k,nom])=>{const R=cotejo(k);const a=R.C.art?art(R.C.art):null;
-    const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:""),fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l)+(x.ab!=null?" · abajo "+fmtL(x.ab):""),x.cub?fmtL(x.cont):"sin lecturas",
+    const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:"")+(x.nivel?" · nivel":""),x.nivel?"arriba "+fmtL(x.ar)+" · abajo "+fmtL(x.ab):fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l)+(x.ab!=null?" · abajo "+fmtL(x.ab):""),x.cub?fmtL(x.cont):"sin lecturas",
       x.hasta?(x.cub?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)"+(x.exacto?"":" aprox."):"—"):(x.cub?"en uso · quedan arriba ≈ "+fmtL(x.queda):"en uso")]);
     const A=R.acu;
     box.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:nom}),el("span",{class:"der sub",text:a?nomArt(a)+" · "+R.C.dens+" kg/l":"sin artículo unido"})]),
-      el("div",{class:"bd",style:"display:grid;gap:8px"},[!a?el("p",{class:"hint",style:"margin:0",text:"Une este contador con su artículo en «Ajustes del cotejo» para poder comparar."}):!R.iv.length?el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ningún cambio de "+nomArt(a)+" apuntado como salida del almacén."}):null,
+      el("div",{class:"bd",style:"display:grid;gap:8px"},[!a?el("p",{class:"hint",style:"margin:0",text:"Une este contador con su artículo en «Ajustes del cotejo» para poder comparar."}):!R.iv.length?el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ningún cambio de "+nomArt(a)+" ni ningún nivel apuntado."}):null,
         R.malos.length||R.acuMal?el("div",{class:"banner b",text:(R.malos.length?"Desfase de más del 10 % en "+R.malos.length+(R.malos.length===1?" cambio":" cambios"):"El acumulado se desvía un "+A.pct+" %")+": revisa si se apuntó bien el cambio o si hay una fuga o un contador que no marca."}):null,
         R.sueltas.length?el("div",{class:"banner w",text:"Hay "+R.sueltas.length+(R.sueltas.length===1?" cambio apuntado":" cambios apuntados")+" en las lecturas sin salida del almacén ("+R.sueltas.map(x=>fmtF(x.f)+" "+x.nave).join(", ")+"): falta apuntar el GRG en el almacén."}):null,
-        filas.length?cTabla(["Cambio","Traía","Marcan los contadores","Desfase"],filas,[1,2,3]):null,
+        filas.length?cTabla(["Cambio o nivel","Había","Marcan los contadores","Desfase"],filas,[1,2,3]):null,
         A?el("p",{class:"sub",style:"margin:0",text:"Acumulado desde el "+fmtF(A.desde)+" ("+A.n+" cambios): traían "+fmtL(A.esp)+", los contadores marcan "+fmtL(A.cont)+" → "+(A.des>=0?"+":"")+fmtL(A.des)+" ("+(A.pct>0?"+":"")+A.pct+" %)"+(A.exacto?"":" · sin el nivel de abajo puede variar hasta un GRG")}):null])]));});
-  box.appendChild(el("p",{class:"hint",text:"Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, al apuntar las lecturas del día del cambio marca «Hoy se ha cambiado el GRG» y pon el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
+  box.appendChild(el("p",{class:"hint",text:"Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, el primer día apunta con las lecturas el nivel de arriba y de abajo («Solo apunto el nivel»), y cada día de cambio el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
   box.appendChild(el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Ajustes del cotejo",onclick:()=>ajustesCotejo()}));
   return box;}
 function ajustesCotejo(){const val={};CONT.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",","),cap:String(c.cap)};});
