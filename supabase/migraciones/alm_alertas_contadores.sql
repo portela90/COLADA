@@ -1,0 +1,5 @@
+-- colada-mapri (30/10/2026): avisos de los contadores de aceite y glicol (colección alm_cont)
+-- alm_alertas_cont(): «falta la lectura de hoy» (días laborables, desde las 12:00, solo naves que ya han empezado a apuntar)
+-- y «consumo raro» (el contador baja, o más del doble de lo normal y +20 l/día sobre la mediana de los 20 tramos anteriores).
+-- _alm_avisos_enviar() ahora junta alm_alertas() || alm_alertas_cont() y tiene títulos para los grupos cont y craro.
+-- (El SQL completo está en la base de datos: ver pg_get_functiondef('public.alm_alertas_cont'::regproc).)

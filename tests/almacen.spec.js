@@ -476,3 +476,31 @@ test('Consultas: la taladrina y el aceite van por nave (no se asignan a una máq
   expect((await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ')).toContain('Nave 2 (general)');
   expect(err).toEqual([]);
 });
+
+test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y avisa si es raro', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const it = [], base = { e220: 100, ter: 500, pre: 200, i46: 300, gli: 1000 }; const h = new Date();
+    for (let i = 12; i >= 1; i--) { const x = new Date(h); x.setDate(x.getDate() - i); if (x.getDay() === 0 || x.getDay() === 6) continue; const f = x.toISOString().slice(0, 10);
+      Object.keys(base).forEach(k => base[k] += 5); it.push({ id: 'c' + i, f, nave: 'Nave 1', c: Object.assign({}, base), por: 'Cristian', ts: i }); }
+    v.cont = { [String(h.getFullYear())]: { items: it } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('h2', { hasText: 'Contadores de aceite y glicol' })).toBeVisible();
+  await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
+  const ultimo = await page.evaluate(() => { const L = window.__D.cont[Object.keys(window.__D.cont)[0]].items; return L[L.length - 1].c; });
+  await page.fill('#cte220', String(ultimo.e220 + 6));
+  await expect(page.locator('.dlg')).toContainText('= 6 l');
+  await page.fill('#ctter', String(ultimo.ter + 90));
+  await expect(page.locator('.dlg')).toContainText('mucho más de lo normal');
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const items = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items));
+  expect(items[items.length - 1]).toMatchObject({ nave: 'Nave 1', c: { e220: ultimo.e220 + 6, ter: ultimo.ter + 90 } });
+  await expect(page.locator('.banner.b')).toContainText('Consumo raro');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'consumo de glicol este mes'); await page.waitForTimeout(300);
+  expect(await page.locator('#bdRes').innerText()).toMatch(/Consumo de aceite y glicol/);
+  expect(err).toEqual([]);
+});
