@@ -163,7 +163,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     e.tipo==="horno"&&vaciadoEl(e)?(v=>el("div",{class:"aviso"+(v.k==="bad"?" mal":""),style:v.k==="ok"||v.k==="sin"||v.k==="info"?"background:var(--surf2);color:var(--ink)":""},[v.t,
       el("small",{text:(e.ult_vaciado?"Último vaciado: "+fAnio(e.ult_vaciado)+(v.lim?" · hay que vaciarlo antes del "+fAnio(v.lim):""):"No consta ningún vaciado. "+(esAdm()?"Pon la fecha del último en «Editar».":"Díselo al encargado."))+
         " · Vaciarlo al menos cada "+(e.vaciado_dias>=365?"año":e.vaciado_dias+" días")+" evita que se tapen el cono y la tolva."+(e.cambios_365?" Cambios de tolva/cono en el último año: "+e.cambios_365+".":"")})]))(vaciadoEl(e)):null,
-    e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e.ult,"limpieza","Limpieza"),linUltHorno(e.ult,"vaciado","Vaciado"),linUltHorno(e.ult,"cambio_tolva","Cambio de tolva"),linUltHorno(e.ult,"cambio_cono","Cambio de cono"),linUltHorno(e.ult,"cambio_dosificador","Cambio de tubo dosificador")].concat(Object.keys(PIEZA_H).filter(k=>e.recambios&&e.recambios[PIEZA_H[k]]).map(k=>linUltHorno(e.ult,k,ACC_HORNO[k]))))]):null,
+    e.tipo==="horno"?el("div",null,[el("h4",{text:"Último registro"}),el("div",{class:"chk"},[linUltHorno(e,re,"limpieza","Limpieza"),linUltHorno(e,re,"vaciado","Vaciado"),linUltHorno(e,re,"cambio_tolva","Cambio de tolva"),linUltHorno(e,re,"cambio_cono","Cambio de cono"),linUltHorno(e,re,"cambio_dosificador","Cambio de tubo dosificador")].concat(Object.keys(PIEZA_H).filter(k=>e.recambios&&e.recambios[PIEZA_H[k]]).map(k=>linUltHorno(e,re,k,ACC_HORNO[k]))))]):null,
     gbox,
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 /* ficha de una inyectora: primero los datos y el historial; apuntar la limpieza es un botón aparte */
@@ -360,8 +360,13 @@ function formAbrirOTsHorno(e,accs,re){const f={motivo:"",nota:"",accs};let asg=(
     [{t:"Cancelar",cls:"sec"},{t:"Abrir",cls:"ok",fn:async()=>{if(tols&&!f.motivo){toast("Elige el motivo");return false;}if(tv&&!f.tolva){toast("Elige si la tolva es de hierro o refractaria");return false;}{const m=juntasMal(e,accs,f)||otrasMal(accs,f);if(m){toast(m);return false;}}
       try{for(const acc of accs){const tol=acc.indexOf("cambio")===0;await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:ACC_HORNO[acc]+" · "+e.nombre,lugar:e.lugar||null,descripcion:f.nota.trim()||null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,accion_horno:acc,motivo:tol?f.motivo:null,tolva:(acc==="cambio_tolva"||acc==="cambio_tolva_cono")?(f.tolva||null):null,juntas:acc==="cambio_tolva"?juntasDe(f):acc==="cambio_otra"?otrasDe(f):piezasDe(e,acc,f),hecha:false,auto:false,asignados:asg?[asg]:null}});}
         toast(accs.length===1?"Trabajo abierto: dale a Empezar cuando empieces":accs.length+" trabajos abiertos: dale a Empezar en cada uno cuando empieces");re();}catch(er){toast(er.message);return false;}}}]);}
-function linUltHorno(U,k,t){U=U||{};let u=U[k];const j=U.cambio_tolva_cono;/* los registros antiguos de «tolva y cono» cuentan para los dos */
-  if((k==="cambio_tolva"||k==="cambio_cono")&&j&&(!u||String(j.fin||"")>String(u.fin||"")))u=j;return el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · "+u.nota:""):"Nunca"})]);}
+function linUltHorno(e,re,k,t){const U=(e&&e.ult)||{};let u=U[k];const j=U.cambio_tolva_cono;/* los registros antiguos de «tolva y cono» cuentan para los dos */
+  let esJ=false;if((k==="cambio_tolva"||k==="cambio_cono")&&j&&(!u||String(j.fin||"")>String(u.fin||""))){u=j;esJ=true;}
+  const fila=el("div",{class:"it"},[el("b",{text:t}),el("span",{text:u?fCorta(diaDe(u.fin))+" · "+u.quien+(u.motivo?" · motivo: "+u.motivo:"")+(u.nota?" · "+u.nota:""):"Nunca"})]);
+  /* tocar el último registro abre su detalle (y, si es admin, «Editar registro») */
+  const hh=u?(e.historial||[]).find(h=>h.accion===(esJ?"cambio_tolva_cono":k)||(esJ&&(h.accion==="cambio_tolva"||h.accion==="cambio_cono"))):null;
+  if(hh){fila.style.cursor="pointer";fila.setAttribute("role","button");fila.onclick=()=>detalleLimpieza(hh,e,re);}
+  return fila;}
 function elegirAccionHorno(e,re){const sel=new Set();const box=el("div",null);
   const pb=()=>{box.textContent="";accsDe(e).filter(k=>k!=="limpieza").forEach(k=>box.appendChild(el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0"+(sel.has(k)?";background:var(--acc);color:#fff":""),"aria-pressed":String(sel.has(k)),text:(sel.has(k)?"":"")+TXT_HORNO[k],onclick:()=>{sel.has(k)?sel.delete(k):sel.add(k);pb();}})));};
   pb();
