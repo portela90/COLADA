@@ -167,13 +167,52 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     gbox,
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 /* ficha de una inyectora: primero los datos y el historial; apuntar la limpieza es un botón aparte */
+/* detalle de una limpieza ya apuntada: checklist, nota, fotos y, si puede, corregir la fecha */
+const ERR_FECHA={FECHA_MAL:"La fecha no puede ser futura",NO_PERMISO:"No puedes cambiar la fecha de esta limpieza",NO_HECHA:"Esta limpieza todavía no está terminada",NO_EXISTE:"No se encuentra esta limpieza"};
+const errFecha=m=>{const k=Object.keys(ERR_FECHA).find(x=>String(m).includes(x));return k?ERR_FECHA[k]:m;};
+function detalleLimpieza(h,e,re){
+  const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));
+  const cerrar=dlg("Limpieza · "+e.nombre,box,[{t:"Cerrar",cls:"sec"}]);
+  rpc("limpieza_detalle",{p_tok:S.tok,p_ot:h.id}).then(D=>{
+    box.textContent="";
+    const mins=D.inicio&&D.fin?Math.round((new Date(D.fin)-new Date(D.inicio))/60000):null;
+    const pts=Object.entries(D.checklist||{});
+    box.appendChild(el("div",{class:"hint",style:"margin:0 0 8px",text:fCorta(diaDe(D.fin))+" · "+hora(D.fin)+" · "+(D.quien||"")+(mins!=null?" · "+durTxt(mins):"")}));
+    if(D.resultado) box.appendChild(el("span",{class:"pill "+(D.resultado==="OK"?"ok":"bad"),text:D.resultado==="OK"?"Checklist OK":"Checklist con fallos"}));
+    box.appendChild(el("h4",{text:"Checklist"}));
+    box.appendChild(pts.length?el("div",{class:"chk"},pts.map(([k,v])=>el("div",{class:"linea",style:"display:flex;justify-content:space-between;gap:8px"},[el("span",{text:k}),el("b",{class:v==="OK"?"":"bad",text:v==="OK"?"OK":"NO-OK"})]))):el("p",{class:"hint",text:"Esta limpieza se apuntó sin checklist."}));
+    if(D.nota) box.appendChild(el("p",{style:"margin:8px 0 0",text:"Nota: "+D.nota}));
+    box.appendChild(el("button",{type:"button",class:"btn sec",style:"width:100%;margin:10px 0 0",text:"Ver fotos"+(h.nfotos?" ("+h.nfotos+")":""),onclick:()=>{cerrar();setTimeout(()=>verFotos({id:h.id,titulo:e.nombre+" · "+fCorta(diaDe(D.fin))},()=>{}),0);}}));
+    const cambios=D.cambios||[];
+    if(cambios.length) box.appendChild(el("div",null,[el("h4",{text:"Cambios de fecha"}),el("ul",{class:"hist"},cambios.map(c=>el("li",{text:cuandoLim(c.cuando)+" · "+(c.quien||"")+" · "+c.detalle}) ))]));
+    if(D.puede_corregir) box.appendChild(el("button",{type:"button",class:"btn sec",style:"width:100%;margin:10px 0 0",text:"Corregir fecha y hora",onclick:()=>{cerrar();setTimeout(()=>corregirFechaLimpieza(h,e,D,re),0);}}));
+  }).catch(er=>{box.textContent="";box.appendChild(el("p",{class:"empty",text:errFecha(er.message)}));});
+}
+const cuandoLim=ts=>new Date(ts).toLocaleString("es-ES",{day:"numeric",month:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"});
+function corregirFechaLimpieza(h,e,D,re){
+  const d=new Date(D.fin);
+  const f={dia:d.toLocaleDateString("sv-SE"),hora:d.toTimeString().slice(0,5)};
+  dlg("Corregir fecha · "+e.nombre,el("div",null,[
+    el("p",{class:"hint",text:"Pon la fecha y la hora en que se hizo esta limpieza. La duración se mantiene."}),
+    fld("Día",inp(f.dia,v=>f.dia=v,{type:"date",max:hoyISO()})),
+    fld("Hora de fin",inp(f.hora,v=>f.hora=v,{type:"time"}))]),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"ok",fn:async()=>{
+      if(!f.dia||!f.hora){toast("Pon el día y la hora");return false;}
+      const iso=new Date(f.dia+"T"+f.hora+":00").toISOString();
+      try{await rpc("limpieza_fecha_corregir",{p_tok:S.tok,p_ot:h.id,p_fin:iso});}
+      catch(er){toast(errFecha(er.message));return false;}
+      toast("Fecha corregida");
+      if(re) re();
+      fichaElemento(e.codigo,re);
+    }}]);
+}
 function fichaIny(e,re){const s=estadoEl(e);const H=e.historial||[];
   const dato=(k,v)=>el("div",{class:"fdato"},[el("small",{text:k}),el("b",{text:v})]);
   const ult=H[0];
   const res=r=>r==="OK"?el("span",{class:"pill ok",text:"Checklist OK"}):r==="NO-OK"?el("span",{class:"pill bad",text:"Checklist con fallos"}):null;
   const cab=el("div",{class:"fgrid"},[dato("Nave",e.lugar||"—"),dato("Estado",s.t),dato("Última limpieza",ult?fCorta(diaDe(ult.fin))+" "+hora(ult.fin):"Nunca"),dato("Hecha por",ult?ult.quien:"—"),
     dato("Tiempo",ult&&ult.min!=null?durTxt(ult.min):"—"),dato("Limpiezas (90 días)",String(e.n90||0)),e.frecuencia_dias?dato("Frecuencia","Cada "+e.frecuencia_dias+" días"):null,e.minutos_est?dato("Tiempo normal",durTxt(e.minutos_est)):null].filter(Boolean));
-  const hist=H.length?el("div",{class:"lst"},H.map(h=>el("button",{class:"linea",style:"cursor:"+(h.nfotos?"pointer":"default"),onclick:()=>{if(h.nfotos)verFotos({id:h.id,titulo:e.nombre+" · "+fCorta(diaDe(h.fin))},()=>{});}},[
+  const hist=H.length?el("div",{class:"lst"},H.map(h=>el("button",{class:"linea",style:"cursor:pointer",onclick:()=>detalleLimpieza(h,e,re)},[
       el("span",{style:"flex:1;min-width:0"},[el("b",{text:fCorta(diaDe(h.fin))+" · "+hora(h.fin)}),el("small",{class:"hint",style:"display:block;margin:0",text:[h.quien,h.min!=null?durTxt(h.min):null,h.nota?""+h.nota:null].filter(Boolean).join(" · ")})]),
       el("span",{style:"display:flex;flex-direction:column;gap:3px;align-items:flex-end"},[res(h.resultado),h.nfotos?el("span",{class:"pill",text:"Fotos: "+h.nfotos}):null])]))):el("p",{class:"empty",text:"Todavía no hay ninguna limpieza apuntada."});
   const bots=[];
