@@ -168,7 +168,7 @@ async function fichaElemento(cod,re){re=re||(()=>pinta());let e;try{e=await rpc(
     el("h4",{text:e.tipo==="horno"?"Historial":"Últimas limpiezas"}),hist]),bots);}
 /* ficha de una inyectora: primero los datos y el historial; apuntar la limpieza es un botón aparte */
 /* detalle de una limpieza ya apuntada: checklist, nota, fotos y, si puede, corregir la fecha */
-const ERR_FECHA={FECHA_MAL:"La fecha no puede ser futura",NO_PERMISO:"No puedes cambiar la fecha de esta limpieza",NO_HECHA:"Esta limpieza todavía no está terminada",NO_EXISTE:"No se encuentra esta limpieza"};
+const ERR_FECHA={FECHA_MAL:"La fecha no puede ser futura",NO_PERMISO:"No puedes cambiar esta limpieza",NO_ADMIN:"Solo el admin puede editar el registro",NO_HECHA:"Esta limpieza todavía no está terminada",NO_EXISTE:"No se encuentra esta limpieza",NO_CAMBIO:"Este registro no es un cambio de piezas",PIEZAS_PENDIENTES:"Antes quita las piezas que tiene apuntadas",ACCION_MAL:"Ese tipo de registro no existe"};
 const errFecha=m=>{const k=Object.keys(ERR_FECHA).find(x=>String(m).includes(x));return k?ERR_FECHA[k]:m;};
 function detalleLimpieza(h,e,re){
   const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));
@@ -177,7 +177,7 @@ function detalleLimpieza(h,e,re){
     box.textContent="";
     const mins=D.inicio&&D.fin?Math.round((new Date(D.fin)-new Date(D.inicio))/60000):null;
     const pts=Object.entries(D.checklist||{});
-    box.appendChild(el("div",{class:"hint",style:"margin:0 0 8px",text:fCorta(diaDe(D.fin))+" · "+hora(D.fin)+" · "+(D.quien||"")+(mins!=null?" · "+durTxt(mins):"")}));
+    box.appendChild(el("div",{class:"hint",style:"margin:0 0 8px",text:(D.accion&&D.accion!=="limpieza"?(TXT_HORNO[D.accion]||ACC_HORNO[D.accion]||D.accion)+" · ":"")+fCorta(diaDe(D.fin))+" · "+hora(D.fin)+" · "+(D.quien||"")+(mins!=null?" · "+durTxt(mins):"")}));
     if(D.resultado) box.appendChild(el("span",{class:"pill "+(D.resultado==="OK"?"ok":"bad"),text:D.resultado==="OK"?"Checklist OK":"Checklist con fallos"}));
     box.appendChild(el("h4",{text:"Checklist"}));
     box.appendChild(pts.length?el("div",{class:"chk"},pts.map(([k,v])=>el("div",{class:"linea",style:"display:flex;justify-content:space-between;gap:8px"},[el("span",{text:k}),el("b",{class:v==="OK"?"":"bad",text:v==="OK"?"OK":"NO-OK"})]))):el("p",{class:"hint",text:"Esta limpieza se apuntó sin checklist."}));
@@ -186,7 +186,60 @@ function detalleLimpieza(h,e,re){
     const cambios=D.cambios||[];
     if(cambios.length) box.appendChild(el("div",null,[el("h4",{text:"Cambios de fecha"}),el("ul",{class:"hist"},cambios.map(c=>el("li",{text:cuandoLim(c.cuando)+" · "+(c.quien||"")+" · "+c.detalle}) ))]));
     if(D.puede_corregir) box.appendChild(el("button",{type:"button",class:"btn sec",style:"width:100%;margin:10px 0 0",text:"Corregir fecha y hora",onclick:()=>{cerrar();setTimeout(()=>corregirFechaLimpieza(h,e,D,re),0);}}));
+    if(D.puede_editar) box.appendChild(el("button",{type:"button",class:"btn sec",style:"width:100%;margin:8px 0 0",text:"Editar registro (quién, qué se hizo, piezas)",onclick:()=>{cerrar();setTimeout(()=>editorRegistro(h,e,D,re),0);}}));
   }).catch(er=>{box.textContent="";box.appendChild(el("p",{class:"empty",text:errFecha(er.message)}));});
+}
+/* admin: corregir quién lo hizo, qué se hizo y qué piezas se cambiaron, o anular el registro entero */
+function editorRegistro(h,e,D,re){
+  const accIni=D.accion||"limpieza", esCambio=accIni.indexOf("cambio")===0;
+  const f={quien:D.hecho_por||"",accion:accIni};
+  let P=null;
+  const selQ=el("select",null,[el("option",{value:"",text:"— Sin cambios —"})]);
+  trabajadores().then(L=>{(L||[]).slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),"es")).forEach(t=>selQ.appendChild(el("option",{value:t.id,text:t.nombre})));selQ.value=f.quien;}).catch(()=>{});
+  selQ.onchange=()=>{f.quien=selQ.value;};
+  const piezasBox=el("div");
+  const pintaPiezas=()=>{piezasBox.textContent="";
+    if(f.accion.indexOf("cambio")!==0){piezasBox.appendChild(el("p",{class:"hint",text:"Las piezas solo aplican a los cambios."}));return;}
+    if(!P){piezasBox.appendChild(el("p",{class:"hint",text:"Cargando piezas…"}));return;}
+    if(!P.length){piezasBox.appendChild(el("p",{class:"hint",text:"No hay piezas descontadas en este registro."}));return;}
+    P.forEach(p=>{const cb=el("input",{type:"checkbox"});cb.checked=p.usada;cb.addEventListener("change",()=>{p.usada=cb.checked;});
+      piezasBox.appendChild(el("label",{class:"chk"},[cb,el("span",{text:" "+p.nombre+" × "+String(p.cant).replace(".",",")})]));});};
+  if(esCambio) rpc("horno_piezas_ot",{p_tok:S.tok,p_ot:h.id}).then(L=>{P=(L||[]).map(p=>Object.assign({usada:true,orig:true},p));pintaPiezas();}).catch(er=>{piezasBox.textContent=errFecha(er.message);});
+  const cuerpo=[fld("Quién lo hizo",selQ)];
+  if(e.tipo==="horno"){
+    const selA=el("select",null,Object.keys(TXT_HORNO).filter(k=>k!=="cambio_tolva_cono").map(k=>el("option",{value:k,text:TXT_HORNO[k]})));
+    selA.value=accIni;
+    selA.onchange=()=>{f.accion=selA.value;
+      if(f.accion.indexOf("cambio")!==0){if(P)P.forEach(p=>{p.usada=false;});}   /* no es un cambio: no quedan piezas */
+      else if(!P)P=[];                                                            /* cambio sin piezas apuntadas todavía */
+      pintaPiezas();};
+    cuerpo.push(fld("Qué se hizo",selA));
+  }
+  cuerpo.push(piezasBox);
+  cuerpo.push(el("p",{class:"hint",text:"Si el cambio no se hizo, usa «Anular registro»: quita del Almacén todas sus piezas y el registro deja de contar."}));
+  dlg("Editar registro · "+e.nombre,el("div",null,cuerpo),[
+    {t:"Cancelar",cls:"sec"},
+    {t:"Anular registro",cls:"sec",fn:async()=>{
+      if(!window.confirm("Se anula este registro y se quitan del Almacén sus piezas. ¿Seguro?"))return false;
+      try{await rpc("horno_registro_editar",{p_tok:S.tok,p_ot:h.id,p_quien:null,p_accion:null,p_piezas:null,p_anular:true});}
+      catch(er){toast(errFecha(er.message));return false;}
+      toast("Registro anulado"); if(re) re(); fichaElemento(e.codigo,re);}},
+    {t:"Guardar",cls:"ok",fn:async()=>{
+      const quienCambio=f.quien&&f.quien!==(D.hecho_por||"")?f.quien:null;
+      const accCambio=f.accion!==accIni?f.accion:null;
+      let piezas=null;
+      if(P&&esCambio){
+        const sel=P.filter(p=>p.usada).map(p=>({art:p.art,cant:p.cant}));
+        const cambiadas=P.some(p=>p.usada!==p.orig);
+        if(cambiadas){
+          if(!sel.length&&f.accion.indexOf("cambio")===0){toast("Si no se cambió nada, usa «Anular registro»");return false;}
+          piezas=sel;
+        }
+      }
+      if(!quienCambio&&!accCambio&&piezas===null){toast("No hay nada que cambiar");return false;}
+      try{await rpc("horno_registro_editar",{p_tok:S.tok,p_ot:h.id,p_quien:quienCambio,p_accion:accCambio,p_piezas:piezas,p_anular:false});}
+      catch(er){toast(errFecha(er.message));return false;}
+      toast("Registro corregido"); if(re) re(); fichaElemento(e.codigo,re);}}]);
 }
 const cuandoLim=ts=>new Date(ts).toLocaleString("es-ES",{day:"numeric",month:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"});
 function corregirFechaLimpieza(h,e,D,re){

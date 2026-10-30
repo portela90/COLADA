@@ -60,3 +60,91 @@ begin
                           where l.ot = o.id and l.accion = 'fecha'), '[]'::jsonb));
 end
 $function$;
+
+-- Corrección de un registro (solo admin): quién lo hizo, qué se hizo (tipo), qué piezas se cambiaron o anular del todo.
+-- Las piezas se corrigen con horno_corregir_material (el Almacén anula lo quitado). Anular = quitar todos los descuentos
+-- y ocultar el registro (ot_log guarda el rastro). No cambia el estado, así que no dispara avisos ni consumos nuevos.
+create or replace function public.horno_registro_editar(p_tok uuid, p_ot uuid, p_quien uuid, p_accion text, p_piezas jsonb, p_anular boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public', 'extensions'
+as $function$
+declare t trabajadores; o ots; w trabajadores;
+begin
+  t := _yo(p_tok);
+  if t.rol <> 'admin' then raise exception 'NO_ADMIN'; end if;
+  select * into o from ots where id = p_ot and not borrado and elemento_id is not null;
+  if not found then raise exception 'NO_EXISTE'; end if;
+  if o.estado <> 'hecha' then raise exception 'NO_HECHA'; end if;
+
+  if coalesce(p_anular, false) then
+    if coalesce(o.accion_horno, '') like 'cambio%' then
+      perform horno_corregir_material(p_tok, p_ot, '[]'::jsonb);
+    end if;
+    update ots set borrado = true where id = p_ot;
+    insert into ot_log(ot, quien, accion, detalle)
+    values (p_ot, t.id, 'editado', 'registro anulado: ' || coalesce(o.accion_horno, 'limpieza') || ' no se hizo');
+    return jsonb_build_object('anulado', true);
+  end if;
+
+  if p_quien is not null and p_quien is distinct from o.hecho_por then
+    select * into w from trabajadores where id = p_quien and activo;
+    if not found then raise exception 'NO_EXISTE'; end if;
+    update ots set hecho_por = w.id where id = p_ot;
+    insert into ot_log(ot, quien, accion, detalle) values (p_ot, t.id, 'editado', 'quien lo hizo: ' || w.nombre);
+  end if;
+
+  if p_piezas is not null then
+    if coalesce(o.accion_horno, '') not like 'cambio%' then raise exception 'NO_CAMBIO'; end if;
+    perform horno_corregir_material(p_tok, p_ot, p_piezas);
+    insert into ot_log(ot, quien, accion, detalle) values (p_ot, t.id, 'editado', 'piezas corregidas');
+  end if;
+
+  if p_accion is not null and p_accion <> coalesce(o.accion_horno, 'limpieza') then
+    if p_accion not in ('limpieza','vaciado','cambio_tolva','cambio_cono','cambio_dosificador','cambio_resistencia',
+                        'cambio_centrador','cambio_con_estrella','cambio_con_fase','cambio_otra') then
+      raise exception 'ACCION_MAL';
+    end if;
+    if p_accion not like 'cambio%' and exists (select 1 from consumos_horno where ot_id = p_ot and envio <> 'anulado') then
+      raise exception 'PIEZAS_PENDIENTES';
+    end if;
+    update ots set accion_horno = p_accion where id = p_ot;
+    insert into ot_log(ot, quien, accion, detalle)
+    values (p_ot, t.id, 'editado', 'tipo: ' || coalesce(o.accion_horno, 'limpieza') || ' → ' || p_accion);
+  end if;
+
+  select * into o from ots where id = p_ot;
+  return _otjson(o);
+end
+$function$;
+
+-- Detalle ampliado: tipo, quién lo hizo y si el admin puede editarlo
+create or replace function public.limpieza_detalle(p_tok uuid, p_ot uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare t trabajadores; o ots;
+begin
+  t := _yo(p_tok);
+  select * into o from ots where id = p_ot and not borrado and elemento_id is not null;
+  if not found then raise exception 'NO_EXISTE'; end if;
+  return jsonb_build_object(
+    'id', o.id,
+    'fin', o.fin,
+    'inicio', o.inicio,
+    'accion', coalesce(o.accion_horno, 'limpieza'),
+    'hecho_por', o.hecho_por,
+    'quien', (select nombre from trabajadores where id = o.hecho_por),
+    'resultado', o.resultado,
+    'nota', o.nota,
+    'checklist', coalesce(o.checklist, '{}'::jsonb),
+    'puede_corregir', (t.rol = 'admin' or o.hecho_por = t.id),
+    'puede_editar', (t.rol = 'admin'),
+    'cambios', coalesce((select jsonb_agg(jsonb_build_object('cuando', l.cuando, 'quien', w.nombre, 'detalle', l.detalle) order by l.cuando desc)
+                           from ot_log l left join trabajadores w on w.id = l.quien
+                          where l.ot = o.id and l.accion in ('fecha', 'editado')), '[]'::jsonb));
+end
+$function$;
