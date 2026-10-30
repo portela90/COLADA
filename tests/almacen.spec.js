@@ -553,3 +553,24 @@ test('Contadores: el primer día se apunta el nivel de arriba y abajo y el cotej
   await d.locator('#ctGarter').fill('300'); await d.locator('#ctGabter').fill('1000');
   expect(err).toEqual([]);
 });
+
+test('Ficha de inyectora: datos de la placa del horno y su apartado en Ahora y Documentos', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'todo sobre la F25'); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha de la F25' }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Editar datos del horno' }).first().click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await d.locator('#hpMarca').fill('Striko'); await d.locator('#hpModelo').fill('Westofen 600'); await d.locator('#hpSerie').fill('SN-12345');
+  await d.locator('#hpKg').fill('600'); await d.locator('#hpKw').fill('45'); await d.locator('#hpEn').selectOption('Gas'); await d.locator('#mqHFab').fill('2018-06');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const m = await page.evaluate(() => window.__D.cat.app.maquinas.find(x => x.cod === 'F25'));
+  expect(m.hornoPlaca).toEqual({ marca: 'Striko', modelo: 'Westofen 600', serie: 'SN-12345', kg: '600', kw: '45', energia: 'Gas' }); expect(m.hornoFab).toBe('2018-06');
+  await expect(page.locator('body')).toContainText('SN-12345');
+  await page.locator('[role=tab]', { hasText: 'Documentos' }).last().click(); await page.waitForTimeout(300);
+  await expect(page.locator('body')).toContainText('Del horno');
+  await expect(page.locator('body')).toContainText('Westofen 600');
+  expect(err).toEqual([]);
+});

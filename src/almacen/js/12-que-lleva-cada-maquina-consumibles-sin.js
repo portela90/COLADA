@@ -151,7 +151,7 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
     linea("Contenedor",co?co.cod:"",co?[ct?CT_L[ct[0]].mm+" mm · Ø"+CT_D[ct[1]]:null,h.contF?"desde "+fmtF(h.contF):null,dpN&&ct&&CT_D[ct[1]]!==dpN?"¡no es el Ø del pistón!":null].filter(Boolean).join(" · "):letraMaq(m)?"lleva largo "+letraMaq(m)+" ("+CT_L[letraMaq(m)].mm+" mm)":null,co?()=>fichaCont(co,()=>reabre(0)()):null,()=>{cerrarDlgs();cambioCont(m,{volver:true});},co?(dpN&&ct&&CT_D[ct[1]]!==dpN?"warn":""):"mut"),
     ...(bar.length?bar:[null]).map(a=>linea("Barras expulsoras",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud+(revVig(a)?" · plano "+revTxt(revVig(a).n):""):null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
     ...(tor.length?tor:[null]).map(a=>linea("Tornillo tope",a?nomBT(a):"",a?"hay "+fmtN(stockDe(a.id))+" "+a.ud:null,a?()=>ficha(a):null,null,a?(nivel(a)==="bad"?"warn":""):"mut")),
-    linea("Horno",hornoTxt(m)||"",[hornoFabTxt(m),hornoA.length?hornoA.length+" recambios en su lista (pestaña Consumibles)":null].filter(Boolean).join(" · ")||null,null,null,hornoTxt(m)?"":"mut")]);
+    linea("Horno",hornoTxt(m)||hornoPlacaTxt(m)||"",[hornoTxt(m)?hornoPlacaTxt(m):null,hornoFabTxt(m),hornoA.length?hornoA.length+" recambios en su lista (pestaña Consumibles)":null].filter(Boolean).join(" · ")||null,null,()=>formHorno(m,reabre(0)),hornoTxt(m)||hornoPlacaTxt(m)?"":"mut")]);
   /* --- Historial: todo lo que ha pasado en la máquina, en una sola lista --- */
   const H=[];todosMlog().filter(x=>x.maq===m.id).forEach(x=>H.push({f:x.f,ts:x.ts||0,t:x.tipo==="molde"?"Molde":"Contenedor",d:x.tipo==="molde"?"Se pone el "+(((moldeDe(x.val)||{}).cod)||"?"):(x.val?"Se pone el "+(((contDe(x.val)||{}).cod)||"?"):"Se quita")+(x.antes?" · sale el "+((x.tipo==="molde"?(moldeDe(x.antes)||{}).cod:(contDe(x.antes)||{}).cod)||"?")+(x.destino?" ("+((CT_EST[x.destino]||[x.destino])[0]).toLowerCase()+")":""):""),q:x.by,ir:x.tipo==="cont"&&contDe(x.val||x.antes)?()=>fichaCont(contDe(x.val||x.antes)):null}));
   all.forEach(p=>H.push({f:p.f,ts:p.ts||0,t:"Pistón",d:p.diam+" · "+cap(p.motivo||"")+((+p.cant||1)>1?" · "+p.cant+" pistones":""),q:p.resp?respTxt(p.resp):p.por||""}));
@@ -181,18 +181,38 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
   asign0.filter(a=>!TEC(a.fam)&&(a.docs||[]).length).forEach(a=>planos.push({t:a.desc,s:(a.docs||[]).length+" documento"+((a.docs||[]).length>1?"s":""),ir:()=>ficha(a)}));
   if(mo&&(mo.docs||[]).length)planos.push({t:"Molde "+mo.cod,s:(mo.docs||[]).length+" documento(s)",ir:()=>formMolde(mo)});
   const docsPl=planos.length?el("div",{class:"lst"},planos.map(x=>el("button",{type:"button",class:"it",onclick:abre(x.ir)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:x.t}),el("div",{class:"t2",text:x.s})])]))):el("p",{class:"hint",text:"Ninguna pieza de esta máquina tiene planos todavía (se suben en la ficha del modelo de eje o de la barra)."});
+  const hp=m.hornoPlaca||{},hd=m.hornoDocs||[];
+  const hornoBox=el("div",{style:"display:grid;gap:10px"},[
+    H_PLACA.some(([k])=>hp[k])||m.hornoFab?el("dl",{class:"datos"},[].concat(...H_PLACA.filter(([k])=>hp[k]).map(([k,t])=>[el("dt",{text:t.replace(/ \(.*\)/,"")}),el("dd",{text:hp[k]+(k==="kg"?" kg":k==="kw"?" kW":"")})]),m.hornoFab?[el("dt",{text:"Fabricado"}),el("dd",{text:hornoFabTxt(m).replace(/^fabricado /,"")})]:[])):el("p",{class:"hint",text:"Sin datos de la placa todavía."}),
+    el("div",{style:"display:flex;flex-wrap:wrap;gap:10px"},hd.length?hd.map(d=>docThumb(d,async()=>{const x=maqDe(m.id);x.hornoDocs=(x.hornoDocs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaIny(m,5);})):[el("p",{class:"hint",style:"margin:0",text:"Foto de la placa del horno, manual, certificados…"})]),
+    subirDoc(async d=>{const x=maqDe(m.id);x.hornoDocs=(x.hornoDocs||[]).concat([d]);await saveCat();toast("Guardado");cerrarDlgs();fichaIny(m,5);},"Subir foto o documento del horno"),
+    el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:"Editar datos del horno",onclick:()=>formHorno(m,reabre(0))})]);
   const S=(t,...kids)=>el("section",{class:"card"},[t?el("div",{class:"hd"},el("h2",{text:t})):null,el("div",{class:"bd",style:"display:grid;gap:10px"},kids.filter(Boolean))]);
   objPage({tipo:"Inyectora",ruta:["Máquinas",m.nave||"Planta"],titulo:m.cod,sub:B[0]&&B[0].textContent,
     kpis:[["Ø pistón",dm||"—"],["Pistones 3 meses",String(c3)],["Último cambio",u?"hace "+dias(u.f,hy)+" d":"—"],["Stock de ese Ø",pa?fmtN(stockDe(pa.id)):"—",pa&&nivel(pa)==="bad"?"neg":""]],
     tab:tab0||0,
-    tabs:[["Ahora",[S("Lo que monta ahora",ahora,avisosMaq(m).length?el("div",{class:"banner w",text:avisosMaq(m).join(" · ")}):null),S("Ficha técnica",B[5])]],
+    tabs:[["Ahora",[S("Lo que monta ahora",ahora,avisosMaq(m).length?el("div",{class:"banner w",text:avisosMaq(m).join(" · ")}):null),S("Ficha técnica",B[5]),S("Horno · placa",(()=>{return el("div",{style:"display:grid;gap:8px"},[hornoBox.firstChild.cloneNode(true),el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:hd.length?"Editar · "+hd.length+(hd.length===1?" documento":" documentos")+" en Documentos":"Editar datos del horno",onclick:()=>formHorno(m,reabre(0))})]);})())]],
       ["Consumibles",C(9,10,11,12,13)],["Ejes",C(6,7,8)],["Historial",[S(null,hist)]],["Gasto",[S(null,gasto,B[14],B[15])]],
-      ["Documentos",[S("De la máquina",B[17],B[18]),S("Planos de lo que monta",docsPl)]]],
+      ["Documentos",[S("De la máquina",B[17],B[18]),S("Del horno",hornoBox),S("Planos de lo que monta",docsPl)]]],
     acts:[{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},{t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
       {t:"Cambio de pistón",fn:()=>{Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});setTimeout(()=>{irA("pist");const f=document.getElementById("pForm");if(f)f.scrollIntoView();},0);}}]});}
 /* editar lo que monta una máquina: en cada campo se tocan las opciones */
 /* fecha de fabricación del horno (mes y año de la placa) y los años que tiene */
 const hornoFabTxt=m=>{if(!m.hornoFab)return"";const[y,mo]=m.hornoFab.split("-").map(Number),h=hoy(),a=+h.slice(0,4)-y-((+h.slice(5,7))<mo?1:0);return"fabricado "+String(mo).padStart(2,"0")+"/"+y+" ("+(a<1?"menos de 1 año":a===1?"1 año":a+" años")+")";};
+/* datos de la placa del horno (m.hornoPlaca) y sus fotos y documentos (m.hornoDocs) */
+const H_PLACA=[["marca","Marca"],["modelo","Modelo"],["serie","Nº de serie"],["kg","Capacidad (kg)"],["kw","Potencia (kW)"],["energia","Energía"]];
+const hornoPlacaTxt=m=>{const p=m.hornoPlaca||{};return[p.marca,p.modelo,p.kg?p.kg+" kg":null,p.kw?p.kw+" kW":null,p.energia].filter(Boolean).join(" · ");};
+function hornoCampos(m){m.hornoPlaca=Object.assign({},m.hornoPlaca||{});const p=m.hornoPlaca;
+  if(!p.marca){const mc=valFicha(m,"c-horno");if(mc&&mc!=="Abierto")p.marca=mc;}
+  return el("div",{style:"display:grid;gap:8px"},[el("div",{style:"font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)",text:"Horno · datos de la placa"}),
+    el("div",{class:"row"},[fld("Marca",inp("hpMarca",p.marca,v=>p.marca=v,{autocomplete:"off"})),fld("Modelo",inp("hpModelo",p.modelo,v=>p.modelo=v,{autocomplete:"off"}))]),
+    el("div",{class:"row"},[fld("Nº de serie",inp("hpSerie",p.serie,v=>p.serie=v,{autocomplete:"off"})),fld("Fecha de fabricación",inp("mqHFab",m.hornoFab||"",v=>m.hornoFab=v,{type:"month",max:hoy().slice(0,7)}))]),
+    el("div",{class:"row"},[fld("Capacidad (kg)",inp("hpKg",p.kg,v=>p.kg=v,{inputmode:"decimal",class:"num"})),fld("Potencia (kW)",inp("hpKw",p.kw,v=>p.kw=v,{inputmode:"decimal",class:"num"})),
+      fld("Energía",sel("hpEn",[["Eléctrico","Eléctrico"],["Gas","Gas"]],p.energia,v=>p.energia=v,"—"))])]);}
+const limpiaPlaca=p=>{const o={};H_PLACA.forEach(([k])=>{const v=String((p||{})[k]==null?"":p[k]).trim();if(v)o[k]=v;});return Object.keys(o).length?o:null;};
+function formHorno(m0,despues){const m=Object.assign({},m0);
+  dlg("Horno de la "+m0.cod,[hornoCampos(m)],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const x=maqDe(m0.id);x.hornoPlaca=limpiaPlaca(m.hornoPlaca);x.hornoFab=/^\d{4}-\d{2}$/.test(m.hornoFab||"")?m.hornoFab:null;
+    try{await saveCat();}catch(e){return false;}toast("Datos del horno guardados");if(despues)despues();}}]);}
 function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const P=JSON.parse(JSON.stringify(plantilla()));let tocada=false;
   const val=JSON.parse(JSON.stringify(ex?valoresDe(m0):{}));
   const enUso=ex&&(todosMov().some(x=>x.maq===m.id)||todosPist().some(p=>p.maq===m.id));
@@ -234,12 +254,12 @@ function formMaquina(m0){const m=m0?Object.assign({},m0):{};const ex=!!m0;const 
   dlg(ex?"Ficha de la "+m0.cod:"Nueva inyectora",[
     el("div",{class:"row"},[fld("Código (p. ej. F53)",codI),fld("Nave",sel("mqNave",[["Nave 1","Nave 1"],["Nave 2","Nave 2"]],m.nave,v=>m.nave=v,"—"))]),
     el("p",{class:"hint",text:"Toca lo que monta esta máquina. Vuelve a tocar para quitarlo. Si falta una opción, «＋ otra»."}),campos,
-    fld("Fecha de fabricación del horno (la de la placa)",inp("mqHFab",m.hornoFab||"",v=>m.hornoFab=v,{type:"month",max:hoy().slice(0,7)})),
+    hornoCampos(m),
     fld("Notas",inp("mqNot",m.notas,v=>m.notas=v,{autocomplete:"off"}))],
    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const cod=String(m.cod||"").trim().toUpperCase();if(!cod){toast("Pon el código");return false;}
      if(cat.maquinas.some(z=>z.id!==m.id&&z.cod.toUpperCase()===cod)){toast("Ya existe "+cod);return false;}
      const ficha={};Object.keys(val).forEach(k=>{if((val[k]||[]).length)ficha[k]=val[k];});
-     const nue=Object.assign({},m0||{},{id:ex?m0.id:cod,cod,nave:m.nave||null,notas:String(m.notas||"").trim()||null,ficha,hornoFab:/^\d{4}-\d{2}$/.test(m.hornoFab||"")?m.hornoFab:null});
+     const nue=Object.assign({},m0||{},{id:ex?m0.id:cod,cod,nave:m.nave||null,notas:String(m.notas||"").trim()||null,ficha,hornoFab:/^\d{4}-\d{2}$/.test(m.hornoFab||"")?m.hornoFab:null,hornoPlaca:limpiaPlaca(m.hornoPlaca)});
      ["modelo","cierre","horno","hornoKg","canaleta","cazo","alea","molde"].forEach(k=>delete nue[k]);
      const i=cat.maquinas.findIndex(z=>z.id===nue.id);if(i>=0)cat.maquinas[i]=nue;else cat.maquinas.push(nue);
      /* lo automático se guarda donde vive: modelos de eje, artículos y Ø de pistón */
