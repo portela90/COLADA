@@ -440,3 +440,23 @@ test('Ficha de inyectora: fecha de fabricación del horno', async ({ page }) => 
   expect(m.hornoFab).toBe('2019-03');
   expect(err).toEqual([]);
 });
+
+test('Consultas: «quién cambió las barras de la F28» dice quién, cuándo y qué; una máquina sin cambios no se ignora; «qué máquina consume más de todo» se filtra por tipo', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.mov[k].items.push({ id: 'bx1', f: '2026-10-14', ts: 1, alm: 'cn1', art: 'b1', maq: v.cat.app.maquinas[0].id, por: 'Kepa', cant: 2, nota: 'Rotas', tipo: 'salida' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  const m0 = await page.evaluate(() => window.__D.cat.app.maquinas[0].cod);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  const t = await resp('quién cambió las barras expulsoras de la ' + m0);
+  expect(t).toContain('El último cambio de barra expulsora de la ' + m0); expect(t).toContain('Lo hizo: Kepa');
+  const otra = await page.evaluate(m0 => window.__D.cat.app.maquinas.find(m => m.cod !== m0).cod, m0);
+  expect(await resp('quién cambió las barras expulsoras de la ' + otra)).toContain('No hay cambios de barras expulsoras apuntados en la ' + otra);
+  const t2 = await resp('qué máquina consume más de todo');
+  expect(t2).toContain('Por tipo');
+  await page.locator('#bdRes .btn', { hasText: 'Por tipo' }).click(); await page.waitForTimeout(300);
+  expect(await page.locator('#bdRes').innerText()).toMatch(/Pistones/);
+  expect(err).toEqual([]);
+});

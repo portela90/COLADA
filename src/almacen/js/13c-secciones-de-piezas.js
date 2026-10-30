@@ -5,8 +5,11 @@
    Se guarda en cat.secc[pieza] = {avisos:[], docs:[], enlaces:[], listas:[]} y cat.ideas = []. */
 const SECC_T=[["res","Resumen"],["cam","Cambios"],["maq","Por máquina"],["gas","Gasto"],["ref","Referencias"],["mas","Más cosas"]];
 const nomArtC=a=>a?(TEC(a.fam)?nomBT(a):a.desc):"?";
+/* consumo sin máquina apuntada: se saca de la nota («Horno H-F25: …») o, si el artículo solo está asignado a una máquina, de esa */
+function maqDeSalida(x,a){const m=String(x.nota||"").match(/\bH-?([FM]\d{1,3})\b|\b([FM]\d{1,3})\b/i);if(m){const c=(m[1]||m[2]).toUpperCase(),q=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(q)return q.id;}
+  if(a&&(a.iny||[]).length===1&&cat.maquinas.some(z=>z.id===a.iny[0]))return a.iny[0];return null;}
 const salidasFam=fs=>todosMov().filter(x=>x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).filter(x=>{const a=art(x.art);return a&&fs(a);})
-  .map(x=>{const a=art(x.art),c=+x.cant||0;return{f:x.f,ts:x.ts||0,maq:x.maq||null,nave:x.nave||null,ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),txt:x.motivo?cap(x.motivo):(x.nota||""),ir:()=>ficha(a)};});
+  .map(x=>{const a=art(x.art),c=+x.cant||0;return{f:x.f,ts:x.ts||0,maq:x.maq||maqDeSalida(x,a),nave:x.nave||null,fam:typeof famLbl==="function"?famLbl(a):"",ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),txt:x.motivo?cap(x.motivo):(x.nota||""),ir:()=>ficha(a)};});
 /* lo que cada pieza aporta: sus cambios (para Cambios, Por máquina y Gasto) y sus referencias */
 /* el desperfecto de una reparación, en pocos tipos (está escrito a mano y cada vez de una forma) */
 const MOT_REP=[["Postizo roto",/postizo/],["Pistón agarrotado",/agarrot/],["Pistón roto",/rotura de piston|piston roto|se suelta el piston/],["Rosca",/rosca/],["Enchufes o racores de agua",/enchufe|racor/],
