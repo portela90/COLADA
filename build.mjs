@@ -17,7 +17,7 @@ import { transform } from "esbuild";
 const RAIZ = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.join(RAIZ, "src");
 const PAGINAS = { "index.html": "coladas", "almacen.html": "almacen", "inicio.html": "inicio", "limpieza.html": "limpieza",
-  "encargado.html": "encargado", "calendario.html": "calendario", "toolbox.html": "toolbox" };
+  "encargado.html": "encargado", "calendario.html": "calendario", "toolbox.html": "toolbox", "hornos.html": "hornos" };
 const COMUNES = ["errlog.js", "offline.js", "graficos.js", "escaner.js"];
 
 const args = process.argv.slice(2);
