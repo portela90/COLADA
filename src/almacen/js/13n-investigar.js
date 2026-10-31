@@ -41,6 +41,7 @@ function datosInv(F){const E=evInv().filter(e=>casaInv(F,e)),d0=F.d0,d1=F.d1,len
   const ms=[...new Set(en.map(e=>maqInv(e)).filter(Boolean))];if(ms.length&&ms.length<=3)ms.forEach(m=>{const ch=todosMlog().filter(x=>x.tipo==="molde"&&x.maq===m.id&&x.f>=sumaDias(d0,-14)&&x.f<=d1);
     if(ch.length){const u=ch[ch.length-1];hint.push({niv:"info",t:"La "+m.cod+" cambió de molde el "+fmtF(u.f)+(u.val?" (pone el "+(moldeTxt(moldeDe(u.val))||u.val)+")":"")+": puede explicar el cambio de gasto."});}});
   const sm=en.filter(e=>!e.mot&&e.k!=="m").length+en.filter(e=>e.k==="m"&&!e.mot&&e.a&&["barra","tornillo","horno"].includes(e.a.fam)).length,sr=en.filter(e=>!e.quien).length,sp=modo==="e"?en.filter(e=>!(e.eur>0)).length:0,sq=en.filter(e=>!maqInv(e)&&!e.nave&&e.k!=="r").length;
+  try{const S=avLinkSet(),av=[...new Set(en.filter(e=>e.r&&S[e.k+":"+e.r.id]).map(e=>S[e.k+":"+e.r.id]))];if(av.length){const n=en.filter(e=>e.r&&S[e.k+":"+e.r.id]).length;hint.push({niv:"warn",t:n+(n===1?" apunte es":" apuntes son")+" de averías: "+av.slice(0,3).map(a=>avNom(a)+(a.causa?" ("+a.causa.toLowerCase()+")":"")).join(", ")+(av.length>3?"…":"")+"."});}}catch(e){}
   const falta=[sm?sm+" sin motivo":null,sr?sr+" sin responsable":null,sq?sq+" sin máquina":null,sp?sp+" sin precio":null].filter(Boolean);
   return{cmp,cN,F,en,tot,totB,eurT,fmt,ud,modo,mot,maq,artG,qui,serie,largo,hint,falta,len};}
 function sugInv(D){if(!D.tot)return"";const t=D.mot.find(g=>g.k!=="Sin motivo"&&g.v>0),m=D.maq[0];

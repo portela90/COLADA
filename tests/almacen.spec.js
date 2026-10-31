@@ -277,7 +277,7 @@ test('Borrar la salida de un cambio de pistón borra también el cambio (no sale
   const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
   expect(await page.inputValue('#pMot')).toBe('');
   await page.locator('#pBtn').click(); await expect(page.locator('body')).toContainText('Falta el motivo del cambio');
-  await page.selectOption('#pMot', 'ROTURA');
+  await page.selectOption('#pMot', 'DESGASTE');
   await page.locator('#pBtn').click(); await page.waitForTimeout(500);
   const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"movId"').length);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
@@ -1081,6 +1081,53 @@ test('Franjas de tiempo: atajos y desde/hasta en Consultas y en Investigar', asy
   await d.locator('.seg button', { hasText: 'Periodo anterior' }).click(); await page.waitForTimeout(300);
   d = page.locator('.dlg').last(); await expect(d.locator('.seg button[aria-pressed="true"]', { hasText: 'Periodo anterior' })).toHaveCount(1);
   const t = (await d.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Averías: una rotura abre la avería, se añade otra rotura, causa evitable y resumen', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 5); v.aver = { lista: { items: [{ id: 'av0', n: 1, maq: v.cat.app.maquinas[1].id, f: m.toISOString().slice(0, 10), t: 'Fuga vieja', causa: '', estado: 'cerrada', links: [], ts: 1 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await expect(page.locator('#view')).toContainText('avería sin causa');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
+  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
+  await page.selectOption('#pMot', 'ROTURA');
+  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  await page.locator('#pBtn').click(); await page.waitForTimeout(900);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
+  await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(600);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Pistón roto'); await expect(d).toContainText('Lo que se ha cambiado por esta avería');
+  await d.locator('.chip', { hasText: 'Trabajando sin pistonwax' }).click(); await page.waitForTimeout(150);
+  d = page.locator('.dlg').last(); await expect(d.locator('.seg button[aria-pressed="true"]', { hasText: 'Sí' })).toHaveCount(1);
+  await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('Trabajando sin pistonwax');
+  // barra rota en la misma máquina: se añade a la avería abierta
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Barras expulsoras$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#view button', { hasText: /^Registrar cambio$/ }).first().click(); await page.waitForTimeout(300);
+  await page.selectOption('#btM', maq); await page.waitForTimeout(200);
+  const a = await page.locator('#btA option[value]:not([value=""])').first().getAttribute('value');
+  if (a) {
+    await page.selectOption('#btA', a); await page.waitForTimeout(200);
+    if (!(await page.inputValue('#btAl'))) { const al = await page.locator('#btAl option').nth(1).getAttribute('value'); await page.selectOption('#btAl', al); }
+    await page.locator('.dlg').last().locator('.chip', { hasText: /^Rotura$/ }).click(); await page.waitForTimeout(150);
+    await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(900);
+    d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
+    await d.locator('button.it', { hasText: 'Añadir a:' }).first().click(); await page.waitForTimeout(600);
+    await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver).split('"k":"m"').length)).toBe(2);
+  }
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Averías$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view'); await expect(v).toContainText('Abiertas'); await expect(v).toContainText('Pistón roto'); await expect(v).toContainText('Por causa'); await expect(v).toContainText('Trabajando sin pistonwax');
+  await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await d.getByRole('button', { name: 'Cerrar avería' }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"fc":"');
+  const t = (await v.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

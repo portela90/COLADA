@@ -67,10 +67,10 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
   dlg("Cambio de "+N.uno,[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const a=art(d.art),q=parseN(d.cant);
     if(!d.maq){toast("Elige la inyectora");return false;}if(!a){toast("Elige la "+N.uno);return false;}if(!(q>0)){toast("Pon la cantidad");return false;}if(!d.alm){toast("Elige de qué almacén sale");return false;}
     if(!d.motivo&&!d.smOk){d.smOk=true;toast("Falta el motivo del cambio. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return false;}
-    const neg=stockDe(a.id,d.alm)-q<0;try{await addMov({f:d.f||hoy(),tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,motivo:d.motivo||null,resp:(d.resp||"").trim()||null,nota:"Cambio de "+N.uno+(d.motivo?" · "+cap(d.motivo):"")+(d.nota.trim()?" · "+d.nota.trim():"")});
+    const neg=stockDe(a.id,d.alm)-q<0;try{const mv=await addMov({f:d.f||hoy(),tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,motivo:d.motivo||null,resp:(d.resp||"").trim()||null,nota:"Cambio de "+N.uno+(d.motivo?" · "+cap(d.motivo):"")+(d.nota.trim()?" · "+d.nota.trim():"")});
       if(!(a.iny||[]).includes(d.maq)){const x=art(a.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}
       if(d.resp.trim()&&typeof lsSet==="function")lsSet("alm.resp",d.resp.trim());
-      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
+      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));if(/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&mv&&mv.id)setTimeout(()=>preguntaAveria(d.maq,{k:"m",id:mv.id,f:mv.f},(f==="barra"?"Barras":"Tornillos")+" "+(d.motivo==="ROTURA"?(f==="barra"?"rotas":"rotos"):(f==="barra"?"dobladas":"doblados"))),400);}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
 /* ===== PLANOS CON HISTORIAL DE REVISIONES (barras, tornillos y modelos de eje) ===== */
 const revsDe=a=>((a&&a.revs)||[]).slice().sort((x,y)=>x.n-y.n);
 const revVig=a=>{const r=revsDe(a);return r[r.length-1]||null;};

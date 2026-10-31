@@ -301,7 +301,7 @@ async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar 
     const pa=pistArt(d.diam);
     if(pa&&d.desc&&d.alm){const m=await addMov({f:d.f,tipo:"salida",art:pa.id,alm:d.alm,cant:q,maq:d.maq,nota:"Cambio de pistón"+(d.motivo?" · "+cap(d.motivo):"")});rec.movId=m.id;}
     await addPist(rec);
-    try{await ejePendDe([rec]);}catch(e){}toast("Cambio registrado en "+maqN(d.maq));if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1",motivo:"",smOk:false});
+    try{await ejePendDe([rec]);}catch(e){}toast("Cambio registrado en "+maqN(d.maq));if(/^(ROTURA|PISTÓN AGARROTADO)$/.test(rec.motivo||""))setTimeout(()=>preguntaAveria(rec.maq,{k:"p",id:rec.id,f:rec.f},rec.motivo==="ROTURA"?"Pistón roto":"Pistón agarrotado"),400);if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1",motivo:"",smOk:false});
   }catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));}
   render(true);}
 async function addMovs(list){const g={};list.forEach(r=>{r.id=r.id||uid();r.ts=Date.now();(g[mesDe(r.f)]=g[mesDe(r.f)]||[]).push(r);});

@@ -131,7 +131,7 @@ const unoPorGrupo=(x,i,a)=>a.findIndex(y=>grupoKey(y.m)===grupoKey(x.m))===i;
 function todasRep(){const o=[];Object.keys(reps).forEach(y=>(reps[y]||[]).forEach(r=>o.push(Object.assign({y},r))));return o;}
 function repsDe(cod){return todasRep().filter(r=>r.eje===cod).sort((a,b)=>(a.env||a.alta||"").localeCompare(b.env||b.alta||""));}
 function abiertaDe(cod){const r=repsDe(cod).filter(x=>!x.res);return r[r.length-1];}
-async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();if(!rec.maq){const e=ejes.find(x=>x.cod===rec.eje);if(e&&e.maq)rec.maq=e.maq;}const y=(rec.env||rec.alta).slice(0,4);if(db.itemsAdd)await db.itemsAdd("rep",y,[rec]);else{const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});}
+async function addRep(rec,pendId){rec.id=uid();rec.ts=Date.now();if(!rec.recuento)try{const pp=pendPara(rec.eje,pendId);if(pp){rec.pend=pp.id;if(pp.pist)rec.pendPist=pp.pist;pendId=pp.id;}}catch(e){}if(!rec.maq){const e=ejes.find(x=>x.cod===rec.eje);if(e&&e.maq)rec.maq=e.maq;}const y=(rec.env||rec.alta).slice(0,4);if(db.itemsAdd)await db.itemsAdd("rep",y,[rec]);else{const ref=db.doc("rep/"+y),sn=await ref.get();const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});}
   if(!rec.recuento)try{await resolverPend(rec.eje,pendId);}catch(e){}}
 /* --- ejes rotos sin identificar: un cambio de pistón por ROTURA en una máquina deja un eje de su modelo pendiente de preparar --- */
 const MOT_EJE=["ROTURA","PISTÓN AGARROTADO"];
@@ -156,11 +156,12 @@ function formCuarentena(maqId){const m0=maqId?cat.maquinas.find(x=>x.id===maqId)
     el("div",{class:"row"},[fld("Fecha",inp("cuF",f.f,v=>f.f=v,{type:"date"})),fld("Nota (opcional)",inp("cuN",f.nota,v=>f.nota=v,{autocomplete:"off",placeholder:"qué le pasa"}))])],
    [{t:"Cancelar",cls:"sec"},{t:"Poner en cuarentena",fn:async()=>{const m=cat.maquinas.find(x=>x.id===f.maq);if(!m){toast("Elige la inyectora");return false;}
      if(f.mot==="OTRO"&&!f.nota.trim()){toast("Escribe el motivo en la nota");return false;}
-     cat.ejePend=ejePend().concat([{id:uid(),f:f.f||hoy(),maq:m.cod,mods:modsMaq(m.cod).map(x=>x.cod),pist:null,diam:null,motivo:f.mot,nota:f.nota.trim()||null,manual:true}]);
-     try{await saveCat();toast("Eje de la "+m.cod+" en cuarentena");}catch(e){return false;}render(true);}}]);}
+     const pid=uid();cat.ejePend=ejePend().concat([{id:pid,f:f.f||hoy(),maq:m.cod,mods:modsMaq(m.cod).map(x=>x.cod),pist:null,diam:null,motivo:f.mot,nota:f.nota.trim()||null,manual:true}]);
+     try{await saveCat();toast("Eje de la "+m.cod+" en cuarentena");}catch(e){return false;}render(true);if(f.mot!=="OTRO"||f.nota.trim())setTimeout(()=>preguntaAveria(m.id,{k:"q",id:pid,f:f.f||hoy()},"Eje: "+((MOT_CUAR.find(x=>x[0]===f.mot)||[])[1]||f.nota.trim()).toLowerCase()),400);}}]);}
 const QUEDA_EJE=DESTINOS[1];/* «queda puesto en el eje»: el eje no se puede usar hasta sacarle el pistón */
 async function ejePendDe(recs){const nue=(recs||[]).filter(r=>r&&r.maq&&(MOT_EJE.includes(r.motivo)||r.dest===QUEDA_EJE)).map(r=>{const cod=maqN(r.maq);return{id:uid(),f:r.f,maq:cod,mods:modsMaq(cod).map(m=>m.cod),pist:r.id||null,diam:r.diam||null,motivo:MOT_EJE.includes(r.motivo)?r.motivo:AGARR};});
   if(!nue.length)return;cat.ejePend=ejePend().concat(nue);await saveCat();setTimeout(()=>toast("Eje de "+nue.map(p=>p.maq).join(", ")+" apuntado para preparar (falta poner su número)"),2700);}
+function pendPara(ejeCod,pendId){const L=ejePend();let i=pendId?L.findIndex(p=>p.id===pendId):-1;if(i<0&&ejeCod){const mo=modelo(modeloDeEje(ejeCod));if(!mo)return null;const cs=grupoEje(mo).map(x=>x.cod);const c=L.filter(p=>(p.mods||[]).some(z=>cs.includes(z))).sort((a,b)=>a.f.localeCompare(b.f))[0];return c||null;}return i>=0?L[i]:null;}
 async function resolverPend(ejeCod,pendId){const L=ejePend();if(!L.length)return;let i=pendId?L.findIndex(p=>p.id===pendId):-1;
   if(i<0&&ejeCod){const mo=modelo(modeloDeEje(ejeCod));if(!mo)return;const cs=grupoEje(mo).map(x=>x.cod);i=L.map((p,k)=>[p,k]).filter(([p])=>(p.mods||[]).some(c=>cs.includes(c))).sort((a,b)=>a[0].f.localeCompare(b[0].f)).map(x=>x[1])[0];if(i==null)i=-1;}
   if(i<0)return;if(L[i].motivo===AGARR)await contarAgarr("rep");cat.ejePend=L.filter((_,k)=>k!==i);await saveCat();}
