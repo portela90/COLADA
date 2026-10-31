@@ -99,7 +99,7 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
-    btb:"Stock, cambios y qué máquinas las llevan",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
+    btb:"Stock, cambios, qué máquinas las llevan y las rotas para recuperar",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
     quim:"Stock en kg y envases, consumo y días que quedan",iny:"Plano de las naves y la ficha completa de cada máquina",mol:"Moldes y el Ø de pistón que usa cada uno",
     aver:"Roturas de ejes, barras y pistones: causa, coste y si se podían evitar",desv:"Gasto que se sale de lo normal por máquina y material, causas e informe del mes",bd:"Pregunta lo que necesites, lo importante ahora, tendencias y consultas a mano",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}

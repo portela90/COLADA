@@ -14,6 +14,7 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   const A=artsBT(f),C30=cambiosBT(f,sumaDias(hy,-30));const PR={};try{prevTodo().arts.forEach(x=>{PR[x.a.id]=x;});}catch(e){}
   const bajo=A.filter(a=>{const n=nivel(a);return n==="bad"||n==="warn";});
   if(f==="horno"&&typeof cardTolvas==="function"){const ct=cardTolvas();if(ct)v.appendChild(ct);}
+  if(f==="barra"&&typeof cardBrec==="function"){const cb=cardBrec();if(cb)v.appendChild(cb);}
   v.appendChild(el("dl",{class:"kpis num"},[["Referencias",String(A.length)],["En stock",fmtN(A.reduce((t,a)=>t+stockDe(a.id),0))+" ud"],["Para pedir",String(bajo.length)],["Cambios 30 días",fmtN(C30.reduce((t,m)=>t+(+m.cant||0),0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>cambioBT(f)}),
     el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}}),
@@ -47,7 +48,7 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   if(mods.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Modificaciones de planos"})),el("div",{class:"lst"},mods.slice(0,10).map(({a,r})=>el("button",{type:"button",class:"it",onclick:()=>histRev(a)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:(a.cod||a.desc)+" · "+revTxt(r.n)+" · "+fmtF(r.f)}),el("div",{class:"t2",text:[r.cambio,r.by?"por "+r.by:null,"quedaban "+fmtN(r.stock)+" de la "+revTxt(r.antes)].filter(Boolean).join(" · ")})])])))]));
   const P=pedidosBT().filter(p=>p.lin.some(l=>(art(l.art)||{}).fam===f)).slice(-10).reverse();
   if(P.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Pedidos al proveedor"})),el("div",{class:"lst"},P.map(p=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(p.f)+" · "+(provN(p.prov)||"—")}),el("div",{class:"t2",text:p.lin.map(l=>l.cod+" ×"+fmtN(l.cant)+(l.rev?" ("+revTxt(l.rev)+")":" (sin plano)")).join(" · ")+(p.by?" · "+p.by:"")})])])))]));}
-function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",cant:"1",motivo:"",smOk:false,alm:"",resp:(typeof lsGet==="function"?lsGet("alm.resp"):"")||"",nota:""};
+function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",cant:"1",motivo:"",smOk:false,rota:"",tor:false,torArt:"",torCant:"1",alm:"",resp:(typeof lsGet==="function"?lsGet("alm.resp"):"")||"",nota:""};
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const A=artsBT(f);const m=d.maq?cat.maquinas.find(z=>z.id===d.maq):null;
     const suyas=m?A.filter(a=>(a.iny||[]).includes(m.id)):[];const otras=A.filter(a=>!suyas.includes(a));
@@ -61,16 +62,28 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
     box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Cuántas se cambian"+(a?" (la máquina lleva "+pm+")":"")}),el("div",{class:"inf-r"},Array.from({length:pm},(_,i)=>String(i+1)).map(k=>el("button",{type:"button",class:"chip","aria-pressed":String(d.cant===k),style:"min-width:48px",text:k===String(pm)&&pm>1?k+" (todas)":k,onclick:()=>{d.cant=k;pinta();}})))]));
     if(m&&!suyas.length&&A.length)box.appendChild(el("p",{class:"hint",text:"La "+m.cod+" no tiene ninguna asignada: si eliges una, se le asigna sola para la próxima vez."}));
     box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Motivo"}),el("div",{class:"inf-r"},MOT_BT.map(k=>el("button",{type:"button",class:"chip","aria-pressed":String(d.motivo===k),text:cap(k),onclick:()=>{d.motivo=k;d.smOk=false;pinta();}})))].concat(d.motivo?[]:[el("p",{class:"hint",style:"margin:6px 0 0",text:"Elige el motivo del cambio."})])));
+    const roto=f==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.motivo||"");
+    if(roto){box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"¿Qué se hace con la barra rota?"}),el("div",{class:"seg",role:"group","aria-label":"Barra rota"},[["guardar","Guardar para recuperar"],["chat","Chatarra"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(d.rota===k),text:t,onclick:()=>{d.rota=k;pinta();}})))]));
+      const TS=artsBT("tornillo"),tSuyos=m?TS.filter(x=>(x.iny||[]).includes(m.id)):[];if(TS.length){if(d.tor&&!d.torArt)d.torArt=(tSuyos[0]||{}).id||"";
+        box.appendChild(el("label",{class:"chk"},[el("input",{type:"checkbox",id:"btTor",checked:d.tor,onchange:e=>{d.tor=e.target.checked;pinta();}}),"También se ha roto el tornillo tope"]));
+        if(d.tor)box.appendChild(el("div",{class:"row"},[fld("Tornillo tope",sel("btTA",(tSuyos.length?tSuyos:TS).concat(tSuyos.length?TS.filter(x=>!tSuyos.includes(x)):[]).map(x=>[x.id,nomBT(x)+" · hay "+fmtN(stockDe(x.id))]),d.torArt,v=>d.torArt=v,"Elige…")),fld("Cuántos",inp("btTC",d.torCant,v=>d.torCant=v,{inputmode:"numeric",class:"num"}))]));}}
     box.appendChild(el("div",{class:"row"},[fld("Sale de",sel("btAl",almOpts().map(([id,t])=>[id,t+(a?" (hay "+fmtN(stockDe(a.id,id))+")":"")]),d.alm,v=>d.alm=v,"Elige…")),fld("Responsable",inp("btR",d.resp,v=>d.resp=v,{autocomplete:"off"}))]));
     box.appendChild(fld("Observaciones",inp("btN",d.nota,v=>d.nota=v,{autocomplete:"off"})));};
   pinta();
   dlg("Cambio de "+N.uno,[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const a=art(d.art),q=parseN(d.cant);
     if(!d.maq){toast("Elige la inyectora");return false;}if(!a){toast("Elige la "+N.uno);return false;}if(!(q>0)){toast("Pon la cantidad");return false;}if(!d.alm){toast("Elige de qué almacén sale");return false;}
+    if(f==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&!d.rota){toast("Elige qué se hace con la barra rota: guardarla para recuperar o chatarra");return false;}
+    if(d.tor&&f==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&(!d.torArt||!(parseN(d.torCant)>0))){toast("Elige el tornillo tope roto y cuántos");return false;}
     if(!d.motivo&&!d.smOk){d.smOk=true;toast("Falta el motivo del cambio. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return false;}
     const neg=stockDe(a.id,d.alm)-q<0;try{const mv=await addMov({f:d.f||hoy(),tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,motivo:d.motivo||null,resp:(d.resp||"").trim()||null,nota:"Cambio de "+N.uno+(d.motivo?" · "+cap(d.motivo):"")+(d.nota.trim()?" · "+d.nota.trim():"")});
       if(!(a.iny||[]).includes(d.maq)){const x=art(a.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}
+      const roto=f==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.motivo||"");const LK=[{k:"m",id:mv.id,f:mv.f}];let conTor=false;
+      if(roto&&d.rota==="guardar")try{await brecGuarda(L=>L.concat([{id:uid(),f:mv.f,art:a.id,maq:d.maq,cant:q,mov:mv.id,env:null,vuelta:[],chat:[],ts:Date.now()}]));}catch(e){}
+      if(roto&&d.tor&&d.torArt){const ta=art(d.torArt),tq=parseN(d.torCant);if(ta&&tq>0){const con=cat.almacenes.filter(l=>stockDe(ta.id,l.id)>0);const tal=(con.find(l=>l.tipo==="produccion")||con[0]||{}).id||ppalDe(ta);
+        const mt=await addMov({f:d.f||hoy(),tipo:"salida",art:ta.id,alm:tal,cant:tq,maq:d.maq,motivo:"ROTURA",resp:(d.resp||"").trim()||null,nota:"Cambio de tornillo tope · Rotura · roto con la barra"});LK.push({k:"m",id:mt.id,f:mt.f});conTor=true;
+        if(!(ta.iny||[]).includes(d.maq)){const x=art(ta.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}}}
       if(d.resp.trim()&&typeof lsSet==="function")lsSet("alm.resp",d.resp.trim());
-      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));if(/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&mv&&mv.id)setTimeout(()=>preguntaAveria(d.maq,{k:"m",id:mv.id,f:mv.f},(f==="barra"?"Barras":"Tornillos")+" "+(d.motivo==="ROTURA"?(f==="barra"?"rotas":"rotos"):(f==="barra"?"dobladas":"doblados"))),400);}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
+      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));if(/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&mv&&mv.id)setTimeout(()=>preguntaAveria(d.maq,LK,(f==="barra"?"Barras":"Tornillos")+" "+(d.motivo==="ROTURA"?(f==="barra"?"rotas":"rotos"):(f==="barra"?"dobladas":"doblados"))+(conTor?" y tornillo tope":"")),400);}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
 /* ===== PLANOS CON HISTORIAL DE REVISIONES (barras, tornillos y modelos de eje) ===== */
 const revsDe=a=>((a&&a.revs)||[]).slice().sort((x,y)=>x.n-y.n);
 const revVig=a=>{const r=revsDe(a);return r[r.length-1]||null;};

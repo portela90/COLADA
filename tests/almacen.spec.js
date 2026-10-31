@@ -1116,7 +1116,8 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
     await page.selectOption('#btA', a); await page.waitForTimeout(200);
     if (!(await page.inputValue('#btAl'))) { const al = await page.locator('#btAl option').nth(1).getAttribute('value'); await page.selectOption('#btAl', al); }
     await page.locator('.dlg').last().locator('.chip', { hasText: /^Rotura$/ }).click(); await page.waitForTimeout(150);
-    await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(900);
+    await page.locator('.dlg').last().locator('.seg button', { hasText: 'Chatarra' }).click(); await page.waitForTimeout(150);
+    await page.locator('.dlg').last().getByRole('button', { name: 'Guardar', exact: true }).click(); await page.waitForTimeout(900);
     d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
     await d.locator('button.it', { hasText: 'Añadir a:' }).first().click(); await page.waitForTimeout(600);
     await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver).split('"k":"m"').length)).toBe(2);
@@ -1129,5 +1130,40 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"fc":"');
   const t = (await v.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
   expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Barras rotas: guardar para recuperar con el tornillo, mandar al taller, vuelven convertidas y suman a la avería', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Barras expulsoras$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#view button', { hasText: /^Registrar cambio$/ }).first().click(); await page.waitForTimeout(300);
+  const maq = await page.locator('#btM option').nth(1).getAttribute('value'); await page.selectOption('#btM', maq); await page.waitForTimeout(200);
+  const a = await page.locator('#btA option[value]:not([value=""])').first().getAttribute('value'); await page.selectOption('#btA', a); await page.waitForTimeout(200);
+  if (!(await page.inputValue('#btAl'))) { const al = await page.locator('#btAl option').nth(1).getAttribute('value'); await page.selectOption('#btAl', al); }
+  let d = page.locator('.dlg').last();
+  await d.locator('.chip', { hasText: /^Rotura$/ }).click(); await page.waitForTimeout(150);
+  await d.getByRole('button', { name: 'Guardar', exact: true }).click(); await expect(page.locator('body')).toContainText('qué se hace con la barra rota');
+  await d.locator('.seg button', { hasText: 'Guardar para recuperar' }).click(); await page.waitForTimeout(150);
+  const tor = await page.locator('#btTor').count();
+  if (tor) { await page.locator('#btTor').check(); await page.waitForTimeout(150); const t = await page.locator('#btTA option[value]:not([value=""])').first().getAttribute('value'); await page.selectOption('#btTA', t); }
+  await d.getByRole('button', { name: 'Guardar', exact: true }).click(); await page.waitForTimeout(900);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?'); if (tor) await expect(d).toContainText('y tornillo tope');
+  await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(600);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('guardada para recuperar'); await d.getByRole('button', { name: 'Cancelar' }).click(); await page.waitForTimeout(300);
+  const v = page.locator('#view'); await expect(v).toContainText('Barras rotas para recuperar');
+  await v.locator('button', { hasText: 'Mandar a recuperar' }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Mandar' }).click(); await page.waitForTimeout(600);
+  await v.locator('button', { hasText: 'Han vuelto' }).first().click(); await page.waitForTimeout(300);
+  const otra = await page.locator('#bvA option[value]:not([value=""])').last().getAttribute('value'); await page.selectOption('#bvA', otra);
+  const n = +(await page.inputValue('#bvN')); await page.fill('#bvN', String(n > 1 ? n - 1 : n)); await page.fill('#bvC', n > 1 ? '1' : '0'); await page.fill('#bvE', '40');
+  await page.locator('.dlg').last().getByRole('button', { name: 'Guardar', exact: true }).click(); await page.waitForTimeout(800);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.mov))).toContain('Recuperada de');
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.brec))).toContain('"eur":40');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Averías$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('#view button.it', { hasText: 'Barras rotas' }).first().click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Recuperación'); await expect(d).toContainText('40 €');
   expect(err).toEqual([]);
 });
