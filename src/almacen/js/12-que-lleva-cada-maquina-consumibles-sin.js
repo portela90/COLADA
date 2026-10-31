@@ -1,5 +1,9 @@
 /* ===== QUÉ LLEVA CADA MÁQUINA, CONSUMIBLES SIN ASIGNAR Y MATERIAL JUSTO ===== */
 const precioDe=a=>{const p=parseN(a&&a.precio);return isFinite(p)&&p>0?p:0;};
+/* pistones: precio de nuevo (precio) y de recuperado (precioRec). Una entrada es de recuperados si lleva rec o viene de la recuperación */
+const precioRecDe=a=>{const p=parseN(a&&a.precioRec);return isFinite(p)&&p>0?p:0;};
+const esEntRec=m=>!!(m&&(m.rec||/^Recuperado por /.test(m.nota||"")));
+const precioEnt=(m,a)=>esEntRec(m)?(precioRecDe(a)||0):precioDe(a);
 
 const ORDEN_FAM=["piston","barra","tornillo","horno","consumible","repuesto","otro","eje"];
 /* lista de lo que lleva una máquina: pistón, eje y artículos asignados, con cuántas lleva y el stock */

@@ -19,6 +19,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
     return{d,h:fin(yy,mi+1),t:cap(MESES_Q[mi])+(yy!==y?" "+yy:""),re:new RegExp("\\b(en |de |para )?"+MESES_Q[mi]+"( de)?( 20\\d\\d)?\\b")};}
   return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\bpiston\w*\b/.test(q)&&/\b(compras?|comprad\w*|comprando|comprar|entrad[oa]s?|han entrado|nuevos? (y|o|frente a|contra) recuperad\w*|recuperad\w* (y|o|frente a|contra) nuevos?|gast\w* en (comprar|compras))\b/.test(q)&&!/\bque (tengo|hay|tenemos) que\b|\bpara (el mes|la semana|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(q))return M("comprapist");
   if(/\bcompar\w*|\bfrente (al?|a los?)\b|\brespecto (al?|a los?)\b|\bcontra (el|la|los)\b|\bdesviaci\w*|\bdesvi[oa]\w*|\bmes a mes\b|\bevolucion\b|\bcon (los )?meses anteriores\b|\bcon la media\b|\bque el mes pasado\b|\b(mas|menos) que (el|la|los) (mes|meses|media|ano)\b|\bse (ha )?(disparado|desviado)\b/.test(q))return M("comparar");
   if(/\b(que|cuanto|cuantos|cuantas) (tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace falta|haria falta|habria) (que )?(pedir|comprar|traer)\b|\bque (necesito|necesitamos|hace falta|me hace falta|nos hace falta) (pedir |comprar )?(de|para)\b|\b(pedido|compras?) (de|para)\b/.test(q)){const P=periodoFutA(q);if(P)return M("pedirpara",{per:P});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
@@ -182,6 +183,10 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase(cap(L[0].quien)+" ha apuntado "+L.length+(L.length===1?" cosa":" cosas")+" en "+per.t+": "+Object.entries(G).map(([k,g])=>g.n+" "+k.toLowerCase()).join(", ")+".");
     lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,80).map(e=>it(e.ref,[fmtF(e.f)+" · "+e.fam,mqEv(e)?mqEv(e).cod:e.nave||null],fmtN(e.cant),e.ud,e.ir||null)));return;}
 
+  if(I.modo==="comprapist"){const per=P.def?{d:h.slice(0,7)+"-01",h,t:"este mes"}:P;const D=datosComprasPist(per.d,per.h);const ds=DIAM.filter(x=>D.G[x]);ent("compras de pistones",[per.t]);
+    frase(D.tN||D.tR?cap(per.t)+" han entrado "+fmtN(D.tN)+(D.tN===1?" pistón nuevo":" pistones nuevos")+" ("+eur(D.eN)+") y "+fmtN(D.tR)+(D.tR===1?" recuperado":" recuperados")+" ("+eur(D.eR)+"): "+eur(D.eN+D.eR)+" en total."+(D.ahorro?" Recuperar ha ahorrado unos "+eur(D.ahorro)+".":""):"No ha entrado ningún pistón "+per.t.toLowerCase()+".");
+    if(ds.length)lista(null,ds.map(x=>{const g=D.G[x];return it(x,[g.n?"Nuevos: "+fmtN(g.n)+" · "+eur(g.en):null,g.r?"Recuperados: "+fmtN(g.r)+" · "+eur(g.er):null].filter(Boolean),eur(g.en+g.er),null,()=>{const a=pistArt(x);if(a)ficha(a);});}));
+    if(D.sinP.length)nota("Sin precio: "+D.sinP.join(", ")+". Se pone en la ficha de cada pistón (precio de nuevo y de recuperado).");return;}
   if(I.modo==="comparar"){compararA(I,res,pon,{add,frase,nota,ent,lista,it,ign});return;}
 
   if(I.modo==="pedirpara"){const per=I.per,S0=prevDatos(),pc=prevCfg();

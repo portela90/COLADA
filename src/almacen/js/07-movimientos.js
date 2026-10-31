@@ -20,6 +20,8 @@ function vMov(v){const d=draft.m;
       t==="traslado"?fld("Hasta",sel("mDest",almOptsArt(art(d.art),d.alm),d.dest,x=>{d.dest=x;pintaCalc();},"Destino…")):null,
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
     t==="salida"?el("div",{class:"row"},[fld("Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—"))]):null,
+    t==="entrada"&&art(d.art)&&art(d.art).fam==="piston"?el("div",{class:"seg",role:"group","aria-label":"Pistones nuevos o recuperados"},[[false,"Nuevos"],[true,"Recuperados"]].map(([r,l])=>el("button",{type:"button","aria-pressed":String(!!d.pRec===r),text:l,onclick:()=>{d.pRec=r;render(true);}}))):null,
+    t==="entrada"&&art(d.art)&&art(d.art).fam==="piston"?el("p",{class:"hint",style:"margin:0",text:d.pRec?"Precio de recuperado: "+(precioRecDe(art(d.art))?eur(precioRecDe(art(d.art)))+" cada uno":"sin poner (en la ficha del pistón)"):"Precio de nuevo: "+(precioDe(art(d.art))?eur(precioDe(art(d.art)))+" cada uno":"sin poner (en la ficha del pistón)")}):null,
     t==="entrada"?el("div",{class:"row"},[fld("Proveedor",sel("mProv",provOpts(),d.prov,x=>d.prov=x,"—")),fld("Nº albarán",inp("mAlb",d.alb,x=>d.alb=x,{autocomplete:"off"}))]):null,
     t==="entrada"&&assets?fld("Foto del albarán (hazla o elige una de la galería)",fileI):null,
     t==="entrada"&&draft.mFile?el("p",{class:"hint",text:"Foto elegida: "+draft.mFile.name}):null,
@@ -48,7 +50,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(d.tipo==="ajuste"){const st=stockA(a.id,d.alm,d.f);rec.cant=Math.round((q-st)*1000)/1000;rec.contado=q;rec.teorico=st;if(rec.cant===0){rec.nota=rec.nota||"Recuento sin diferencias";}}
   if(d.tipo==="traslado")rec.dest=d.dest;
   if(d.tipo==="salida")ponPara(rec,d.maq);
-  if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();}
+  if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;}
   const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{
     if(d.tipo==="entrada"&&draft.mFile&&assets){const blob=await comprimir(draft.mFile);const r=await assets.upload(blob);rec.foto=r.id;}
@@ -181,7 +183,7 @@ function puRecep(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");const
   puForm("Recibir de "+PU_REC,"Los que vuelven bien entran en el stock con el diámetro al que los han rebajado (viene puesto el que pediste al enviarlos; cámbialo solo si te los devuelven distintos). Si de un mismo diámetro vuelven unos a un tamaño y otros a otro, regístralo en dos veces. Los que no se han podido recuperar pasan al cajón de chatarra.",
   [{k:"ok",t:"Vuelven bien",infoT:"En "+PU_REC,info:(E,d)=>E.S[d].M||"·",pre:(E,d)=>E.S[d].M>0?E.S[d].M:"",mostrar:(E,d)=>E.S[d].M>0},{k:"como",t:"Vuelven a",opc:puOpcRec},{k:"mal",t:"No sirven"}],[F,A,L],"Registrar recepción",
   async(v,E,chk)=>{if(chk){for(const d of DIAM){const n=(v.ok[d]||0)+(v.mal[d]||0);if(n>E.S[d].M)return"De "+d+" solo hay "+E.S[d].M+" en "+PU_REC+".";if(v.ok[d]&&!puRecup(d))return d+" no se puede recuperar.";if(v.ok[d]&&!pistArt(v.como[d]||puRecup(d)))return"No hay artículo de pistón "+(v.como[d]||puRecup(d))+" en el catálogo.";}return"";}
-    const movs=Object.entries(v.ok).map(([d,n])=>({tipo:"entrada",f:F.v,art:pistArt(v.como[d]||puRecup(d)).id,alm:L.v,cant:n,alb:A.v.trim()||undefined,nota:"Recuperado por "+PU_REC+" (era "+d+")"}));
+    const movs=Object.entries(v.ok).map(([d,n])=>({tipo:"entrada",f:F.v,art:pistArt(v.como[d]||puRecup(d)).id,alm:L.v,cant:n,rec:true,alb:A.v.trim()||undefined,nota:"Recuperado por "+PU_REC+" (era "+d+")"}));
     if(movs.length)await addMovs(movs);const como={};Object.keys(v.ok).forEach(d=>como[d]=v.como[d]||puRecup(d));return puGuarda({t:"recep",f:F.v,ok:v.ok,como,mal:v.mal,alb:A.v.trim(),alm:L.v,movs:movs.map(m=>({id:m.id,f:m.f}))});});}
 function puChat(){const F=puFecha(),K=puTxt("Kilos (opcional)","",{inputmode:"decimal"}),I=puTxt("Importe que pagan, € (opcional)","",{inputmode:"decimal"});
   puForm("Llevar a la chatarrería","Viene puesto todo lo que hay en el cajón.",[{k:"c",t:"Se llevan",infoT:"En cajón",info:(E,d)=>E.S[d].C||"·",pre:(E,d)=>E.S[d].C>0?E.S[d].C:"",mostrar:(E,d)=>E.S[d].C>0}],[F,K,I],"Registrar",
@@ -262,6 +264,7 @@ function vPist(v){const d=draft.p;
       el("tbody",{},filas.map(r=>el("tr",{},[el("td",{},el("b",{text:maqN(r.maq)})),el("td",{class:"r num",text:r.c3}),el("td",{},r.al?el("span",{class:"pill "+r.al,text:r.al==="bad"?"Alto":"Vigilar"}):""),
         el("td",{class:"num",text:fmtF(r.u.f)}),el("td",{text:r.u.diam}),el("td",{class:"r num",text:r.dd}),el("td",{class:"r num",text:fmtN(r.hh)}),el("td",{class:"r num",text:r.media!=null?fmtN(Math.round(r.media)):"—"})])))])):el("div",{class:"empty",text:"Aún no hay cambios registrados."}),
     el("p",{class:"hint",style:"padding:0 14px 12px",text:"«Alto»: 1,5 veces la media de la planta; «Vigilar»: 1,2 veces (con 4 cambios o más). Horas: días laborables L–V × 24 h."})]));
+  v.appendChild(cardComprasPist(()=>render(true)));
   /* consumo por mes */
   const pids=DIAM.map(pistArt).filter(Boolean).map(a=>a.id);const entP=todosMov().filter(m=>m.tipo==="entrada"&&pids.includes(m.art));
   const anos=Array.from(new Set([hy.slice(0,4)].concat(all.map(p=>p.f.slice(0,4))).concat(entP.map(m=>m.f.slice(0,4))))).sort().reverse();
@@ -338,3 +341,19 @@ function formReparto(){const gen=cat.almacenes[0];const otros=cat.almacenes.slic
       if(!list.length){toast("No hay cambios que guardar");return false;}
       try{await addMovs(list);toast("Reparto guardado ("+list.length+" traslados)");}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
 
+
+/* compras de pistones: lo que entra nuevo y lo que vuelve recuperado, cada uno con su precio */
+function datosComprasPist(d0,d1){const pids={};DIAM.forEach(x=>{const a=pistArt(x);if(a)pids[a.id]=a;});const G={};let tN=0,tR=0,eN=0,eR=0,ahorro=0;const sinP=new Set();
+  todosMov().forEach(m=>{if(m.tipo!=="entrada"||!pids[m.art]||m.f<d0||m.f>d1)return;const a=pids[m.art],c=+m.cant||0,r=esEntRec(m),p=r?precioRecDe(a):precioDe(a);const g=G[a.diam]=G[a.diam]||{n:0,r:0,en:0,er:0};
+    if(!p)sinP.add(a.diam+(r?" (recuperado)":" (nuevo)"));if(r){g.r+=c;g.er+=c*p;tR+=c;eR+=c*p;if(precioDe(a)&&p)ahorro+=c*(precioDe(a)-p);}else{g.n+=c;g.en+=c*p;tN+=c;eN+=c*p;}});
+  return{G,tN,tR,eN,eR,ahorro,sinP:[...sinP]};}
+function cardComprasPist(re){const h=hoy(),k=draft.cpP||"mes";const y=h.slice(0,4),mAnt=(()=>{const d=new Date(+y,+h.slice(5,7)-2,1,12);return d.toISOString().slice(0,7);})();
+  const P={mes:[h.slice(0,7)+"-01",h,"Este mes"],mesant:[mAnt+"-01",finMes(mAnt+"-01"),"Mes anterior"],ano:[y+"-01-01",h,"Este año"],"12m":[sumaDias(h,-365),h,"12 meses"]}[k];const D=datosComprasPist(P[0],P[1]);
+  const ds=DIAM.filter(x=>D.G[x]);
+  return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Compras de pistones"}),el("span",{class:"der sub",text:"nuevos y recuperados"})]),
+    el("div",{class:"bd",style:"display:grid;gap:10px"},[
+      el("div",{class:"seg",role:"group","aria-label":"Periodo"},[["mes","Este mes"],["mesant","Mes anterior"],["ano","Este año"],["12m","12 meses"]].map(([kk,t])=>el("button",{type:"button","aria-pressed":String(k===kk),text:t,onclick:()=>{draft.cpP=kk;re();}}))),
+      el("dl",{class:"kpis num"},[["Nuevos",fmtN(D.tN)+" · "+eur(D.eN)],["Recuperados",fmtN(D.tR)+" · "+eur(D.eR)],["Total compras",eur(D.eN+D.eR)],["Ahorro por recuperar",eur(D.ahorro)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
+      D.sinP.length?el("div",{class:"banner w",text:"Sin precio: "+D.sinP.join(", ")+". Ponlo en la ficha del pistón (precio de nuevo y de recuperado)."}):null,
+      ds.length?cTabla(["Ø","Nuevos","€ nuevos","Recuperados","€ recuperados"],ds.map(x=>{const g=D.G[x];return[x,fmtN(g.n),eur(g.en),fmtN(g.r),eur(g.er)];}),[1,2,3,4]):el("p",{class:"hint",style:"margin:0",text:"No ha entrado ningún pistón en "+P[2].toLowerCase()+"."}),
+      el("p",{class:"hint",style:"margin:0",text:"Al apuntar una entrada de pistones eliges si son nuevos o recuperados. Los que llegan de la recuperación (Pistones usados › Recibido) cuentan solos como recuperados. Ahorro = lo que costarían nuevos − lo que ha costado recuperarlos."})])]);}

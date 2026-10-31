@@ -734,3 +734,34 @@ test('Consultas: «coste de las reparaciones que están abiertas» da el importe
   await expect(page.locator('#bdRes')).not.toContainText('importe de los ejes en reparación');
   expect(err).toEqual([]);
 });
+
+test('Pistones: entradas de nuevos y recuperados con su precio, en «Compras de pistones» y en Consultas', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    const a = v.cat.app.articulos.find(x => x.id === 'pist-80'); a.precio = '180'; a.precioRec = '60';
+    const h = new Date().toISOString().slice(0, 10);
+    v.mov[k].items.push({ id: 'pn1', f: h, alm: 'gen', art: 'pist-80', cant: 4, tipo: 'entrada' }, { id: 'pr1', f: h, alm: 'gen', art: 'pist-80', cant: 3, tipo: 'entrada', nota: 'Recuperado por Pistones' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  // apuntar una entrada de recuperados a mano
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#mArt').selectOption('pist-80'); await page.waitForTimeout(200);
+  await page.locator('.seg button', { hasText: 'Recuperados' }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('#view')).toContainText('Precio de recuperado: 60 € cada uno');
+  await page.fill('#mCant', '2'); await page.locator('#mBtn').click(); await page.waitForTimeout(800);
+  const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(x => x.art === 'pist-80' && x.cant === 2 && x.tipo === 'entrada'));
+  expect(m.length).toBe(1); expect(m[0].rec).toBe(true);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'cuánto hemos gastado en compras de pistones este mes'); await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__q = 1; });
+  // 4 nuevos × 180 = 720; 5 recuperados × 60 = 300; ahorro 5 × 120 = 600
+  await expect(page.locator('#bdRes')).toContainText(/Este mes han entrado 4 pistones nuevos \(720(,00)? €\) y 5 recuperados \(300(,00)? €\): 1020(,00)? € en total\. Recuperar ha ahorrado unos 600(,00)? €/);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(400);
+  const segs = await page.locator('#view .seg button').allTextContents();
+  for (const t of segs) { if (await page.locator('#view').getByText('Compras de pistones').count()) break; await page.locator('#view .seg button', { hasText: t }).first().click(); await page.waitForTimeout(300); }
+  await expect(page.locator('#view')).toContainText('Compras de pistones');
+  await expect(page.locator('#view')).toContainText('Ahorro por recuperar');
+  expect(err).toEqual([]);
+});
