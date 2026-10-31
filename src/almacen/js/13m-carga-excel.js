@@ -55,7 +55,7 @@ async function importarCarga(file){try{await cargarXLSX();}catch(e){toast("No se
     {const pv=cel(r,"Proveedor");if(pv)pon("prov",provPor(pv));}
     {const t=cel(r,"Inyectoras").toUpperCase().replace(/\s/g,"");if(t){const out=[];t.split(/[,;\/]+/).forEach(g=>{const rg=g.match(/^F?(\d+)-F?(\d+)$/);const cods=rg?C.maquinas.map(m=>m.cod).filter(c=>{const n=+c.replace(/\D/g,"");return n>=+rg[1]&&n<=+rg[2];}):[g.startsWith("F")?g:"F"+g];
       cods.forEach(c=>{const m=C.maquinas.find(z=>z.cod.toUpperCase()===c.toUpperCase());if(m&&!out.includes(m.id))out.push(m.id);});});if(JSON.stringify((a.iny||[]).slice().sort())!==JSON.stringify(out.slice().sort())){a.iny=out;cambia=true;}}}
-    {const q=num(cel(r,"Cantidad contada")),al=cel(r,"Almacén del recuento");if(q!=null){if(Number.isNaN(q)){errs.push("Artículos fila "+(i+2)+": cantidad contada no válida");}
+    {const q=num(cel(r,"Cantidad contada")||cel(r,"Cantidad")),al=cel(r,"Almacén del recuento")||cel(r,"Almacén");if(q!=null){if(Number.isNaN(q)){errs.push("Artículos fila "+(i+2)+": cantidad contada no válida");}
       else{const l=C.almacenes.find(x=>norm(x.nom)===norm(al))||(al?C.almacenes.find(x=>norm(x.nom).includes(norm(al))):null)||(!al&&a.almPpal?C.almacenes.find(x=>x.id===a.almPpal):null);
         if(!l)errs.push("Artículos fila "+(i+2)+": falta el almacén del recuento");else{res.cuentas.push({a,alm:l.id,q});if(!(a.alms||[]).includes(l.id)){a.alms=(a.alms||[]).concat([l.id]);if(!a.almPpal)a.almPpal=l.id;}}}}}
     if(cambia&&!nuevo)res.art++;});
@@ -67,6 +67,7 @@ async function importarCarga(file){try{await cargarXLSX();}catch(e){toast("No se
     if(cambia){m.hornoPlaca=Object.keys(p).length?p:null;res.hor++;}});
   (filas("Modelos de eje")||[]).forEach((r,i)=>{const id=cel(r,"ID");if(!id)return;const m=(C.modelos||[]).find(x=>x.cod===id);if(!m){errs.push("Modelos de eje fila "+(i+2)+": no existe el modelo "+id);return;}let cambia=false;
     const ref=cel(r,"Referencia");if(ref&&m.ref!==ref){m.ref=ref;cambia=true;}[["Precio de reparación (€)","precioRep"],["Mínimo en planta","min"]].forEach(([h,k])=>{const v=num(cel(r,h));if(v==null)return;if(Number.isNaN(v)){errs.push("Modelos de eje fila "+(i+2)+": «"+h+"» no es un número");return;}if(+m[k]!==v){m[k]=v;cambia=true;}});if(cambia)res.mod++;});
+  if(!["Artículos","Proveedores","Hornos","Modelos de eje","Inyectoras"].some(n=>filas(n))){toast("Ese Excel no tiene ninguna hoja conocida (Artículos, Proveedores, Hornos, Modelos de eje o Inyectoras)");return;}
   const hayIny=!!filas("Inyectoras");const nada=!res.art&&!res.artN&&!res.prov&&!res.provN&&!res.hor&&!res.mod&&!res.cuentas.length;
   if(nada&&!hayIny){toast(errs.length?errs[0]:"No hay cambios");return;}
   const sigue=()=>{if(hayIny)setTimeout(()=>importarMaquinas(file,wb.SheetNames.find(x=>norm(x)==="inyectoras")),400);};
