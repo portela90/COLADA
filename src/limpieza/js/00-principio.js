@@ -117,7 +117,7 @@ const trabajadoMin=(ini,pm,pa)=>desde(ini)-(pm||0)-(pa?desde(pa):0);
 const sinAsignar=o=>!o.todo_equipo&&!(o.asignados||[]).length;
 /* ¿es un trabajo del fin de semana? */
 const esFindeOT=o=>o.equipo==="Finde"||finde(o.fecha);
-function puedeMarcarFinde(o){if(esAdm())return true;if(sinAsignar(o))return esEnc();
+function puedeMarcarFinde(o){if(esAdm()||esEnc())return true;if(sinAsignar(o))return esEnc();
   if(o.todo_equipo)return true;return (o.asignados||[]).includes(S.yo.id)||!!cubroYo(o);}
 function quienTxt(o){if(o.todo_equipo)return"Todo el equipo "+(o.equipo||"");if(sinAsignar(o))return"";
   const cub=o.cubre||[];return(o.nombres||[]).map(n=>{const c=cub.find(x=>x.ausente===n);return c?(c.sustituto?n+" → lo hace "+c.sustituto:n+" (falta, sin cubrir)"):n;}).join(", ");}
