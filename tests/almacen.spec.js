@@ -32,12 +32,12 @@ test('apuntar un consumo lo guarda y baja el stock', async ({ page }) => {
   await pulsa(page, 'Consumo');
   const art = await page.$eval('#mArt', s => { const o = [...s.options].find(o => o.value); return o.value; });
   await page.selectOption('#mArt', art); await page.waitForTimeout(250);
-  await page.fill('#mCant', '1');
+  await page.fill('#mCant', '1'); await page.fill('#mResp', '707');
   await page.click('#mBtn'); await page.waitForTimeout(600);
   const despues = await page.evaluate(() => Object.values(window.__D.mov || {}).reduce((s, m) => s + ((m.items || []).length), 0));
   expect(despues).toBe(antes + 1);
   const ult = await page.evaluate(a => { const L = Object.values(window.__D.mov).flatMap(m => m.items || []); return L.sort((x, y) => (y.ts || 0) - (x.ts || 0))[0]; }, art);
-  expect(ult).toMatchObject({ tipo: 'salida', art, cant: 1 });
+  expect(ult).toMatchObject({ tipo: 'salida', art, cant: 1, resp: '707' });
   expect(err).toEqual([]);
 });
 
@@ -983,5 +983,21 @@ test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', asy
   await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(500);
   const ok = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).includes('"resp":"Prueba"') && /"motivo":"ROTURA"[^}]*"resp":"Prueba"|"resp":"Prueba"[^}]*"motivo":"ROTURA"/.test(JSON.stringify(window.__D.pist || {})));
   expect(ok).toBe(true);
+  expect(err).toEqual([]);
+});
+
+test('Pestaña Consumo: apuntar un consumo con el operario', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.locator('#tabs button', { hasText: 'Consumo' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#view')).toContainText('Apuntar un consumo');
+  await expect(page.locator('#view .seg[aria-label="Tipo de movimiento"]')).toHaveCount(0);
+  const a = await page.locator('#mArt option[value]:not([value=""])').first().getAttribute('value'); await page.selectOption('#mArt', a); await page.waitForTimeout(200);
+  await page.fill('#mCant', '1');
+  await page.locator('#mBtn').click(); await expect(page.locator('body')).toContainText('Falta el operario');
+  await page.fill('#mResp', 'Operario prueba');
+  await page.locator('#mBtn').click(); await page.waitForTimeout(500);
+  await expect(page.locator('#view')).toContainText('Operario: Operario prueba');
+  expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

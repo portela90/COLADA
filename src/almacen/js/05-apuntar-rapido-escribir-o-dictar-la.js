@@ -57,7 +57,7 @@ function filaR(r){const a=art(r.art);let box;
   if(r.tipo==="piston")campos=[el("div",{class:"row"},[S("Inyectora","maq",maqOpts(),"Elige…",()=>{if(!r.diam){const u=ultimoPist(r.maq);if(u){r.diam=u.diam;r.auto.diam=1;}}pistAlm();}),S("Diámetro","diam",DIAM.map(x=>[x,x]),"Ø…",pistAlm),C()]),
       el("div",{class:"row"},[S("Motivo","motivo",MOTIVOS.map(m=>[m,cap(m)]),"Elige…"),S("Pistón usado","dp",DESTINOS.map(m=>[m,cap(m)]),"Elige…")]),
       el("div",{class:"row"},[T("Responsable","resp",{autocomplete:"off",list:"lOperR",placeholder:"Nº o nombre"}),pistArt(r.diam)?S("Sale de","alm",almOpts(),"No descontar"):null,F()])];
-  else if(r.tipo==="consumo")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Para (inyectora o nave)","maq",paraOpts(),"—"),F()])];
+  else if(r.tipo==="consumo")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Para (inyectora o nave)","maq",paraOpts(),"—"),T("Operario","resp",{autocomplete:"off",list:"lOperR",placeholder:"Nº o nombre"}),F()])];
   else if(r.tipo==="entrada")campos=[el("div",{class:"row"},[artS(),C(),S("Almacén","alm",almOptsArt(a),"Elige…")]),el("div",{class:"row"},[S("Proveedor","prov",provOpts(),"—"),T("Nº albarán","alb",{autocomplete:"off"}),F()])];
   else if(r.tipo==="traslado")campos=[el("div",{class:"row"},[artS(),C()]),el("div",{class:"row"},[S("Desde","alm",almOptsArt(a),"Elige…"),S("Hasta","dest",almOptsArt(a,r.alm),"Elige…"),F()])];
   else if(r.tipo.startsWith("eje_"))campos=[el("div",{class:"row"},[T("Eje (código)","eje",{list:"lEjesR",autocomplete:"off",placeholder:"p. ej. 2.3.C-3"}),r.tipo==="eje_prep"?T("Desperfecto","desp",{autocomplete:"off"}):null,r.tipo==="eje_rec"?T("Albarán","alb",{autocomplete:"off"}):null,F()])];
@@ -220,7 +220,7 @@ async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>fa
     if(r.tipo==="piston"){const n=Math.round(q);const rec={id:uid(),f:r.f,maq:r.maq,diam:r.diam,cant:n,motivo:r.motivo,dest:r.dp,resp:(r.resp||"").trim()||null,nota};
       const pa=pistArt(r.diam);if(pa&&r.alm){const m={id:uid(),f:r.f,tipo:"salida",art:pa.id,alm:r.alm,cant:n,maq:r.maq,nota:"Cambio de pistón · "+cap(r.motivo)};movs.push(m);rec.movId=m.id;}pists.push(rec);}
     else if(r.tipo==="conteo"){const st=stockA(r.art,r.alm,r.f);movs.push({f:r.f,tipo:"ajuste",art:r.art,alm:r.alm,cant:Math.round((q-st)*1000)/1000,contado:q,teorico:st,nota:nota||"Recuento"});}
-    else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo")ponPara(m,r.maq);
+    else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo"){ponPara(m,r.maq);if((r.resp||"").trim())m.resp=r.resp.trim();}
       if(r.tipo==="entrada"){if(r.prov)m.prov=r.prov;if((r.alb||"").trim())m.alb=r.alb.trim();}movs.push(m);}});
   try{if(movs.length)await addMovs(movs);if(pists.length){await addPists(pists);try{await ejePendDe(pists);}catch(e){}}
     for(const r of L.filter(x=>x.tipo.startsWith("eje_"))){const e=ejeDe(r.eje);if(!e)continue;

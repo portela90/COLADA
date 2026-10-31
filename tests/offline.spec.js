@@ -13,7 +13,7 @@ async function apuntaConsumo(page) {
   await page.waitForTimeout(200);
   const art = await page.$eval('#mArt', s => [...s.options].find(o => o.value).value);
   await page.selectOption('#mArt', art); await page.waitForTimeout(200);
-  await page.fill('#mCant', '2'); await page.click('#mBtn'); await page.waitForTimeout(900);
+  await page.fill('#mCant', '2'); if (await page.locator('#mResp').count()) await page.fill('#mResp', 'Prueba'); await page.click('#mBtn'); await page.waitForTimeout(900);
   return art;
 }
 
@@ -22,7 +22,7 @@ test('Almacén sin red: apunta, recarga sin red y envía al volver', async ({ pa
   const S = await servidor(page, 'alm_', datosAlmacen());
   const antes = movs(S.D).length;
   await page.goto(original('almacen.html')); await page.waitForTimeout(2500);
-  await expect(page.locator('#tabs button')).toHaveCount(5);
+  await expect(page.locator('#tabs button')).toHaveCount(6);
 
   // se va la red
   S.online = false; await context.setOffline(true); await page.waitForTimeout(300);
@@ -32,7 +32,7 @@ test('Almacén sin red: apunta, recarga sin red y envía al volver', async ({ pa
 
   // se cierra y se vuelve a abrir sin red: abre con los datos guardados y el apunte sigue en la cola
   await page.reload(); await page.waitForTimeout(2500);
-  await expect(page.locator('#tabs button')).toHaveCount(5);
+  await expect(page.locator('#tabs button')).toHaveCount(6);
   await expect(page.locator('#off-barra')).toContainText('1 cambio pendiente');
 
   // vuelve la red: se envía solo, una sola vez
