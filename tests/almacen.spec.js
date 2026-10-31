@@ -962,3 +962,26 @@ test('Cambio de barra: el motivo empieza vacío y avisa si falta', async ({ page
   }
   expect(err).toEqual([]);
 });
+
+test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
+  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
+  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  await page.locator('#pBtn').click(); await page.waitForTimeout(200); await page.locator('#pBtn').click(); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'cambios de pistones sin motivo'); await page.waitForTimeout(300);
+  await expect(page.locator('#bdRes')).toContainText('Quién deja el motivo sin poner');
+  await page.locator('#bdRes button.it', { hasText: /sin motivo/ }).first().click(); await page.waitForTimeout(200);
+  const d = page.locator('.dlg').last();
+  if (await d.locator('h3', { hasText: 'Completar el cambio' }).count() === 0) { await d.locator('button.it').first().click(); await page.waitForTimeout(200); }
+  await page.selectOption('#ccMot', 'ROTURA'); await page.fill('#ccResp', 'Prueba');
+  await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(500);
+  const ok = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).includes('"resp":"Prueba"') && /"motivo":"ROTURA"[^}]*"resp":"Prueba"|"resp":"Prueba"[^}]*"motivo":"ROTURA"/.test(JSON.stringify(window.__D.pist || {})));
+  expect(ok).toBe(true);
+  expect(err).toEqual([]);
+});

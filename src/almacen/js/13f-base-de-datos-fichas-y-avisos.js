@@ -191,11 +191,12 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase(cap(per.t)+": "+D.P.length+(D.P.length===1?" cambio de pistón":" cambios de pistón")+", "+(D.sinMot.length?D.sinMot.length+" sin motivo":"todos con motivo")+" y "+(D.sinResp.length?D.sinResp.length+" sin responsable":"todos con responsable")+"."
       +(D.O.length?" Además, "+D.O.length+(D.O.length===1?" cambio":" cambios")+" de barras, tornillos y piezas de horno: "+(D.oSM.length?D.oSM.length+" sin motivo":"todos con motivo")+(D.oSR.length?" y "+D.oSR.length+" sin saber quién":"")+".":"")
       +(mal.length?" Quien más motivos deja sin poner: "+mal[0].k+" ("+mal[0].sm+" de "+mal[0].n+").":""));
-    if(mal.length)lista("Quién deja el motivo sin poner (pistones)",mal.map(g=>it(g.k,[g.sm+" de "+g.n+(g.n===1?" cambio":" cambios")+" sin motivo",g.L.slice(-4).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)).join(" · ")],fmtN(g.sm),"sin motivo",null,g.sm/g.n>=0.5?"bad":"warn")));
+    if(mal.length)lista("Quién deja el motivo sin poner (pistones)",mal.map(g=>it(g.k,[g.sm+" de "+g.n+(g.n===1?" cambio":" cambios")+" sin motivo",g.L.slice(-4).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)).join(" · ")],fmtN(g.sm),"sin motivo",()=>elegirCambio(g.k+" · sin motivo",g.L,true),g.sm/g.n>=0.5?"bad":"warn")));
     if(D.sinResp.length){const G={};D.sinResp.forEach(p=>{const k=p.por?"Lo apuntó "+p.por:"No se sabe quién lo apuntó";(G[k]=G[k]||[]).push(p);});
-      lista("Cambios de pistón sin responsable",Object.entries(G).sort((a,b)=>b[1].length-a[1].length).map(([k,L])=>it(k,L.slice(-6).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)+" "+(p.diam||"")+(p.motivo?"":" (sin motivo)")).join(" · "),fmtN(L.length),L.length===1?"cambio":"cambios",null,"warn")));}
+      lista("Cambios de pistón sin responsable",Object.entries(G).sort((a,b)=>b[1].length-a[1].length).map(([k,L])=>it(k,L.slice(-6).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)+" "+(p.diam||"")+(p.motivo?"":" (sin motivo)")).join(" · "),fmtN(L.length),L.length===1?"cambio":"cambios",()=>elegirCambio("Sin responsable · "+k.toLowerCase(),L,true),"warn")));}
     const OL=D.O.filter(m=>D.oSM.includes(m)||D.oSR.includes(m)).sort((a,b)=>b.f.localeCompare(a.f));
-    if(OL.length)lista("Barras, tornillos y horno sin motivo o sin quién",OL.slice(0,40).map(m=>{const a=art(m.art);return it((a?nomArt(a):"?")+" · "+maqN(m.maq),[fmtF(m.f),[String(m.motivo||"").trim()?null:"sin motivo",m.resp||m.por?null:"sin quién"].filter(Boolean).join(" y ")+(m.resp?" · "+respTxt(m.resp):m.por?" · lo apuntó "+m.por:"")],fmtN(+m.cant||0),a?a.ud:"",a?()=>ficha(a):null,"warn");}));
+    if(OL.length)lista("Barras, tornillos y horno sin motivo o sin quién",OL.slice(0,40).map(m=>{const a=art(m.art);return it((a?nomArt(a):"?")+" · "+maqN(m.maq),[fmtF(m.f),[String(m.motivo||"").trim()?null:"sin motivo",m.resp||m.por?null:"sin quién"].filter(Boolean).join(" y ")+(m.resp?" · "+respTxt(m.resp):m.por?" · lo apuntó "+m.por:"")],fmtN(+m.cant||0),a?a.ud:"",()=>completarCambio(m,false),"warn");}));
+    if(D.sinMot.length||D.sinResp.length||OL.length)nota("Pulsa en un cambio para ponerle el motivo o el responsable.");
     if(!D.sinMot.length&&!D.sinResp.length&&!OL.length)nota("Todo lo cambiado en "+per.t+" tiene motivo y responsable.");
     if(per.d<MOT_VACIO_DESDE)nota("Hasta el "+fmtF(sumaDias(MOT_VACIO_DESDE,-1))+" el motivo venía puesto solo si nadie lo cambiaba («Desgaste» en pistones, «Rotura» en barras y tornillos), así que de antes no se puede saber quién no lo elegía. Desde entonces empieza vacío y aquí sale quien no lo pone.");return;}
   if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);
@@ -356,3 +357,17 @@ function datosSinApuntar(d0,d1){const P=todosPist().filter(p=>p.f>=d0&&p.f<=d1);
   P.forEach(p=>{const k=String(p.resp||"").trim()?respTxt(p.resp):"Sin responsable";const g=G[k]=G[k]||{k,n:0,sm:0,L:[]};g.n++;if(!String(p.motivo||"").trim()){g.sm++;g.L.push(p);}});
   const O=todosMov().filter(m=>{if(m.tipo!=="salida"||!m.maq||m.f<d0||m.f>d1||/^Cambio de pist/.test(m.nota||""))return false;const a=art(m.art);return a&&a.fam!=="piston"&&a.fam!=="consumible";});
   return{P,G:Object.values(G),sinMot,sinResp,O,oSM:O.filter(m=>!String(m.motivo||"").trim()),oSR:O.filter(m=>!m.resp&&!m.por)};}
+/* completar desde la pregunta: poner el motivo o el responsable que faltan */
+async function patchPist(p,pt){if(db.itemsPatchId){await db.itemsPatchId("pist",p.f.slice(0,4),[Object.assign({},pt,{id:p.id})]);return;}
+  const ref=db.doc("pist/"+p.f.slice(0,4)),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).map(x=>x.id===p.id?Object.assign({},x,pt):x)});}
+const cierraDlgs=()=>document.querySelectorAll(".dlg-ov").forEach(o=>o.remove());
+function elegirCambio(tit,L,esPist){if(L.length===1){completarCambio(L[0],esPist);return;}
+  dlg(tit,[el("p",{class:"hint",text:"Elige el cambio que quieres completar."}),el("div",{class:"lst"},L.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(x=>el("button",{type:"button",class:"it",onclick:()=>{cierraDlgs();completarCambio(x,esPist);}},[el("span",{class:"stripe warn"}),
+    el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(x.f)+" · "+maqN(x.maq)+(x.diam?" · "+x.diam:"")}),el("div",{class:"t2",text:[x.motivo?cap(x.motivo):"sin motivo",x.resp?respTxt(x.resp):"sin responsable",x.por?"lo apuntó "+x.por:null].filter(Boolean).join(" · ")})])])))],[{t:"Cerrar",cls:"sec"}]);}
+function completarCambio(x,esPist){if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede modificar");return;}
+  const a=esPist?null:art(x.art),MOT=esPist?MOTIVOS:(typeof MOT_BT!=="undefined"?MOT_BT:MOTIVOS),v={motivo:String(x.motivo||"").trim(),resp:x.resp?String(x.resp):""};
+  const tit=(esPist?"Pistón "+(x.diam||""):(a?nomArt(a):"Cambio"))+" · "+maqN(x.maq)+" · "+fmtF(x.f)+(x.por?" · lo apuntó "+x.por:"");
+  dlg("Completar el cambio",[el("p",{class:"hint",text:tit}),fld("Motivo",sel("ccMot",MOT.map(m=>[m,cap(m)]),v.motivo,y=>v.motivo=y,"Elige…")),
+    fld("Responsable",inp("ccResp",v.resp,y=>v.resp=y,{autocomplete:"off",list:"lOperCC",placeholder:"Nº o nombre"})),el("datalist",{id:"lOperCC"},responsables().map(r=>el("option",{value:r})))],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const pt={motivo:v.motivo||null,resp:v.resp.trim()||null};if(!pt.motivo&&!pt.resp){toast("Elige el motivo o pon el responsable");return false;}
+      try{if(esPist)await patchPist(x,pt);else await patchMov(x,pt);}catch(e){toast("No se pudo guardar");return false;}toast("Guardado");render(true);}}]);}
