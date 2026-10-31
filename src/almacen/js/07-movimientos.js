@@ -52,7 +52,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(d.tipo==="ajuste"){const st=stockA(a.id,d.alm,d.f);rec.cant=Math.round((q-st)*1000)/1000;rec.contado=q;rec.teorico=st;if(rec.cant===0){rec.nota=rec.nota||"Recuento sin diferencias";}}
   if(d.tipo==="traslado")rec.dest=d.dest;
   if(d.tipo==="salida")ponPara(rec,d.maq);
-  if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;}
+  if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;if(a.pedido)rec.ped=a.pedido;}
   const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{
     if(d.tipo==="entrada"&&draft.mFile&&assets){const blob=await comprimir(draft.mFile);const r=await assets.upload(blob);rec.foto=r.id;}

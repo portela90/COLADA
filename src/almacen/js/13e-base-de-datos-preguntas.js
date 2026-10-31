@@ -61,10 +61,10 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
 
   if(I.modo==="revisar"){ent("todo lo que hay que revisar");const A=artsActivos();
     const bajo=A.filter(a=>!a.pedido&&nivel(a)==="bad"),pedir=A.filter(a=>!a.pedido&&nivel(a)==="warn"),atr=A.filter(a=>a.pedido&&dias(a.pedido,h)>Math.max(15,plazoArt(a)));
-    const ejP=ejes.filter(e=>e.estado==="preparado"||e.estado==="devuelto"),ejT=ejes.filter(e=>e.estado==="reparacion"&&(()=>{const r=abiertaDe(e.cod);return r&&diasAb(r)>AMBAR;})());
+    const ejP=ejes.filter(e=>e.estado==="preparado"||e.estado==="devuelto"),ejT=ejes.filter(e=>e.estado==="reparacion"&&(()=>{const r=abiertaDe(e.cod);return r&&r.traer&&diasPedido(r)>limPedido();})());
     const d30=sumaDias(h,-30),sinM=todosMov().filter(m=>m.tipo==="salida"&&m.f>=d30&&!m.maq&&!m.nave&&!/^(Limpieza:|Horno )/.test(m.nota||"")),neg=negativos(),bz=pistPend();
     const R=[[bajo.length,"bajo mínimo sin pedir","qué está bajo mínimo"],[pedir.length,"para pedir (en el punto de pedido)","qué está bajo mínimo"],[atr.length,"pedidos que tardan más de lo normal","qué pedidos llevan más de 15 días sin llegar"],
-      [ejP.length,"ejes preparados o devueltos sin enviar al taller","qué ejes están pendientes de reparar"],[ejT.length,"ejes más de "+AMBAR+" días laborables en el taller","qué ejes están pendientes de reparar"],
+      [ejP.length,"ejes preparados o devueltos sin enviar al taller","qué ejes están pendientes de reparar"],[ejT.length,"ejes pedidos al taller que tardan más de lo normal","qué ejes están pendientes de reparar"],
       [sinM.length,"consumos de los últimos 30 días sin máquina ni nave","movimientos este mes"],[neg.length,"artículos con stock en negativo","stock negativo"],[bz.length,"cambios de pistón sin mandar a Beatriz","cuántos cambios de pistón faltan por mandar a Beatriz"]];
     const malos=R.filter(x=>x[0]>0);frase(malos.length?"Hay "+malos.length+(malos.length===1?" cosa":" cosas")+" que revisar.":"Todo en orden.");
     lista(null,R.map(x=>it(x[0]?x[0]+" "+x[1]:"Sin "+x[1].replace(/^(bajo|para|pedidos|ejes|consumos|artículos|cambios)/,m=>m),x[0]?"Toca para verlo":null,x[0]?"⚠":"✓",null,x[0]?()=>x[2]==="stock negativo"?irA("res"):pon(x[2]):null,x[0]?"warn":"ok")));return;}

@@ -1,6 +1,12 @@
 /* ===== PREVISIÓN: mínimos, dotación de planta, ejes y pedido del mes siguiente ===== */
 const PREV0={nivel:95,plazo:7,cob:7,taller:7};
-const prevCfg=()=>Object.assign({},PREV0,cat.prev||{});
+/* plazo real del taller: días laborables desde que se le pide que traiga un eje hasta que vuelve (no el tiempo que pasa allí sin pedir) */
+function plazoTaller(){const v=todasRep().filter(r=>r.res==="ok"&&/^\d{4}-\d{2}-\d{2}$/.test(r.traer||"")&&/^\d{4}-\d{2}-\d{2}$/.test(r.rec||"")&&r.rec>=r.traer).map(r=>laborables(r.traer,r.rec)).sort((a,b)=>a-b);
+  const q=p=>v.length?v[Math.min(v.length-1,Math.floor(p*v.length))]:null;return{n:v.length,med:q(0.5),p80:q(0.8)};}
+const prevCfg=()=>{const o=Object.assign({},PREV0,cat.prev||{});if(!(cat.prev&&+cat.prev.taller>0)){const t=plazoTaller();if(t.n>=5)o.taller=Math.max(1,Math.round(t.med));o.tallerAuto=t;}return o;};
+/* días laborables desde que se pidió traer un eje, y el límite a partir del cual se avisa */
+const diasPedido=r=>r&&r.traer?laborables(r.traer,hoy()):null;
+const limPedido=()=>{const t=plazoTaller();return t.n>=5?Math.max(t.p80||0,(t.med||0)*2,5):10;};
 const ZN={90:1.2816,95:1.6449,99:2.3263};
 const CONTABLE=a=>a.ud!=="kg"&&a.ud!=="l"&&a.ud!=="m";
 const redU=(x,cont)=>cont?Math.ceil(x-1e-9):Math.ceil(x*10-1e-9)/10;
@@ -218,8 +224,14 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   const enviadas=ab.filter(x=>x.r.env),sinEnv=ab.filter(x=>!x.r.env);
   const fila=({r,n})=>el("button",{type:"button",class:"it",onclick:()=>{const e=ejes.find(z=>z.cod===r.eje);if(e)fichaEje(e);}},[el("div",{class:"ppal"},[el("div",{class:"t1",text:r.eje+" · "+(ejeRef(ejes.find(z=>z.cod===r.eje)||{mod:""}))}),
     el("div",{class:"t2",text:[r.desp,r.env?"Enviado "+fmtF(r.env):null,r.nook?"NO-OK, devuelto "+fmtF(r.dev):null].filter(Boolean).join(" · ")})]),el("div",{style:"display:flex;flex-direction:column;align-items:flex-end;gap:4px"},[pillDias(n),r.traer?el("span",{class:"pill info",text:"Pedido "+fmtF(r.traer)}):null])]);
-  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"En reparación ("+enviadas.length+")"}),el("span",{class:"der sub",text:"Días laborables desde el envío · vuelven cuando tú los pidas"})]),
-    enviadas.length?el("div",{class:"lst"},enviadas.map(fila)):el("div",{class:"empty",text:"No hay ejes en reparación."}),
+  const pedidos=enviadas.filter(x=>x.r.traer).map(x=>({r:x.r,n:diasPedido(x.r),ped:true})).sort((a,b)=>b.n-a.n),sinPedir=enviadas.filter(x=>!x.r.traer),lim=limPedido(),PT=plazoTaller();
+  const filaP=x=>{const f=fila(x);const pl=f.querySelector(".pill");if(pl){pl.className="pill "+(x.n>lim?"bad":x.n>lim*0.7?"warn":"info");pl.textContent="Pedido hace "+x.n+" d";}return f;};
+  v.appendChild(el("section",{class:"card"+(pedidos.some(x=>x.n>lim)?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Pedidos al taller, esperando a que vuelvan ("+pedidos.length+")"}),el("span",{class:"der sub",text:PT.n>=5?"Suelen tardar "+PT.med+" días laborables":"Plazo aún sin datos (se calcula solo)"})]),
+    pedidos.length?el("div",{class:"lst"},pedidos.map(filaP)):el("div",{class:"empty",text:"No hay ningún eje pedido al taller."}),
+    pedidos.some(x=>x.n>lim)?el("p",{class:"hint",style:"padding:6px 14px;margin:0",text:"En rojo: más de "+Math.round(lim)+" días laborables desde que se pidió. Conviene reclamarlos."}):null]));
+  v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"En el taller sin pedir ("+sinPedir.length+")"}),el("span",{class:"der sub",text:"Tu reserva allí · toca para ver"})]),
+    sinPedir.length?el("div",{class:"lst"},sinPedir.map(fila)):el("div",{class:"empty",text:"Ninguno."})]));
+  v.appendChild(el("section",{class:"card",style:sinEnv.length?"":"display:none"},[
     sinEnv.length?el("div",{class:"gh",text:"Preparados para enviar ("+sinEnv.length+")"}):null,sinEnv.length?el("div",{class:"lst"},sinEnv.map(fila)):null]));
   /* modelos */
   const mods=(cat.modelos||[]).slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
@@ -288,7 +300,7 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
     acts.push({t:"Enviar a reparar",fn:async()=>{await enviar([e],f.f);toast(e.cod+" enviado a reparar");}},
       {t:"Vuelve a planta",cls:"sec",fn:async()=>{if(ab&&!ab.env){await updReps([[ab,{res:"anulada",rec:f.f}]]);}await updEje(e,{estado:"planta"});toast(e.cod+" en planta");}});}
   else{if(ab&&ab.traer)acts.push({t:"Quitar «pedido traer»",cls:"sec",fn:async()=>{await updReps([[ab,{traer:null}]]);toast("Marca quitada");}});
-    body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+(diasAb(ab)||0)+" días · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer):"")}):null,
+    body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer)+" (hace "+diasPedido(ab)+" días laborables)":" · En el taller sin pedir (tu reserva allí)")}):null,
       ab?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:ab.apedir?"btn sec":"btn",text:ab.apedir?"✓ En la lista para pedir · quitar":"Añadir a la lista para pedir al taller",onclick:async()=>{
           const nu=ab.apedir?null:hoy();try{await updReps([[ab,{apedir:nu}]]);}catch(er){toast("No se pudo guardar");return;}ab.apedir=nu;toast(nu?"Añadido a la lista ("+listaPedir().length+")":"Quitado de la lista");cerrarDlgs();re();}}),
         listaPedir().length?el("button",{type:"button",class:"btn sec",text:"Ver la lista y enviar ("+listaPedir().length+")",onclick:()=>dlgListaPedir()}):null]):null,
@@ -303,7 +315,7 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
   acts.unshift({t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formEje(e),0);}});acts.forEach(x=>{if(x.cls==="sec"||x.t==="Editar")return;});
   const coste=hist.reduce((t,r)=>t+(r.res==="ok"?(costeRep(r).v||0):0),0);const m=modelo(e.mod);
   objPage({tipo:"Eje",ruta:["Ejes",m?m.ref:e.mod],titulo:e.cod,sub:[ejeRef(e),e.estado==="planta"&&e.maq?"Puesto en la "+e.maq:null].filter(Boolean).join(" · "),estado:[et,ec],
-    kpis:ab&&ab.env?[["Días en el taller",String(diasAb(ab)||0),(diasAb(ab)||0)>30?"neg":""],["Esta reparación",costeRep(ab).v?eur(costeRep(ab).v)+(+ab.imp>0?"":" (aprox.)"):"sin precio"],["Reparaciones hechas",String(hist.filter(r=>r.res==="ok").length)],["Coste total hecho",coste?eur(coste):"0 €"]]
+    kpis:ab&&ab.env?[ab.traer?["Pedido hace",diasPedido(ab)+" días",diasPedido(ab)>limPedido()?"neg":""]:["En el taller sin pedir",String(diasAb(ab)||0)+" días"],["Esta reparación",costeRep(ab).v?eur(costeRep(ab).v)+(+ab.imp>0?"":" (aprox.)"):"sin precio"],["Reparaciones hechas",String(hist.filter(r=>r.res==="ok").length)],["Coste total hecho",coste?eur(coste):"0 €"]]
       :[["Reparaciones hechas",String(hist.filter(r=>r.res==="ok").length)],["Coste total",coste?eur(coste):"0 €"],["Máquina",e.maq||"—"],["Código grabado",e.marcado?"Sí":"No"]],
     tabs:[["General",[el("section",{class:"card"},el("div",{class:"bd",style:"display:grid;gap:12px"},body))]],["Reparaciones ("+hist.length+")",[el("section",{class:"card"},repN)]]],acts});}
 async function enviar(list,f){const ups=[];for(const e of list){const ab=abiertaDe(e.cod);if(ab&&!ab.env)ups.push([ab,{env:f}]);else await addRep({eje:e.cod,desp:"—",alta:f,env:f});}

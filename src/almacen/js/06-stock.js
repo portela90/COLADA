@@ -61,7 +61,7 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
   const st=stockDe(a.id),cd=consDia(a),cob=cd>0?Math.floor(st/cd):null;const NV={bad:["Bajo mínimo","bad"],warn:["Para pedir","warn"],ok:["Correcto","ok"],na:["Sin mínimo",""]};
   const dato=(k,v)=>v==null||v===""?null:[el("dt",{text:k}),el("dd",{text:String(v)})];
   const datos=[dato("Código",a.cod),dato("Familia",FAM[a.fam]),dato("Diámetro",a.diam),dato("Unidad",a.ud),dato("Envase",envTxt(a)),dato("Ubicación",a.ubic),dato("Proveedor",provN(a.prov)),
-    dato("Plazo de entrega",plazoArt(a)?plazoArt(a)+" días":null),dato("Mínimo",fmtN(+a.min||0)),dato("Pedir al llegar a",fmtN(Math.ceil(puntoPedido(a)))),dato("Pedir ahora",cantPedir(a)?fmtN(cantPedir(a))+" "+a.ud:"—"),
+    dato("Plazo de entrega",plazoArt(a)?plazoArt(a)+" días"+(!(+a.plazo>0)&&!((cat.proveedores.find(x=>x.id===a.prov)||{}).plazo>0)&&plazoAprendido(a)?" (calculado con "+plazoAprendido(a).n+" pedidos)":""):null),dato("Mínimo",fmtN(+a.min||0)),dato("Pedir al llegar a",fmtN(Math.ceil(puntoPedido(a)))),dato("Pedir ahora",cantPedir(a)?fmtN(cantPedir(a))+" "+a.ud:"—"),
     dato("Consumo al día",cd?fmtN(Math.round(cd*100)/100)+" "+a.ud:"—"),a.pedido?dato("Pedido",fmtF(a.pedido)+(a.prevista?" · llega "+fmtF(a.prevista):"")):null].filter(Boolean);
   const alms=cat.almacenes.filter(l=>stockDe(a.id,l.id)||almsDe(a).some(x=>x.id===l.id));
   const gen=[el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Datos"})),el("dl",{class:"datos",style:"padding:12px 14px;margin:0"},[].concat(...datos))]),

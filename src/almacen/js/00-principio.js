@@ -82,7 +82,8 @@ function consMap(){const hy=hoy(),desde=sumaDias(hy,-60),first={},sal={};
   todosMov().forEach(m=>{if(!first[m.art]||m.f<first[m.art])first[m.art]=m.f;if(m.tipo==="salida"&&m.f>=desde)sal[m.art]=(sal[m.art]||0)+(+m.cant||0);});
   const o={};Object.keys(sal).forEach(k=>{const ini=first[k]>desde?first[k]:desde;o[k]=sal[k]/Math.max(1,dias(ini,hy)+1);});return o;}
 const consDia=a=>CONS[a.id]||0;
-function plazoArt(a){if(+a.plazo>0)return +a.plazo;const pv=cat.proveedores.find(x=>x.id===a.prov);return pv&&+pv.plazo>0?+pv.plazo:0;}
+function plazoArt(a){if(+a.plazo>0)return +a.plazo;const pv=cat.proveedores.find(x=>x.id===a.prov);if(pv&&+pv.plazo>0)return +pv.plazo;
+  const L=typeof plazoAprendido==="function"?plazoAprendido(a):null;return L?L.dias:0;}
 const consPlazo=a=>consDia(a)*plazoArt(a);
 const puntoPedido=a=>Math.max(+a.pp||0,(+a.min||0)+consPlazo(a));
 function nivel(a){const st=stockDe(a.id),mn=+a.min||0;const pp=puntoPedido(a);if(!(pp>0)&&!(mn>0))return"na";if(st<mn)return"bad";if(st<=pp)return"warn";return"ok";}

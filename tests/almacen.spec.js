@@ -869,3 +869,36 @@ test('Leer albarán: compra con una línea sin reconocer; lo que se elige se rec
   await expect(page.locator('.dlg').last().locator('#laA1')).toHaveValue('c5');
   expect(err).toEqual([]);
 });
+
+test('Ejes: el plazo del taller cuenta desde que se pide; los que están allí sin pedir no son retraso', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const k = Object.keys(v.rep)[0], it = v.rep[k].items; const menos = (f, n) => { const x = new Date(f + 'T12:00:00'); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    it.filter(r => r.res === 'ok' && r.rec).slice(0, 6).forEach(r => { r.traer = menos(r.rec, 7); });
+    const abiertos = it.filter(r => !r.res && r.env);
+    const hoyS = new Date().toISOString().slice(0, 10);
+    if (abiertos[0]) abiertos[0].traer = menos(hoyS, 40); else it.push({ id: 'rx', eje: '2.8.J-2', desp: 'X', alta: menos(hoyS, 90), env: menos(hoyS, 90), traer: menos(hoyS, 40) }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
+  const v = page.locator('#view');
+  await expect(v).toContainText('Pedidos al taller, esperando a que vuelvan (1)');
+  await expect(v).toContainText('Suelen tardar 5 días laborables');
+  await expect(v.locator('section', { hasText: 'Pedidos al taller' }).locator('.pill.bad')).toHaveCount(1);
+  await expect(v).toContainText(/En el taller sin pedir \(\d+\)/);
+  expect(err).toEqual([]);
+});
+
+test('Plazos aprendidos: con dos pedidos que llegan, el artículo tiene su plazo calculado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'rod', desc: 'Rodillo de prueba', fam: 'consumible', ud: 'ud', alms: ['gen'] });
+    v.mov[k].items.push({ id: 'p1', f: '2026-09-11', ped: '2026-09-01', alm: 'gen', art: 'rod', cant: 5, tipo: 'entrada' }, { id: 'p2', f: '2026-10-13', ped: '2026-10-01', alm: 'gen', art: 'rod', cant: 5, tipo: 'entrada' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  const pl = await page.evaluate(() => { const b = [...document.querySelectorAll('#tabs button')].find(x => x.textContent.includes('Stock')); b.click(); return true; });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__q = 1; });
+  await page.locator('#view').getByText('Rodillo de prueba').first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('body')).toContainText(/Plazo de entrega\s*12 días \(calculado con 2 pedidos\)/);
+  expect(err).toEqual([]);
+});

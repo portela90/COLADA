@@ -41,8 +41,10 @@ function revisarAlbaran(D,blob){const recup=D.tipo==="recuperacion"||(D.lineas||
     for(const r of S){const q=parseN(r.cant);if(!art(r.art)){toast("Elige el artículo de «"+(r.texto||"línea "+(r.i+1))+"»");return false;}if(!(q>0)){toast("Cantidad no válida en «"+(r.texto||"línea "+(r.i+1))+"»");return false;}}
     let foto=null;try{if(blob&&assets){const u=await assets.upload(blob);foto=u.id;}}catch(e){}
     const movs=S.map(r=>{const a=art(r.art),m={tipo:"entrada",f:v.f,art:a.id,alm:v.alm,cant:parseN(r.cant)};if(v.prov)m.prov=v.prov;if(String(v.alb).trim())m.alb=String(v.alb).trim();if(foto)m.foto=foto;
+      if(a.pedido)m.ped=a.pedido;
       if(a.fam==="piston"&&r.rec){m.rec=true;m.nota=r.desde?"Recuperado por "+(provN(v.prov)||PU_REC)+" (era "+r.desde+")":"Recuperados";}return m;});
     try{await addMovs(movs);}catch(e){toast("No se pudo guardar");return false;}
+    {const ped=S.map(r=>art(r.art)).filter(a=>a&&a.pedido);if(ped.length){ped.forEach(a=>aplicarPedido(a,null));try{await saveCat();}catch(e){}}}
     /* si es una recuperación y cuadra con lo que se mandó a recuperar, también se apunta en Pistones usados */
     let pu="";if(recup){try{const E=puEstado();const ok={},como={};S.forEach(r=>{if(r.desde&&r.rec){ok[r.desde]=(ok[r.desde]||0)+parseN(r.cant);como[r.desde]=art(r.art).diam;}});
       const cuadra=E&&Object.keys(ok).length&&Object.keys(ok).every(d=>E.S[d]&&E.S[d].M>=ok[d]);
