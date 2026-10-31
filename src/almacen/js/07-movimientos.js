@@ -76,7 +76,7 @@ function vHist(v){const h=draft.hm;const ms=Object.keys(meses).filter(k=>meses[k
         el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.nota].filter(Boolean).join(" · ")}),
           m.foto?el("img",{class:"thumb",src:fotoUrl(m.foto),alt:"Albarán",loading:"lazy",onclick:()=>lightbox(fotoUrl(m.foto))}):null]),
         el("td",{class:"r num",text:signo(m)+(a?" "+a.ud:"")}),el("td",{text:dondeTxt(m)}),
-        el("td",{},el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Movimiento borrado");})}))]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
+        el("td",{style:"white-space:nowrap"},[el("button",{type:"button",class:"btn txt peq","aria-label":"Modificar movimiento",text:"Modificar",onclick:()=>editMov(m)}),el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Movimiento borrado");})})])]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
   v.appendChild(card);}
 
 /* ===== PISTONES ===== */
@@ -357,3 +357,29 @@ function cardComprasPist(re){const h=hoy(),k=draft.cpP||"mes";const y=h.slice(0,
       D.sinP.length?el("div",{class:"banner w",text:"Sin precio: "+D.sinP.join(", ")+". Ponlo en la ficha del pistón (precio de nuevo y de recuperado)."}):null,
       ds.length?cTabla(["Ø","Nuevos","€ nuevos","Recuperados","€ recuperados"],ds.map(x=>{const g=D.G[x];return[x,fmtN(g.n),eur(g.en),fmtN(g.r),eur(g.er)];}),[1,2,3,4]):el("p",{class:"hint",style:"margin:0",text:"No ha entrado ningún pistón en "+P[2].toLowerCase()+"."}),
       el("p",{class:"hint",style:"margin:0",text:"Al apuntar una entrada de pistones eliges si son nuevos o recuperados. Los que llegan de la recuperación (Pistones usados › Recibido) cuentan solos como recuperados. Ahorro = lo que costarían nuevos − lo que ha costado recuperarlos."})])]);}
+
+/* modificar un movimiento ya apuntado (fecha, artículo, almacén, cantidad, para quién, proveedor, albarán, nota y, en pistones, nuevos o recuperados) */
+async function patchMov(m,pt){if(db.itemsPatchId){await db.itemsPatchId("mov",mesDe(m.f),[Object.assign({},pt,{id:m.id})]);return;}
+  const ref=db.doc("mov/"+mesDe(m.f)),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).map(x=>x.id===m.id?Object.assign({},x,pt):x)});}
+function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeMov(m.id)||!!m.trep;const v={f:m.f,art:m.art,alm:m.alm,dest:m.dest||"",cant:String(m.tipo==="ajuste"?(m.contado!=null?m.contado:""):m.cant),maq:m.maq||(m.nave?"nave:"+m.nave:""),prov:m.prov||"",alb:m.alb||"",nota:m.nota||"",rec:esEntRec(m)};
+  const box=el("div",{style:"display:grid;gap:10px"});
+  const pinta=()=>{box.textContent="";const a=art(v.art);
+    if(ligado)box.appendChild(el("div",{class:"banner w",text:m.trep?"Viene de la vuelta de tolvas del taller: aquí solo se cambian el albarán y la nota.":"Es un cambio de pistón: aquí solo se cambian la nota y el albarán. Si está mal la máquina, la medida o la cantidad, bórralo y apúntalo de nuevo."}));
+    if(!ligado){box.appendChild(el("div",{class:"row"},[fld("Fecha",inp("emF",v.f,x=>v.f=x,{type:"date"})),m.tipo==="ajuste"?null:fld("Artículo",sel("emArt",artOpts(),v.art,x=>{v.art=x;pinta();}))]));
+      box.appendChild(el("div",{class:"row"},[m.tipo==="ajuste"?null:fld(m.tipo==="traslado"?"Desde":"Almacén",sel("emAlm",almOptsArt(a),v.alm,x=>v.alm=x)),m.tipo==="traslado"?fld("Hasta",sel("emDest",almOptsArt(a,v.alm),v.dest,x=>v.dest=x,"Destino…")):null,
+        m.tipo==="ajuste"?null:fld("Cantidad",inp("emCant",v.cant,x=>v.cant=x,{inputmode:"decimal",class:"num"}))]));
+      if(m.tipo==="salida")box.appendChild(fld("Para (inyectora o nave)",sel("emMaq",paraOpts(),v.maq,x=>v.maq=x,"—")));}
+    if(m.tipo==="entrada"&&a&&a.fam==="piston")box.appendChild(el("div",{class:"seg",role:"group","aria-label":"Pistones nuevos o recuperados"},[[false,"Nuevos"],[true,"Recuperados"]].map(([r,l])=>el("button",{type:"button","aria-pressed":String(v.rec===r),text:l,onclick:()=>{v.rec=r;pinta();}}))));
+    if(m.tipo==="entrada")box.appendChild(el("div",{class:"row"},[ligado?null:fld("Proveedor",sel("emProv",provOpts(),v.prov,x=>v.prov=x,"—")),fld("Nº albarán",inp("emAlb",v.alb,x=>v.alb=x,{autocomplete:"off"}))]));
+    box.appendChild(fld("Nota",inp("emNota",v.nota,x=>v.nota=x,{autocomplete:"off"})));};
+  pinta();
+  dlg("Modificar "+(TIPOS[m.tipo]||"movimiento").toLowerCase(),[el("p",{class:"hint",text:(a0?a0.desc:"")+" · "+fmtF(m.f)+". El stock se recalcula solo."}),box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{
+    const pt={nota:String(v.nota).trim()||null};const a=art(v.art);
+    if(m.tipo==="entrada"){pt.alb=String(v.alb).trim()||null;if(a&&a.fam==="piston")pt.rec=!!v.rec;}
+    if(!ligado){if(!v.f){toast("Pon la fecha");return false;}if(m.tipo!=="ajuste"){const q=parseN(v.cant);if(!a){toast("Elige el artículo");return false;}if(!v.alm){toast("Elige el almacén");return false;}if(!(isFinite(q)&&q>0)){toast("Escribe una cantidad válida");return false;}
+        if(m.tipo==="traslado"&&(!v.dest||v.dest===v.alm)){toast("Elige un destino distinto");return false;}Object.assign(pt,{art:v.art,alm:v.alm,cant:q});if(m.tipo==="traslado")pt.dest=v.dest;
+        if(m.tipo==="salida"){pt.maq=null;pt.nave=null;ponPara(pt,v.maq);}if(m.tipo==="entrada")pt.prov=v.prov||null;}
+      pt.f=v.f;}
+    try{if(pt.f&&mesDe(pt.f)!==mesDe(m.f)){const nu=Object.assign({},m0,pt);Object.keys(nu).forEach(k=>{if(nu[k]==null)delete nu[k];});await delMov(m.id,m.f);await addMovs([nu]);}
+      else await patchMov(m,pt);}catch(e){toast("No se pudo guardar");return false;}
+    toast("Movimiento modificado");render(true);}}]);}

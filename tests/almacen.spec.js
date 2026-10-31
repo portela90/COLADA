@@ -797,3 +797,27 @@ test('Tolvas: enviar a reparar, vuelven al almacén con su importe y el cambio e
   await expect(page.locator('body')).toContainText(/Horno\s*300/);
   expect(err).toEqual([]);
 });
+
+test('Movimientos: modificar una entrada (pistones nuevos ↔ recuperados, cantidad y fecha de otro mes)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov).sort().pop();
+    const f = k + '-02'; v.mov[k].items.push({ id: 'em1', f, alm: 'gen', art: 'pist-80', cant: 4, tipo: 'entrada', nota: 'prueba editar', ts: Date.now() + 9e9 }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  const mk = await page.evaluate(() => Object.keys(window.__D.mov).sort().pop()); await page.locator('#hMes').selectOption(mk); await page.waitForTimeout(300);
+  await page.locator('tr', { hasText: 'prueba editar' }).locator('button', { hasText: 'Modificar' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await d.locator('.seg button', { hasText: 'Recuperados' }).click(); await d.locator('#emCant').fill('5'); await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  let m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(x => x.id === 'em1'));
+  expect(m.rec).toBe(true); expect(m.cant).toBe(5);
+  // cambiar de mes: se mueve al documento del otro mes
+  await page.locator('tr', { hasText: 'prueba editar' }).locator('button', { hasText: 'Modificar' }).click(); await page.waitForTimeout(300);
+  const otra = await page.evaluate(() => { const k = Object.keys(window.__D.mov).sort().pop(); const d = new Date(k + '-15T12:00:00'); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
+  await page.locator('.dlg').last().locator('#emF').fill(otra); await page.locator('.dlg').last().locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const where = await page.evaluate(() => Object.entries(window.__D.mov).filter(([, x]) => (x.items || []).some(i => i.id === 'em1')).map(([k]) => k));
+  expect(where).toEqual([otra.slice(0, 7)]);
+  m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(x => x.id === 'em1'));
+  expect(m.rec).toBe(true); expect(m.cant).toBe(5); expect(m.f).toBe(otra);
+  expect(err).toEqual([]);
+});
