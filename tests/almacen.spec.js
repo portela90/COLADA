@@ -700,6 +700,15 @@ test('Desviaciones: pico de gasto por tonelada, causa apuntada y aviso semanal g
   await expect(v).toContainText('F25 · '); await expect(v).toContainText('Rodillo de prueba'); await expect(v).toContainText('para 10 t');
   await expect(v).toContainText(/120 € para 10 t; lo normal serían unos 25 €/); await expect(v).toContainText(/12 ud para 100 t; lo normal serían unos 2,5 ud/);
   await expect.poll(() => page.evaluate(() => ((window.__D.desv || {}).semana || {}).items?.length || 0)).toBeGreaterThan(0);
+  await v.locator('section', { hasText: 'Rodillo de prueba' }).first().locator('button', { hasText: 'Investigar' }).click(); await page.waitForTimeout(300);
+  let dI = page.locator('.dlg').last();
+  await expect(dI).toContainText('Investigar: Rodillo de prueba'); await expect(dI).toContainText('12 en la semana del'); await expect(dI).toContainText('Por motivo'); await expect(dI).toContainText('Sin responsable');
+  await dI.locator('button.it', { hasText: 'Rodillo de prueba' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('#ccMot')).toHaveCount(0);
+  await page.fill('#ccResp', 'Operario X'); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
+  dI = page.locator('.dlg').last(); await expect(dI).toContainText('Investigar: Rodillo de prueba'); await expect(dI).toContainText('Operario X');
+  await dI.getByRole('button', { name: 'Apuntar causa' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Causa de la desviación'); await page.locator('.dlg').last().getByRole('button', { name: 'Cancelar' }).click(); await page.waitForTimeout(200);
   await v.locator('section', { hasText: 'F25 · ' }).first().locator('button', { hasText: 'Apuntar causa' }).click(); await page.waitForTimeout(300);
   await page.locator('.dlg').last().locator('.chip', { hasText: 'Molde nuevo' }).click();
   await page.locator('.dlg').last().locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);

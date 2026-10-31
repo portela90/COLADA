@@ -364,10 +364,10 @@ const cierraDlgs=()=>document.querySelectorAll(".dlg-ov").forEach(o=>o.remove())
 function elegirCambio(tit,L,esPist){if(L.length===1){completarCambio(L[0],esPist);return;}
   dlg(tit,[el("p",{class:"hint",text:"Elige el cambio que quieres completar."}),el("div",{class:"lst"},L.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(x=>el("button",{type:"button",class:"it",onclick:()=>{cierraDlgs();completarCambio(x,esPist);}},[el("span",{class:"stripe warn"}),
     el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(x.f)+" · "+maqN(x.maq)+(x.diam?" · "+x.diam:"")}),el("div",{class:"t2",text:[x.motivo?cap(x.motivo):"sin motivo",x.resp?respTxt(x.resp):"sin responsable",x.por?"lo apuntó "+x.por:null].filter(Boolean).join(" · ")})])])))],[{t:"Cerrar",cls:"sec"}]);}
-function completarCambio(x,esPist){if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede modificar");return;}
+function completarCambio(x,esPist,o){o=o||{};if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede modificar");return;}
   const a=esPist?null:art(x.art),MOT=esPist?MOTIVOS:(typeof MOT_BT!=="undefined"?MOT_BT:MOTIVOS),v={motivo:String(x.motivo||"").trim(),resp:x.resp?String(x.resp):""};
   const tit=(esPist?"Pistón "+(x.diam||""):(a?nomArt(a):"Cambio"))+" · "+maqN(x.maq)+" · "+fmtF(x.f)+(x.por?" · lo apuntó "+x.por:"");
-  dlg("Completar el cambio",[el("p",{class:"hint",text:tit}),fld("Motivo",sel("ccMot",MOT.map(m=>[m,cap(m)]),v.motivo,y=>v.motivo=y,"Elige…")),
+  dlg("Completar el cambio",[el("p",{class:"hint",text:tit}),o.sinMot?null:fld("Motivo",sel("ccMot",MOT.map(m=>[m,cap(m)]),v.motivo,y=>v.motivo=y,"Elige…")),
     fld("Responsable",inp("ccResp",v.resp,y=>v.resp=y,{autocomplete:"off",list:"lOperCC",placeholder:"Nº o nombre"})),el("datalist",{id:"lOperCC"},responsables().map(r=>el("option",{value:r})))],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const pt={motivo:v.motivo||null,resp:v.resp.trim()||null};if(!pt.motivo&&!pt.resp){toast("Elige el motivo o pon el responsable");return false;}
-      try{if(esPist)await patchPist(x,pt);else await patchMov(x,pt);}catch(e){toast("No se pudo guardar");return false;}toast("Guardado");render(true);}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const pt=o.sinMot?{resp:v.resp.trim()||null}:{motivo:v.motivo||null,resp:v.resp.trim()||null};if(!pt.motivo&&!pt.resp){toast(o.sinMot?"Pon el operario":"Elige el motivo o pon el responsable");return false;}
+      try{if(esPist)await patchPist(x,pt);else await patchMov(x,pt);}catch(e){toast("No se pudo guardar");return false;}Object.assign(x,pt);toast("Guardado");render(true);if(o.despues)setTimeout(o.despues,0);}}]);}
