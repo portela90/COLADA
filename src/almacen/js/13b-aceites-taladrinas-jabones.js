@@ -7,7 +7,7 @@ function vQuim(v){const hy=hoy(),d30=sumaDias(hy,-30);
   const C=cConsumos().filter(c=>GRUPOS_Q.includes(c.g));const C30=C.filter(c=>c.f>=d30);
   const g30={};C30.forEach(c=>{g30[c.artId]=(g30[c.artId]||0)+c.cant;});
   const bajos=A.filter(a=>!a.pedido&&nivel(a)==="bad"),pedidos=A.filter(a=>a.pedido);
-  v.appendChild(cardContadores());
+  v.appendChild(cardContadores());v.appendChild(cardPrevAceites());
   v.appendChild(el("dl",{class:"kpis num"},[["Productos",String(A.length)],["Gastado en 30 días",fmtN(Math.round(C30.reduce((s,c)=>s+c.cant,0)))+" kg"],["Bajo mínimo",String(bajos.length)],["Pedidos",String(pedidos.length)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   if(bajos.length)v.appendChild(el("div",{class:"banner w",text:"Bajo mínimo: "+bajos.map(a=>a.desc).join(", ")+"."}));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Apuntar consumo",onclick:()=>irA("rap")}),

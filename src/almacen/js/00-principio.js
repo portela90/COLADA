@@ -118,7 +118,7 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 /* ---------- render ---------- */
 function render(force){const a=document.activeElement;
   if(!force&&a&&a.closest&&a.closest("#view")&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&a.type!=="file"&&a.type!=="checkbox"){pending=true;return;}
-  pending=false;SM=stockMap();CONS=consMap();
+  pending=false;SM=stockMap();CONS=consMap();if(typeof ajustaAceites==="function")ajustaAceites();
   const al=artsActivos().filter(x=>{const n=nivel(x);return !x.pedido&&(n==="bad"||n==="warn");}).length;
   pintaCab(al);
   const v=$("view");const sc=document.querySelector("main").scrollTop;v.textContent="";

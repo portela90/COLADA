@@ -604,3 +604,25 @@ test('Glicol: el depósito se coteja con los contadores de las dos naves y con e
   expect(its.length).toBe(3); expect(its[2]).toMatchObject({ tipo: 'recarga', kg: 1060, dens: 1.06, l: 1000, antes: 900, despues: 1880 });
   expect(err).toEqual([]);
 });
+
+test('Aceites: previsión con el gasto de los contadores, 1 GRG de reserva y punto de pedido que se afina solo', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'ater', desc: 'ACEITE TÉRMICO BESTERM HT', fam: 'consumible', grupo: 'aceite', ud: 'kg', alms: ['gen'] });
+    const h = new Date(), f = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    v.mov[k].items.push({ id: 'e1', f: f(30), alm: 'gen', art: 'ater', cant: 2610, tipo: 'entrada' }, { id: 'g1', f: f(20), alm: 'gen', art: 'ater', cant: 870, tipo: 'salida', nota: 'Limpieza: Cambiar GRG de aceite térmico' });
+    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'r1', f: f(20), nave: 'Nave 1', c: { ter: 0 }, ts: 1 }, { id: 'r2', f: f(10), nave: 'Nave 1', c: { ter: 200 }, ts: 2 }, { id: 'r3', f: f(1), nave: 'Nave 1', c: { ter: 380 }, ts: 3 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  const card = page.locator('section', { hasText: 'Previsión y pedido de aceites' });
+  // 380 l en 19 días = 20 l/día × 0,87 = 17,4 kg/día; mínimo 1 GRG (870); pedir al llegar a 870 + 17,4 × 7 = 992
+  await expect(card).toContainText('20 l · 17,4 kg'); await expect(card).toContainText('1740 kg (2 GRG)'); await expect(card).toContainText('870 / 992 kg');
+  await expect(card).toContainText('Falta el plazo de entrega de Térmico');
+  await card.locator('button', { hasText: 'Plazos y reserva' }).click(); await page.waitForTimeout(300);
+  await page.locator('#paPater').fill('30'); await page.locator('.dlg').last().locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  await expect(page.locator('section', { hasText: 'Previsión y pedido de aceites' })).toContainText('870 / 1392 kg');
+  const a = await page.evaluate(() => window.__D.cat.app.articulos.find(x => x.id === 'ater'));
+  expect(a.plazo).toBe(30); expect(a.min).toBe(870); expect(a.pp).toBe(1392);
+  expect(err).toEqual([]);
+});

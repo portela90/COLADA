@@ -238,3 +238,46 @@ function formGli(){const f={f:hoy(),tipo:todosDep().some(r=>r.dep==="gli")?"reca
     else{const x=n(f.n);if(x==null||Number.isNaN(x)){toast("Pon el nivel del depósito");return false;}rec={f:f.f,dep:"gli",tipo:"nivel",n:x};}
     try{await guardaLect(rec,null);}catch(e){toast("No se pudo guardar");return false;}toast("Apuntado");render(true);}}]);}
 async function quitaDep(r){const y=r.y||r.f.slice(0,4);if(db.itemsDelId){await db.itemsDelId("cont",y,[r.id]);return;}const r0=db.doc("cont/"+y),s0=await r0.get();if(s0.exists)await r0.set({items:(s0.data().items||[]).filter(x=>x.id!==r.id)});}
+
+/* ===== PREVISIÓN Y PEDIDO DE ACEITES con el gasto real de los contadores =====
+   Gasto por día natural = litros que marcan los contadores de las dos naves (últimos 60 días) × densidad → kg (el stock va en kg).
+   Con 14 días o más de lecturas, ese gasto sustituye al de las salidas del almacén (que van a saltos de un GRG).
+   Mínimo = 1 GRG de reserva; punto de pedido = mínimo + gasto diario × plazo de entrega. Si el artículo está en «automático»
+   (por defecto), mínimo y punto de pedido se recalculan solos con el gasto: así se afinan según lo que se gaste. */
+const PLAZO0=7;
+function grgKg(k,a){const C=cfgCot(k);const q=todosMov().filter(m=>m.tipo==="salida"&&m.art===a.id&&+m.cant>=100).map(m=>+m.cant).sort((x,y)=>x-y);return q.length?q[Math.floor(q.length/2)]:Math.round(C.cap*C.dens);}
+function gastoCont(k){const ns=NAVES_CT.filter(nv=>lectDe(nv).some(r=>r.c&&typeof r.c[k]==="number"));if(!ns.length)return null;
+  const h=hoy(),d0=sumaDias(h,-60);let l=0,ini=null,fin=null;
+  ns.forEach(nv=>{const L=lectDe(nv).filter(r=>typeof r.c[k]==="number");const a=L[0].f>d0?L[0].f:d0,z=L[L.length-1].f;if(!ini||a<ini)ini=a;if(!fin||z>fin)fin=z;
+    tramos(nv,k).forEach(t=>{if(!(t.dif>0))return;const x=Math.max(msD(t.f0),msD(d0)),y=msD(t.f),tot=y-msD(t.f0);if(y<=x||tot<=0)return;l+=t.dif*(y-x)/tot;});});
+  const dd=ini&&fin?Math.round((msD(fin)-msD(ini))/864e5):0;return{l,dias:dd,lpd:dd>0?l/dd:0,ok:dd>=14};}
+let PREV_AC={};
+function ajustaAceites(){PREV_AC={};CONT_GRG.forEach(([k,nom])=>{const C=cfgCot(k);if(!C.art)return;const a=art(C.art);if(!a)return;
+  const g=gastoCont(k),porCont=!!(g&&g.ok);if(porCont)CONS[a.id]=g.lpd*C.dens;
+  const kd=consDia(a),grg=grgKg(k,a),pl=plazoArt(a)||PLAZO0,auto=a.ppAuto!==false;
+  if(auto){a.min=grg;a.pp=Math.ceil(grg+kd*pl);}
+  /* lo que queda puesto en la instalación (GRG de arriba y de abajo) */
+  const R=cotejo(k),u=R.iv[R.iv.length-1];const instL=u&&!u.hasta&&u.cub?(u.queda||0)+(u.ab!=null?u.ab:0):null;
+  PREV_AC[a.id]={k,nom,a,g,porCont,kd,ld:kd/C.dens,grg,pl,plDef:!plazoArt(a),auto,instKg:instL!=null?instL*C.dens:null};});}
+function cardPrevAceites(){const L=Object.values(PREV_AC);if(!L.length)return el("div");const h=hoy();
+  const filas=L.map(P=>{const a=P.a,st=stockDe(a.id),tot=st+(P.instKg||0),dias=P.kd>0?Math.floor(tot/P.kd):null,pp=puntoPedido(a);
+    const dPed=P.kd>0?Math.floor((st-pp)/P.kd):null;
+    return{P,st,dias,pp,dPed,f:[P.nom,P.kd>0?fmtL(P.ld)+" · "+fmtN(Math.round(P.kd*10)/10)+" kg"+(P.porCont?"":" *"):"—",fmtN(Math.round(st))+" kg ("+fmtN(Math.round(st/P.grg*10)/10)+" GRG)",dias!=null?dias+" d":"—",
+      fmtN(Math.round(+a.min||0))+" / "+fmtN(Math.ceil(pp))+" kg",a.pedido?"pedido":dPed==null?"—":dPed<=0?"¡ya!":fmtF(sumaDias(h,dPed))]};});
+  const ya=filas.filter(x=>!x.P.a.pedido&&x.dPed!=null&&x.dPed<=0),pronto=filas.filter(x=>!x.P.a.pedido&&x.dPed!=null&&x.dPed>0&&x.dPed<=7);
+  return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Previsión y pedido de aceites"}),el("span",{class:"der sub",text:"1 GRG de reserva"})]),
+    el("div",{class:"bd",style:"display:grid;gap:10px"},[
+      ya.length?el("div",{class:"banner b",text:"Hay que pedir ya: "+ya.map(x=>x.P.nom).join(", ")+"."}):null,
+      pronto.length?el("div",{class:"banner w",text:"Esta semana toca pedir: "+pronto.map(x=>x.P.nom+" ("+fmtF(sumaDias(h,x.dPed))+")").join(", ")+"."}):null,
+      cTabla(["Aceite","Gasto por día","En el almacén","Dura (con lo puesto)","Mínimo / pedir al llegar a","Pedir el"],filas.map(x=>x.f),[1,2,3,4]),
+      L.some(P=>!P.porCont)?el("p",{class:"hint",style:"margin:0",text:"* Con menos de 14 días de lecturas el gasto sale de las salidas del almacén. En cuanto haya 2 semanas de contadores, se usa el gasto real."}):null,
+      L.some(P=>P.plDef)?el("div",{class:"banner w",text:"Falta el plazo de entrega de "+L.filter(P=>P.plDef).map(P=>P.nom).join(", ")+": de momento cuento "+PLAZO0+" días."}):null,
+      el("p",{class:"sub",style:"margin:0",text:"Gasto previsto al mes: "+L.filter(P=>P.kd>0).map(P=>P.nom+" "+fmtL(P.ld*30)+" ≈ "+fmtN(Math.round(P.kd*30))+" kg ≈ "+fmtN(Math.round(P.kd*30/P.grg*10)/10)+" GRG").join(" · ")}),
+      el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Plazos y reserva",onclick:()=>formPlazosAc()})])]);}
+function formPlazosAc(){const L=Object.values(PREV_AC),val={};L.forEach(P=>{val[P.a.id]={pl:String(plazoArt(P.a)||""),auto:P.auto};});
+  dlg("Plazos de entrega y reserva",[el("p",{class:"hint",text:"Plazo: días desde que se pide hasta que llega. Con «Automático», el mínimo es 1 GRG y el punto de pedido se recalcula solo según lo que se gaste."})].concat(L.map(P=>{const v=val[P.a.id];
+    const ck=el("input",{type:"checkbox",id:"paA"+P.a.id});ck.checked=v.auto;ck.addEventListener("change",()=>v.auto=ck.checked);
+    return el("div",{class:"row",style:"align-items:end"},[fld(P.nom+" · plazo (días)",inp("paP"+P.a.id,v.pl,x=>v.pl=x,{inputmode:"numeric",class:"num",placeholder:String(PLAZO0)})),el("label",{style:"display:flex;gap:6px;align-items:center;padding-bottom:12px"},[ck,"Automático"])]);})),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{for(const P of L){const v=val[P.a.id],n=String(v.pl).trim()===""?null:parseN(v.pl);if(n!=null&&!(n>=0&&n<=120)){toast("Plazo no válido en "+P.nom);return false;}
+      const a=art(P.a.id);if(n)a.plazo=n;else delete a.plazo;a.ppAuto=v.auto;}
+      ajustaAceites();try{await saveCat();}catch(e){return false;}toast("Guardado");render(true);}}]);}
