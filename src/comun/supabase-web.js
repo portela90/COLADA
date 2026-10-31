@@ -31,8 +31,8 @@ function pantallaEspera(){const ov=h("div",{class:"lg-ov"},[h("div",{class:"lg"}
   h("p",{text:"Tu cuenta ("+(yo&&yo.email||"")+") está creada pero todavía no tiene acceso. Pide al administrador que te dé acceso y vuelve a entrar."}),
   h("button",{class:"btn sec",type:"button",text:"Volver a comprobar",onclick:()=>location.reload()}),
   h("button",{class:"btn sec",type:"button",text:"Salir",onclick:async()=>{await sb.auth.signOut();location.reload();}})])]);document.body.appendChild(ov);}
-function pantallaSoloConsulta(){document.body.appendChild(h("div",{class:"lg-ov"},[h("div",{class:"lg"},[h("h2",{text:"Solo consulta"}),
-  h("p",{text:"Tu usuario ("+(yo.email||"")+") es de solo consulta del Almacén. Aquí no tienes acceso."}),
+function pantallaSoloConsulta(){document.body.appendChild(h("div",{class:"lg-ov"},[h("div",{class:"lg"},[h("h2",{text:yo.consulta?"Solo consulta":"Sin acceso a Coladas"}),
+  h("p",{text:yo.consulta?"Tu usuario ("+(yo.email||"")+") es de solo consulta del Almacén. Aquí no tienes acceso.":"Tu usuario ("+(yo.email||"")+") tiene acceso al Almacén, pero no a Coladas."}),
   h("button",{class:"btn",type:"button",text:"Ir al Almacén",onclick:()=>{location.href="almacen.html";}}),
   h("button",{class:"btn sec",type:"button",text:"Salir",onclick:async()=>{await sb.auth.signOut();location.reload();}})])]));}
 const SOLO_MSG="Tu usuario es de solo consulta: puedes ver todo, pero no cambiar nada.";
@@ -49,6 +49,9 @@ function acceso(){if(listo)return listo;listo=(async()=>{
   if(!yo.activo){pantallaEspera();return new Promise(()=>{});}
   /* usuario de solo consulta: ve el Almacén pero no puede cambiar nada ni entrar en Coladas */
   window.SOLO_CONSULTA=!!yo.consulta;
+  /* sin acceso a Coladas (solo consulta, o «solo Almacén»): no entra en Coladas ni ve sus números */
+  window.SIN_COLADAS=!!yo.consulta||yo.coladas===false;
+  if(window.SIN_COLADAS&&!yo.consulta&&!P&&window.APP_ID!=="inicio"){pantallaSoloConsulta();return new Promise(()=>{});}
   if(yo.consulta){document.documentElement.classList.add("solo-consulta");
     if(!P&&window.APP_ID!=="inicio"){pantallaSoloConsulta();return new Promise(()=>{});}
     setTimeout(()=>window.dispatchEvent(new Event("solo-consulta")),0);}
@@ -86,7 +89,7 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   const fila=(t,sub,fn)=>h("button",{type:"button",class:"usr-fila",onclick:()=>{ov.remove();fn();}},[h("b",{text:t}),sub?h("small",{text:sub}):null]);
   box.appendChild(h("h3",{text:yo.nombre||yo.email||""}));
-  [["inicio","inicio.html","Inicio","Resumen de todo en mosaicos"],["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny")&&!(yo.consulta&&x[0]==="colada"))
+  [["inicio","inicio.html","Inicio","Resumen de todo en mosaicos"],["colada","./","Coladas","Stock y consumo de aluminio"],["almacen","almacen.html","Almacén","Consumibles, pistones y ejes"],["iny","almacen.html?t=iny","Inyectoras","Fichas de las máquinas"]].filter(x=>x[0]!==APP&&!(APP==="almacen"&&x[0]==="iny")&&!(window.SIN_COLADAS&&x[0]==="colada"))
     .forEach(([k,u,t,s])=>box.appendChild(fila("Ir a "+t,s,()=>{location.href=u;})));
   if(P==="alm_")box.appendChild(fila("Avisos al móvil","Bajo mínimo, pedidos retrasados y ejes en cuarentena",panelAvisos));
   if(!yo.consulta)box.appendChild(fila("Historial y deshacer","Últimos cambios, con opción de deshacerlos",panelHist));
@@ -96,16 +99,16 @@ function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
 async function panelUsuario(){
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
   box.appendChild(h("h3",{text:(yo.nombre||"")+" · "+yo.email}));
-  if(yo.admin){box.appendChild(h("p",{class:"hint",text:"Usuarios. Los nuevos se dan de alta solos desde la pantalla de entrada; aquí les das o quitas el acceso. «Solo consulta» ve todo el Almacén pero no puede cambiar nada, y no entra en Coladas."}));
+  if(yo.admin){box.appendChild(h("p",{class:"hint",text:"Usuarios. Los nuevos se dan de alta solos desde la pantalla de entrada; aquí eliges a qué entra cada uno. «Solo Almacén» ve y apunta en el Almacén pero no entra en Coladas; «Solo consulta» ve el Almacén sin poder cambiar nada. El bloqueo es en la base de datos: aunque alguien tenga el enlace, no ve lo que no le toca."}));
     const lst=h("div",{class:"usr-list"});box.appendChild(lst);
+    const NIV=[["no","Sin acceso",{activo:false}],["todo","Todo: Coladas y Almacén",{activo:true,consulta:false,coladas:true}],["alm","Solo Almacén (ver y apuntar)",{activo:true,consulta:false,coladas:false,admin:false}],["cons","Solo consulta del Almacén",{activo:true,consulta:true,coladas:false,admin:false}]];
+    const nivDe=u=>!u.activo?"no":u.consulta?"cons":u.coladas===false?"alm":"todo";
     const carga=async()=>{lst.textContent="";const r=await sb.from("usuarios").select("*").order("creado");(r.data||[]).forEach(u=>{
-      const bt=(t,cambio)=>h("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px",text:t,onclick:async()=>{const r=await sb.from("usuarios").update(cambio).eq("user_id",u.user_id);if(r.error)alert("No se pudo: "+r.error.message);carga();}});
-      const otro=u.user_id!==yo.user_id;
-      lst.appendChild(h("div",{class:"usr-row"},[h("span",{text:(u.nombre||"")+" · "+u.email+(u.admin?" · admin":"")+(u.activo&&u.consulta?" · SOLO CONSULTA del Almacén":"")+(u.activo?"":" · SIN ACCESO")}),
-        otro?bt(u.activo?"Quitar acceso":"Dar acceso completo",u.activo?{activo:false}:{activo:true,consulta:false}):null,
-        otro&&!u.activo?bt("Dar acceso solo consulta",{activo:true,consulta:true,admin:false}):null,
-        otro&&u.activo&&!u.admin?bt(u.consulta?"Pasar a acceso completo":"Pasar a solo consulta",{consulta:!u.consulta}):null,
-        otro&&u.activo&&!u.consulta?bt(u.admin?"Quitar admin":"Hacer admin",{admin:!u.admin}):null]));});};
+      const otro=u.user_id!==yo.user_id;const n0=nivDe(u);
+      const sel=h("select",{"aria-label":"Acceso de "+(u.nombre||u.email),style:"font-size:14px;padding:6px 8px;border-radius:8px;max-width:100%"},NIV.map(([k,t])=>{const o=h("option",{value:k,text:t});if(k===n0)o.selected=true;return o;}));
+      sel.disabled=!otro;sel.addEventListener("change",async()=>{const x=NIV.find(z=>z[0]===sel.value);const r=await sb.from("usuarios").update(x[2]).eq("user_id",u.user_id);if(r.error)alert("No se pudo: "+r.error.message);carga();});
+      const adm=otro&&n0==="todo"?h("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px",text:u.admin?"Quitar admin":"Hacer admin",onclick:async()=>{const r=await sb.from("usuarios").update({admin:!u.admin}).eq("user_id",u.user_id);if(r.error)alert("No se pudo: "+r.error.message);carga();}}):null;
+      lst.appendChild(h("div",{class:"usr-row",style:"display:flex;flex-wrap:wrap;gap:6px;align-items:center"},[h("span",{style:"flex:1 1 100%",text:(u.nombre||"")+" · "+u.email+(u.admin?" · admin":"")+(otro?"":" (tú)")}),sel,adm]));});};
     carga();
     box.appendChild(h("button",{class:"btn sec",type:"button",text:"Importar copia de la Colada…",onclick:()=>{ov.remove();pantallaImportar(false).then(()=>location.reload());}}));}
   box.appendChild(h("div",{class:"dlg-b"},[h("button",{class:"btn sec",type:"button",text:"Cerrar",onclick:()=>ov.remove()}),

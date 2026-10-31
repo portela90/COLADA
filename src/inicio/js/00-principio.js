@@ -29,7 +29,7 @@ function pinta(){const v=$("view");v.textContent="";
   const hr=new Date().getHours();v.appendChild(el("p",{class:"ini-hola",text:(hr<14?"Buenos días":hr<21?"Buenas tardes":"Buenas noches")}));
   v.appendChild(el("p",{class:"ini-sub",text:new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})+" · pulsa un mosaico para ir directo"}));
   const a=A||{},c=C||{};const fa=hace(a.ts),fc=hace(c.ts);
-  const SC=!!window.SOLO_CONSULTA;
+  const SC=!!(window.SOLO_CONSULTA||window.SIN_COLADAS);
   if(!A||(!C&&!SC))v.appendChild(el("div",{class:"ini-aviso",text:"Algunos números salen cuando alguien abre "+[!A?"Almacén":null,!C?"Coladas":null].filter(Boolean).join(" y ")+" por primera vez después de este cambio."}));
   /* --- Almacén --- */
   const AL="almacen.html?t=";
