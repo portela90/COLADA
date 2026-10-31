@@ -197,13 +197,13 @@ function cotejoGli(){const D=todosDep().filter(r=>r.dep==="gli");
   return{iv,cer,malos,albMal,lpd,dias,u};}
 function cotejoGliUI(){const R=cotejoGli();
   const filas=R.iv.slice(-8).reverse().map(x=>[fmtF(x.f)+(x.tipo==="recarga"?" · recarga"+(x.r.alb?" (alb. "+x.r.alb+")":""):" · nivel"),
-    x.tipo==="recarga"?"metió "+fmtL(x.l)+(x.r.antes!=null&&x.r.despues!=null?" · "+fmtN(x.r.antes)+" → "+fmtN(x.r.despues)+(x.albDes!=null&&Math.abs(x.albDes)>=5?" ⚠":""):""):"había "+fmtL(x.antes),
+    x.tipo==="recarga"?"metió "+(x.r.kg?fmtN(x.r.kg)+" kg ≈ ":"")+fmtL(x.l)+(x.r.antes!=null&&x.r.despues!=null?" · "+fmtN(x.r.antes)+" → "+fmtN(x.r.despues)+(x.albDes!=null&&Math.abs(x.albDes)>=5?" ⚠":""):""):"había "+fmtL(x.antes),
     x.cub?fmtL(x.cont):"sin lecturas",
     x.hasta?(x.cub&&x.esp!=null?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)"+(x.exacto?"":" aprox."):"—"):(x.queda!=null?"quedan ≈ "+fmtL(x.queda)+(R.dias!=null?" (unos "+R.dias+" días)":""):"en uso")]);
   return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Glicol · depósito"}),el("span",{class:"der sub",text:"Nave 1 + Nave 2"})]),
     el("div",{class:"bd",style:"display:grid;gap:8px"},[
       R.malos.length?el("div",{class:"banner b",text:"Desfase de más del 10 % entre el nivel del depósito y lo que marcan los contadores: revisa si hay una fuga o un contador que no marca."}):null,
-      R.albMal.length?el("div",{class:"banner w",text:R.albMal.map(x=>"Recarga del "+fmtF(x.f)+": el albarán dice "+fmtL(x.l)+" y el nivel subió "+fmtL(x.r.despues-x.r.antes)+" ("+(x.albDes>0?"+":"")+x.albDes+" %)").join(" · ")}):null,
+      R.albMal.length?el("div",{class:"banner w",text:R.albMal.map(x=>"Recarga del "+fmtF(x.f)+": el albarán dice "+(x.r.kg?fmtN(x.r.kg)+" kg ≈ ":"")+fmtL(x.l)+" y el nivel subió "+fmtL(x.r.despues-x.r.antes)+" ("+(x.albDes>0?"+":"")+x.albDes+" %)").join(" · ")}):null,
       filas.length?cTabla(["Recarga o nivel","Depósito","Marcan los contadores","Desfase"],filas,[1,2,3]):el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ninguna recarga ni ningún nivel del depósito apuntado."}),
       el("p",{class:"hint",style:"margin:0",text:"Lo gastado entre dos apuntes = nivel del depósito después del primero − nivel antes del siguiente. Para empezar exacto, apunta hoy el nivel del depósito; en cada recarga, los litros del albarán y el nivel antes y después."}),
       el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Recarga o nivel del glicol",onclick:()=>formGli()})])]);}
@@ -211,23 +211,26 @@ function cotejoGliResumen(){const R=cotejoGli(),o=[];if(R.malos.length){const m=
   if(R.albMal.length){const m=R.albMal[R.albMal.length-1];o.push({niv:"warn",t:"Glicol: en la recarga del "+fmtF(m.f)+" el nivel no sube lo que dice el albarán ("+(m.albDes>0?"+":"")+m.albDes+" %)"});}
   if(R.dias!=null&&R.dias<7)o.push({niv:"warn",t:"Glicol: quedan ≈ "+fmtL(R.u.queda)+" en el depósito (unos "+R.dias+" días)"});return o;}
 /* apuntar una recarga de la cisterna o solo el nivel del depósito */
-function formGli(){const f={f:hoy(),tipo:todosDep().some(r=>r.dep==="gli")?"recarga":"nivel",l:"",antes:"",despues:"",n:"",alb:""};const box=el("div",{style:"display:grid;gap:10px"});
+function formGli(){const f={f:hoy(),tipo:todosDep().some(r=>r.dep==="gli")?"recarga":"nivel",kg:"",dens:String(cfgCot("gli").dens).replace(".",","),antes:"",despues:"",n:"",alb:""};const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";
     box.appendChild(el("div",{class:"seg",role:"group"},[["recarga","Recarga de cisterna"],["nivel","Solo apunto el nivel"]].map(([t,x])=>{const b=el("button",{type:"button","aria-pressed":String(f.tipo===t),text:x});b.onclick=()=>{f.tipo=t;pinta();};return b;})));
     box.appendChild(fld("Fecha",inp("glF",f.f,v=>f.f=v,{type:"date",max:hoy()})));
-    if(f.tipo==="recarga"){box.appendChild(el("div",{class:"row"},[fld("Litros del albarán",inp("glL",f.l,v=>f.l=v,{inputmode:"decimal",class:"num",autocomplete:"off"})),fld("Nº de albarán",inp("glAlb",f.alb,v=>f.alb=v,{autocomplete:"off"}))]));
+    if(f.tipo==="recarga"){const eq=el("div",{class:"sub",style:"min-height:18px"});const calc=()=>{const k=parseN(f.kg),d=parseN(f.dens);eq.textContent=k>0&&d>0.5&&d<2?"≈ "+fmtL(k/d):"";};
+      box.appendChild(el("div",{class:"row"},[fld("Kg del albarán",el("div",{style:"display:grid;gap:2px"},[inp("glKg",f.kg,v=>{f.kg=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off"}),eq])),fld("Nº de albarán",inp("glAlb",f.alb,v=>f.alb=v,{autocomplete:"off"}))]));
+      box.appendChild(fld("Densidad del glicol (kg por litro, la del albarán o la ficha técnica)",inp("glDens",f.dens,v=>{f.dens=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off"})));calc();
       box.appendChild(el("div",{class:"row"},[fld("Nivel antes (l)",inp("glA",f.antes,v=>f.antes=v,{inputmode:"decimal",class:"num",autocomplete:"off"})),fld("Nivel después (l)",inp("glD",f.despues,v=>f.despues=v,{inputmode:"decimal",class:"num",autocomplete:"off"}))]));
       box.appendChild(el("p",{class:"hint",style:"margin:0",text:"El nivel antes de que empiece a descargar la cisterna y el nivel cuando termina, en litros, como lo marca el indicador del depósito."}));}
     else{box.appendChild(fld("Nivel del depósito (l)",inp("glN",f.n,v=>f.n=v,{inputmode:"decimal",class:"num",autocomplete:"off"})));
       box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Apúntalo el mismo día que lees los contadores. El primer día sirve de punto de partida."}));}
     const D=todosDep().filter(r=>r.dep==="gli").slice(-5).reverse();
-    if(D.length)box.appendChild(el("div",{},[el("div",{class:"sub",text:"Últimos apuntes"}),el("div",{class:"lst"},D.map(r=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(r.f)+" · "+(r.tipo==="recarga"?"recarga "+fmtL(+r.l||0):"nivel "+fmtL(+r.n||0))}),
+    if(D.length)box.appendChild(el("div",{},[el("div",{class:"sub",text:"Últimos apuntes"}),el("div",{class:"lst"},D.map(r=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(r.f)+" · "+(r.tipo==="recarga"?"recarga "+(r.kg?fmtN(r.kg)+" kg ≈ ":"")+fmtL(+r.l||0):"nivel "+fmtL(+r.n||0))}),
       el("div",{class:"t2",text:r.tipo==="recarga"?[r.antes!=null&&r.despues!=null?"nivel "+fmtN(r.antes)+" → "+fmtN(r.despues):null,r.alb?"alb. "+r.alb:null,r.por].filter(Boolean).join(" · "):r.por||""})]),
       el("button",{type:"button",class:"btn sec peq",text:"Quitar",onclick:()=>confirmar("¿Quitar este apunte del glicol?",fmtF(r.f),"Quitar",async()=>{try{await quitaDep(r);toast("Quitado");cerrarDlgs();formGli();}catch(e){toast("No se pudo quitar");}})})])))]));};
   pinta();
   dlg("Glicol: recarga o nivel del depósito",[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const n=v=>{const t=String(v==null?"":v).trim();if(t==="")return null;const x=parseN(t);return isFinite(x)&&x>=0?x:NaN;};
-    let rec;if(f.tipo==="recarga"){const l=n(f.l),a=n(f.antes),d=n(f.despues);if(!(l>0)){toast("Pon los litros del albarán");return false;}if(Number.isNaN(a)||Number.isNaN(d)){toast("Nivel no válido");return false;}
-      if(a!=null&&d!=null&&d<a){toast("El nivel después tiene que ser mayor que el de antes");return false;}rec={f:f.f,dep:"gli",tipo:"recarga",l,antes:a,despues:d,alb:String(f.alb||"").trim()||null};}
+    let rec;if(f.tipo==="recarga"){const kg=n(f.kg),dn=n(f.dens),a=n(f.antes),d=n(f.despues);if(!(kg>0)){toast("Pon los kg del albarán");return false;}if(!(dn>0.5&&dn<2)){toast("Densidad no válida");return false;}const l=Math.round(kg/dn*10)/10;if(Number.isNaN(a)||Number.isNaN(d)){toast("Nivel no válido");return false;}
+      if(a!=null&&d!=null&&d<a){toast("El nivel después tiene que ser mayor que el de antes");return false;}rec={f:f.f,dep:"gli",tipo:"recarga",kg,dens:dn,l,antes:a,despues:d,alb:String(f.alb||"").trim()||null};
+      if(dn!==cfgCot("gli").dens){cat.contCfg=Object.assign({},cat.contCfg||{},{gli:Object.assign({},(cat.contCfg||{}).gli||{},{dens:dn})});try{await saveCat();}catch(e){}}}
     else{const x=n(f.n);if(x==null||Number.isNaN(x)){toast("Pon el nivel del depósito");return false;}rec={f:f.f,dep:"gli",tipo:"nivel",n:x};}
     try{await guardaLect(rec,null);}catch(e){toast("No se pudo guardar");return false;}toast("Apuntado");render(true);}}]);}
 async function quitaDep(r){const y=r.y||r.f.slice(0,4);if(db.itemsDelId){await db.itemsDelId("cont",y,[r.id]);return;}const r0=db.doc("cont/"+y),s0=await r0.get();if(s0.exists)await r0.set({items:(s0.data().items||[]).filter(x=>x.id!==r.id)});}
