@@ -31,7 +31,7 @@ function vCat(v){
   {const I=(cat.ideas||[]).slice().reverse();if(I.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ideas para la app ("+(n=>n+(n===1?" pendiente":" pendientes"))(I.filter(x=>!x.hecha).length)+")"})]),
     el("div",{class:"lst"},I.map(x=>el("label",{class:"it",style:"cursor:pointer;gap:10px"},[el("input",{type:"checkbox",checked:!!x.hecha,style:"width:22px;height:22px;flex:none","aria-label":"Hecha",onchange:async e=>{x.hecha=e.target.checked?hoy():false;await saveCat();render(true);}}),
       el("div",{class:"ppal"},[el("div",{class:"t1",text:x.txt}),el("div",{class:"t2",text:[(SECC[x.secc]||{}).nom,fmtF(x.f),x.por,x.hecha?"hecha el "+fmtF(x.hecha):null].filter(Boolean).join(" · ")})])]))),
-    el("p",{class:"hint",style:"padding:8px 14px 12px",text:"Se apuntan desde «Más cosas» en cada pieza. Márcalas cuando estén hechas."})]));}
+    el("p",{class:"hint",style:"padding:8px 14px 12px",text:"Se apuntan desde «Añadir» en cada pieza. Márcalas cuando estén hechas."})]));}
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Copia de seguridad"})]),el("div",{class:"bd frm",style:"gap:10px"},[
     el("p",{class:"hint",text:"Descarga todo (stock, movimientos, cambios de pistón, ejes, reparaciones y catálogo) en un Excel. Hazlo una vez a la semana (además, cada noche se guarda una copia sola en tu Google Drive)."}),
     downloads?el("button",{type:"button",class:"btn",text:"Descargar copia en Excel",onclick:e=>exportarExcel(e.currentTarget)}):el("p",{class:"hint",text:"Esta vista no permite descargar archivos. "})])]));

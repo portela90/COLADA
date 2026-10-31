@@ -139,14 +139,14 @@ test('Ficha de inyectora: lo que monta lleva a cada pieza y se vuelve a la máqu
   expect(err).toEqual([]);
 });
 
-test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, listas e ideas', async ({ page }) => {
+test('Cada pieza con las mismas pestañas y «Añadir» para avisos, listas e ideas', async ({ page }) => {
   test.setTimeout(90000);
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   const mas = async () => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(200); };
   for (const p of ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones']) {
     await mas(); await page.locator('.tile .tt', { hasText: new RegExp('^' + p + '$') }).click(); await page.waitForTimeout(250);
-    for (const t of ['Cambios', 'Por máquina', 'Gasto', 'Referencias', 'Más cosas', 'Resumen']) {
+    for (const t of ['Cambios', 'Por máquina', 'Gasto', 'Referencias', 'Añadir', 'Resumen']) {
       await page.locator('.secc-tabs').getByRole('tab', { name: new RegExp('^' + t) }).click(); await page.waitForTimeout(150);
       expect(await desbordes(page), p + ' › ' + t).toEqual([]);
     }
@@ -154,7 +154,7 @@ test('Cada pieza con las mismas pestañas y «Más cosas» para añadir avisos, 
   // en Contenedores: un aviso fijo, una lista y una idea
   await mas(); await page.locator('.tile .tt', { hasText: /^Contenedores$/ }).click();
   const addExtra = async (tipo, rellena) => {
-    await page.locator('.secc-tabs').getByRole('tab', { name: /^Más cosas/ }).click();
+    await page.locator('.secc-tabs').getByRole('tab', { name: /^Añadir/ }).click();
     await page.getByRole('button', { name: '＋ Añadir' }).click();
     await page.locator('.dlg').last().locator('.it', { hasText: tipo }).click();
     const d = page.locator('.dlg').last(); await rellena(d); await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(200);

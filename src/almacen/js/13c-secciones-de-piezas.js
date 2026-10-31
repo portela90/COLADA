@@ -1,9 +1,9 @@
 /* ===== CADA PIEZA CON LAS MISMAS PESTAÑAS =====
-   Resumen (la pantalla de siempre) · Cambios · Por máquina · Gasto · Referencias · Más cosas
-   «Más cosas» sirve para ir añadiendo lo que se nos ocurra sin tocar el programa:
+   Resumen (la pantalla de siempre) · Cambios · Por máquina · Gasto · Referencias · Añadir
+   «Añadir» sirve para ir añadiendo lo que se nos ocurra sin tocar el programa:
    avisos fijos, documentos y fotos, enlaces, listas de comprobación e ideas para la app.
    Se guarda en cat.secc[pieza] = {avisos:[], docs:[], enlaces:[], listas:[]} y cat.ideas = []. */
-const SECC_T=[["res","Resumen"],["cam","Cambios"],["maq","Por máquina"],["gas","Gasto"],["ref","Referencias"],["mas","Más cosas"]];
+const SECC_T=[["res","Resumen"],["cam","Cambios"],["maq","Por máquina"],["gas","Gasto"],["ref","Referencias"],["mas","Añadir"]];
 const nomArtC=a=>a?(TEC(a.fam)?nomBT(a):a.desc):"?";
 /* consumo sin máquina apuntada: se saca de la nota («Horno H-F25: …») o, si el artículo solo está asignado a una máquina, de esa */
 function maqDeSalida(x,a){if(a&&typeof GRUPOS_Q!=="undefined"&&GRUPOS_Q.includes(grupoDe(a)))return null;/* aceites, taladrinas y jabones van por nave */const m=String(x.nota||"").match(/\bH-?([FM]\d{1,3})\b|\b([FM]\d{1,3})\b/i);if(m){const c=(m[1]||m[2]).toUpperCase(),q=cat.maquinas.find(z=>z.cod.toUpperCase()===c);if(q)return q.id;}
@@ -98,7 +98,7 @@ function vRefs(id,v){const S=SECC[id],sc=seccDe(id),R=S.refs();
     subirDoc(async d=>{sc.docs.push(d);await saveCat();toast("Guardado");render(true);},"Subir foto o documento (PDF o imagen)")].filter(Boolean))]));
   if(sc.enlaces.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Enlaces"})),el("div",{class:"lst"},sc.enlaces.map(x=>el("a",{class:"it",href:x.url,target:"_blank",rel:"noopener"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:x.t}),el("div",{class:"t2",text:x.url})])])))]));}
 
-/* ---------- Más cosas: lo que se vaya necesitando ---------- */
+/* ---------- Añadir: lo que se vaya necesitando ---------- */
 const TIPOS_X=[["aviso","Aviso fijo","Una nota que sale arriba del Resumen de "],["doc","Documento o foto","Se guarda en Referencias, junto a "],["enlace","Enlace","Una web o archivo de fuera (proveedor, manual…) para "],["lista","Lista de comprobación","Casillas para marcar, por ejemplo una revisión periódica de "],["idea","Idea para la app","Algo que te gustaría que hiciera la app con "]];
 function vExtras(id,v){const S=SECC[id],sc=seccDe(id);
   v.appendChild(el("div",{class:"card"},el("div",{class:"bd",style:"display:grid;gap:10px"},[el("p",{class:"hint",style:"margin:0",text:"Aquí vas añadiendo lo que se os ocurra para "+S.nom.toLowerCase()+" según uséis la app. Las ideas quedan apuntadas para mejorarla."}),
