@@ -626,3 +626,26 @@ test('Aceites: previsión con el gasto de los contadores, 1 GRG de reserva y pun
   expect(a.plazo).toBe(30); expect(a.min).toBe(870); expect(a.pp).toBe(1392);
   expect(err).toEqual([]);
 });
+
+test('Consultas: «qué tengo que pedir de … para noviembre / el mes que viene» calcula lo que hace falta pedir', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'rod', desc: 'Rodillo de prueba', fam: 'consumible', ud: 'ud', alms: ['gen'], min: 2, precio: '10' });
+    const h = new Date(), f = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    v.mov[k].items.push({ id: 're', f: f(31), alm: 'gen', art: 'rod', cant: 40, tipo: 'entrada' });
+    for (let i = 1; i <= 30; i++) v.mov[k].items.push({ id: 'rs' + i, f: f(i), alm: 'gen', art: 'rod', cant: 1, tipo: 'salida' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'qué tengo que pedir de rodillo de prueba para el mes que viene'); await page.waitForTimeout(400);
+  const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  // gasta ~1 al día: un mes entero + lo que queda de este + 2 de reserva − 10 que hay
+  expect(t).toMatch(/Para \w+ de Rodillo de prueba tienes que pedir \d+ ud/); expect(t).toMatch(/hay 10 y la reserva mínima es 2/);
+  await page.fill('#bdQ', 'qué tengo que pedir para el mes que viene'); await page.waitForTimeout(400);
+  const t2 = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t2).toMatch(/hay que pedir \d+ artículos?/); expect(t2).toContain('Rodillo de prueba'); expect(t2).toContain('Copiar la lista para compras');
+  await page.fill('#bdQ', 'que tengo que pedir de pistones de 80 para noviembre'); await page.waitForTimeout(400);
+  const t3 = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t3).toMatch(/qué hay que pedir/); expect(t3).toMatch(/Pistón Ø 80|No hay consumo/); expect(t3).not.toMatch(/No he encontrado/);
+  expect(err).toEqual([]);
+});

@@ -6,7 +6,20 @@ function almsQ(q){const C=cat.almacenes||[];let m=q.match(/\b(?:en|de) (?:la )?n
   m=q.match(/\b(?:en|del?) (?:el )?almacen (?:de )?([a-z0-9 ]+?)(?:\s+(?:de|del|que|hay|tengo|tenemos)\b|$)/)||q.match(/\ben (?:el )?(general|produccion\s*n?\s*(?:1a|1b|2)|consumibles(?: n1)?|baldas)\b/);
   if(m){const w=nq(m[1]).split(" ").filter(x=>x&&!QSTOP.has(x));const L=C.filter(a=>w.length&&w.every(t=>reQ(raiz(t)).test(" "+nq(a.nom)+" ")));return L.length?{L,t:L.length===1?L[0].nom:L.map(a=>a.nom).join(", ")}:null;}
   return null;}
+/* periodos que vienen: «para noviembre», «el mes que viene», «las próximas 3 semanas», «lo que queda de mes/año» */
+function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini=(yy,mm)=>yy+"-"+String(mm).padStart(2,"0")+"-01",fin=(yy,mm)=>{const d=new Date(yy,mm,0);return yy+"-"+String(mm).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};let m;
+  if(/\b(el )?mes que viene\b|\b(el )?(proximo|siguiente) mes\b/.test(q)){const yy=mo===12?y+1:y,mm=mo===12?1:mo+1;return{d:ini(yy,mm),h:fin(yy,mm),t:cap(MESES_Q[mm-1])+(yy!==y?" "+yy:""),re:/\b(el )?mes que viene\b|\b(el )?(proximo|siguiente) mes\b/};}
+  if((m=q.match(/\b(?:las |los )?(?:proxim[oa]s|siguientes) (\d+) (dias?|semanas?|meses|mes)\b/))){const n=+m[1],u=m[2][0];return{d:hy,h:sumaDias(hy,u==="d"?n:u==="s"?n*7:n*30),t:"los próximos "+n+" "+(u==="d"?"días":u==="s"?"semanas":"meses"),re:/\b(las |los )?(proxim[oa]s|siguientes) \d+ (dias?|semanas?|meses|mes)\b/};}
+  if(/\b(la )?(semana que viene|proxima semana|siguiente semana)\b/.test(q)){const w=(new Date(hy+"T12:00:00").getDay()+6)%7,d=sumaDias(hy,7-w);return{d,h:sumaDias(d,6),t:"la semana que viene",re:/\b(la )?(semana que viene|proxima semana|siguiente semana)\b/};}
+  if(/\b(lo que queda de|resto del?|hasta (el )?fin(al)? de) (este )?mes\b|\bfin de mes\b/.test(q))return{d:hy,h:fin(y,mo),t:"lo que queda de mes",re:/\b(lo que queda de|resto del?|hasta (el )?fin(al)? de) (este )?mes\b|\bfin de mes\b/};
+  if(/\b(lo que queda de|resto del?|hasta (el )?fin(al)? de) (este )?ano\b|\bfin de ano\b/.test(q))return{d:hy,h:y+"-12-31",t:"lo que queda de año",re:/\b(lo que queda de|resto del?|hasta (el )?fin(al)? de) (este )?ano\b|\bfin de ano\b/};
+  if(/\b(el )?ano que viene\b|\b(el )?proximo ano\b/.test(q))return{d:(y+1)+"-01-01",h:(y+1)+"-12-31",t:"el año "+(y+1),re:/\b(el )?ano que viene\b|\b(el )?proximo ano\b/};
+  const mi=MESES_Q.findIndex(x=>new RegExp("\\b"+x+"\\b").test(q));
+  if(mi>=0){const ya=q.match(/\b(20\d\d)\b/);const yy=ya?+ya[1]:(mi+1<mo?y+1:y);if(yy<y||(yy===y&&mi+1<mo))return null;const d=yy===y&&mi+1===mo?hy:ini(yy,mi+1);
+    return{d,h:fin(yy,mi+1),t:cap(MESES_Q[mi])+(yy!==y?" "+yy:""),re:new RegExp("\\b(en |de |para )?"+MESES_Q[mi]+"( de)?( 20\\d\\d)?\\b")};}
+  return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\b(que|cuanto|cuantos|cuantas) (tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace falta|haria falta|habria) (que )?(pedir|comprar|traer)\b|\bque (necesito|necesitamos|hace falta|me hace falta|nos hace falta) (pedir |comprar )?(de|para)\b|\b(pedido|compras?) (de|para)\b/.test(q)){const P=periodoFutA(q);if(P)return M("pedirpara",{per:P});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
   {const A=almsQ(q);if(A&&!QCO.test(q)&&!/\b(ultim|primer|cuando|quien)\b/.test(q)&&(!/\b(hornos?|maquinas?|inyectoras?|ejes?|modelos?|contenedor(es)?|moldes?)\b/.test(q)||/\b(recambios?|repuestos?|piezas?) de hornos?\b/.test(q)))return M("stockalm",{alms:A.L,almT:A.t});}
   if(/\bpresupuesto\b|\bcuanto (cuesta|costaria|costarian|vale|valdria|valdrian|sale|saldria)n? (un pedido|pedir|comprar|traer)\b|\bcuanto (cuestan|costarian|valen|valdrian) \d+/.test(q))return M("presupuesto");
@@ -166,6 +179,34 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     const G={};L.forEach(e=>{const g=G[e.fam]=G[e.fam]||{n:0,c:0,ud:e.ud};g.n++;g.c+=e.cant;});
     frase(cap(L[0].quien)+" ha apuntado "+L.length+(L.length===1?" cosa":" cosas")+" en "+per.t+": "+Object.entries(G).map(([k,g])=>g.n+" "+k.toLowerCase()).join(", ")+".");
     lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,80).map(e=>it(e.ref,[fmtF(e.f)+" · "+e.fam,mqEv(e)?mqEv(e).cod:e.nave||null],fmtN(e.cant),e.ud,e.ir||null)));return;}
+
+  if(I.modo==="pedirpara"){const per=I.per,S0=prevDatos(),pc=prevCfg();
+    const q2=" "+q.replace(per.re," ").replace(/\b(que|cuanto|cuantos|cuantas|tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace|haria|falta|habria|pedir|comprar|traer|pedido|compras?|para|todo|todos|todas|con|y|me|nos|el|la|los|las|de|del|mes|semana|ano)\b/g," ")+" ";
+    const S=artsQ(q2.replace(/\s+/g," ").trim()),todo=!S.fam&&!S.ign.length&&S.L.length===artsActivos().filter(a=>a.fam!=="eje").length;
+    const dA=Math.max(0,dias(h,per.d)),dP=dias(per.d>h?per.d:h,per.h)+1;
+    const F1={};todosMov().forEach(m=>{if(m.f&&(!F1[m.art]||m.f<F1[m.art]))F1[m.art]=m.f;});
+    /* ritmo de los últimos 6 meses, contando desde que existe el artículo (si es nuevo, no se diluye) */
+    const R=S.L.map(a=>{const PA=typeof PREV_AC!=="undefined"?PREV_AC[a.id]:null,s0=S0.art[a.id];const i0=S0.ini&&F1[a.id]&&F1[a.id]>S0.ini?F1[a.id]:S0.ini;
+      const r=PA&&PA.porCont?consDia(a):(s0?s0.tot/Math.max(1,dias(i0,h)+1):consDia(a));
+      const st=stockDe(a.id),pend=a.pedido?(+a.pedCant||0):0,mn=+a.min||0,antes=r*dA,gasto=r*dP,need=antes+gasto+mn-st-pend;
+      let ped=0,env=null;if(need>0){if(PA){ped=Math.ceil(need/PA.grg-1e-9)*PA.grg;env=Math.round(ped/PA.grg)+" GRG";}else if(a.peso>0){const n=Math.ceil(need/a.peso-1e-9);ped=n*a.peso;env=n+" "+(a.envase||"envase").toLowerCase()+(n===1?"":"s");}else ped=redU(need,CONTABLE(a));}
+      const pl=plazoArt(a)||pc.plazo,tMin=r>0?(st+pend-mn)/r:Infinity,dPed=Math.floor(Math.min(tMin,dA)-pl);
+      return{a,r,st,pend,mn,antes,gasto,ped,env,pl,dPed,eu:ped*precioDe(a),queda:st+pend-antes};}).filter(x=>x.r>0||x.ped>0);
+    const Pd=R.filter(x=>x.ped>0).sort((a,b)=>a.dPed-b.dPed),ud=x=>x.a.ud||"ud",n1=x=>fmtN(Math.round(x*10)/10);
+    const cuando=x=>x.a.pedido?"ya hay un pedido en curso":x.dPed<=0?"hay que pedirlo ya":"pídelo antes del "+fmtF(sumaDias(h,x.dPed))+" (tarda "+x.pl+" días)";
+    ent("qué hay que pedir",[per.t]);ign(S.ign);
+    if(!R.length){frase("No hay consumo de eso para calcular lo que hará falta en "+per.t.toLowerCase()+".");return;}
+    const tot=Pd.reduce((t,x)=>t+x.eu,0);
+    if(R.length===1){const x=R[0];frase(x.ped>0?"Para "+per.t.toLowerCase()+" de "+nomArt(x.a)+" tienes que pedir "+n1(x.ped)+" "+ud(x)+(x.env?" ("+x.env+")":"")+": se gastarán unos "+n1(x.gasto)+" en "+per.t.toLowerCase()+(x.antes>0.05?" y "+n1(x.antes)+" de aquí a entonces":"")+"; hay "+n1(x.st)+(x.pend?" y "+n1(x.pend)+" pedidos":"")+(x.mn?" y la reserva mínima es "+n1(x.mn):"")+". "+cap(cuando(x))+"."+(x.eu?" Unos "+eur(x.eu)+".":"")
+      :"Para "+per.t.toLowerCase()+" no hace falta pedir "+nomArt(x.a)+": hay "+n1(x.st)+(x.pend?" (+"+n1(x.pend)+" pedidos)":"")+" y se gastarán unos "+n1(x.antes+x.gasto)+" hasta final de "+per.t.toLowerCase()+(x.mn?", sin bajar de la reserva ("+n1(x.mn)+")":"")+".");}
+    else frase(Pd.length?"Para "+per.t.toLowerCase()+" hay que pedir "+Pd.length+(Pd.length===1?" artículo":" artículos")+(tot?", unos "+eur(tot):"")+(Pd.some(x=>x.dPed<=0&&!x.a.pedido)?". "+Pd.filter(x=>x.dPed<=0&&!x.a.pedido).length+" hay que pedirlos ya.":".")+(R.length>Pd.length?" Con lo demás ("+(R.length-Pd.length)+") llega lo que hay.":""):"Para "+per.t.toLowerCase()+" no hace falta pedir nada: con lo que hay llega.");
+    if(Pd.length){const porP={};Pd.forEach(x=>{const p=provN(x.a.prov)||"Sin proveedor";(porP[p]=porP[p]||[]).push(x);});
+      Object.entries(porP).forEach(([p,xs])=>lista(p,xs.map(x=>it(nomArt(x.a),["Gasto previsto en "+per.t.toLowerCase()+": "+n1(x.gasto)+(x.antes>0.05?" (+"+n1(x.antes)+" antes)":"")+" · hay "+n1(x.st)+(x.pend?" + "+n1(x.pend)+" pedidos":"")+(x.mn?" · reserva "+n1(x.mn):""),cap(cuando(x))+(x.eu?" · "+eur(x.eu):"")],n1(x.ped),x.env||ud(x),()=>ficha(x.a),x.dPed<=0&&!x.a.pedido?"bad":"warn")),xs.length+(xs.length===1?" artículo":" artículos")));
+      copiar("Copiar la lista para compras",["PEDIDO PARA "+per.t.toUpperCase()+" ("+fmtF(h)+")"].concat(...Object.entries(porP).map(([p,xs])=>["",p.toUpperCase()].concat(xs.map(x=>"- "+nomArt(x.a)+(x.a.cod?" ("+x.a.cod+")":"")+": "+n1(x.ped)+" "+ud(x)+(x.env?" ("+x.env+")":""))))).concat(tot?["","Importe aproximado: "+eur(tot)]:[]).join("\n"));}
+    if(R.length>1&&R.length>Pd.length&&R.length-Pd.length<=40)lista("Con lo que hay llega",R.filter(x=>!(x.ped>0)).map(x=>it(nomArt(x.a),"Se gastarán unos "+n1(x.antes+x.gasto)+" · hay "+n1(x.st)+(x.pend?" + "+n1(x.pend)+" pedidos":""),n1(x.queda-x.gasto),"quedarán",()=>ficha(x.a),"ok")));
+    if(todo){const E=sugEjes(pc,S0).L.filter(x=>x.lam>0);if(E.length){const ex=E.map(x=>({x,n:x.lam*dP})).filter(z=>z.n>=0.3||z.x.pedir>0||z.x.faltan>0).sort((a,b)=>b.n-a.n);
+      if(ex.length)lista("Ejes",ex.map(z=>it(z.x.G.map(m=>m.ref).join(" / "),["Reparaciones esperadas en "+per.t.toLowerCase()+": "+fmtN(Math.round(z.n*10)/10)+" · en planta "+z.x.pl+" / mínimo "+z.x.min,z.x.pedir?"Pide al taller que traigan "+z.x.pedir:z.x.faltan?"Faltan "+z.x.faltan+" ejes nuevos":null],fmtN(Math.round(z.n*10)/10),"rep.",()=>fichaModelo(z.x.m),z.x.bajo?"bad":"ok")),"según las reparaciones del último año");}}
+    nota("Cantidad = lo que se gastará hasta final de "+per.t.toLowerCase()+" + la reserva mínima − lo que hay − lo ya pedido. Gasto al ritmo de los últimos 6 meses (los aceites, con sus contadores cuando haya 2 semanas de lecturas). Se redondea a GRG o envases enteros.");return;}
 
   if(I.modo==="pedirsemana"){const PT=prevTodo(),SA={};PT.arts.forEach(x=>{SA[x.a.id]=x;});
     const L=artsActivos().filter(a=>a.fam!=="eje"&&!a.pedido).map(a=>{const c=consDia(a),st=stockDe(a.id),pp=puntoPedido(a),dp=c>0?(st-pp)/c:null,x=SA[a.id];const cont=CONTABLE(a);
