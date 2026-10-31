@@ -574,3 +574,30 @@ test('Ficha de inyectora: datos de la placa del horno y su apartado en Ahora y D
   await expect(page.locator('body')).toContainText('Westofen 600');
   expect(err).toEqual([]);
 });
+
+test('Glicol: el depósito se coteja con los contadores de las dos naves y con el albarán de la cisterna', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const h = new Date(), f = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    v.cont = { [String(h.getFullYear())]: { items: [
+      { id: 'a1', f: f(20), nave: 'Nave 1', c: { gli: 0 }, ts: 1 }, { id: 'b1', f: f(20), nave: 'Nave 2', c: { gli: 0 }, ts: 2 },
+      { id: 'a2', f: f(5), nave: 'Nave 1', c: { gli: 300 }, ts: 3 }, { id: 'b2', f: f(5), nave: 'Nave 2', c: { gli: 500 }, ts: 4 },
+      { id: 'a3', f: f(1), nave: 'Nave 1', c: { gli: 380 }, ts: 5 }, { id: 'b3', f: f(1), nave: 'Nave 2', c: { gli: 520 }, ts: 6 },
+      { id: 'd1', f: f(20), dep: 'gli', tipo: 'nivel', n: 2000, ts: 7 }, { id: 'd2', f: f(5), dep: 'gli', tipo: 'recarga', l: 900, antes: 1150, despues: 2000, alb: 'C-77', ts: 8 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#view')).toContainText('el nivel no sube lo que dice el albarán');
+  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
+  // 2000 − 1150 = 850 l; los contadores de las dos naves marcan 300 + 500 = 800 → -50 l
+  expect(t).toMatch(/Glicol · depósito/); expect(t).toMatch(/-50 l \(-6 %\)/); expect(t).toMatch(/quedan ≈ 1900 l/); expect(t).toMatch(/el albarán dice 900 l y el nivel subió 850 l/);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('button', { hasText: 'Recarga de glicol' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await d.locator('#glL').fill('1000'); await d.locator('#glA').fill('900'); await d.locator('#glD').fill('1880');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const its = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items).filter(x => x.dep === 'gli'));
+  expect(its.length).toBe(3); expect(its[2]).toMatchObject({ tipo: 'recarga', l: 1000, antes: 900, despues: 1880 });
+  expect(err).toEqual([]);
+});

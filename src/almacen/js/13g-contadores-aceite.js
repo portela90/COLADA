@@ -4,9 +4,12 @@
    Guardado en la colección «cont» (un documento por año, items {id,f,nave,c:{e220,ter,pre,i46,gli},grg:{k:{ab}},por,ts}). No toca el stock. */
 const CONT=[["e220","Engrase 220"],["ter","Térmico"],["pre","Prensa"],["i46","ISO 46"],["gli","Glicol"]];
 const NAVES_CT=["Nave 1","Nave 2"];
+const CONT_GRG=CONT.filter(c=>c[0]!=="gli");
 let contAnos={};
-function todasLect(){const o=[];Object.keys(contAnos).forEach(y=>(contAnos[y]||[]).forEach(r=>o.push(Object.assign({y},r))));return o.sort((a,b)=>(a.f+String(a.ts||0).padStart(15,"0")).localeCompare(b.f+String(b.ts||0).padStart(15,"0")));}
+function todasLect(){const o=[];Object.keys(contAnos).forEach(y=>(contAnos[y]||[]).forEach(r=>{if(!r.dep)o.push(Object.assign({y},r));}));return o.sort((a,b)=>(a.f+String(a.ts||0).padStart(15,"0")).localeCompare(b.f+String(b.ts||0).padStart(15,"0")));}
 const lectDe=n=>todasLect().filter(r=>r.nave===n);
+/* depósito de glicol (uno para las dos naves, lo recarga una cisterna): items {id,f,dep:"gli",tipo:"recarga"|"nivel",l,antes,despues,n,alb,nota,ts} */
+function todosDep(){const o=[];Object.keys(contAnos).forEach(y=>(contAnos[y]||[]).forEach(r=>{if(r.dep)o.push(Object.assign({y},r));}));return o.sort((a,b)=>(a.f+String(a.ts||0).padStart(15,"0")).localeCompare(b.f+String(b.ts||0).padStart(15,"0")));}
 /* tramos entre dos lecturas seguidas de un contador: litros, días laborables y litros por día */
 function tramos(n,k){const L=lectDe(n).filter(r=>r.c&&typeof r.c[k]==="number");const out=[];
   for(let i=1;i<L.length;i++){const a=L[i-1],b=L[i],dif=Math.round((b.c[k]-a.c[k])*10)/10,lab=Math.max(1,laborables(a.f,b.f));out.push({n,k,f0:a.f,f:b.f,dif,lab,lpd:dif/lab,por:b.por||"",r:b});}
@@ -42,13 +45,13 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
     /* GRG: cambio del de arriba (nivel del de abajo) o solo apuntar cuánto hay (arriba y abajo), p. ej. el primer día */
     if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{const g=esta.grg[k];f.g[k]={m:g.ar!=null?"n":"c",ab:String(g.ab).replace(".",","),ar:g.ar!=null?String(g.ar).replace(".",","):""};});f.gcarg=true;}
     f.g=f.g||{};const gb=el("div",{class:"card",style:"padding:10px 12px;display:grid;gap:8px"});
-    const sinNivel=CONT.filter(([k])=>!notasGRG(k).some(x=>x.nave===f.nave));
+    const sinNivel=CONT_GRG.filter(([k])=>!notasGRG(k).some(x=>x.nave===f.nave));
     gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"GRG: ¿se ha cambiado alguno o quieres apuntar cuánto hay?"}));
     if(sinNivel.length&&!Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Primera vez: toca cada aceite, elige «Solo apunto el nivel» y pon lo que hay arriba y abajo. Así el cotejo es exacto desde hoy."}));
-    gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]={m:sinNivel.some(c=>c[0]===k)?"n":"c",ab:"",ar:""};pinta();}}))));
+    gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT_GRG.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]={m:sinNivel.some(c=>c[0]===k)?"n":"c",ab:"",ar:""};pinta();}}))));
     const nivel=(k,campo,lab,cap)=>{const g=f.g[k];const i=inp("ctG"+campo+k,g[campo],v=>{g[campo]=v;},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"litros"});
       return fld(lab,el("div",{style:"display:grid;gap:6px"},[i,el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},[["Lleno",1],["¾",.75],["½",.5],["¼",.25]].concat(campo==="ar"?[["Vacío",0]]:[]).map(([t,x])=>el("button",{type:"button",class:"chip",text:t,onclick:()=>{g[campo]=String(Math.round(cap*x));i.value=g[campo];}})))]));};
-    CONT.filter(([k])=>f.g[k]!=null).forEach(([k,nom])=>{const cap=cfgCot(k).cap,g=f.g[k];
+    CONT_GRG.filter(([k])=>f.g[k]!=null).forEach(([k,nom])=>{const cap=cfgCot(k).cap,g=f.g[k];
       const w=el("div",{style:"display:grid;gap:8px;border-top:1px solid var(--line);padding-top:8px"},[el("div",{class:"sub",style:"font-weight:600",text:nom}),
         el("div",{class:"seg",role:"group"},[["c","Se ha cambiado"],["n","Solo apunto el nivel"]].map(([m,t])=>{const b=el("button",{type:"button","aria-pressed":String(g.m===m),text:t});b.onclick=()=>{g.m=m;pinta();};return b;}))]);
       if(g.m==="n")w.appendChild(nivel(k,"ar","GRG de arriba",cap));
@@ -76,7 +79,7 @@ function cardContadores(){const h=hoy(),m0=h.slice(0,7)+"-01",falta=faltaLectHoy
       falta.length?el("div",{class:"banner w",text:"Falta la lectura de hoy de "+falta.join(" y ")+"."}):null,
       R.length?el("div",{class:"banner b",text:"Consumo raro: "+R.map(t=>nomCont(t.k)+" "+t.n+" el "+fmtF(t.f)+" ("+(t.raro==="baja"?"el contador marca menos que antes":fmtL(t.lpd)+"/día, lo normal "+fmtL(t.normal)+"/día")+")").join(" · ")}):null,
       (()=>{const CR=cotejoResumen();return CR.length?el("div",{class:"banner "+(CR.some(x=>x.niv==="bad")?"b":"w"),text:CR.map(x=>x.t).join(" · ")}):null;})(),
-      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),el("button",{type:"button",class:"btn sec",text:"Cotejo con los cambios",onclick:()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])})]),
+      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),el("button",{type:"button",class:"btn sec",text:"Cotejo con los cambios",onclick:()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])}),el("button",{type:"button",class:"btn sec",text:"Recarga de glicol",onclick:()=>formGli()})]),
       cTabla(["Nave","Contador","Última lectura","Último consumo","Este mes",""],filas,[2,3,4])])]);}
 
 /* informe: litros por día y por mes, por nave y contador */
@@ -144,7 +147,7 @@ function cotejo(k){const C=cfgCot(k);const N=notasGRG(k),usada=new Set();
   const acuMal=acu&&Math.abs(acu.pct)>=10&&(acu.exacto||acu.n>=5);
   return{C,cambios:cam,iv,acu,malos,acuMal,sueltas};}
 function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
-  CONT.forEach(([k,nom])=>{const R=cotejo(k);const a=R.C.art?art(R.C.art):null;
+  CONT_GRG.forEach(([k,nom])=>{const R=cotejo(k);const a=R.C.art?art(R.C.art):null;
     const filas=R.iv.slice(-6).reverse().map(x=>[fmtF(x.f)+(x.nave?" · "+x.nave:"")+(x.nivel?" · nivel":""),x.nivel?"arriba "+fmtL(x.ar)+" · abajo "+fmtL(x.ab):fmtN(Math.round(x.kg))+" kg ≈ "+fmtL(x.l)+(x.ab!=null?" · abajo "+fmtL(x.ab):""),x.cub?fmtL(x.cont):"sin lecturas",
       x.hasta?(x.cub?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)"+(x.exacto?"":" aprox."):"—"):(x.cub?"en uso · quedan arriba ≈ "+fmtL(x.queda):"en uso")]);
     const A=R.acu;
@@ -154,18 +157,77 @@ function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
         R.sueltas.length?el("div",{class:"banner w",text:"Hay "+R.sueltas.length+(R.sueltas.length===1?" cambio apuntado":" cambios apuntados")+" en las lecturas sin salida del almacén ("+R.sueltas.map(x=>fmtF(x.f)+" "+x.nave).join(", ")+"): falta apuntar el GRG en el almacén."}):null,
         filas.length?cTabla(["Cambio o nivel","Había","Marcan los contadores","Desfase"],filas,[1,2,3]):null,
         A?el("p",{class:"sub",style:"margin:0",text:"Acumulado desde el "+fmtF(A.desde)+" ("+A.n+" cambios): traían "+fmtL(A.esp)+", los contadores marcan "+fmtL(A.cont)+" → "+(A.des>=0?"+":"")+fmtL(A.des)+" ("+(A.pct>0?"+":"")+A.pct+" %)"+(A.exacto?"":" · sin el nivel de abajo puede variar hasta un GRG")}):null])]));});
+  box.appendChild(cotejoGliUI());
   box.appendChild(el("p",{class:"hint",text:"Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, el primer día apunta con las lecturas el nivel de arriba y de abajo («Solo apunto el nivel»), y cada día de cambio el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
   box.appendChild(el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Ajustes del cotejo",onclick:()=>ajustesCotejo()}));
   return box;}
-function ajustesCotejo(){const val={};CONT.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",","),cap:String(c.cap)};});
+function ajustesCotejo(){const val={};CONT_GRG.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",","),cap:String(c.cap)};});
   const ops=[["","— sin unir —"]].concat(artsActivos().filter(a=>a.fam!=="eje"&&a.fam!=="piston").sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>[a.id,nomArt(a)]));
-  dlg("Ajustes del cotejo",[el("p",{class:"hint",text:"Une cada contador con el artículo que se cambia en su grifo, pon la densidad de su ficha técnica (kg por litro) y los litros que caben en el GRG. Las densidades que vienen puestas son aproximadas."})].concat(CONT.map(([k,nom])=>el("div",{class:"row"},[
+  dlg("Ajustes del cotejo",[el("p",{class:"hint",text:"Une cada contador con el artículo que se cambia en su grifo, pon la densidad de su ficha técnica (kg por litro) y los litros que caben en el GRG. Las densidades que vienen puestas son aproximadas."})].concat(CONT_GRG.map(([k,nom])=>el("div",{class:"row"},[
     fld(nom,sel("cfA"+k,ops,val[k].art,v=>val[k].art=v)),fld("kg/l",inp("cfD"+k,val[k].dens,v=>val[k].dens=v,{inputmode:"decimal",class:"num"})),fld("GRG (l)",inp("cfC"+k,val[k].cap,v=>val[k].cap=v,{inputmode:"numeric",class:"num"}))]))),
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const o={};for(const [k,nom] of CONT){const d=parseN(val[k].dens),c=parseN(val[k].cap);if(!(d>0.5&&d<2)){toast("Densidad no válida en "+nom);return false;}if(!(c>=50&&c<=5000)){toast("Litros del GRG no válidos en "+nom);return false;}o[k]={art:val[k].art||null,dens:d,cap:c};}
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const o=Object.assign({},cat.contCfg||{});for(const [k,nom] of CONT_GRG){const d=parseN(val[k].dens),c=parseN(val[k].cap);if(!(d>0.5&&d<2)){toast("Densidad no válida en "+nom);return false;}if(!(c>=50&&c<=5000)){toast("Litros del GRG no válidos en "+nom);return false;}o[k]={art:val[k].art||null,dens:d,cap:c};}
       cat.contCfg=o;try{await saveCat();}catch(e){return false;}toast("Ajustes guardados");}}]);}
 /* resumen corto para la tarjeta: cómo va el GRG que está puesto y los desfases */
-function cotejoResumen(){const out=[];CONT.forEach(([k,nom])=>{const R=cotejo(k),u=R.iv[R.iv.length-1];if(!u)return;
+function cotejoResumen(){const out=[];cotejoGliResumen().forEach(x=>out.push(x));CONT_GRG.forEach(([k,nom])=>{const R=cotejo(k),u=R.iv[R.iv.length-1];if(!u)return;
   if(R.malos.length){const m=R.malos[R.malos.length-1];out.push({niv:"bad",t:nom+": desfase de "+(m.pct>0?"+":"")+m.pct+" % en el cambio del "+fmtF(m.f)});}
   else if(R.acuMal)out.push({niv:"bad",t:nom+": desde el "+fmtF(R.acu.desde)+" los contadores se desvían un "+(R.acu.pct>0?"+":"")+R.acu.pct+" % de lo que traían los GRG"});
   else if(u.cub&&!u.hasta&&u.l>0&&u.queda/u.l<0.15)out.push({niv:"warn",t:nom+": al GRG de arriba del "+fmtF(u.f)+" le quedan ≈ "+fmtL(u.queda)});
   if(R.sueltas.length&&R.C.art)out.push({niv:"warn",t:nom+": cambio de GRG apuntado el "+fmtF(R.sueltas[R.sueltas.length-1].f)+" sin salida en el almacén"});});return out;}
+
+/* ===== GLICOL: depósito grande para las dos naves; una cisterna lo recarga (más o menos una vez al mes) =====
+   Lo gastado entre dos apuntes = nivel después del primero − nivel antes del siguiente; tiene que ser lo que marcan los contadores de glicol de Nave 1 + Nave 2.
+   Además se compara lo que dice el albarán de la cisterna con lo que sube el nivel. */
+function cotejoGli(){const D=todosDep().filter(r=>r.dep==="gli");
+  const ev=D.map(r=>r.tipo==="nivel"?{r,f:r.f,tipo:"nivel",antes:r.n,desp:r.n}:{r,f:r.f,tipo:"recarga",l:+r.l||0,antes:r.antes!=null?r.antes:null,desp:r.despues!=null?r.despues:(r.antes!=null?r.antes+(+r.l||0):null)});
+  const conL=NAVES_CT.filter(nv=>lectDe(nv).some(x=>x.c&&typeof x.c.gli==="number"));
+  const lit=(d0,d1)=>{let s=0,cub=conL.length>0;conL.forEach(nv=>{const L=lectDe(nv).filter(x=>typeof x.c.gli==="number");if(L[0].f>d0)cub=false;
+    tramos(nv,"gli").forEach(t=>{if(!(t.dif>0))return;const a=Math.max(msD(t.f0),msD(d0)),z=Math.min(msD(t.f),d1?msD(d1):Infinity),tot=msD(t.f)-msD(t.f0);if(z<=a||tot<=0)return;s+=t.dif*(z-a)/tot;});});return{s,cub};};
+  const iv=ev.map((e,i)=>{const sig=ev[i+1],r=lit(e.f,sig?sig.f:null);
+    const exacto=!!sig&&e.desp!=null&&sig.antes!=null;let esp=null;
+    if(sig){if(exacto)esp=e.desp-sig.antes;else if(sig.tipo==="recarga")esp=sig.l;}/* sin niveles: se supone que se recarga lo gastado */
+    const des=esp!=null?r.s-esp:null;
+    const albDes=e.tipo==="recarga"&&e.r.antes!=null&&e.r.despues!=null&&e.l?Math.round((e.r.despues-e.r.antes-e.l)/e.l*100):null;
+    return Object.assign({},e,{hasta:sig?sig.f:null,cont:r.s,cub:r.cub,esp,exacto,des,pct:esp?Math.round(des/esp*100):null,albDes,queda:sig?null:(e.desp!=null?Math.max(0,e.desp-r.s):null)});});
+  const cer=iv.filter(x=>x.hasta&&x.cub&&x.esp!=null);
+  const malos=cer.filter(x=>Math.abs(x.pct)>=10&&(x.exacto||cer.filter(y=>!y.exacto&&Math.sign(y.pct)===Math.sign(x.pct)&&Math.abs(y.pct)>=10).length>=2));
+  const albMal=iv.filter(x=>x.albDes!=null&&Math.abs(x.albDes)>=5);
+  /* días que quedan: media de los últimos 30 días de las dos naves */
+  const h=hoy(),d30=sumaDias(h,-30);let l30=0,lab=0;conL.forEach(nv=>{const T=tramos(nv,"gli").filter(t=>t.f>d30&&t.dif>=0);l30+=T.reduce((a,t)=>a+t.dif,0);});lab=Math.max(1,laborables(d30,h));
+  const lpd=l30/lab,u=iv[iv.length-1],dias=u&&u.queda!=null&&lpd>0?Math.floor(u.queda/lpd):null;
+  return{iv,cer,malos,albMal,lpd,dias,u};}
+function cotejoGliUI(){const R=cotejoGli();
+  const filas=R.iv.slice(-8).reverse().map(x=>[fmtF(x.f)+(x.tipo==="recarga"?" · recarga"+(x.r.alb?" (alb. "+x.r.alb+")":""):" · nivel"),
+    x.tipo==="recarga"?"metió "+fmtL(x.l)+(x.r.antes!=null&&x.r.despues!=null?" · "+fmtN(x.r.antes)+" → "+fmtN(x.r.despues)+(x.albDes!=null&&Math.abs(x.albDes)>=5?" ⚠":""):""):"había "+fmtL(x.antes),
+    x.cub?fmtL(x.cont):"sin lecturas",
+    x.hasta?(x.cub&&x.esp!=null?(x.des>=0?"+":"")+fmtL(x.des)+" ("+(x.pct>0?"+":"")+x.pct+" %)"+(x.exacto?"":" aprox."):"—"):(x.queda!=null?"quedan ≈ "+fmtL(x.queda)+(R.dias!=null?" (unos "+R.dias+" días)":""):"en uso")]);
+  return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Glicol · depósito"}),el("span",{class:"der sub",text:"Nave 1 + Nave 2"})]),
+    el("div",{class:"bd",style:"display:grid;gap:8px"},[
+      R.malos.length?el("div",{class:"banner b",text:"Desfase de más del 10 % entre el nivel del depósito y lo que marcan los contadores: revisa si hay una fuga o un contador que no marca."}):null,
+      R.albMal.length?el("div",{class:"banner w",text:R.albMal.map(x=>"Recarga del "+fmtF(x.f)+": el albarán dice "+fmtL(x.l)+" y el nivel subió "+fmtL(x.r.despues-x.r.antes)+" ("+(x.albDes>0?"+":"")+x.albDes+" %)").join(" · ")}):null,
+      filas.length?cTabla(["Recarga o nivel","Depósito","Marcan los contadores","Desfase"],filas,[1,2,3]):el("p",{class:"hint",style:"margin:0",text:"Todavía no hay ninguna recarga ni ningún nivel del depósito apuntado."}),
+      el("p",{class:"hint",style:"margin:0",text:"Lo gastado entre dos apuntes = nivel del depósito después del primero − nivel antes del siguiente. Para empezar exacto, apunta hoy el nivel del depósito; en cada recarga, los litros del albarán y el nivel antes y después."}),
+      el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Recarga o nivel del glicol",onclick:()=>formGli()})])]);}
+function cotejoGliResumen(){const R=cotejoGli(),o=[];if(R.malos.length){const m=R.malos[R.malos.length-1];o.push({niv:"bad",t:"Glicol: desfase de "+(m.pct>0?"+":"")+m.pct+" % entre el depósito y los contadores (desde el "+fmtF(m.f)+")"});}
+  if(R.albMal.length){const m=R.albMal[R.albMal.length-1];o.push({niv:"warn",t:"Glicol: en la recarga del "+fmtF(m.f)+" el nivel no sube lo que dice el albarán ("+(m.albDes>0?"+":"")+m.albDes+" %)"});}
+  if(R.dias!=null&&R.dias<7)o.push({niv:"warn",t:"Glicol: quedan ≈ "+fmtL(R.u.queda)+" en el depósito (unos "+R.dias+" días)"});return o;}
+/* apuntar una recarga de la cisterna o solo el nivel del depósito */
+function formGli(){const f={f:hoy(),tipo:todosDep().some(r=>r.dep==="gli")?"recarga":"nivel",l:"",antes:"",despues:"",n:"",alb:""};const box=el("div",{style:"display:grid;gap:10px"});
+  const pinta=()=>{box.textContent="";
+    box.appendChild(el("div",{class:"seg",role:"group"},[["recarga","Recarga de cisterna"],["nivel","Solo apunto el nivel"]].map(([t,x])=>{const b=el("button",{type:"button","aria-pressed":String(f.tipo===t),text:x});b.onclick=()=>{f.tipo=t;pinta();};return b;})));
+    box.appendChild(fld("Fecha",inp("glF",f.f,v=>f.f=v,{type:"date",max:hoy()})));
+    if(f.tipo==="recarga"){box.appendChild(el("div",{class:"row"},[fld("Litros del albarán",inp("glL",f.l,v=>f.l=v,{inputmode:"decimal",class:"num",autocomplete:"off"})),fld("Nº de albarán",inp("glAlb",f.alb,v=>f.alb=v,{autocomplete:"off"}))]));
+      box.appendChild(el("div",{class:"row"},[fld("Nivel antes (l)",inp("glA",f.antes,v=>f.antes=v,{inputmode:"decimal",class:"num",autocomplete:"off"})),fld("Nivel después (l)",inp("glD",f.despues,v=>f.despues=v,{inputmode:"decimal",class:"num",autocomplete:"off"}))]));
+      box.appendChild(el("p",{class:"hint",style:"margin:0",text:"El nivel antes de que empiece a descargar la cisterna y el nivel cuando termina, en litros, como lo marca el indicador del depósito."}));}
+    else{box.appendChild(fld("Nivel del depósito (l)",inp("glN",f.n,v=>f.n=v,{inputmode:"decimal",class:"num",autocomplete:"off"})));
+      box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Apúntalo el mismo día que lees los contadores. El primer día sirve de punto de partida."}));}
+    const D=todosDep().filter(r=>r.dep==="gli").slice(-5).reverse();
+    if(D.length)box.appendChild(el("div",{},[el("div",{class:"sub",text:"Últimos apuntes"}),el("div",{class:"lst"},D.map(r=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(r.f)+" · "+(r.tipo==="recarga"?"recarga "+fmtL(+r.l||0):"nivel "+fmtL(+r.n||0))}),
+      el("div",{class:"t2",text:r.tipo==="recarga"?[r.antes!=null&&r.despues!=null?"nivel "+fmtN(r.antes)+" → "+fmtN(r.despues):null,r.alb?"alb. "+r.alb:null,r.por].filter(Boolean).join(" · "):r.por||""})]),
+      el("button",{type:"button",class:"btn sec peq",text:"Quitar",onclick:()=>confirmar("¿Quitar este apunte del glicol?",fmtF(r.f),"Quitar",async()=>{try{await quitaDep(r);toast("Quitado");cerrarDlgs();formGli();}catch(e){toast("No se pudo quitar");}})})])))]));};
+  pinta();
+  dlg("Glicol: recarga o nivel del depósito",[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const n=v=>{const t=String(v==null?"":v).trim();if(t==="")return null;const x=parseN(t);return isFinite(x)&&x>=0?x:NaN;};
+    let rec;if(f.tipo==="recarga"){const l=n(f.l),a=n(f.antes),d=n(f.despues);if(!(l>0)){toast("Pon los litros del albarán");return false;}if(Number.isNaN(a)||Number.isNaN(d)){toast("Nivel no válido");return false;}
+      if(a!=null&&d!=null&&d<a){toast("El nivel después tiene que ser mayor que el de antes");return false;}rec={f:f.f,dep:"gli",tipo:"recarga",l,antes:a,despues:d,alb:String(f.alb||"").trim()||null};}
+    else{const x=n(f.n);if(x==null||Number.isNaN(x)){toast("Pon el nivel del depósito");return false;}rec={f:f.f,dep:"gli",tipo:"nivel",n:x};}
+    try{await guardaLect(rec,null);}catch(e){toast("No se pudo guardar");return false;}toast("Apuntado");render(true);}}]);}
+async function quitaDep(r){const y=r.y||r.f.slice(0,4);if(db.itemsDelId){await db.itemsDelId("cont",y,[r.id]);return;}const r0=db.doc("cont/"+y),s0=await r0.get();if(s0.exists)await r0.set({items:(s0.data().items||[]).filter(x=>x.id!==r.id)});}
