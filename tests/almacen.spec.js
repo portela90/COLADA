@@ -902,3 +902,39 @@ test('Plazos aprendidos: con dos pedidos que llegan, el artículo tiene su plazo
   await expect(page.locator('body')).toContainText(/Plazo de entrega\s*12 días \(calculado con 2 pedidos\)/);
   expect(err).toEqual([]);
 });
+
+test('Carga completa en un Excel: se descarga relleno, se completa y al subirlo se cargan artículos, proveedores, hornos y recuentos', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let c; Object.defineProperty(window, 'claude', { configurable: true, get: () => c, set: v => { c = { use: async n => n === 'downloads' ? { save: async ({ filename, data }) => { window.__dl = { filename, buf: Array.from(new Uint8Array(await data.arrayBuffer())) }; } } : v.use(n) }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Descargar Excel para rellenar' }).click();
+  await expect.poll(() => page.evaluate(() => !!window.__dl), { timeout: 15000 }).toBe(true);
+  const dl = await page.evaluate(() => window.__dl);
+  expect(dl.filename).toMatch(/^Carga_almacen_/);
+  const XLSX = require('xlsx'); const wb = XLSX.read(Buffer.from(dl.buf));
+  expect(wb.SheetNames).toEqual(['Artículos', 'Proveedores', 'Hornos', 'Modelos de eje', 'Inyectoras', 'Instrucciones']);
+  // Bea completa: precio de un pistón, un proveedor con CIF, el horno de la F25 y un recuento
+  const A = XLSX.utils.sheet_to_json(wb.Sheets['Artículos'], { defval: '' });
+  const p80 = A.find(r => r['Descripción'] === 'Pistón Ø 80'); p80['Precio (€)'] = 175; p80['Precio recuperado (€)'] = 55; p80['Cantidad contada'] = 12; p80['Almacén del recuento'] = 'Almacén general';
+  A.push({ 'ID': '', 'Descripción': 'Rodillo nuevo de prueba', 'Familia': 'Consumible', 'Unidad': 'ud', 'Stock mínimo': 3, 'Proveedor': 'Proveedor Nuevo SL' });
+  wb.Sheets['Artículos'] = XLSX.utils.json_to_sheet(A);
+  const P = XLSX.utils.sheet_to_json(wb.Sheets['Proveedores'], { defval: '' }); P[0]['CIF'] = 'B-12345678'; wb.Sheets['Proveedores'] = XLSX.utils.json_to_sheet(P);
+  const H = XLSX.utils.sheet_to_json(wb.Sheets['Hornos'], { defval: '' }); const h25 = H.find(r => r['Inyectora'] === 'F25'); h25['Marca'] = 'Striko'; h25['Energía'] = 'Gas'; h25['Fabricación (MM/AAAA)'] = '06/2018'; wb.Sheets['Hornos'] = XLSX.utils.json_to_sheet(H);
+  delete wb.Sheets['Inyectoras']; wb.SheetNames = wb.SheetNames.filter(n => n !== 'Inyectoras');
+  const out = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  await page.locator('section', { hasText: 'Carga completa en un Excel' }).locator('input[type=file]').setInputFiles({ name: 'relleno.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: out });
+  await page.waitForTimeout(1000);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('Artículos que cambian'); await expect(d).toContainText('Artículos nuevos'); await expect(d).toContainText('Recuentos de stock');
+  await d.locator('button', { hasText: 'Cargar' }).click(); await page.waitForTimeout(1000);
+  const c = await page.evaluate(() => window.__D.cat.app);
+  const a80 = c.articulos.find(a => a.id === 'pist-80'); expect(+a80.precio).toBe(175); expect(+a80.precioRec).toBe(55);
+  const nu = c.articulos.find(a => a.desc === 'Rodillo nuevo de prueba'); expect(nu.min).toBe(3); expect(c.proveedores.find(p => p.id === nu.prov).nom).toBe('Proveedor Nuevo SL');
+  expect(c.proveedores.find(p => p.id === P[0]['ID']).cif).toBe('B-12345678');
+  const m25 = c.maquinas.find(m => m.cod === 'F25'); expect(m25.hornoPlaca.marca).toBe('Striko'); expect(m25.hornoPlaca.energia).toBe('Gas'); expect(m25.hornoFab).toBe('2018-06');
+  const aj = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(x => x.art === 'pist-80' && x.tipo === 'ajuste' && /Excel/.test(x.nota || '')));
+  expect(aj.length).toBe(1); expect(aj[0].contado).toBe(12);
+  expect(err).toEqual([]);
+});

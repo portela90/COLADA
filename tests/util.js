@@ -30,6 +30,7 @@ async function vigila(page, alInternet) {
   await page.route(/^https?:/, r => {
     if (r.request().url().includes('/echarts')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(ECHARTS, 'utf8') });
     if (r.request().url().includes('/jsqr@')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/jsqr/dist/jsQR.js'), 'utf8') });
+    if (r.request().url().includes('sheetjs.com') || r.request().url().includes('/xlsx')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/xlsx/dist/xlsx.full.min.js'), 'utf8') });
     if (r.request().url().includes('/@zxing/browser')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/@zxing/browser/umd/zxing-browser.min.js'), 'utf8') });
     return (alInternet ? alInternet(r) : null) || r.abort();
   });

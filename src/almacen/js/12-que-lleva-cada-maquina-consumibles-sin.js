@@ -309,8 +309,8 @@ async function excelMaquinas(btn){if(!downloads){toast("Esta vista no permite de
     X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([["Cómo rellenarla"],["Una fila por inyectora. En cada columna escribe la opción tal cual (si son varias, separadas por comas)."],["Si escribes una opción que no existe, se crea."],["Si añades una columna nueva, se crea como campo nuevo de la ficha."],["Lo que dejes en blanco se quita de la ficha, salvo eje, pistón, barras y tornillos, que en blanco se dejan como están."],[""],["Opciones que hay:"]].concat(P.map(c=>[c.nom+": "+(c.auto?(c.auto==="eje"?"códigos de modelo de eje (p. ej. 2.3.C)":c.auto==="piston"?"80, 90 esp…":"nombre del artículo tal cual (si no existe, se crea)"):c.ops.map(o=>o.t).join(" | "))]))),"Opciones");
     await downloads.save({filename:"Fichas_inyectoras.xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}
-async function importarMaquinas(file){try{await cargarXLSX();}catch(e){toast("No se pudo cargar el lector de Excel");return;}
-  let rows;try{const X=window.XLSX;const wb=X.read(await file.arrayBuffer());rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});}catch(e){toast("No se pudo leer el archivo");return;}
+async function importarMaquinas(file,hoja){try{await cargarXLSX();}catch(e){toast("No se pudo cargar el lector de Excel");return;}
+  let rows;try{const X=window.XLSX;const wb=X.read(await file.arrayBuffer());rows=X.utils.sheet_to_json(wb.Sheets[hoja&&wb.Sheets[hoja]?hoja:wb.SheetNames[0]],{defval:""});}catch(e){toast("No se pudo leer el archivo");return;}
   const P=JSON.parse(JSON.stringify(plantilla()));const nuevasOps=[],cambios=[],autoX=[],camposNuevos=[];
   /* una columna que no es ningún campo se convierte en campo nuevo de la ficha */
   const cabs=[];rows.forEach(r=>Object.keys(r).forEach(k=>{if(!cabs.includes(k))cabs.push(k);}));

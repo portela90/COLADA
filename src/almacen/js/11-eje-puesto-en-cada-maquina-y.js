@@ -45,6 +45,7 @@ function vCat(v){
     items.length?el("div",{class:"lst"},items):el("div",{class:"empty",text:"Vacío."})]);
   const arts=cat.articulos.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)||a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
   const fi=el("input",{type:"file",id:"impFile",accept:".xlsx,.xls,.csv",style:"font-size:14px"});fi.addEventListener("change",()=>{const f=fi.files[0];fi.value="";if(f)importarExcel(f);});
+  if(!window.SOLO_CONSULTA)v.appendChild(cardCargaExcel());
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Importar artículos desde Excel"})),el("div",{class:"bd frm",style:"gap:10px"},[
     el("p",{class:"hint",text:"Para dar de alta muchos consumibles de golpe: descarga la plantilla, rellénala en el ordenador (una fila por artículo y almacén) y súbela aquí. Antes de guardar verás un resumen."}),
     downloads?el("button",{type:"button",class:"btn sec",text:"Descargar plantilla",onclick:e=>descargarPlantilla(e.currentTarget)}):null,fld("Subir Excel relleno",fi)])]));
