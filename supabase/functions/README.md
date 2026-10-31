@@ -2,6 +2,7 @@ Funciones de Supabase (copia de lo desplegado en el proyecto colada-mapri).
 
 - `leer-albaran`: recibe la foto de un albarán y, con Claude (API de Anthropic), devuelve proveedor, albarán, fecha, nave, aleación, coladas, kg y fardos. Necesita el secreto `ANTHROPIC_API_KEY` en Supabase → Edge Functions → Secrets. Opcional: `MODELO_ALBARAN` para cambiar el modelo.
 - `copia`: copia de seguridad nocturna. Devuelve todos los datos (mismo formato que «Descargar copia completa») y enlaces temporales a las fotos de los albaranes. La llama cada noche el script `supabase/copia-google-drive.gs` (Google Apps Script), que lo guarda en Google Drive. Protegida con el secreto `COPIA_TOKEN` (cabecera `x-copia-token`).
+- `leer-albaran-almacen`: botón «Leer albarán con la cámara» en Movimientos › Entrada del Almacén. Lee la foto de un albarán de compra o de recuperación de pistones (Meyusa: «RECUP. PISTONES DE Ø80 A Ø70») y devuelve proveedor, albarán, fecha y las líneas unidas a los artículos del catálogo, para revisar antes de guardar. Usa `ANTHROPIC_API_KEY`; modelo con `MODELO_ALB_ALMACEN` (si no, el de `MODELO_ALBARAN`). Solo para usuarios que pueden apuntar en el Almacén.
 - `interpretar-almacen`: pestaña «Apuntar» del Almacén. Convierte lo que se escribe o dicta (cambios de pistón, consumos, entradas, traslados, recuentos) en apuntes para revisar y guardar. Usa Claude (`ANTHROPIC_API_KEY`); modelo por defecto Haiku 4.5 (el más barato), se cambia con el secreto `MODELO_ALMACEN`.
 
 Proyecto limpieza-cie (`supabase/functions-limpieza/`):

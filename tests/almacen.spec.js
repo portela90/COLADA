@@ -821,3 +821,51 @@ test('Movimientos: modificar una entrada (pistones nuevos ↔ recuperados, canti
   expect(m.rec).toBe(true); expect(m.cant).toBe(5); expect(m.f).toBe(otra);
   expect(err).toEqual([]);
 });
+
+test('Leer albarán: recuperación de Meyusa entra como recuperados con su Ø y avisa si el albarán ya está', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    window.__ALB_MOCK = { proveedor: 'MEYUSA, S.A.', albaran: '001466A26', fecha: '2026-10-29', tipo: 'recuperacion', confianza: 'alta', lineas: [
+      { texto: 'RECUP. PISTONES ESPECIALES DE Ø100 A Ø90', cantidad: 7, desde: '100', hasta: '90', especial: true },
+      { texto: 'RECUP. PISTONES DE Ø100 A Ø90', cantidad: 1, desde: '100', hasta: '90', especial: false },
+      { texto: 'RECUP. PISTONES DE Ø80 A Ø70', cantidad: 33, desde: '80', hasta: '70', especial: false }] };
+  });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#mLeerAlb').setInputFiles({ name: 'alb.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64') });
+  await page.waitForTimeout(1200);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('Albarán de recuperación de pistones'); await expect(d).toContainText('Era Ø 80 → vuelve como Ø 70');
+  await expect(d.locator('#laA0')).toHaveValue('pist-90esp'); await expect(d.locator('#laA2')).toHaveValue('pist-70');
+  await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(900);
+  const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(x => x.alb === '001466A26'));
+  expect(m.length).toBe(3); expect(m.every(x => x.rec === true)).toBe(true); expect(m.find(x => x.art === 'pist-70').cant).toBe(33);
+  expect(m.find(x => x.art === 'pist-70').nota).toContain('era Ø 80');
+  // otra vez el mismo albarán: avisa
+  await page.locator('#mLeerAlb').setInputFiles({ name: 'alb.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64') });
+  await page.waitForTimeout(1200);
+  await expect(page.locator('.dlg').last()).toContainText('ya está apuntado');
+  expect(err).toEqual([]);
+});
+
+test('Leer albarán: compra con una línea sin reconocer; lo que se elige se recuerda', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__ALB_MOCK = { proveedor: 'Meyusa', albaran: 'C-55', fecha: '2026-10-20', tipo: 'compra', lineas: [
+    { texto: 'GUANTE ANTICORTE T9', cantidad: 12, unidad: 'par', art: 'c1' }, { texto: 'ESPUMADERA INOX 300', cantidad: 2, art: null }] }; });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('#mLeerAlb').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1200);
+  const d = page.locator('.dlg').last();
+  await expect(d.locator('#laA0')).toHaveValue('c1'); await expect(d.locator('#laProv')).not.toHaveValue('');
+  await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#toast')).toContainText('Elige el artículo de «ESPUMADERA INOX 300»');
+  await d.locator('#laA1').selectOption('c5'); await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(900);
+  const map = await page.evaluate(() => window.__D.cat.app.albMap);
+  expect(map['espumadera inox 300']).toBe('c5');
+  await page.locator('#mLeerAlb').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1200);
+  await expect(page.locator('.dlg').last().locator('#laA1')).toHaveValue('c5');
+  expect(err).toEqual([]);
+});
