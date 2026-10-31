@@ -19,6 +19,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
     return{d,h:fin(yy,mi+1),t:cap(MESES_Q[mi])+(yy!==y?" "+yy:""),re:new RegExp("\\b(en |de |para )?"+MESES_Q[mi]+"( de)?( 20\\d\\d)?\\b")};}
   return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\bcompar\w*|\bfrente (al?|a los?)\b|\brespecto (al?|a los?)\b|\bcontra (el|la|los)\b|\bdesviaci\w*|\bdesvi[oa]\w*|\bmes a mes\b|\bevolucion\b|\bcon (los )?meses anteriores\b|\bcon la media\b|\bque el mes pasado\b|\b(mas|menos) que (el|la|los) (mes|meses|media|ano)\b|\bse (ha )?(disparado|desviado)\b/.test(q))return M("comparar");
   if(/\b(que|cuanto|cuantos|cuantas) (tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace falta|haria falta|habria) (que )?(pedir|comprar|traer)\b|\bque (necesito|necesitamos|hace falta|me hace falta|nos hace falta) (pedir |comprar )?(de|para)\b|\b(pedido|compras?) (de|para)\b/.test(q)){const P=periodoFutA(q);if(P)return M("pedirpara",{per:P});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
   {const A=almsQ(q);if(A&&!QCO.test(q)&&!/\b(ultim|primer|cuando|quien)\b/.test(q)&&(!/\b(hornos?|maquinas?|inyectoras?|ejes?|modelos?|contenedor(es)?|moldes?)\b/.test(q)||/\b(recambios?|repuestos?|piezas?) de hornos?\b/.test(q)))return M("stockalm",{alms:A.L,almT:A.t});}
@@ -180,6 +181,8 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase(cap(L[0].quien)+" ha apuntado "+L.length+(L.length===1?" cosa":" cosas")+" en "+per.t+": "+Object.entries(G).map(([k,g])=>g.n+" "+k.toLowerCase()).join(", ")+".");
     lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,80).map(e=>it(e.ref,[fmtF(e.f)+" · "+e.fam,mqEv(e)?mqEv(e).cod:e.nave||null],fmtN(e.cant),e.ud,e.ir||null)));return;}
 
+  if(I.modo==="comparar"){compararA(I,res,pon,{add,frase,nota,ent,lista,it,ign});return;}
+
   if(I.modo==="pedirpara"){const per=I.per,S0=prevDatos(),pc=prevCfg();
     const q2=" "+q.replace(per.re," ").replace(/\b(que|cuanto|cuantos|cuantas|tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace|haria|falta|habria|pedir|comprar|traer|pedido|compras?|para|todo|todos|todas|con|y|me|nos|el|la|los|las|de|del|mes|semana|ano)\b/g," ")+" ";
     const S=artsQ(q2.replace(/\s+/g," ").trim()),todo=!S.fam&&!S.ign.length&&S.L.length===artsActivos().filter(a=>a.fam!=="eje").length;
@@ -238,3 +241,70 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     add(el("section",{class:"card"},el("pre",{class:"bd",style:"white-space:pre-wrap;font:inherit;margin:0",text:lin.join("\n")})));copiar("Copiar el resumen",lin.join("\n"));
     nota("El resumen con aluminio y cobre está en la app de Coladas (Consultas › «resumen del mes»).");return;}
 }
+
+/* ===== COMPARAR GASTO: material, familia, máquina o nave; mes contra mes, contra la media o año contra año =====
+   Sirve para ver desviaciones: el mes que corre se proyecta a mes completo y se compara con la media y la dispersión de los 6 anteriores. */
+const mesK=f=>f.slice(0,7),mesMas=(m,n)=>{const d=new Date(+m.slice(0,4),+m.slice(5,7)-1+n,1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+const diasMes=m=>new Date(+m.slice(0,4),+m.slice(5,7),0).getDate();
+/* periodos en el orden en que salen en la pregunta */
+function periodosCmp(q){const h=hoy(),y=+h.slice(0,4),mAct=mesK(h),o=[];const pon=(i,x)=>o.push(Object.assign({i},x));let m;
+  const reM=new RegExp("\\b("+MESES_Q.join("|")+")( de)?( (20\\d\\d))?\\b","g");
+  while((m=reM.exec(q))){const mi=MESES_Q.indexOf(m[1]),yy=m[4]?+m[4]:(mi+1>+h.slice(5,7)?y-1:y);const k=yy+"-"+String(mi+1).padStart(2,"0");pon(m.index,{tipo:"mes",m:k,t:cap(MESES_Q[mi])+(yy!==y?" "+yy:"")});}
+  if((m=/\beste mes\b|\bmes (actual|en curso|que corre)\b/.exec(q)))pon(m.index,{tipo:"mes",m:mAct,t:"este mes"});
+  if((m=/\b(el )?(mes pasado|ultimo mes|mes anterior)\b/.exec(q))&&!/\bmeses anteriores\b/.test(q))pon(m.index,{tipo:"mes",m:mesMas(mAct,-1),t:cap(fmtMes(mesMas(mAct,-1))).replace(/ \d{4}$/,"")});
+  if((m=/\b(este|el) ano\b(?! pasado)|\ben lo que va de ano\b/.exec(q)))pon(m.index,{tipo:"ano",y,t:"este año"});
+  if((m=/\b(el )?ano pasado\b/.exec(q)))pon(m.index,{tipo:"ano",y:y-1,t:"el año "+(y-1)});
+  const vistos=new Set();return o.sort((a,b)=>a.i-b.i).filter(x=>{const k=x.tipo+(x.m||x.y);if(vistos.has(k))return false;vistos.add(k);return true;});}
+function compararA(I,res,pon,U){const {add,frase,nota,ent,lista,it,ign}=U;const q=I.q,h=hoy(),mAct=mesK(h),dHoy=+h.slice(8,10);
+  /* qué se compara */
+  const fs=famEvQ(q);const PS=periodosCmp(q);
+  let resto=(" "+q+" ").replace(new RegExp("\\b("+MESES_Q.join("|")+")( de)?( 20\\d\\d)?\\b","g")," ").replace(/\b20\d\d\b/g," ")
+    .replace(/\bcompar\w*|\bfrente\b|\brespecto\b|\bcontra\b|\bdesviaci\w*|\bdesvi\w*|\bmes(es)?\b|\ba mes\b|\bevolucion\b|\banteriores?\b|\bmedia\b|\bpasado\b|\bultimo\b|\bactual\b|\ben curso\b|\bque corre\b|\bano\b|\beste\b|\besta\b|\bgasto\w*|\bconsum\w*|\bgasta\w*|\bdisparad\w*|\bdesviad\w*|\bnormal\b|\bdinero\b|\beuros?\b|\bmaquinas?\b|\binyectoras?\b|\bmaterial(es)?\b|\btodo\b|\bdetect\w*|\bdesviaciones\b/g," ");
+  if(I.cod)resto=resto.replace(new RegExp("\\b"+I.cod.toLowerCase()+"\\b","g")," ");resto=resto.replace(/\bnave\s*(1a|1b|1|2)\b/g," ");
+  [/\bpiston(es)?\b/,/\bejes?\b/,/\bbarras?( expulsoras?)?\b/,/\btornillos?( tope)?\b/,/\b(recambios? de )?hornos?\b/,/\baceites?\b/,/\btaladrinas?\b/,/\bjabon(es)?\b/].forEach(re=>{resto=resto.replace(re," ");});
+  const pals=resto.split(/\s+/).filter(w=>w&&w.length>1&&!QSTOP.has(w)&&!QM_STOP.has(w)&&!/^(con|los|las|del|que|cual|cuanto|cuantos|como|ha|han|hay|va|van|lo|le|mas|menos|por|para|entre|sobre|cada|uno|una|ver|dame|dime|quiero|saber|sale|salen)$/.test(w));
+  const txtE=e=>" "+nq([e.ref,e.a?e.a.desc:"",e.a?e.a.cod:"",e.fam].join(" "))+" ";
+  let E=evTodo().filter(e=>e.fam!=="Contenedores"&&famCasa(e,fs)&&(!I.maq||(mqEv(e)&&mqEv(e).id===I.maq.id))&&(!I.nave||enNave(mqEv(e),I.nave)||(e.nave&&nq(e.nave).startsWith(I.nave))));
+  const ignW=[];pals.forEach(w=>{const r=reQ(raiz(w));const E2=E.filter(e=>r.test(txtE(e)));if(E2.length)E=E2;else ignW.push(w);});
+  const sujeto=[fs?fs.join(", "):null,pals.filter(w=>!ignW.includes(w)).join(" ")||null,I.maq?I.maq.cod:null,I.nave?"Nave "+I.nave.toUpperCase():null].filter(Boolean);
+  const uds=[...new Set(E.map(e=>e.ud))],unaUd=uds.length===1?uds[0]:null,hayEur=E.some(e=>e.eur>0);
+  const V=L=>({eu:L.reduce((s,e)=>s+e.eur,0),c:L.reduce((s,e)=>s+e.cant,0),n:L.length});
+  const med=x=>unaUd?x.c:hayEur?x.eu:x.n,fmtV=v=>unaUd?fmtN(Math.round(v*10)/10)+" "+unaUd:hayEur?eur(v):fmtN(Math.round(v))+" apuntes",fmtV2=x=>(unaUd?fmtN(Math.round(x.c*10)/10)+" "+unaUd:fmtN(x.n)+" apuntes")+(x.eu?" · "+eur(x.eu):"");
+  const pct=(a,b)=>b>0?Math.round((a-b)/b*100):(a>0?null:0),pTxt=p=>p==null?"(antes no había)":p>0?"+"+p+" %":p+" %";
+  ent("comparar gasto",sujeto.concat(PS.map(p=>p.t)));ign(ignW);
+  if(!E.length){frase("No hay ningún gasto apuntado de eso para comparar.");return;}
+  const porMes={};E.forEach(e=>{const k=mesK(e.f);(porMes[k]=porMes[k]||[]).push(e);});const VM=k=>V(porMes[k]||[]);
+  /* desglose: por máquina si se pregunta por un material; por artículo si se pregunta por una máquina o una familia */
+  const grpCmp=e=>I.maq||(!pals.length&&fs&&fs.length===1&&fs[0]!=="Pistones"&&fs[0]!=="Reparación de ejes")?(e.a?nomArtC(e.a):e.ref):(mqEv(e)?mqEv(e).cod:(e.nave?e.nave+" (general)":"Sin máquina"));
+  const desglose=(LA,LB,nB,titA,titB,proy)=>{const G={};const sum=(L,c,f)=>L.forEach(e=>{const k=grpCmp(e);const g=G[k]=G[k]||{k,a:{eu:0,c:0,n:0},b:{eu:0,c:0,n:0},m:mqEv(e),art:e.a};g[c].eu+=e.eur*f;g[c].c+=e.cant*f;g[c].n+=f;});
+    sum(LA,"a",proy||1);sum(LB,"b",1/(nB||1));const R=Object.values(G).map(g=>Object.assign(g,{d:med(g.a)-med(g.b),p:pct(med(g.a),med(g.b))})).sort((x,y)=>y.d-x.d);
+    const sube=R.filter(g=>g.d>0&&(g.p==null||g.p>=20)),baja=R.filter(g=>g.d<0&&g.p<=-20);
+    const fila=g=>it(g.k,[titA+": "+fmtV(med(g.a))+" · "+titB+": "+fmtV(med(g.b)),g.p==null?"Antes no gastaba":(g.d>0?"Gasta "+fmtV(g.d)+" más":"Gasta "+fmtV(-g.d)+" menos")],pTxt(g.p),null,g.m?()=>pon("todo sobre la "+g.m.cod):g.art?()=>ficha(g.art):null,g.d>0?(g.p==null||g.p>=50?"bad":"warn"):"ok");
+    if(sube.length)lista("Lo que más se ha desviado al alza",sube.slice(0,15).map(fila),sube.length===1?"1 sube":sube.length+" suben");
+    if(baja.length)lista("Lo que ha bajado",baja.slice(0,8).map(fila));
+    if(!sube.length&&!baja.length)nota("En el desglose nada se ha movido más de un 20 %.");
+    if(R.length>1)add(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Detalle"})),cTabla(["",titA,titB,"Diferencia"],R.slice(0,40).map(g=>[g.k,fmtV(med(g.a)),fmtV(med(g.b)),pTxt(g.p)]),[1,2,3])]));};
+  /* gráfica y tabla de los últimos 12 meses */
+  const serie=fin=>{const ms=[];for(let i=11;i>=0;i--)ms.push(mesMas(fin,-i));const vs=ms.map(k=>med(VM(k)));
+    add(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Mes a mes"}),el("span",{class:"der sub",text:unaUd?unaUd:hayEur?"euros":"apuntes"})]),el("div",{class:"bd",style:"display:grid;gap:8px"},[barras(ms,vs,v=>unaUd?String(Math.round(v)):hayEur?Math.round(v)+"":String(v)),
+      cTabla(["Mes","Gasto","Frente al anterior"],ms.slice().reverse().map((k,i,arr)=>{const v=med(VM(k)),pv=arr[i+1]?med(VM(arr[i+1])):null;return[cap(fmtMes(k))+(k===mAct?" (va por el día "+dHoy+")":""),fmtV2(VM(k)),pv==null?"—":pTxt(pct(v,pv))];}),[1,2])])]));};
+  /* 1) dos periodos dichos: A frente a B */
+  if(PS.length>=2){const [A,B]=PS;const rng=p=>p.tipo==="mes"?{d:p.m+"-01",h:p.m+"-"+String(diasMes(p.m)).padStart(2,"0")}:p.y===+h.slice(0,4)?{d:p.y+"-01-01",h}:{d:p.y+"-01-01",h:p.y+"-12-31"};
+    let rA=rng(A),rB=rng(B);if(A.tipo==="ano"&&B.tipo==="ano"&&(A.y===+h.slice(0,4)||B.y===+h.slice(0,4))){const md=h.slice(5);rA={d:A.y+"-01-01",h:A.y+"-"+md};rB={d:B.y+"-01-01",h:B.y+"-"+md};}
+    const LA=E.filter(e=>e.f>=rA.d&&e.f<=rA.h),LB=E.filter(e=>e.f>=rB.d&&e.f<=rB.h),va=V(LA),vb=V(LB),p=pct(med(va),med(vb));
+    const enCurso=A.tipo==="mes"&&A.m===mAct,proy=enCurso?diasMes(mAct)/dHoy:1;
+    frase(cap(A.t)+": "+fmtV2(va)+". "+cap(B.t)+": "+fmtV2(vb)+". "+(p==null?"Antes no había gasto.":p>0?"Un "+p+" % más.":p<0?"Un "+(-p)+" % menos.":"Lo mismo.")+(enCurso&&dHoy<diasMes(mAct)?" A este ritmo "+A.t+" acabaría en "+fmtV(med(va)*proy)+" ("+pTxt(pct(med(va)*proy,med(vb)))+").":"")
+      +(A.tipo==="ano"&&B.tipo==="ano"&&rA.h.slice(5)!=="12-31"?" (Comparando el mismo periodo: del 1 de enero al "+fmtF(rA.h).slice(0,5)+".)":""));
+    desglose(LA,LB,1,cap(A.t),cap(B.t),enCurso&&dHoy>=5?proy:1);if(enCurso&&dHoy>=5)nota("En el desglose, "+A.t+" va proyectado a mes completo (va por el día "+dHoy+").");
+    serie(A.tipo==="mes"?(A.m>(B.m||"")?A.m:B.m||A.m):mAct);return;}
+  /* 2) un mes (por defecto el que corre) frente a la media de los 6 anteriores */
+  const T=PS.length===1&&PS[0].tipo==="mes"?PS[0]:{m:mAct,t:"este mes"};const enCurso=T.m===mAct,dm=diasMes(T.m),f=enCurso?dm/Math.max(dHoy,1):1;
+  const prev=[1,2,3,4,5,6].map(i=>mesMas(T.m,-i)),pv=prev.map(k=>med(VM(k)));
+  const media=pv.reduce((s,v)=>s+v,0)/6,sd=Math.sqrt(pv.reduce((s,v)=>s+(v-media)*(v-media),0)/5),act=med(VM(T.m)),proyT=act*f,ant=med(VM(prev[0])),p=pct(proyT,media),pA=pct(proyT,ant);
+  const nivelD=p==null?"bad":p>=60&&proyT-media>sd?"bad":p>=25?"warn":p<=-40?"low":"ok";
+  frase(cap(T.t)+": "+fmtV2(VM(T.m))+(enCurso&&dHoy<dm?" en "+dHoy+" días; a este ritmo acabaría en "+fmtV(proyT):"")+". La media de los 6 meses anteriores es "+fmtV(media)+" ("+pTxt(p)+") y "+cap(fmtMes(prev[0])).replace(/ \d{4}$/,"").toLowerCase()+" fue "+fmtV(ant)+" ("+pTxt(pA)+").");
+  add(el("div",{class:"banner "+(nivelD==="bad"?"b":nivelD==="warn"?"w":""),text:nivelD==="bad"?"Desviación fuerte: "+T.t.toLowerCase()+" va muy por encima de lo normal.":nivelD==="warn"?"Desviación: "+T.t.toLowerCase()+" va por encima de lo normal.":nivelD==="low"?"Va bastante por debajo de lo normal.":"Dentro de lo normal (entre "+fmtV(Math.max(0,media-sd))+" y "+fmtV(media+sd)+" al mes)."}));
+  if(enCurso&&dHoy<5)nota("Llevamos solo "+dHoy+" días de mes: la proyección todavía es poco fiable.");
+  desglose(porMes[T.m]||[],[].concat(...prev.map(k=>porMes[k]||[])),6,cap(T.t)+(enCurso&&dHoy<dm?" (proyectado)":""),"Media 6 meses",enCurso&&dHoy>=5?f:1);
+  serie(T.m);
+  nota("Se compara "+T.t.toLowerCase()+(enCurso?" (proyectado a mes completo)":"")+" con la media de los 6 meses anteriores. Puedes preguntar también «octubre frente a septiembre», «este año con el año pasado», o por una máquina, una nave, una familia o un artículo.");}

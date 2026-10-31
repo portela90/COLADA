@@ -587,7 +587,7 @@ test('Glicol: el depósito se coteja con los contadores de las dos naves y con e
       { id: 'a2', f: f(5), nave: 'Nave 1', c: { gli: 300 }, ts: 3 }, { id: 'b2', f: f(5), nave: 'Nave 2', c: { gli: 500 }, ts: 4 },
       { id: 'a3', f: f(1), nave: 'Nave 1', c: { gli: 380 }, ts: 5 }, { id: 'b3', f: f(1), nave: 'Nave 2', c: { gli: 520 }, ts: 6 },
       { id: 'd1', f: f(20), dep: 'gli', tipo: 'nivel', n: 2000, ts: 7 }, { id: 'd2', f: f(5), dep: 'gli', tipo: 'recarga', kg: 954, dens: 1.06, l: 900, antes: 1150, despues: 2000, alb: 'C-77', ts: 8 }] } }; } }); });
-  await page.goto(url); await page.waitForTimeout(1200);
+  await page.goto(url); await page.waitForTimeout(1500);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#view')).toContainText('el nivel no sube lo que dice el albarán');
@@ -600,8 +600,8 @@ test('Glicol: el depósito se coteja con los contadores de las dos naves y con e
   const d = page.locator('.dlg').last();
   await d.locator('#glKg').fill('1060'); await d.locator('#glDens').fill('1,06'); await expect(d).toContainText('≈ 1000 l'); await d.locator('#glA').fill('900'); await d.locator('#glD').fill('1880');
   await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
-  const its = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items).filter(x => x.dep === 'gli'));
-  expect(its.length).toBe(3); expect(its[2]).toMatchObject({ tipo: 'recarga', kg: 1060, dens: 1.06, l: 1000, antes: 900, despues: 1880 });
+  await expect.poll(() => page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items).filter(x => x.dep === 'gli').length)).toBe(3);
+  const its = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items).filter(x => x.dep === 'gli')); expect(its[2]).toMatchObject({ tipo: 'recarga', kg: 1060, dens: 1.06, l: 1000, antes: 900, despues: 1880 });
   expect(err).toEqual([]);
 });
 
@@ -647,5 +647,30 @@ test('Consultas: «qué tengo que pedir de … para noviembre / el mes que viene
   await page.fill('#bdQ', 'que tengo que pedir de pistones de 80 para noviembre'); await page.waitForTimeout(400);
   const t3 = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
   expect(t3).toMatch(/qué hay que pedir/); expect(t3).toMatch(/Pistón Ø 80|No hay consumo/); expect(t3).not.toMatch(/No he encontrado/);
+  expect(err).toEqual([]);
+});
+
+test('Consultas: comparar el gasto de un material o una máquina con meses anteriores y ver desviaciones', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.articulos.push({ id: 'rod', desc: 'Rodillo de prueba', fam: 'consumible', ud: 'ud', alms: ['gen'], precio: '10' });
+    const m25 = v.cat.app.maquinas.find(x => x.cod === 'F25'), m30 = v.cat.app.maquinas.find(x => x.cod === 'F30') || v.cat.app.maquinas[1];
+    const h = new Date(), mes = n => { const x = new Date(h.getFullYear(), h.getMonth() + n, 1, 12); return x.toISOString().slice(0, 7); };
+    let i = 0; const s = (f, maq, cant) => v.mov[k].items.push({ id: 'cs' + (i++), f, alm: 'gen', art: 'rod', cant, tipo: 'salida', maq });
+    for (let n = 1; n <= 6; n++) { s(mes(-n) + '-02', m25.id, 6); s(mes(-n) + '-03', m30.id, 4); }
+    s(h.toISOString().slice(0, 8) + '01', m25.id, 26); s(h.toISOString().slice(0, 8) + '01', m30.id, 4); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'compara el gasto de rodillo de prueba este mes con los meses anteriores'); await page.waitForTimeout(400);
+  let t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Este mes: 30 ud/); expect(t).toMatch(/La media de los 6 meses anteriores es 10 ud/); expect(t).toMatch(/Desviación fuerte/);
+  expect(t).toMatch(/Lo que más se ha desviado al alza/); expect(t).toMatch(/F25 Este mes: 26 ud/); expect(t).toContain('Mes a mes'); expect(t).not.toMatch(/No he encontrado/);
+  await page.fill('#bdQ', 'rodillo de prueba este mes frente al mes pasado'); await page.waitForTimeout(400);
+  t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Este mes: 30 ud · 300 €\. \w+: 10 ud · 100 €\. Un 200 % más\./);
+  await page.fill('#bdQ', 'compara el gasto de la F25 este mes con los meses anteriores'); await page.waitForTimeout(400);
+  t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(t).toMatch(/Rodillo de prueba/); expect(t).toMatch(/Desviación/);
   expect(err).toEqual([]);
 });
