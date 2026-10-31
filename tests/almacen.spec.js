@@ -275,6 +275,9 @@ test('Borrar la salida de un cambio de pistón borra también el cambio (no sale
   await page.selectOption('#pDiam', diam);
   if (await page.locator('#pResp').count()) await page.fill('#pResp', 'Prueba borrar');
   const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  expect(await page.inputValue('#pMot')).toBe('');
+  await page.locator('#pBtn').click(); await expect(page.locator('body')).toContainText('Falta el motivo del cambio');
+  await page.selectOption('#pMot', 'ROTURA');
   await page.locator('#pBtn').click(); await page.waitForTimeout(500);
   const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"movId"').length);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
@@ -338,7 +341,7 @@ test('Base de datos: «todo sobre…», lo raro, personas y planificar', async (
   const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(200); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
   const casos = [['todo sobre la F25', /F25 \(.*\): este año lleva \d+ cambios? de pistón/], ['todo sobre el eje 2.8.J-2', /El eje 2\.8\.J-2 .* está en reparación/], ['todo sobre el pistón de 80', /Pistón Ø 80: hay \d+ ud/],
     ['qué máquina está gastando más de lo normal', /más de lo normal/], ['qué pistones se han roto antes de tiempo', /antes de lo normal|menos de la mitad/], ['qué ejes vuelven al taller por lo mismo', /mismo motivo/],
-    ['qué cambios se apuntaron sin responsable', /sin responsable/], ['qué ha hecho Josu este año', /Josu ha apuntado \d+ cosas/], ['quién cambia más pistones por rotura', /por quién/],
+    ['qué cambios se apuntaron sin responsable', /sin responsable/], ['quién no apunta el motivo de los cambios de pistón este año', /Este año: \d+ cambios? de pistón, (\d+ sin motivo|todos con motivo)/], ['qué ha hecho Josu este año', /Josu ha apuntado \d+ cosas/], ['quién cambia más pistones por rotura', /por quién/],
     ['qué tengo que pedir esta semana', /hay que pedir|no hace falta/], ['cuánto me voy a gastar el mes que viene', /se gastarán unos/], ['qué ejes me van a faltar', /reserva/], ['resumen del mes', /RESUMEN ALMACÉN/]];
   for (const [q, re] of casos) { const t = await resp(q); expect(t, q).toMatch(re); expect(t, q).not.toContain('undefined'); }
   expect(await desbordes(page)).toEqual([]);

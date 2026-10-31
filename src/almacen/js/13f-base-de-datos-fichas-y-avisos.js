@@ -19,6 +19,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
     return{d,h:fin(yy,mi+1),t:cap(MESES_Q[mi])+(yy!==y?" "+yy:""),re:new RegExp("\\b(en |de |para )?"+MESES_Q[mi]+"( de)?( 20\\d\\d)?\\b")};}
   return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\bquien(es)? no (apunta|apuntan|pone|ponen|rellena|rellenan|escribe|escriben|mete|meten|indica|indican)\b|\bquien(es)? (deja|dejan|se deja|se dejan|olvida|olvidan|se olvida|se olvidan)\b.*\b(motivo|responsable|sin)\b|\bsin (poner|apuntar|rellenar) (el )?(motivo|responsable)\b|\b(cambios?|pistones?) sin motivo\b|\bsin motivo\b|\bno consta el motivo\b|\bmotivos? (sin|por) (poner|apuntar|rellenar)\b/.test(q))return M("sinapuntar");
   if(/\btolvas?\b/.test(q)&&!/\bque (tengo|hay|tenemos) que pedir\b/.test(q))return M("tolvas");
   if(/\bpiston\w*\b/.test(q)&&/\b(compras?|comprad\w*|comprando|comprar|entrad[oa]s?|han entrado|nuevos? (y|o|frente a|contra) recuperad\w*|recuperad\w* (y|o|frente a|contra) nuevos?|gast\w* en (comprar|compras))\b/.test(q)&&!/\bque (tengo|hay|tenemos) que\b|\bpara (el mes|la semana|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(q))return M("comprapist");
   if(/\bcompar\w*|\bfrente (al?|a los?)\b|\brespecto (al?|a los?)\b|\bcontra (el|la|los)\b|\bdesviaci\w*|\bdesvi[oa]\w*|\bmes a mes\b|\bevolucion\b|\bcon (los )?meses anteriores\b|\bcon la media\b|\bque el mes pasado\b|\b(mas|menos) que (el|la|los) (mes|meses|media|ano)\b|\bse (ha )?(disparado|desviado)\b/.test(q))return M("comparar");
@@ -184,6 +185,19 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase(cap(L[0].quien)+" ha apuntado "+L.length+(L.length===1?" cosa":" cosas")+" en "+per.t+": "+Object.entries(G).map(([k,g])=>g.n+" "+k.toLowerCase()).join(", ")+".");
     lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,80).map(e=>it(e.ref,[fmtF(e.f)+" · "+e.fam,mqEv(e)?mqEv(e).cod:e.nave||null],fmtN(e.cant),e.ud,e.ir||null)));return;}
 
+  if(I.modo==="sinapuntar"){const per=P.def?{d:sumaDias(h,-90),h,t:"últimos 90 días"}:P;const D=datosSinApuntar(per.d,per.h);ent("quién no apunta",[per.t]);
+    if(!D.P.length&&!D.O.length){frase("No hay cambios apuntados en "+per.t+".");return;}
+    const mal=D.G.filter(g=>g.sm>0).sort((a,b)=>b.sm-a.sm||b.sm/b.n-a.sm/a.n);
+    frase(cap(per.t)+": "+D.P.length+(D.P.length===1?" cambio de pistón":" cambios de pistón")+", "+(D.sinMot.length?D.sinMot.length+" sin motivo":"todos con motivo")+" y "+(D.sinResp.length?D.sinResp.length+" sin responsable":"todos con responsable")+"."
+      +(D.O.length?" Además, "+D.O.length+(D.O.length===1?" cambio":" cambios")+" de barras, tornillos y piezas de horno: "+(D.oSM.length?D.oSM.length+" sin motivo":"todos con motivo")+(D.oSR.length?" y "+D.oSR.length+" sin saber quién":"")+".":"")
+      +(mal.length?" Quien más motivos deja sin poner: "+mal[0].k+" ("+mal[0].sm+" de "+mal[0].n+").":""));
+    if(mal.length)lista("Quién deja el motivo sin poner (pistones)",mal.map(g=>it(g.k,[g.sm+" de "+g.n+(g.n===1?" cambio":" cambios")+" sin motivo",g.L.slice(-4).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)).join(" · ")],fmtN(g.sm),"sin motivo",null,g.sm/g.n>=0.5?"bad":"warn")));
+    if(D.sinResp.length){const G={};D.sinResp.forEach(p=>{const k=p.por?"Lo apuntó "+p.por:"No se sabe quién lo apuntó";(G[k]=G[k]||[]).push(p);});
+      lista("Cambios de pistón sin responsable",Object.entries(G).sort((a,b)=>b[1].length-a[1].length).map(([k,L])=>it(k,L.slice(-6).reverse().map(p=>fmtF(p.f)+" "+maqN(p.maq)+" "+(p.diam||"")+(p.motivo?"":" (sin motivo)")).join(" · "),fmtN(L.length),L.length===1?"cambio":"cambios",null,"warn")));}
+    const OL=D.O.filter(m=>D.oSM.includes(m)||D.oSR.includes(m)).sort((a,b)=>b.f.localeCompare(a.f));
+    if(OL.length)lista("Barras, tornillos y horno sin motivo o sin quién",OL.slice(0,40).map(m=>{const a=art(m.art);return it((a?nomArt(a):"?")+" · "+maqN(m.maq),[fmtF(m.f),[String(m.motivo||"").trim()?null:"sin motivo",m.resp||m.por?null:"sin quién"].filter(Boolean).join(" y ")+(m.resp?" · "+respTxt(m.resp):m.por?" · lo apuntó "+m.por:"")],fmtN(+m.cant||0),a?a.ud:"",a?()=>ficha(a):null,"warn");}));
+    if(!D.sinMot.length&&!D.sinResp.length&&!OL.length)nota("Todo lo cambiado en "+per.t+" tiene motivo y responsable.");
+    if(per.d<MOT_VACIO_DESDE)nota("Hasta el "+fmtF(sumaDias(MOT_VACIO_DESDE,-1))+" el motivo del pistón venía puesto «Desgaste» si nadie lo cambiaba, así que de antes no se puede saber quién no lo elegía. Desde entonces empieza vacío y aquí sale quien no lo pone.");return;}
   if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);
     frase((tot?"En el taller hay "+D.filter(g=>g.taller).map(g=>g.taller+" "+g.a.desc.toLowerCase()+(g.taller===1?"":"s")).join(" y ")+".":"No hay ninguna tolva en el taller.")+" "+cap(per.t)+" se han reparado "+D.reduce((s,g)=>s+g.rep,0)+" ("+eur(D.reduce((s,g)=>s+g.gasto,0))+") y se han cambiado "+D.reduce((s,g)=>s+g.cambios,0)+" en las máquinas.");
     if(ab.length)lista("En el taller",ab.map(r=>it((art(r.art)||{desc:"?"}).desc+" × "+((+r.cant||0)-trepVuelta(r)),"Enviadas el "+fmtF(r.env)+(r.prov?" · "+provN(r.prov):""),String(dias(r.env,h)),"días",()=>irA("bth"),dias(r.env,h)>30?"bad":"warn")));
@@ -334,3 +348,11 @@ function compararA(I,res,pon,U){const {add,frase,nota,ent,lista,it,ign}=U;const 
   desglose(porMes[T.m]||[],[].concat(...prev.map(k=>porMes[k]||[])),nP,cap(T.t)+(enCurso&&dHoy<dm?" (proyectado)":""),nP===1?cap(fmtMes(prev[0])).replace(/ \d{4}$/,""):"Media "+nP+" meses",enCurso&&dHoy>=5?f:1);
   serie(T.m);
   nota("Se compara "+T.t.toLowerCase()+(enCurso?" (proyectado a mes completo)":"")+" con la media de "+mTxt+" (los meses desde que se apunta). Puedes preguntar también «octubre frente a septiembre», «este año con el año pasado», o por una máquina, una nave, una familia o un artículo.");}
+
+/* ¿quién no apunta el motivo o el responsable? Pistones (por responsable) y el resto de cambios en máquinas (barras, tornillos, horno). */
+const MOT_VACIO_DESDE="2026-11-01";
+function datosSinApuntar(d0,d1){const P=todosPist().filter(p=>p.f>=d0&&p.f<=d1);const G={};
+  const sinMot=P.filter(p=>!String(p.motivo||"").trim()),sinResp=P.filter(p=>!String(p.resp||"").trim());
+  P.forEach(p=>{const k=String(p.resp||"").trim()?respTxt(p.resp):"Sin responsable";const g=G[k]=G[k]||{k,n:0,sm:0,L:[]};g.n++;if(!String(p.motivo||"").trim()){g.sm++;g.L.push(p);}});
+  const O=todosMov().filter(m=>{if(m.tipo!=="salida"||!m.maq||m.f<d0||m.f>d1||/^Cambio de pist/.test(m.nota||""))return false;const a=art(m.art);return a&&a.fam!=="piston"&&a.fam!=="consumible";});
+  return{P,G:Object.values(G),sinMot,sinResp,O,oSM:O.filter(m=>!String(m.motivo||"").trim()),oSR:O.filter(m=>!m.resp&&!m.por)};}

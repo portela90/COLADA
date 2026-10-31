@@ -243,7 +243,7 @@ function vPist(v){const d=draft.p;
   const form=el("form",{id:"pForm"},[
     el("div",{class:"row"},[fld("Fecha",inp("pF",d.f,x=>d.f=x,{type:"date"})),fld("Inyectora",sel("pMaq",maqOpts(),d.maq,x=>{d.maq=x;d.alm="";const u=ultimoPist(x);if(u&&!d.diam)d.diam=u.diam;render(true);},"Elige…"))]),
     el("div",{class:"row"},[fld("Diámetro",sel("pDiam",DIAM.map(x=>[x,x]),d.diam,x=>{d.diam=x;d.alm="";render(true);},"Ø…")),fld("Cantidad",inp("pCant",d.cant,x=>d.cant=x,{inputmode:"numeric",class:"num"}))]),
-    el("div",{class:"row"},[fld("Motivo del cambio",sel("pMot",MOTIVOS.map(m=>[m,cap(m)]),d.motivo,x=>d.motivo=x)),fld("Responsable",resp),dl]),
+    el("div",{class:"row"},[fld("Motivo del cambio",sel("pMot",MOTIVOS.map(m=>[m,cap(m)]),d.motivo,x=>{d.motivo=x;d.smOk=false;},"Elige…")),fld("Responsable",resp),dl]),
     fld("Destino del pistón usado",sel("pDest",DESTINOS.map(m=>[m,cap(m)]),d.dest,x=>d.dest=x,"Elige…")),
     fld("Observaciones",inp("pNota",d.nota,x=>d.nota=x,{autocomplete:"off"})),
     pa?el("div",{class:"row"},[el("label",{class:"chk"},[el("input",{type:"checkbox",id:"pDesc",checked:d.desc,onchange:e=>{d.desc=e.target.checked;}}),"Descontar del stock"]),
@@ -294,12 +294,13 @@ async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar 
   const q=parseInt(d.cant,10);
   if(!d.maq){toast("Elige la inyectora");return;}if(!d.diam){toast("Elige el diámetro");return;}if(!d.f){toast("Pon la fecha");return;}if(!(q>0)){toast("Pon la cantidad");return;}
   if(!d.dest){toast("Indica qué se ha hecho con el pistón usado");return;}
+  if(!d.motivo&&!d.smOk){d.smOk=true;toast("Falta el motivo del cambio. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");const m=$("pMot");if(m)m.focus();return;}
   const b=$("pBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{const rec={f:d.f,maq:d.maq,diam:d.diam,cant:q,motivo:d.motivo,dest:d.dest,resp:d.resp.trim()||null,nota:d.nota.trim()||null};
     const pa=pistArt(d.diam);
-    if(pa&&d.desc&&d.alm){const m=await addMov({f:d.f,tipo:"salida",art:pa.id,alm:d.alm,cant:q,maq:d.maq,nota:"Cambio de pistón · "+cap(d.motivo)});rec.movId=m.id;}
+    if(pa&&d.desc&&d.alm){const m=await addMov({f:d.f,tipo:"salida",art:pa.id,alm:d.alm,cant:q,maq:d.maq,nota:"Cambio de pistón"+(d.motivo?" · "+cap(d.motivo):"")});rec.movId=m.id;}
     await addPist(rec);
-    try{await ejePendDe([rec]);}catch(e){}toast("Cambio registrado en "+maqN(d.maq));if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1"});
+    try{await ejePendDe([rec]);}catch(e){}toast("Cambio registrado en "+maqN(d.maq));if(d.resp.trim())lsSet("alm.resp",d.resp.trim());lsSet("alm.dp",d.dest);Object.assign(d,{nota:"",cant:"1",motivo:"",smOk:false});
   }catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));}
   render(true);}
 async function addMovs(list){const g={};list.forEach(r=>{r.id=r.id||uid();r.ts=Date.now();(g[mesDe(r.f)]=g[mesDe(r.f)]||[]).push(r);});

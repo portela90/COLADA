@@ -25,7 +25,7 @@ let cat={articulos:[],almacenes:[],maquinas:[],proveedores:[],operarios:[],model
 let meses={},pistAnos={},ejes=[],reps={};
 const hoy=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const draft={m:{tipo:"entrada",f:hoy(),art:"",alm:"",dest:"",cant:"",maq:"",prov:"",alb:"",nota:""},mFile:null,
-  p:{f:hoy(),maq:"",diam:"",cant:"1",motivo:"DESGASTE",dest:"",resp:"",nota:"",desc:true,alm:""},eb:"",
+  p:{f:hoy(),maq:"",diam:"",cant:"1",motivo:"",dest:"",resp:"",nota:"",desc:true,alm:""},eb:"",
   fs:{fam:"",alm:"",txt:""},hm:{mes:"",tipo:""},fe:""};
 
 const $=id=>document.getElementById(id);

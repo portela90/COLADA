@@ -24,7 +24,7 @@ function normAcc(x){const t=TIPO_R[x.tipo]?x.tipo:"consumo";const ok=(arr,id)=>i
     prov:ok(cat.proveedores,x.proveedor),alb:x.albaran||"",nota:x.nota||"",txt:x.texto||"",auto:{},eje:(ejeDe(x.eje)||{}).cod||(x.eje||""),desp:x.desperfecto||""};
   if(t.startsWith("eje_"))return r;
   if(t==="piston"){if(!r.cant)r.cant="1";if(!r.diam&&r.maq){const u=ultimoPist(r.maq);if(u){r.diam=u.diam;r.auto.diam=1;}}
-    if(!r.motivo){r.motivo="DESGASTE";r.auto.motivo=1;}if(!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}
+    if(!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}
     if(!r.resp&&lsGet("alm.resp")){r.resp=lsGet("alm.resp");r.auto.resp=1;}}
   if(!r.art&&t!=="piston")r.sug=x.nombre_sugerido||sugNombre(x.texto||"");
   almSug(r);return r;}
@@ -62,7 +62,7 @@ function filaR(r){const a=art(r.art);let box;
   else if(r.tipo==="traslado")campos=[el("div",{class:"row"},[artS(),C()]),el("div",{class:"row"},[S("Desde","alm",almOptsArt(a),"Elige…"),S("Hasta","dest",almOptsArt(a,r.alm),"Elige…"),F()])];
   else if(r.tipo.startsWith("eje_"))campos=[el("div",{class:"row"},[T("Eje (código)","eje",{list:"lEjesR",autocomplete:"off",placeholder:"p. ej. 2.3.C-3"}),r.tipo==="eje_prep"?T("Desperfecto","desp",{autocomplete:"off"}):null,r.tipo==="eje_rec"?T("Albarán","alb",{autocomplete:"off"}):null,F()])];
   else campos=[el("div",{class:"row"},[artS(),C("Cantidad contada"),S("Almacén","alm",almOptsArt(a),"Elige…"),F()])];
-  const tipoS=sel("rt"+r.k,Object.entries(TIPO_R),r.tipo,v=>{r.tipo=v;if(v==="piston"&&!r.cant)r.cant="1";if(v==="piston"&&!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}if(v==="piston"&&!r.motivo){r.motivo="DESGASTE";r.auto.motivo=1;}r.alm="";r.dest="";almSug(r);re();});
+  const tipoS=sel("rt"+r.k,Object.entries(TIPO_R),r.tipo,v=>{r.tipo=v;if(v==="piston"&&!r.cant)r.cant="1";if(v==="piston"&&!r.dp){r.dp=lsGet("alm.dp")||DESTINOS[0];r.auto.dp=1;}r.alm="";r.dest="";almSug(r);re();});
   r._info=el("p",{class:"hint",text:infoR(r)});r._fl=el("p",{class:"hint",style:"color:var(--bad);font-weight:600"});
   box=el("section",{class:"card"},[el("div",{class:"hd"},[tipoS,r.txt?el("span",{class:"sub",style:"flex:1;min-width:120px",text:"«"+r.txt+"»"}):null,
       el("button",{type:"button",class:"btn txt peq der",text:"Quitar",onclick:()=>{rq.acc=rq.acc.filter(x=>x!==r);render(true);}})]),
