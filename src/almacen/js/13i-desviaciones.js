@@ -128,31 +128,8 @@ function informeDesv(){const h=hoy();const meses=[0,1,2,3,4,5].map(i=>mesMas(h.s
       el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>cExcel("Desviaciones "+fmtMes(mes),D.R.length?D.R.map(g=>({"Máquina o artículo":g.tit,"Gastado":Math.round(g.v*100)/100,"Lo normal":Math.round(g.esp*100)/100,"Unidad":g.usaEu?"€":(g.ud||"ud"),"Diferencia %":g.pct,"De más (€)":Math.round((g.eu||0)*100)/100,"Causa":g.causas.join("; ")})):[{"Máquina o artículo":"Sin desviaciones"}],e.currentTarget)})]));};
   pinta();dlg("Informe de desviaciones",[box],[{t:"Cerrar",cls:"sec"}]);}
 
-/* investigar una desviación: qué cambios la forman, por qué motivo, en qué máquinas y quién; desde aquí se completan los motivos y se apunta la causa */
-function datosInvDesv(d){const R=calcDesv(),x=d.x||{},a=d.a||x.a||null,m=d.m||x.m||null,fam=x.fam||null,h=hoy();
-  const larga=d.tipo==="rot"||d.tipo==="dur";const P0=larga?sumaDias(h,-60):R.W0,P1=larga?h:sumaDias(R.W0,6),B0=sumaDias(P0,-84),nB=12;
-  const enMaq=r=>!m||r.maq===m.id||r.maq===m.cod;const pist=larga||(a&&a.fam==="piston")||(!a&&(!fam||fam==="Pistones"));const mov=!larga&&!(a&&a.fam==="piston")&&(!fam||(fam!=="Pistones"&&fam!=="Reparación de ejes"))&&(a||m);
-  const P=pist?todosPist().filter(p=>enMaq(p)&&(!a||p.diam===a.diam)&&(!a||a.fam==="piston")):[];
-  const M=mov?todosMov().filter(z=>{if(z.tipo!=="salida"||/^Cambio de pist/.test(z.nota||"")||!enMaq(z))return false;const b=art(z.art);if(!b||(a&&z.art!==a.id))return false;return !fam||famLbl(b)===fam;}):[];
-  const L=P.map(p=>({k:"p",r:p,f:p.f,maq:p.maq,ref:"Pistón "+(p.diam||""),cant:+p.cant||1,mot:String(p.motivo||"").trim(),quien:p.resp?respTxt(p.resp):"",por:p.por||"",nota:p.nota||""}))
-    .concat(M.map(z=>{const b=art(z.art);return{k:"m",r:z,a:b,f:z.f,maq:z.maq,ref:b?nomArt(b):"?",cant:+z.cant||0,ud:b?b.ud:"",mot:String(z.motivo||"").trim(),quien:z.resp?respTxt(z.resp):"",por:z.por||"",nota:z.nota||""};}));
-  const en=L.filter(e=>e.f>=P0&&e.f<=P1).sort((p,q)=>q.f.localeCompare(p.f)),base=L.filter(e=>e.f>=B0&&e.f<P0);
-  const cuenta=(X,f)=>{const G={};X.forEach(e=>{const k=f(e);G[k]=(G[k]||0)+e.cant;});return G;};
-  const motK=e=>e.mot?cap(e.mot):"Sin motivo",mot=cuenta(en,motK),motB=cuenta(base,motK),maq=cuenta(en,e=>e.maq?maqN(e.maq):"Sin máquina"),qui=cuenta(en,e=>e.quien||"Sin responsable");
-  const ord=G=>Object.entries(G).sort((p,q)=>q[1]-p[1]);
-  return{en,mot:ord(mot).map(([k,n])=>({k,n,normal:(motB[k]||0)/nB*(larga?60/7:1)})),maq:ord(maq),qui:ord(qui),per:larga?"los últimos 60 días":"la "+semTxt(R.W0),larga,m,a};}
-function sugCausaDesv(D){const tot=D.en.reduce((s,e)=>s+e.cant,0);if(!tot)return"";const t=D.mot.find(x=>x.k!=="Sin motivo");const mq=D.maq[0];
-  return [t?t.n+" de "+fmtN(tot)+" por "+t.k.toLowerCase():null,mq&&!D.m&&mq[0]!=="Sin máquina"&&mq[1]/tot>=0.4?"sobre todo en la "+mq[0]:null].filter(Boolean).join(", ");}
-function investigarDesv(d){const D=datosInvDesv(d),tot=D.en.reduce((s,e)=>s+e.cant,0),sm=D.en.filter(e=>!e.mot).length,sr=D.en.filter(e=>!e.quien).length;
-  const fila=(t1,t2,b,on,cls)=>el(on?"button":"div",{type:on?"button":null,class:"it",style:on?null:"cursor:default",onclick:on||null},[el("span",{class:"stripe "+(cls||"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t1}),t2?el("div",{class:"t2",text:t2}):null]),b!=null?el("div",{class:"num",style:"font-weight:600",text:b}):null]);
-  const bloque=(tit,rows)=>rows.length?el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:tit}),el("div",{class:"lst"},rows)]):null;
-  const reabre=()=>investigarDesv(d);
-  const body=[el("p",{class:"hint",style:"margin:0",text:d.txt}),
-    el("p",{style:"margin:0",text:tot?fmtN(tot)+" en "+D.per+(D.en.length!==tot?" ("+D.en.length+(D.en.length===1?" apunte)":" apuntes)"):"")+"."+(sm?" "+sm+" sin motivo.":"")+(sr?" "+sr+" sin responsable.":""):"No hay cambios apuntados en "+D.per+"."}),
-    bloque("Por motivo",D.mot.map(x=>fila(x.k,D.larga?null:"Lo normal: "+fmtN(Math.round(x.normal*10)/10)+" a la semana",fmtN(x.n),null,x.k==="Sin motivo"?"warn":x.n>Math.max(1,2*x.normal)?"bad":"ok"))),
-    D.m?null:bloque("Por máquina",D.maq.map(([k,n])=>fila(k,null,fmtN(n),null,"ok"))),
-    bloque("Quién",D.qui.map(([k,n])=>fila(k,null,fmtN(n),null,k==="Sin responsable"?"warn":"ok"))),
-    bloque("Cada cambio (pulsa para poner motivo o responsable)",D.en.map(e=>fila(fmtF(e.f)+" · "+(e.maq?maqN(e.maq):"—")+" · "+e.ref,[e.mot?cap(e.mot):"sin motivo",e.quien||"sin responsable",e.por&&!e.quien?"lo apuntó "+e.por:null,e.nota&&!/^Cambio de /.test(e.nota)?e.nota:null].filter(Boolean).join(" · "),fmtN(e.cant),
-      ()=>{cierraDlgs();completarCambio(e.r,e.k==="p",{sinMot:e.k==="m"&&!(e.a&&["barra","tornillo","horno"].includes(e.a.fam)),despues:reabre});},!e.mot||!e.quien?"warn":"ok")))];
-  dlg("Investigar: "+d.tit,[el("div",{style:"display:grid;gap:12px;max-height:62vh;overflow:auto"},body)],
-    [{t:"Cerrar",cls:"sec"}].concat(d.just?[]:[{t:"Apuntar causa",fn:()=>{setTimeout(()=>apuntarCausa(d,()=>render(true),sugCausaDesv(D)),0);}}]));}
+/* investigar una desviación: el panel común (13n) con los apuntes de esa semana (o de los últimos 60 días si son roturas o duración) y, al final, apuntar la causa */
+function filtroDesv(d){const R=calcDesv(),x=d.x||{},a=d.a||x.a||null,m=d.m||x.m||null,larga=d.tipo==="rot"||d.tipo==="dur",h=hoy();
+  const F={t:d.tit,d0:larga?sumaDias(h,-59):R.W0,d1:larga?h:sumaDias(R.W0,6),per:larga?"los últimos 60 días":"la "+semTxt(R.W0)};
+  if(a)F.arts=[a.id];if(m)F.maq=m.id;if(x.fam)F.fam=x.fam;if(larga)F.fam="Pistones";return F;}
+function investigarDesv(d){investigar(filtroDesv(d),{intro:d.txt,acciones:d.just?[]:[{t:"Apuntar causa",fn:D=>apuntarCausa(d,()=>render(true),sugInv(D))}]});}

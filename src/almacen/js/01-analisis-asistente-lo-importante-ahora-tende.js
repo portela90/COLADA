@@ -15,7 +15,7 @@ function alertasAnalisis(){const hy=hoy(),d30=sumaDias(hy,-30),d120=sumaDias(hy,
   if(tall.length)out.push({niv:"warn",t:tall.length+(tall.length===1?" eje lleva":" ejes llevan")+" más de 30 días en el taller",d:tall.slice(0,6).map(x=>x.r.eje+" ("+x.d+" d)").join(", "),ir:"ejes"});
   const cu=ejePend().filter(p=>dias(p.f,hy)>7);if(cu.length)out.push({niv:"warn",t:cu.length+(cu.length===1?" eje en cuarentena":" ejes en cuarentena")+" desde hace más de una semana",d:cu.map(p=>p.maq+" ("+dias(p.f,hy)+" d)").join(", "),ir:"ejes"});
   artsActivos().filter(a=>["piston","horno","barra","tornillo","consumible"].includes(a.fam)&&!a.limp).forEach(a=>{const c=consDia(a),st=stockDe(a.id);if(!(c>0))return;const cob=Math.floor(st/c),pl=plazoDe(a);
-    if(cob<pl)out.push({niv:st<=0?"bad":"warn",t:(TEC(a.fam)?nomBT(a):a.desc)+(st<=0?": no queda":": se acaba en "+cob+" días"),d:"Hay "+fmtN(st)+" "+a.ud+", se gasta "+fmtN(Math.round(c*300)/10)+" al mes y el proveedor tarda "+pl+" días"+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""),ir:"stock"});});
+    if(cob<pl)out.push({niv:st<=0?"bad":"warn",t:(TEC(a.fam)?nomBT(a):a.desc)+(st<=0?": no queda":": se acaba en "+cob+" días"),d:"Hay "+fmtN(st)+" "+a.ud+", se gasta "+fmtN(Math.round(c*300)/10)+" al mes y el proveedor tarda "+pl+" días"+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""),ir:"stock",art:a.id});});
   return out.sort((a,b)=>(a.niv==="bad"?0:1)-(b.niv==="bad"?0:1));}
 function tendencias(){const hy=hoy(),m0=hy.slice(0,7);const meses=[];let d=m0+"-01";for(let i=0;i<12;i++){meses.unshift(d.slice(0,7));d=sumaDias(d,-1).slice(0,7)+"-01";}
   const P=qHechos("pist"),R=qHechos("rep"),M=qHechos("mat");const by=(L,f)=>meses.map(m=>sumaN(L.filter(h=>h.f.slice(0,7)===m),f));
@@ -30,7 +30,7 @@ function vAnalisis(v){const re=()=>render(true);
   /* lo importante ahora */
   const AL=alertasAnalisis(),nAL=draft.alTodas?15:5;
   v.appendChild(el("section",{class:"card"+(AL.some(a=>a.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Lo importante ahora ("+AL.length+")"}),AL.length>5?el("button",{type:"button",class:"btn txt peq der",text:draft.alTodas?"Ver menos":"Ver todas",onclick:()=>{draft.alTodas=!draft.alTodas;re();}}):null]),
-    AL.length?el("div",{class:"lst"},AL.slice(0,nAL).map(a=>el("button",{type:"button",class:"it",onclick:()=>{if(a.ir){irA(a.ir);return;}draft.q=Object.assign(Q0(),a.q);draft.qAb=true;const b=document.getElementById("qBuilder");render(true);setTimeout(()=>{const x=document.getElementById("qBuilder");if(x)x.scrollIntoView({behavior:"smooth"});},50);}},[
+    AL.length?el("div",{class:"lst"},AL.slice(0,nAL).map(a=>el("button",{type:"button",class:"it",onclick:()=>{const F=invAlerta(a);if(F){investigar(F);return;}if(a.ir){irA(a.ir);return;}draft.q=Object.assign(Q0(),a.q);draft.qAb=true;const b=document.getElementById("qBuilder");render(true);setTimeout(()=>{const x=document.getElementById("qBuilder");if(x)x.scrollIntoView({behavior:"smooth"});},50);}},[
       el("span",{class:"stripe "+a.niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.t}),el("div",{class:"t2",text:a.d})]),el("div",{class:"cant"},el("small",{text:"ver ›"}))]))):el("p",{class:"hint",style:"padding:10px 14px",text:"Nada fuera de lo normal."})]));
   /* tendencias */
   const T=tendencias(),n=T.meses.length-1,hy=hoy();const dm=+hy.slice(8),dmes=new Date(+hy.slice(0,4),+hy.slice(5,7),0).getDate();const proy=Math.round(T.pist[n]/Math.max(1,dm)*dmes);
@@ -129,7 +129,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   /* --- qué hacer hoy --- */
   const tareas=[];const T=(niv,txt,det,btn,fn,extra)=>tareas.push({niv,txt,det,btn,fn,extra});
   const crit=artsActivos().filter(a=>!a.pedido&&nivel(a)==="bad"),pedir=artsActivos().filter(a=>!a.pedido&&nivel(a)==="warn");
-  {const tp=crit.concat(pedir),n=tp.length;if(n)T(crit.length?"bad":"warn",n+(n===1?" artículo":" artículos")+" para pedir"+(crit.length?" ("+crit.length+" bajo mínimo)":""),tp.slice(0,4).map(a=>a.desc).join(", ")+(n>4?"…":""),"Lista de pedido",listaPedido);}
+  {const tp=crit.concat(pedir),n=tp.length;if(n)T(crit.length?"bad":"warn",n+(n===1?" artículo":" artículos")+" para pedir"+(crit.length?" ("+crit.length+" bajo mínimo)":""),tp.slice(0,4).map(a=>a.desc).join(", ")+(n>4?"…":""),"Lista de pedido",listaPedido,el("div",{class:"chips",style:"margin-top:4px"},tp.slice(0,6).map(a=>el("button",{type:"button",class:"chip",text:"🔎 ¿Por qué se gasta? "+(TEC(a.fam)?nomBT(a):a.desc),onclick:()=>{const h=hoy();investigar({t:TEC(a.fam)?nomBT(a):a.desc,arts:[a.id],d0:sumaDias(h,-29),d1:h,per:"los últimos 30 días"});}}))));}
   {const ng=negativos();if(ng.length)T("bad",ng.length+(ng.length===1?" artículo no cuadra":" artículos no cuadran")+" (sale en negativo)",ng.slice(0,4).map(x=>x.a.desc+" en "+corto(x.al)+" "+fmtN(x.st)).join(", ")+(ng.length>4?"…":"")+". Se ha apuntado más gasto del que había: cuenta lo que hay y apúntalo.","Contar",()=>{const x=ng[0];Object.assign(draft.m,{tipo:"ajuste",art:x.a.id,alm:x.al.id,cant:""});irA("mov");});}
   const retr=artsActivos().filter(a=>a.pedido&&a.prevista&&a.prevista<hy);
   if(retr.length)T("bad",retr.length+" pedidos retrasados",retr.map(a=>a.desc+" ("+dias(a.prevista,hy)+" d)").slice(0,4).join(", "),"Ver pedidos",ir("stock"));
@@ -145,7 +145,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   {const fl=faltaLectHoy();if(fl.length&&new Date().getHours()>=10)T("warn","Falta la lectura de los contadores de aceite",fl.join(" y ")+" · hoy","Apuntar",()=>formLect(fl[0]));
     cotejoResumen().filter(x=>x.niv==="bad").forEach(x=>T("bad","Desfase entre cambios de aceite y contadores",x.t,"Ver",()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])));
     const RC=rarosCont(3);if(RC.length)T("bad","Consumo raro de aceite o glicol",RC.map(t=>nomCont(t.k)+" "+t.n+(t.raro==="baja"?" (el contador baja)":" ("+fmtL(t.lpd)+"/día)")).join(", "),"Ver",()=>informeCont());}
-  try{const DV=calcDesv(),nd=DV.L.filter(d=>!d.just);guardaDesvSemana(DV);if(nd.length)T(nd.some(d=>d.niv==="bad")?"bad":"warn",nd.length+(nd.length===1?" desviación de consumo":" desviaciones de consumo")+" la "+semTxt(DV.W0),nd.slice(0,4).map(d=>d.tit+" ("+TIPO_D[d.tipo][0].toLowerCase()+")").join(", ")+(nd.length>4?"…":""),"Ver",ir("desv"));}catch(e){}
+  try{const DV=calcDesv(),nd=DV.L.filter(d=>!d.just);guardaDesvSemana(DV);if(nd.length)T(nd.some(d=>d.niv==="bad")?"bad":"warn",nd.length+(nd.length===1?" desviación de consumo":" desviaciones de consumo")+" la "+semTxt(DV.W0),nd.slice(0,4).map(d=>d.tit+" ("+TIPO_D[d.tipo][0].toLowerCase()+")").join(", ")+(nd.length>4?"…":""),"Ver",ir("desv"),el("div",{class:"chips",style:"margin-top:4px"},nd.slice(0,6).map(d=>el("button",{type:"button",class:"chip",text:"🔎 "+d.tit,onclick:()=>investigarDesv(d)}))));}catch(e){}
   try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
@@ -192,3 +192,9 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Generar informe",onclick:()=>generarInforme()})]));
   v.appendChild(el("p",{class:"hint",text:"Se actualiza solo con cada movimiento. Toca cualquier recuadro para ir al detalle."}));}
 
+/* qué investigar al pulsar un aviso de «Lo importante ahora» */
+function invAlerta(a){const h=hoy(),q=a.q||{};
+  if(q.que==="pist"&&q.maq){const m=cat.maquinas.find(x=>x.cod===q.maq||x.id===q.maq);if(m)return{t:m.cod+" · Pistones",maq:m.id,fam:"Pistones",d0:sumaDias(h,-29),d1:h,per:"los últimos 30 días"};}
+  if(q.que==="rep"&&q.txt&&ejes.some(e=>e.cod===q.txt))return{t:"Eje "+q.txt,eje:q.txt,fam:"Reparación de ejes",d0:sumaDias(h,-364),d1:h,per:"los últimos 12 meses"};
+  if(a.art){const x=art(a.art);if(x)return{t:TEC(x.fam)?nomBT(x):x.desc,arts:[x.id],d0:sumaDias(h,-29),d1:h,per:"los últimos 30 días"};}
+  return null;}

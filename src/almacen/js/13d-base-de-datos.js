@@ -191,7 +191,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
   caja.appendChild(el("div",{class:"bd-q"},[(()=>{const l=el("span",{class:"bd-lupa","aria-hidden":"true"});l.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';return l;})(),q]));
   caja.appendChild(sug);v.appendChild(caja);v.appendChild(res);const resto=el("div",{id:"bdResto"});v.appendChild(resto);try{vAnalisis(resto);}catch(e){console.warn(e);}
   const pon=(t,mantener)=>{if(!mantener){B.ef=[];B.gEv=null;}B.q=t;B.f="";q.value=t;pinta();if(!mantener)q.focus();};
-  function pinta(){pinta0();if(window.BuscaAprende&&nq(B.q))BuscaAprende.tras("almacen",res,B.q,["pistones","ejes","taladrina","aceite","jabón","consumo","stock","nave 1","nave 2"],()=>pinta());}
+  function pinta(){pinta0();if(nq(B.q))try{botonInvQ(res,window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q);}catch(e){}if(window.BuscaAprende&&nq(B.q))BuscaAprende.tras("almacen",res,B.q,["pistones","ejes","taladrina","aceite","jabón","consumo","stock","nave 1","nave 2"],()=>pinta());}
   function pinta0(){const QQ=window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q;sug.textContent="";res.textContent="";resto.hidden=!!nq(B.q);const S=sugerencias(B.q,T);
     sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q)){const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplosA(pon,B));}
     else if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));

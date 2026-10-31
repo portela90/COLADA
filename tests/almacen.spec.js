@@ -702,7 +702,7 @@ test('Desviaciones: pico de gasto por tonelada, causa apuntada y aviso semanal g
   await expect.poll(() => page.evaluate(() => ((window.__D.desv || {}).semana || {}).items?.length || 0)).toBeGreaterThan(0);
   await v.locator('section', { hasText: 'Rodillo de prueba' }).first().locator('button', { hasText: 'Investigar' }).click(); await page.waitForTimeout(300);
   let dI = page.locator('.dlg').last();
-  await expect(dI).toContainText('Investigar: Rodillo de prueba'); await expect(dI).toContainText('12 en la semana del'); await expect(dI).toContainText('Por motivo'); await expect(dI).toContainText('Sin responsable');
+  await expect(dI).toContainText('Investigar: Rodillo de prueba'); await expect(dI).toContainText('12 ud en la semana del'); await expect(dI).toContainText('Lo que llama la atención'); await expect(dI).toContainText('Por motivo'); await expect(dI).toContainText('Sin responsable');
   await dI.locator('button.it', { hasText: 'Rodillo de prueba' }).first().click(); await page.waitForTimeout(300);
   await expect(page.locator('#ccMot')).toHaveCount(0);
   await page.fill('#ccResp', 'Operario X'); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
@@ -1007,6 +1007,24 @@ test('Pestaña Consumo: apuntar un consumo con el operario', async ({ page }) =>
   await page.fill('#mResp', 'Operario prueba');
   await page.locator('#mBtn').click(); await page.waitForTimeout(500);
   await expect(page.locator('#view')).toContainText('Operario: Operario prueba');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Investigar: botón en Consultas, bajar por máquina y volver', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'pistones de 80 este año'); await page.waitForTimeout(400);
+  const b = page.locator('#bdRes button', { hasText: 'Investigar esto' });
+  await expect(b).toContainText('este año'); await b.click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last();
+  await expect(d).toContainText('Investigar: Pistón Ø 80'); await expect(d).toContainText('Por motivo'); await expect(d).toContainText('Cuándo');
+  const t = (await d.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  const fm = d.locator('button.it').first(); await fm.click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last();
+  if (await d.getByRole('button', { name: '‹ Atrás' }).count()) { await d.getByRole('button', { name: '‹ Atrás' }).click(); await page.waitForTimeout(300); await expect(page.locator('.dlg').last()).toContainText('Investigar: Pistón Ø 80'); }
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
