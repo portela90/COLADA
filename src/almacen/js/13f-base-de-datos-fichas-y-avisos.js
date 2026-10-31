@@ -19,6 +19,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
     return{d,h:fin(yy,mi+1),t:cap(MESES_Q[mi])+(yy!==y?" "+yy:""),re:new RegExp("\\b(en |de |para )?"+MESES_Q[mi]+"( de)?( 20\\d\\d)?\\b")};}
   return null;}
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
+  if(/\btolvas?\b/.test(q)&&!/\bque (tengo|hay|tenemos) que pedir\b/.test(q))return M("tolvas");
   if(/\bpiston\w*\b/.test(q)&&/\b(compras?|comprad\w*|comprando|comprar|entrad[oa]s?|han entrado|nuevos? (y|o|frente a|contra) recuperad\w*|recuperad\w* (y|o|frente a|contra) nuevos?|gast\w* en (comprar|compras))\b/.test(q)&&!/\bque (tengo|hay|tenemos) que\b|\bpara (el mes|la semana|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(q))return M("comprapist");
   if(/\bcompar\w*|\bfrente (al?|a los?)\b|\brespecto (al?|a los?)\b|\bcontra (el|la|los)\b|\bdesviaci\w*|\bdesvi[oa]\w*|\bmes a mes\b|\bevolucion\b|\bcon (los )?meses anteriores\b|\bcon la media\b|\bque el mes pasado\b|\b(mas|menos) que (el|la|los) (mes|meses|media|ano)\b|\bse (ha )?(disparado|desviado)\b/.test(q))return M("comparar");
   if(/\b(que|cuanto|cuantos|cuantas) (tengo|hay|tenemos|debo|debemos|necesito|necesitamos|hace falta|haria falta|habria) (que )?(pedir|comprar|traer)\b|\bque (necesito|necesitamos|hace falta|me hace falta|nos hace falta) (pedir |comprar )?(de|para)\b|\b(pedido|compras?) (de|para)\b/.test(q)){const P=periodoFutA(q);if(P)return M("pedirpara",{per:P});}
@@ -183,6 +184,12 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase(cap(L[0].quien)+" ha apuntado "+L.length+(L.length===1?" cosa":" cosas")+" en "+per.t+": "+Object.entries(G).map(([k,g])=>g.n+" "+k.toLowerCase()).join(", ")+".");
     lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,80).map(e=>it(e.ref,[fmtF(e.f)+" · "+e.fam,mqEv(e)?mqEv(e).cod:e.nave||null],fmtN(e.cant),e.ud,e.ir||null)));return;}
 
+  if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);
+    frase((tot?"En el taller hay "+D.filter(g=>g.taller).map(g=>g.taller+" "+g.a.desc.toLowerCase()+(g.taller===1?"":"s")).join(" y ")+".":"No hay ninguna tolva en el taller.")+" "+cap(per.t)+" se han reparado "+D.reduce((s,g)=>s+g.rep,0)+" ("+eur(D.reduce((s,g)=>s+g.gasto,0))+") y se han cambiado "+D.reduce((s,g)=>s+g.cambios,0)+" en las máquinas.");
+    if(ab.length)lista("En el taller",ab.map(r=>it((art(r.art)||{desc:"?"}).desc+" × "+((+r.cant||0)-trepVuelta(r)),"Enviadas el "+fmtF(r.env)+(r.prov?" · "+provN(r.prov):""),String(dias(r.env,h)),"días",()=>irA("bth"),dias(r.env,h)>30?"bad":"warn")));
+    lista("Por tipo",D.map(g=>it(g.a.desc,["Reparadas "+g.rep+" · "+eur(g.gasto)+" · cambiadas en máquinas "+g.cambios,g.cada!=null?"Se mandan a reparar cada "+g.cada+" días de media":null],eur(g.gasto),null,()=>ficha(g.a))));
+    const M={};D.forEach(g=>Object.entries(g.maq).forEach(([m,n])=>{M[m]=(M[m]||0)+n;}));const L=Object.entries(M).sort((a,b)=>b[1]-a[1]);
+    if(L.length)lista("Máquinas que más tolvas cambian",L.slice(0,10).map(([m,n])=>it(m,null,fmtN(n),"tolvas",()=>pon("todo sobre la "+m))));return;}
   if(I.modo==="comprapist"){const per=P.def?{d:h.slice(0,7)+"-01",h,t:"este mes"}:P;const D=datosComprasPist(per.d,per.h);const ds=DIAM.filter(x=>D.G[x]);ent("compras de pistones",[per.t]);
     frase(D.tN||D.tR?cap(per.t)+" han entrado "+fmtN(D.tN)+(D.tN===1?" pistón nuevo":" pistones nuevos")+" ("+eur(D.eN)+") y "+fmtN(D.tR)+(D.tR===1?" recuperado":" recuperados")+" ("+eur(D.eR)+"): "+eur(D.eN+D.eR)+" en total."+(D.ahorro?" Recuperar ha ahorrado unos "+eur(D.ahorro)+".":""):"No ha entrado ningún pistón "+per.t.toLowerCase()+".");
     if(ds.length)lista(null,ds.map(x=>{const g=D.G[x];return it(x,[g.n?"Nuevos: "+fmtN(g.n)+" · "+eur(g.en):null,g.r?"Recuperados: "+fmtN(g.r)+" · "+eur(g.er):null].filter(Boolean),eur(g.en+g.er),null,()=>{const a=pistArt(x);if(a)ficha(a);});}));

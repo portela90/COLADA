@@ -765,3 +765,35 @@ test('Pistones: entradas de nuevos y recuperados con su precio, en «Compras de 
   await expect(page.locator('#view')).toContainText('Ahorro por recuperar');
   expect(err).toEqual([]);
 });
+
+test('Tolvas: enviar a reparar, vuelven al almacén con su importe y el cambio en la máquina suma al gasto del horno', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    const m25 = v.cat.app.maquinas.find(x => x.cod === 'F25');
+    v.cat.app.articulos.push({ id: 'tv-h', desc: 'Tolva de hierro', fam: 'horno', grupo: 'Tolvas', ud: 'ud', alms: ['gen'], precio: '300', iny: [m25.id] }, { id: 'tv-r', desc: 'Tolva refractaria', fam: 'horno', grupo: 'Tolvas', ud: 'ud', alms: ['gen'], precio: '450', iny: [m25.id] });
+    const h = new Date().toISOString().slice(0, 10);
+    v.mov[k].items.push({ id: 'tvs', f: h, alm: 'gen', art: 'tv-h', cant: 1, tipo: 'salida', maq: m25.id }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Horno$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view');
+  await expect(v).toContainText('Tolvas en reparación'); await expect(v).toContainText('ninguna en el taller');
+  await v.locator('button', { hasText: 'Enviar a reparar' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last(); await d.locator('#tvCtv-h').fill('2'); await d.locator('#tvCtv-r').fill('1'); await d.locator('button', { hasText: 'Enviar' }).click(); await page.waitForTimeout(800);
+  await expect(v).toContainText('3 en el taller'); await expect(v).toContainText('Tolva de hierro × 2');
+  await v.locator('.it', { hasText: 'Tolva de hierro × 2' }).locator('button', { hasText: 'Han vuelto' }).click(); await page.waitForTimeout(300);
+  const d2 = page.locator('.dlg').last(); await d2.locator('#tvvE').fill('550'); await d2.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(900);
+  await expect(v).toContainText('1 en el taller');
+  const ent = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(x => x.art === 'tv-h' && x.tipo === 'entrada'));
+  expect(ent.length).toBe(1); expect(ent[0].cant).toBe(2);
+  await expect(v.locator('section', { hasText: 'Tolvas en reparación' })).toContainText(/Tolva de hierro\s*2\s*550/);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'tolvas en reparación'); await page.waitForTimeout(400);
+  await expect(page.locator('#bdRes')).toContainText('En el taller hay 1 tolva refractaria.');
+  await page.fill('#bdQ', 'todo sobre la F25'); await page.waitForTimeout(400);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha de la F25' }).click(); await page.waitForTimeout(400);
+  await page.locator('[role=tab]', { hasText: 'Gasto' }).last().click(); await page.waitForTimeout(300);
+  await expect(page.locator('body')).toContainText(/Horno\s*300/);
+  expect(err).toEqual([]);
+});

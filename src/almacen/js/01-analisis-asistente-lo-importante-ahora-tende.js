@@ -146,6 +146,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
     cotejoResumen().filter(x=>x.niv==="bad").forEach(x=>T("bad","Desfase entre cambios de aceite y contadores",x.t,"Ver",()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])));
     const RC=rarosCont(3);if(RC.length)T("bad","Consumo raro de aceite o glicol",RC.map(t=>nomCont(t.k)+" "+t.n+(t.raro==="baja"?" (el contador baja)":" ("+fmtL(t.lpd)+"/día)")).join(", "),"Ver",()=>informeCont());}
   try{const DV=calcDesv(),nd=DV.L.filter(d=>!d.just);guardaDesvSemana(DV);if(nd.length)T(nd.some(d=>d.niv==="bad")?"bad":"warn",nd.length+(nd.length===1?" desviación de consumo":" desviaciones de consumo")+" la "+semTxt(DV.W0),nd.slice(0,4).map(d=>d.tit+" ("+TIPO_D[d.tipo][0].toLowerCase()+")").join(", ")+(nd.length>4?"…":""),"Ver",ir("desv"));}catch(e){}
+  try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
   v.appendChild(el("section",{class:"card"+(tareas.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
