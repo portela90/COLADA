@@ -721,3 +721,16 @@ test('Consultas: las preguntas habituales van en una sola fila que no se sale de
   await expect(page.locator('#bdQ')).toHaveValue('qué maquina tiene mas consumo');
   expect(err).toEqual([]);
 });
+
+test('Consultas: «coste de las reparaciones que están abiertas» da el importe de los ejes en el taller', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  for (const q of ['Coste de las reparaciones que están abiertas', 'cuánto cuestan las reparaciones pendientes', 'importe de las reparaciones en el taller']) {
+    await page.fill('#bdQ', q); await page.waitForTimeout(400);
+    await expect(page.locator('#bdRes')).toContainText('importe de los ejes en reparación'); }
+  await page.fill('#bdQ', 'cuánto hemos gastado este mes'); await page.waitForTimeout(400);
+  await expect(page.locator('#bdRes')).not.toContainText('importe de los ejes en reparación');
+  expect(err).toEqual([]);
+});

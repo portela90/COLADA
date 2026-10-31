@@ -24,7 +24,8 @@ function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};con
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen");
   {const A=almsQ(q);if(A&&!QCO.test(q)&&!/\b(ultim|primer|cuando|quien)\b/.test(q)&&(!/\b(hornos?|maquinas?|inyectoras?|ejes?|modelos?|contenedor(es)?|moldes?)\b/.test(q)||/\b(recambios?|repuestos?|piezas?) de hornos?\b/.test(q)))return M("stockalm",{alms:A.L,almT:A.t});}
   if(/\bpresupuesto\b|\bcuanto (cuesta|costaria|costarian|vale|valdria|valdrian|sale|saldria)n? (un pedido|pedir|comprar|traer)\b|\bcuanto (cuestan|costarian|valen|valdrian) \d+/.test(q))return M("presupuesto");
-  if(/\bejes?\b/.test(q)&&/\b(importe|coste|costes|valor|cuesta|cuestan|costara|costaran|dinero|euros|presupuesto|cuanto (vale|valen|va|van))\b/.test(q)&&/\b(taller|reparacion\w*|reparar|pendientes?|arreglar)\b/.test(q))return M("tallereur");
+  {const din=/\b(importe|coste|costes|valor|cuesta|cuestan|costara|costaran|dinero|euros|presupuesto|cuanto (vale|valen|va|van|cuesta|cuestan))\b/.test(q);
+   if(din&&((/\bejes?\b/.test(q)&&/\b(taller|reparacion\w*|reparar|pendientes?|arreglar)\b/.test(q))||(/\breparacion\w*\b/.test(q)&&/\b(abiert[oa]s?|pendientes?|en curso|en (el )?taller|sin (volver|cerrar|terminar)|por (volver|cerrar|terminar)|que (hay|tenemos|estan|quedan))\b/.test(q))))return M("tallereur");}
   if(/\b(precio|precios) (de|del|de los|de las)\b|\bcuanto (cuesta|cuestan|vale|valen) (un|una|el|la|los|las)\b/.test(q)&&!/\bstock\b|\bque (tengo|hay|tenemos)\b/.test(q))return M("precioart");
   if(/\brob(o|os|ad[oa]s?|aron|ado)\b|\bhurt\w*|\bdesaparecid\w*|\bperdid[oa]s?\b|\bperdidas\b|\bmermas?\b|\bdescuadres?\b|\bfaltaba\w*\b.*\brecuento|\brecuentos?\b.*\b(falta\w*|menos)\b/.test(q))return M("perdidas",{robo:/\brob|\bhurt/.test(q)});
   if(/\b(todo (sobre|de|lo de)|ficha (de|completa)|informacion (de|sobre)|dime todo|resumen de)\b/.test(q)){
