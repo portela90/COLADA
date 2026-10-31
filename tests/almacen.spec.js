@@ -659,12 +659,14 @@ test('Consultas: comparar el gasto de un material o una máquina con meses anter
     let i = 0; const s = (f, maq, cant) => v.mov[k].items.push({ id: 'cs' + (i++), f, alm: 'gen', art: 'rod', cant, tipo: 'salida', maq });
     for (let n = 1; n <= 6; n++) { s(mes(-n) + '-02', m25.id, 6); s(mes(-n) + '-03', m30.id, 4); }
     s(h.toISOString().slice(0, 8) + '01', m25.id, 26); s(h.toISOString().slice(0, 8) + '01', m30.id, 4); } }); });
+  await page.addInitScript(() => { const h = new Date(), mes = n => { const x = new Date(h.getFullYear(), h.getMonth() + n, 1, 12); return x.toISOString().slice(0, 7); }; const M = {}; for (let n = 0; n <= 6; n++) M[mes(-n)] = { n: { 'Nave 1': 100000 }, m: {} }; window.__PROD = { sem: {}, mes: M }; });
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'compara el gasto de rodillo de prueba este mes con los meses anteriores'); await page.waitForTimeout(400);
   let t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/Este mes: 30 ud/); expect(t).toMatch(/La media de los 6 meses anteriores es 10 ud/); expect(t).toMatch(/Desviación fuerte/);
+  expect(t).toMatch(/Por tonelada de aluminio: Este mes 30 ud por cada 100 t \(con 100 t\); la media de los 6 meses anteriores 10 ud por cada 100 t\. Gasta un 200 % más por tonelada/);
   expect(t).toMatch(/Lo que más se ha desviado al alza/); expect(t).toMatch(/F25 Este mes: 26 ud/); expect(t).toContain('Mes a mes'); expect(t).not.toMatch(/No he encontrado/);
   await page.fill('#bdQ', 'rodillo de prueba este mes frente al mes pasado'); await page.waitForTimeout(400);
   t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
@@ -672,5 +674,34 @@ test('Consultas: comparar el gasto de un material o una máquina con meses anter
   await page.fill('#bdQ', 'compara el gasto de la F25 este mes con los meses anteriores'); await page.waitForTimeout(400);
   t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/Rodillo de prueba/); expect(t).toMatch(/Desviación/);
+  expect(err).toEqual([]);
+});
+
+test('Desviaciones: pico de gasto por tonelada, causa apuntada y aviso semanal guardado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    const lunes = f => { const d = new Date(f + 'T12:00:00'), w = (d.getDay() + 6) % 7; d.setDate(d.getDate() - w); return d.toISOString().slice(0, 10); };
+    const mas = (f, n) => { const d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+    const hoyS = new Date().toISOString().slice(0, 10), W0 = mas(lunes(hoyS), -7);
+    const sem = {}; for (let i = 0; i <= 14; i++) { const w = mas(W0, -7 * i); sem[w] = { n: { 'Nave 1': 100000 }, m: { F25: 10000 }, d: { F25: 5 } }; }
+    window.__PROD = { sem, mes: {} };
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+      v.cat.app.articulos.push({ id: 'rod', desc: 'Rodillo de prueba', fam: 'consumible', ud: 'ud', alms: ['gen'], precio: '10' });
+      const m25 = v.cat.app.maquinas.find(x => x.cod === 'F25'); let i = 0;
+      for (let n = 1; n <= 13; n++) v.mov[k].items.push({ id: 'dv' + (i++), f: mas(W0, -7 * n + 2), alm: 'gen', art: 'rod', cant: n % 2 ? 2 : 3, tipo: 'salida', maq: m25.id });
+      v.mov[k].items.push({ id: 'dv' + (i++), f: mas(W0, 2), alm: 'gen', art: 'rod', cant: 12, tipo: 'salida', maq: m25.id }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Desviaciones$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view');
+  await expect(v).toContainText('F25 · '); await expect(v).toContainText('Rodillo de prueba'); await expect(v).toContainText('para 10 t');
+  await expect(v).toContainText(/120 € para 10 t; lo normal serían unos 25 €/); await expect(v).toContainText(/12 ud para 100 t; lo normal serían unos 2,5 ud/);
+  await expect.poll(() => page.evaluate(() => ((window.__D.desv || {}).semana || {}).items?.length || 0)).toBeGreaterThan(0);
+  await v.locator('section', { hasText: 'F25 · ' }).first().locator('button', { hasText: 'Apuntar causa' }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().locator('.chip', { hasText: 'Molde nuevo' }).click();
+  await page.locator('.dlg').last().locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  await expect(v).toContainText('Causa: Molde nuevo');
+  await v.locator('button', { hasText: 'Informe del mes' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Informe de desviaciones');
   expect(err).toEqual([]);
 });

@@ -1,0 +1,8 @@
+-- colada-mapri (31/10/2026): aviso al móvil de las desviaciones de consumo de la semana.
+-- La app Almacén calcula las desviaciones (gasto por tonelada, límites de control, pistones) y guarda el resumen
+-- en docs col 'alm_desv' id 'semana' {sem, items:[{clave, txt}]} (solo las no justificadas).
+-- alm_alertas_desv() las devuelve como grupo 'desv' (clave 'desv:<tipo>:<sujeto>:<lunes>'), y _alm_avisos_enviar()
+-- junta alm_alertas() || alm_alertas_cont() || alm_alertas_desv(), con título «N desviaciones de consumo esta semana»
+-- y enlace almacen.html?t=desv. Cada desviación se avisa una sola vez.
+-- Coladas guarda en docs col 'prod' id 'resumen' los kg de aluminio por semana y mes, por nave y máquina
+-- (lo leen solo usuarios con acceso completo: puede_ver no deja a los de consulta).

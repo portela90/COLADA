@@ -157,7 +157,7 @@ function pinta(){
   if(!db){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."})]));return;}
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
-  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();
+  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();prodAlmacen();
   if(tab==="stock"||tab==="hist")v.appendChild(el("div",{style:"display:flex;justify-content:flex-end"},[el("button",{type:"button",class:"btn",text:"Generar informe",onclick:()=>generarInforme()})]));
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }

@@ -266,8 +266,11 @@ function compararA(I,res,pon,U){const {add,frase,nota,ent,lista,it,ign}=U;const 
   const txtE=e=>" "+nq([e.ref,e.a?e.a.desc:"",e.a?e.a.cod:"",e.fam].join(" "))+" ";
   let E=evTodo().filter(e=>e.fam!=="Contenedores"&&famCasa(e,fs)&&(!I.maq||(mqEv(e)&&mqEv(e).id===I.maq.id))&&(!I.nave||enNave(mqEv(e),I.nave)||(e.nave&&nq(e.nave).startsWith(I.nave))));
   const ignW=[];pals.forEach(w=>{const r=reQ(raiz(w));const E2=E.filter(e=>r.test(txtE(e)));if(E2.length)E=E2;else ignW.push(w);});
-  const sujeto=[fs?fs.join(", "):null,pals.filter(w=>!ignW.includes(w)).join(" ")||null,I.maq?I.maq.cod:null,I.nave?"Nave "+I.nave.toUpperCase():null].filter(Boolean);
-  const uds=[...new Set(E.map(e=>e.ud))],unaUd=uds.length===1?uds[0]:null,hayEur=E.some(e=>e.eur>0);
+  const sujeto=[fs?fs.join(", "):null,pals.filter(w=>!ignW.includes(w)).join(" ")||null,I.maq?I.maq.cod:null,I.nave?cap(I.nave).toUpperCase().replace("NAVE","Nave"):null].filter(Boolean);
+  const uds=[...new Set(E.map(e=>e.ud))],unaUd=uds.length===1?uds[0]:null,hayEur=E.filter(e=>e.eur>0).length>=0.8*E.length;
+  /* desde qué mes hay datos de lo que se pregunta (antes no se apuntaba: no cuenta como cero) */
+  const IN=typeof iniDatos==="function"?iniDatos():{};const fIni=[...new Set(E.map(e=>e.fam==="Pistones"?IN.pist:e.fam==="Reparación de ejes"?IN.rep:IN.mov))].filter(Boolean).sort().pop()||null;
+  const mIni=fIni?(+fIni.slice(8,10)<=5?fIni.slice(0,7):mesMas(fIni.slice(0,7),1)):"0000-00";
   const V=L=>({eu:L.reduce((s,e)=>s+e.eur,0),c:L.reduce((s,e)=>s+e.cant,0),n:L.length});
   const med=x=>unaUd?x.c:hayEur?x.eu:x.n,fmtV=v=>unaUd?fmtN(Math.round(v*10)/10)+" "+unaUd:hayEur?eur(v):fmtN(Math.round(v))+" apuntes",fmtV2=x=>(unaUd?fmtN(Math.round(x.c*10)/10)+" "+unaUd:fmtN(x.n)+" apuntes")+(x.eu?" · "+eur(x.eu):"");
   const pct=(a,b)=>b>0?Math.round((a-b)/b*100):(a>0?null:0),pTxt=p=>p==null?"(antes no había)":p>0?"+"+p+" %":p+" %";
@@ -284,6 +287,11 @@ function compararA(I,res,pon,U){const {add,frase,nota,ent,lista,it,ign}=U;const 
     if(baja.length)lista("Lo que ha bajado",baja.slice(0,8).map(fila));
     if(!sube.length&&!baja.length)nota("En el desglose nada se ha movido más de un 20 %.");
     if(R.length>1)add(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Detalle"})),cTabla(["",titA,titB,"Diferencia"],R.slice(0,40).map(g=>[g.k,fmtV(med(g.a)),fmtV(med(g.b)),pTxt(g.p)]),[1,2,3])]));};
+  /* el mismo gasto por tonelada de aluminio (Coladas): así una desviación no es solo producir más */
+  const scopeT=I.maq?I.maq.cod:I.nave?"Nave "+I.nave.replace(/^nave\s*/,"").replace(/[ab]$/,""):null;
+  const porTon=(LA,LB,tA,tB)=>{if(typeof PROD==="undefined"||!PROD)return;LA=LA.filter(([m])=>tonMes(m,scopeT)>0);LB=LB.filter(([m])=>tonMes(m,scopeT)>0);const tt=L=>L.reduce((s,[m])=>s+tonMes(m,scopeT),0),vv=L=>L.reduce((s,[,v])=>s+v,0);const ta=tt(LA),tb=tt(LB);if(!(ta>0&&tb>0))return;
+    const ra=vv(LA)/ta,rb=vv(LB)/tb,p=pct(ra,rb);
+    add(el("p",{class:"bd-resp",text:"Por tonelada de aluminio"+(scopeT?" ("+scopeT+")":"")+": "+tA+" "+fmtV(ra*100)+" por cada 100 t (con "+fmtN(Math.round(ta))+" t); "+tB+" "+fmtV(rb*100)+" por cada 100 t. "+(p==null?"":p>=25?"Gasta un "+p+" % más por tonelada: es una desviación de verdad, no solo más producción.":p<=-25?"Gasta un "+(-p)+" % menos por tonelada.":"Por tonelada está en lo normal ("+pTxt(p)+"): la diferencia se explica por lo producido.")}));};
   /* gráfica y tabla de los últimos 12 meses */
   const serie=fin=>{const ms=[];for(let i=11;i>=0;i--)ms.push(mesMas(fin,-i));const vs=ms.map(k=>med(VM(k)));
     add(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Mes a mes"}),el("span",{class:"der sub",text:unaUd?unaUd:hayEur?"euros":"apuntes"})]),el("div",{class:"bd",style:"display:grid;gap:8px"},[barras(ms,vs,v=>unaUd?String(Math.round(v)):hayEur?Math.round(v)+"":String(v)),
@@ -295,16 +303,21 @@ function compararA(I,res,pon,U){const {add,frase,nota,ent,lista,it,ign}=U;const 
     const enCurso=A.tipo==="mes"&&A.m===mAct,proy=enCurso?diasMes(mAct)/dHoy:1;
     frase(cap(A.t)+": "+fmtV2(va)+". "+cap(B.t)+": "+fmtV2(vb)+". "+(p==null?"Antes no había gasto.":p>0?"Un "+p+" % más.":p<0?"Un "+(-p)+" % menos.":"Lo mismo.")+(enCurso&&dHoy<diasMes(mAct)?" A este ritmo "+A.t+" acabaría en "+fmtV(med(va)*proy)+" ("+pTxt(pct(med(va)*proy,med(vb)))+").":"")
       +(A.tipo==="ano"&&B.tipo==="ano"&&rA.h.slice(5)!=="12-31"?" (Comparando el mismo periodo: del 1 de enero al "+fmtF(rA.h).slice(0,5)+".)":""));
+    if(A.tipo==="mes"&&B.tipo==="mes")porTon([[A.m,med(va)]],[[B.m,med(vb)]],cap(A.t),cap(B.t));
     desglose(LA,LB,1,cap(A.t),cap(B.t),enCurso&&dHoy>=5?proy:1);if(enCurso&&dHoy>=5)nota("En el desglose, "+A.t+" va proyectado a mes completo (va por el día "+dHoy+").");
     serie(A.tipo==="mes"?(A.m>(B.m||"")?A.m:B.m||A.m):mAct);return;}
   /* 2) un mes (por defecto el que corre) frente a la media de los 6 anteriores */
   const T=PS.length===1&&PS[0].tipo==="mes"?PS[0]:{m:mAct,t:"este mes"};const enCurso=T.m===mAct,dm=diasMes(T.m),f=enCurso?dm/Math.max(dHoy,1):1;
-  const prev=[1,2,3,4,5,6].map(i=>mesMas(T.m,-i)),pv=prev.map(k=>med(VM(k)));
-  const media=pv.reduce((s,v)=>s+v,0)/6,sd=Math.sqrt(pv.reduce((s,v)=>s+(v-media)*(v-media),0)/5),act=med(VM(T.m)),proyT=act*f,ant=med(VM(prev[0])),p=pct(proyT,media),pA=pct(proyT,ant);
+  const prev=[1,2,3,4,5,6].map(i=>mesMas(T.m,-i)).filter(k=>k>=mIni),nP=prev.length;
+  if(!nP){frase(cap(T.t)+": "+fmtV2(VM(T.m))+". Todavía no hay ningún mes completo anterior con datos para comparar.");serie(T.m);return;}
+  const pv=prev.map(k=>med(VM(k)));const mTxt=nP===1?"el mes anterior":"los "+nP+" meses anteriores";
+  const media=pv.reduce((s,v)=>s+v,0)/nP,sd=nP>1?Math.sqrt(pv.reduce((s,v)=>s+(v-media)*(v-media),0)/(nP-1)):media*0.3,act=med(VM(T.m)),proyT=act*f,ant=med(VM(prev[0])),p=pct(proyT,media),pA=pct(proyT,ant);
   const nivelD=p==null?"bad":p>=60&&proyT-media>sd?"bad":p>=25?"warn":p<=-40?"low":"ok";
-  frase(cap(T.t)+": "+fmtV2(VM(T.m))+(enCurso&&dHoy<dm?" en "+dHoy+" días; a este ritmo acabaría en "+fmtV(proyT):"")+". La media de los 6 meses anteriores es "+fmtV(media)+" ("+pTxt(p)+") y "+cap(fmtMes(prev[0])).replace(/ \d{4}$/,"").toLowerCase()+" fue "+fmtV(ant)+" ("+pTxt(pA)+").");
+  frase(cap(T.t)+": "+fmtV2(VM(T.m))+(enCurso&&dHoy<dm?" en "+dHoy+" días; a este ritmo acabaría en "+fmtV(proyT):"")+". "+(nP===1?cap(fmtMes(prev[0])).replace(/ \d{4}$/,"")+" fue "+fmtV(ant)+" ("+pTxt(pA)+").":"La media de "+mTxt+" es "+fmtV(media)+" ("+pTxt(p)+") y "+cap(fmtMes(prev[0])).replace(/ \d{4}$/,"").toLowerCase()+" fue "+fmtV(ant)+" ("+pTxt(pA)+")."));
+  if(nP<3)nota("Solo hay "+nP+(nP===1?" mes completo":" meses completos")+" de datos antes: la comparación se irá afinando.");
+  porTon([[T.m,act]],prev.map(k=>[k,med(VM(k))]),cap(T.t),nP===1?cap(fmtMes(prev[0])).replace(/ \d{4}$/,""):"la media de "+mTxt);
   add(el("div",{class:"banner "+(nivelD==="bad"?"b":nivelD==="warn"?"w":""),text:nivelD==="bad"?"Desviación fuerte: "+T.t.toLowerCase()+" va muy por encima de lo normal.":nivelD==="warn"?"Desviación: "+T.t.toLowerCase()+" va por encima de lo normal.":nivelD==="low"?"Va bastante por debajo de lo normal.":"Dentro de lo normal (entre "+fmtV(Math.max(0,media-sd))+" y "+fmtV(media+sd)+" al mes)."}));
   if(enCurso&&dHoy<5)nota("Llevamos solo "+dHoy+" días de mes: la proyección todavía es poco fiable.");
-  desglose(porMes[T.m]||[],[].concat(...prev.map(k=>porMes[k]||[])),6,cap(T.t)+(enCurso&&dHoy<dm?" (proyectado)":""),"Media 6 meses",enCurso&&dHoy>=5?f:1);
+  desglose(porMes[T.m]||[],[].concat(...prev.map(k=>porMes[k]||[])),nP,cap(T.t)+(enCurso&&dHoy<dm?" (proyectado)":""),nP===1?cap(fmtMes(prev[0])).replace(/ \d{4}$/,""):"Media "+nP+" meses",enCurso&&dHoy>=5?f:1);
   serie(T.m);
-  nota("Se compara "+T.t.toLowerCase()+(enCurso?" (proyectado a mes completo)":"")+" con la media de los 6 meses anteriores. Puedes preguntar también «octubre frente a septiembre», «este año con el año pasado», o por una máquina, una nave, una familia o un artículo.");}
+  nota("Se compara "+T.t.toLowerCase()+(enCurso?" (proyectado a mes completo)":"")+" con la media de "+mTxt+" (los meses desde que se apunta). Puedes preguntar también «octubre frente a septiembre», «este año con el año pasado», o por una máquina, una nave, una familia o un artículo.");}

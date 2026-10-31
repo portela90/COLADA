@@ -101,11 +101,12 @@ function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
     btb:"Stock, cambios y qué máquinas las llevan",btt:"Stock, cambios y qué máquinas los llevan",bth:"Conos, tubos, juntas, resistencias… y lo cambiado desde Limpieza",
     quim:"Stock en kg y envases, consumo y días que quedan",iny:"Plano de las naves y la ficha completa de cada máquina",mol:"Moldes y el Ø de pistón que usa cada uno",
-    bd:"Pregunta lo que necesites, lo importante ahora, tendencias y consultas a mano",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
+    desv:"Gasto que se sale de lo normal por máquina y material, causas e informe del mes",bd:"Pregunta lo que necesites, lo importante ahora, tendencias y consultas a mano",mov:"Entradas con albarán, traslados y conteos",consultas:"Pregúntale a la app, alertas y tendencias",cat:"Artículos, almacenes, máquinas y copias"};
   const av={};try{const np=pistPend().length;if(np)av.pist=[np+" sin informar",""];const nq=ejePend().length;if(nq)av.ejes=[nq+" en cuarentena","bad"];}catch(e){}
   try{const sr=CT_TIPOS.filter(t=>{const c=cuentaTipo(t);return c.tot&&!c.est;}).length;if(sr)av.cont=[sr+" sin repuesto","bad"];}catch(e){}
   try{Object.entries({btb:"barra",btt:"tornillo",bth:"horno"}).forEach(([k,f])=>{const n=artsBT(f).filter(a=>nivel(a)==="bad").length;if(n)av[k]=[n+" bajo mínimo","bad"];});
     const nq=artsActivos().filter(a=>GRUPOS_Q.includes(grupoDe(a))&&nivel(a)==="bad").length;if(nq)av.quim=[nq+" bajo mínimo","bad"];}catch(e){}
+  try{const nd=calcDesv().L.filter(d=>!d.just);if(nd.length)av.desv=[nd.length+(nd.length===1?" desviación":" desviaciones"),nd.some(d=>d.niv==="bad")?"bad":""];}catch(e){}
   const nom=Object.fromEntries(SUB);
   SUB_G.forEach(([g,ids])=>{v.appendChild(el("div",{class:"gh mas-g",text:g}));
     v.appendChild(el("div",{class:"tiles"},ids.map(id=>el("button",{type:"button",class:"tile",onclick:()=>irA(id)},[el("span",{class:"tt",text:nom[id]}),el("span",{class:"td",text:D[id]||""}),av[id]?el("span",{class:"tav "+av[id][1],text:av[id][0]}):null]))));});
@@ -144,6 +145,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   {const fl=faltaLectHoy();if(fl.length&&new Date().getHours()>=10)T("warn","Falta la lectura de los contadores de aceite",fl.join(" y ")+" · hoy","Apuntar",()=>formLect(fl[0]));
     cotejoResumen().filter(x=>x.niv==="bad").forEach(x=>T("bad","Desfase entre cambios de aceite y contadores",x.t,"Ver",()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])));
     const RC=rarosCont(3);if(RC.length)T("bad","Consumo raro de aceite o glicol",RC.map(t=>nomCont(t.k)+" "+t.n+(t.raro==="baja"?" (el contador baja)":" ("+fmtL(t.lpd)+"/día)")).join(", "),"Ver",()=>informeCont());}
+  try{const DV=calcDesv(),nd=DV.L.filter(d=>!d.just);guardaDesvSemana(DV);if(nd.length)T(nd.some(d=>d.niv==="bad")?"bad":"warn",nd.length+(nd.length===1?" desviación de consumo":" desviaciones de consumo")+" la "+semTxt(DV.W0),nd.slice(0,4).map(d=>d.tit+" ("+TIPO_D[d.tipo][0].toLowerCase()+")").join(", ")+(nd.length>4?"…":""),"Ver",ir("desv"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
   v.appendChild(el("section",{class:"card"+(tareas.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
