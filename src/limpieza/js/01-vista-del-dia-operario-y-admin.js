@@ -19,7 +19,8 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   S.pet={};(PE||[]).slice().reverse().forEach(p=>S.pet[p.ot_id]=p);if(admin)bloquePeticiones(pbx,PE||[],re);else respuestasPet(PE||[]);
   box.textContent="";const D=R.dia,A=R.atrasadas,AU=R.ausencias||[];if(f===hoyISO()){S.miHor=R.mi_horario;S.diaD=D;setTimeout(revisaJornada,1200);}const esMio=o=>!!o.todo_equipo||(o.asignados||[]).includes(S.yo.id)||(o.nombres||[]).includes(S.yo.nombre)||cubroYo(o);
   /* el responsable de hornos ya recibe solo los trabajos de su operario (lo filtra el servidor): los ve todos */
-  const Df=admin?D.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):((S.soloMios!==false&&!S.resp)?A.filter(esMio):A);
+  const verTodo=admin||esEnc();/* el encargado ve todos los trabajos del día, también los de otros */
+  const Df=admin?D.filter(pasaFiltro):((S.soloMios!==false&&!S.resp&&!verTodo)?D.filter(esMio):D),Af=admin?A.filter(pasaFiltro):((S.soloMios!==false&&!S.resp&&!verTodo)?A.filter(esMio):A);
   if(admin&&R.plantilla){try{const EXT=await externos();R.plantilla=R.plantilla.filter(x=>!EXT.has(x.id));}catch(e){}}
   S.plant=null;if(R.plantilla){S.plant={};R.plantilla.forEach(x=>S.plant[x.nombre]=x.tramos);}
   if(!admin&&!nuevo)box.appendChild(el("p",{class:"mihor",text:R.mi_horario==null?"":R.mi_horario.length?"Tu horario: "+horTxt(R.mi_horario):"Hoy libras"}));
@@ -65,7 +66,7 @@ async function vHoy(v){const admin=esAdm();const f=S.fecha;
   const vis=(admin||esEnc())?Df.filter(o=>!sinAsignar(o)):Df;
   const cur=vis.filter(o=>o.estado==="en_curso"),pend=vis.filter(o=>o.estado==="pendiente"),hechas=vis.filter(o=>o.estado==="hecha"||o.estado==="no_hecha");
   if(cur.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"En curso ("+cur.length+")"})),cur.map(o=>tarjeta(o,re))]));
-  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(admin?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:admin&&hayFiltro()?"Nada con este filtro.":D.length?"Nada pendiente ":"No hay trabajos para este día."})]));
+  box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:(verTodo?"Por hacer":"Mis trabajos")+" ("+pend.length+")"})),pend.length?pend.map(o=>tarjeta(o,re)):el("div",{class:"empty",text:admin&&hayFiltro()?"Nada con este filtro.":D.length?"Nada pendiente ":"No hay trabajos para este día."})]));
   if(hechas.length)box.appendChild(el("div",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Terminadas ("+hechas.length+")"})),hechas.map(o=>tarjeta(o,re))]));}
 /* Pantalla del operario: progreso del día, el trabajo que toca ahora en grande y el resto en una lista corta */
 function vOperario(v,box,prog,f,R,Df,Af,re){
