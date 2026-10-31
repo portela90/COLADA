@@ -44,9 +44,11 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
       box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[i,out])));calc();});
     /* GRG: cambio del de arriba (nivel del de abajo) o solo apuntar cuánto hay (arriba y abajo), p. ej. el primer día */
     if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{const g=esta.grg[k];f.g[k]={m:g.ar!=null?"n":"c",ab:String(g.ab).replace(".",","),ar:g.ar!=null?String(g.ar).replace(".",","):""};});f.gcarg=true;}
-    f.g=f.g||{};const gb=el("div",{class:"card",style:"padding:10px 12px;display:grid;gap:8px"});
-    const sinNivel=CONT_GRG.filter(([k])=>!notasGRG(k).some(x=>x.nave===f.nave));
-    gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"GRG: ¿se ha cambiado alguno o quieres apuntar cuánto hay?"}));
+    f.g=f.g||{};
+    if(f.nave!==NAVE_GRG){box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Los GRG de aceite están en la "+NAVE_GRG+": los cambios y el nivel de los GRG se apuntan en las lecturas de la "+NAVE_GRG+"."}));return;}
+    const gb=el("div",{class:"card",style:"padding:10px 12px;display:grid;gap:8px"});
+    const sinNivel=CONT_GRG.filter(([k])=>!notasGRG(k).length);
+    gb.appendChild(el("div",{class:"sub",style:"font-weight:600",text:"GRG (están en la "+NAVE_GRG+" y sirven a las dos naves): ¿se ha cambiado alguno o quieres apuntar cuánto hay?"}));
     if(sinNivel.length&&!Object.keys(f.g).length)gb.appendChild(el("p",{class:"hint",style:"margin:0",text:"Primera vez: toca cada aceite, elige «Solo apunto el nivel» y pon lo que hay arriba y abajo. Así el cotejo es exacto desde hoy."}));
     gb.appendChild(el("div",{class:"chips",style:"flex-wrap:wrap;overflow:visible"},CONT_GRG.map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.g[k]!=null),text:nom,onclick:()=>{if(f.g[k]!=null)delete f.g[k];else f.g[k]={m:sinNivel.some(c=>c[0]===k)?"n":"c",ab:"",ar:""};pinta();}}))));
     const nivel=(k,campo,lab,cap)=>{const g=f.g[k];const i=inp("ctG"+campo+k,g[campo],v=>{g[campo]=v;},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"litros"});
@@ -121,9 +123,11 @@ function cfgCot(k){const c=((cat.contCfg||{})[k])||{};const art0=c.art!==undefin
    Al cambiar el de arriba se apunta en la lectura cuánto tiene el de abajo (rec.grg[k]={ab:litros}).
    Gastado entre dos cambios = lo que traía el nuevo + lo que tenía abajo en el cambio − lo que tiene abajo en el cambio siguiente. */
 const msD=x=>Date.parse(x+"T12:00:00");
-function notasGRG(k){const o=[];todasLect().forEach(r=>{const g=r.grg&&r.grg[k];if(g&&typeof g.ab==="number")o.push({f:r.f,nave:r.nave,ab:g.ab,ar:typeof g.ar==="number"?g.ar:null,r});});return o;}
+/* los GRG de los aceites están todos en la Nave 2 y dan servicio a las dos naves: un apunte por día (el último) */
+const NAVE_GRG="Nave 2";
+function notasGRG(k){const o={};todasLect().forEach(r=>{const g=r.grg&&r.grg[k];if(g&&typeof g.ab==="number")o[r.f]={f:r.f,nave:null,ab:g.ab,ar:typeof g.ar==="number"?g.ar:null,r};});return Object.values(o).sort((a,b)=>a.f.localeCompare(b.f));}
 function cotejo(k){const C=cfgCot(k);const N=notasGRG(k),usada=new Set();
-  const cam=(C.art?todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f):[]).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:nv?(/^1/.test(nv[1])?"Nave 1":"Nave 2"):null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
+  const cam=(C.art?todosMov().filter(m=>m.tipo==="salida"&&m.art===C.art&&m.f):[]).map(m=>{const nv=String(m.nota||"").match(/\bnave\s*(1a|1b|1|2)\b/i);return{f:m.f,kg:+m.cant||0,l:(+m.cant||0)/C.dens,nave:null,m};}).sort((a,b)=>a.f.localeCompare(b.f));
   /* une cada cambio del almacén con la nota de la lectura (misma nave si se sabe, hasta 3 días de diferencia) */
   N.filter(x=>x.ar!=null).forEach(x=>usada.add(x));
   cam.forEach(c=>{const cand=N.filter(x=>!usada.has(x)&&x.ar==null&&(!c.nave||x.nave===c.nave)&&Math.abs(msD(x.f)-msD(c.f))<=3*864e5).sort((a,b)=>Math.abs(msD(a.f)-msD(c.f))-Math.abs(msD(b.f)-msD(c.f)))[0];
@@ -158,7 +162,7 @@ function cotejoUI(){const box=el("div",{style:"display:grid;gap:10px"});
         filas.length?cTabla(["Cambio o nivel","Había","Marcan los contadores","Desfase"],filas,[1,2,3]):null,
         A?el("p",{class:"sub",style:"margin:0",text:"Acumulado desde el "+fmtF(A.desde)+" ("+A.n+" cambios): traían "+fmtL(A.esp)+", los contadores marcan "+fmtL(A.cont)+" → "+(A.des>=0?"+":"")+fmtL(A.des)+" ("+(A.pct>0?"+":"")+A.pct+" %)"+(A.exacto?"":" · sin el nivel de abajo puede variar hasta un GRG")}):null])]));});
   box.appendChild(cotejoGliUI());
-  box.appendChild(el("p",{class:"hint",text:"Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, el primer día apunta con las lecturas el nivel de arriba y de abajo («Solo apunto el nivel»), y cada día de cambio el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
+  box.appendChild(el("p",{class:"hint",text:"Los GRG están en la "+NAVE_GRG+" y dan servicio a las dos naves, así que se compara con los contadores de Nave 1 + Nave 2. Lo gastado entre un cambio y el siguiente = lo que traía el GRG nuevo + lo que tenía el de abajo al cambiar − lo que tiene el de abajo en el cambio siguiente. Para que salga exacto, el primer día apunta con las lecturas el nivel de arriba y de abajo («Solo apunto el nivel»), y cada día de cambio el nivel del de abajo. Sin ese dato sale «aprox.» y solo avisa si el desfase se repite."}));
   box.appendChild(el("button",{type:"button",class:"btn sec",style:"justify-self:start",text:"Ajustes del cotejo",onclick:()=>ajustesCotejo()}));
   return box;}
 function ajustesCotejo(){const val={};CONT_GRG.forEach(([k])=>{const c=cfgCot(k);val[k]={art:c.art||"",dens:String(c.dens).replace(".",","),cap:String(c.cap)};});

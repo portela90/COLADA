@@ -524,6 +524,7 @@ test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores'
   await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
   await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
+  await d.locator('.seg button', { hasText: 'Nave 2' }).click();
   await d.locator('.chip', { hasText: /^Térmico$/ }).click(); await d.locator('.chip', { hasText: '½' }).click();
   await expect(d.locator('#ctGabter')).toHaveValue('500');
   expect(err).toEqual([]);
@@ -547,6 +548,8 @@ test('Contadores: el primer día se apunta el nivel de arriba y abajo y el cotej
   await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
   await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
+  await expect(d).toContainText('se apuntan en las lecturas de la Nave 2');
+  await d.locator('.seg button', { hasText: 'Nave 2' }).click();
   await expect(d).toContainText('Primera vez');
   await d.locator('.chip', { hasText: /^Térmico$/ }).click();
   await expect(d.locator('button', { hasText: 'Solo apunto el nivel' })).toHaveAttribute('aria-pressed', 'true');
