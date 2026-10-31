@@ -98,6 +98,13 @@ function evTipos(){const otros=()=>salidasFam(a=>!["piston","barra","tornillo","
     todo:mk("Todo lo gastado","apunte","apuntes",()=>SECC.pist.ev().map(e=>Object.assign({fam:"Pistones"},e)).concat(salidasFam(()=>true),SECC.ejes.ev().map(e=>Object.assign({fam:"Reparación de ejes"},e))),"pieza",["Lo último apuntado","Lo primero apuntado"])};}
 function periodoQ(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini=(yy,mm)=>yy+"-"+String(mm).padStart(2,"0")+"-01",fin=(yy,mm)=>{const d=new Date(yy,mm,0);return yy+"-"+String(mm).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
   let m;
+  /* franja libre: «del 01-09-2026 al 15-10-2026», «desde el 1/9 hasta el 15/10» (las barras llegan como espacios) */
+  {const RE=/\b(?:del?|desde(?: el)?) (\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2,4}))? (?:al|hasta(?: el)?|a) (\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2,4}))?\b/;
+   if((m=q.match(RE))){const Y=x=>!x?y:x.length===2?2000+ +x:+x,F=(d,mm,yy)=>Y(yy)+"-"+String(+mm).padStart(2,"0")+"-"+String(+d).padStart(2,"0");let d0=F(m[1],m[2],m[3]),d1=F(m[4],m[5],m[6]||m[3]);
+     if(!m[3]&&!m[6]&&d0>d1)d0=(y-1)+d0.slice(4);if(d0<=d1&&!isNaN(new Date(d0))&&!isNaN(new Date(d1)))return{d:d0,h:d1,t:"del "+fmtF(d0)+" al "+fmtF(d1),re:RE};}}
+  if(/\b(la )?(semana pasada|semana anterior|ultima semana)\b/.test(q)){const l=sumaDias(hy,-((new Date(hy+"T12:00:00").getDay()+6)%7)-7);return{d:l,h:sumaDias(l,6),t:"la semana pasada",re:/\b(la )?(semana pasada|semana anterior|ultima semana)\b/};}
+  if(/\b(este|el) trimestre\b/.test(q)&&!/trimestre pasado/.test(q)){const t0=Math.floor((mo-1)/3)*3+1;return{d:ini(y,t0),h:hy,t:"este trimestre",re:/\b(este|el) trimestre\b/};}
+  if(/\b(el )?trimestre (pasado|anterior)\b/.test(q)){let t0=Math.floor((mo-1)/3)*3+1-3,yy=y;if(t0<1){t0+=12;yy--;}return{d:ini(yy,t0),h:fin(yy,t0+2),t:"el trimestre pasado",re:/\b(el )?trimestre (pasado|anterior)\b/};}
   if(/\bhoy\b/.test(q))return{d:hy,h:hy,t:"hoy",re:/\bhoy\b/};
   if(/\bayer\b/.test(q)){const a=sumaDias(hy,-1);return{d:a,h:a,t:"ayer",re:/\bayer\b/};}
   if(/\besta semana\b/.test(q))return{d:sumaDias(hy,-((new Date().getDay()+6)%7)),h:hy,t:"esta semana",re:/\besta semana\b/};
@@ -191,7 +198,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
   caja.appendChild(el("div",{class:"bd-q"},[(()=>{const l=el("span",{class:"bd-lupa","aria-hidden":"true"});l.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';return l;})(),q]));
   caja.appendChild(sug);v.appendChild(caja);v.appendChild(res);const resto=el("div",{id:"bdResto"});v.appendChild(resto);try{vAnalisis(resto);}catch(e){console.warn(e);}
   const pon=(t,mantener)=>{if(!mantener){B.ef=[];B.gEv=null;}B.q=t;B.f="";q.value=t;pinta();if(!mantener)q.focus();};
-  function pinta(){pinta0();if(nq(B.q))try{botonInvQ(res,window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q);}catch(e){}if(window.BuscaAprende&&nq(B.q))BuscaAprende.tras("almacen",res,B.q,["pistones","ejes","taladrina","aceite","jabón","consumo","stock","nave 1","nave 2"],()=>pinta());}
+  function pinta(){pinta0();if(nq(B.q))try{barraPeriodoQ(res,B.q,pon);}catch(e){}if(nq(B.q))try{botonInvQ(res,window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q);}catch(e){}if(window.BuscaAprende&&nq(B.q))BuscaAprende.tras("almacen",res,B.q,["pistones","ejes","taladrina","aceite","jabón","consumo","stock","nave 1","nave 2"],()=>pinta());}
   function pinta0(){const QQ=window.BuscaAprende?BuscaAprende.aplicar("almacen",B.q):B.q;sug.textContent="";res.textContent="";resto.hidden=!!nq(B.q);const S=sugerencias(B.q,T);
     sug.classList.toggle("bd-ej",!nq(B.q));if(!nq(B.q)){const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplosA(pon,B));}
     else if(S.length)S.forEach(t=>sug.appendChild(el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(t)})));

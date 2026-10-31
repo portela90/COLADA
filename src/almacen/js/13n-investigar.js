@@ -14,8 +14,10 @@ const maqInv=e=>e.maq?(cat.maquinas.find(x=>x.id===e.maq||x.cod===e.maq)||null):
 function casaInv(F,e){if(F.mot!=null&&(e.mot?cap(e.mot):"Sin motivo")!==F.mot)return false;if(F.quien!=null&&(e.quien||"Sin responsable")!==F.quien)return false;if(F.arts&&!(e.a&&F.arts.includes(e.a.id)))return false;if(F.fam&&e.fam!==F.fam)return false;if(F.eje&&e.eje!==F.eje)return false;
   if(F.maq){const m=maqInv(e);if(!m||m.id!==F.maq)return false;}
   if(F.nave){const m=maqInv(e);const z=m?zonaDe(m):(e.nave||"");if(!(" "+nq(z)+" ").includes(" "+nq(F.nave)))return false;}return true;}
-function datosInv(F){const E=evInv().filter(e=>casaInv(F,e)),d0=F.d0,d1=F.d1,len=Math.max(1,dias(d0,d1)+1),B0=sumaDias(d0,-84),kB=len/84;
-  const en=E.filter(e=>e.f>=d0&&e.f<=d1).sort((a,b)=>b.f.localeCompare(a.f)),base=E.filter(e=>e.f>=B0&&e.f<d0);
+function datosInv(F){const E=evInv().filter(e=>casaInv(F,e)),d0=F.d0,d1=F.d1,len=Math.max(1,dias(d0,d1)+1),cmp=F.cmp||"normal",yA=x=>(+x.slice(0,4)-1)+x.slice(4).replace("-02-29","-02-28");
+  const B0=cmp==="ant"?sumaDias(d0,-len):cmp==="ano"?yA(d0):sumaDias(d0,-84),B1=cmp==="ano"?yA(d1):sumaDias(d0,-1),kB=cmp==="normal"?len/84:1;
+  const cN=cmp==="ant"?"el periodo anterior":cmp==="ano"?"el mismo periodo del año pasado":"lo normal",cL=cmp==="normal"?"lo normal serían unos":"en "+cN+" fueron";
+  const en=E.filter(e=>e.f>=d0&&e.f<=d1).sort((a,b)=>b.f.localeCompare(a.f)),base=E.filter(e=>e.f>=B0&&e.f<=B1);
   /* en qué se mide: unidades si todo es lo mismo; si no, euros (si hay precios); si no, apuntes */
   const uds=[...new Set(en.concat(base).map(e=>e.ud))],conEur=en.concat(base).filter(e=>e.eur>0).length;
   const modo=uds.length===1?"u":conEur>=0.8*en.concat(base).length&&conEur>0?"e":"n";const val=e=>modo==="u"?e.cant:modo==="e"?e.eur:1;const ud=modo==="u"?uds[0]:modo==="e"?"€":"apuntes";
@@ -30,17 +32,17 @@ function datosInv(F){const E=evInv().filter(e=>casaInv(F,e)),d0=F.d0,d1=F.d1,len
   const kOf=f=>largo?f.slice(0,7):lunesA(f),serie=claves.map(k=>({k,v:0}));const ix={};serie.forEach((s,i)=>ix[s.k]=i);E.forEach(e=>{const k=kOf(e.f);if(ix[k]!=null)serie[ix[k]].v+=val(e);});
   /* lo que llama la atención */
   const hint=[];const pct=totB>0?Math.round((tot/totB-1)*100):null;
-  if(pct!=null&&Math.abs(pct)>=30&&Math.abs(tot-totB)>=(modo==="e"?20:1.5))hint.push({niv:pct>0?"bad":"ok",t:(pct>0?"Un "+pct+" % más":"Un "+(-pct)+" % menos")+" de lo normal ("+fmt(tot)+" frente a unos "+fmt(totB)+")."});
-  const hayBase=base.length>0;if(!hayBase&&tot>0)hint.push({niv:"info",t:"En las 12 semanas de antes no hay nada apuntado, así que no se puede comparar con lo normal."});
-  if(hayBase)mot.filter(g=>g.k!=="Sin motivo"&&g.n>=2&&g.v>=2*Math.max(g.normal,0.5)).slice(0,2).forEach(g=>hint.push({niv:"bad",t:"Se ha disparado «"+g.k.toLowerCase()+"»: "+fmt(g.v)+(g.normal>=0.05?" cuando lo normal serían unos "+fmt(g.normal):" y antes no había ninguno")+"."}));
-  if(maq.length>1&&tot>0){const g=maq[0];if(g.v/tot>=0.5&&g.n>=2)hint.push({niv:"warn",t:"El "+Math.round(g.v/tot*100)+" % es de la "+g.k+(!hayBase?"":g.normal>=0.05?" (lo normal ahí serían unos "+fmt(g.normal)+")":" (antes no gastaba)")+"."});}
+  if(pct!=null&&Math.abs(pct)>=30&&Math.abs(tot-totB)>=(modo==="e"?20:1.5))hint.push({niv:pct>0?"bad":"ok",t:(pct>0?"Un "+pct+" % más":"Un "+(-pct)+" % menos")+(cmp==="normal"?" de lo normal":" que "+cN)+" ("+fmt(tot)+" frente a "+fmt(totB)+")."});
+  const hayBase=base.length>0;if(!hayBase&&tot>0)hint.push({niv:"info",t:cmp==="normal"?"En las 12 semanas de antes no hay nada apuntado, así que no se puede comparar con lo normal.":"En "+cN+" no hay nada apuntado, así que no se puede comparar."});
+  if(hayBase)mot.filter(g=>g.k!=="Sin motivo"&&g.n>=2&&g.v>=2*Math.max(g.normal,0.5)).slice(0,2).forEach(g=>hint.push({niv:"bad",t:"Se ha disparado «"+g.k.toLowerCase()+"»: "+fmt(g.v)+(g.normal>=0.05?" cuando "+cL+" "+fmt(g.normal):" y antes no había ninguno")+"."}));
+  if(maq.length>1&&tot>0){const g=maq[0];if(g.v/tot>=0.5&&g.n>=2)hint.push({niv:"warn",t:"El "+Math.round(g.v/tot*100)+" % es de la "+g.k+(!hayBase?"":g.normal>=0.05?" ("+cL.replace(" serían"," ahí serían")+" "+fmt(g.normal)+")":" (antes no gastaba)")+"."});}
   artG.filter(g=>g.v>0&&g.normal<0.01&&base.length).slice(0,3).forEach(g=>hint.push({niv:"warn",t:g.k+": antes no se gastaba y ahora "+fmt(g.v)+"."}));
   if(qui.length>1&&en.length>=4){const g=qui[0];if(g.k!=="Sin responsable"&&g.n/en.length>=0.6)hint.push({niv:"info",t:g.n+" de "+en.length+" apuntes son de "+g.k+"."});}
   const ms=[...new Set(en.map(e=>maqInv(e)).filter(Boolean))];if(ms.length&&ms.length<=3)ms.forEach(m=>{const ch=todosMlog().filter(x=>x.tipo==="molde"&&x.maq===m.id&&x.f>=sumaDias(d0,-14)&&x.f<=d1);
     if(ch.length){const u=ch[ch.length-1];hint.push({niv:"info",t:"La "+m.cod+" cambió de molde el "+fmtF(u.f)+(u.val?" (pone el "+(moldeTxt(moldeDe(u.val))||u.val)+")":"")+": puede explicar el cambio de gasto."});}});
   const sm=en.filter(e=>!e.mot&&e.k!=="m").length+en.filter(e=>e.k==="m"&&!e.mot&&e.a&&["barra","tornillo","horno"].includes(e.a.fam)).length,sr=en.filter(e=>!e.quien).length,sp=modo==="e"?en.filter(e=>!(e.eur>0)).length:0,sq=en.filter(e=>!maqInv(e)&&!e.nave&&e.k!=="r").length;
   const falta=[sm?sm+" sin motivo":null,sr?sr+" sin responsable":null,sq?sq+" sin máquina":null,sp?sp+" sin precio":null].filter(Boolean);
-  return{F,en,tot,totB,eurT,fmt,ud,modo,mot,maq,artG,qui,serie,largo,hint,falta,len};}
+  return{cmp,cN,F,en,tot,totB,eurT,fmt,ud,modo,mot,maq,artG,qui,serie,largo,hint,falta,len};}
 function sugInv(D){if(!D.tot)return"";const t=D.mot.find(g=>g.k!=="Sin motivo"&&g.v>0),m=D.maq[0];
   return [t?fmtN(t.n)+" de "+fmtN(D.en.length)+" por "+t.k.toLowerCase():null,m&&m.k!=="Sin máquina"&&D.tot&&m.v/D.tot>=0.4?"sobre todo en la "+m.k:null].filter(Boolean).join(", ");}
 const perInvTxt=F=>F.per||("del "+fmtF(F.d0)+" al "+fmtF(F.d1));
@@ -49,12 +51,15 @@ function investigar(F,o){o=o||{};const D=datosInv(F),reabre=()=>investigar(F,o);
   const fila=(t1,t2,b,on,cls)=>el(on?"button":"div",{type:on?"button":null,class:"it",style:on?null:"cursor:default",onclick:on||null},[el("span",{class:"stripe "+(cls||"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t1}),t2?el("div",{class:"t2",text:t2}):null]),b!=null?el("div",{class:"num",style:"font-weight:600;white-space:nowrap",text:b}):null]);
   const bloque=(tit,rows)=>rows.length?el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:tit}),el("div",{class:"lst"},rows)]):null;
   const baja=extra=>()=>{cierraDlgs();investigar(Object.assign({},F,extra),{prev:reabre});};
-  const normalTxt=g=>g.normal>=0.05?"Lo normal: "+D.fmt(g.normal):(D.totB>0?"Antes no había":null);
+  const normalTxt=g=>g.normal>=0.05?(D.cmp==="normal"?"Lo normal: ":D.cmp==="ant"?"Periodo anterior: ":"Año pasado: ")+D.fmt(g.normal):(D.totB>0?"Antes no había":null);
   const nivG=g=>g.k==="Sin motivo"||g.k==="Sin responsable"?"warn":g.v>Math.max(1,2*g.normal)&&g.n>=2?"bad":g.v<0.5*g.normal?"ok":"ok";
   const mx=Math.max(...D.serie.map(s=>s.v),1e-9),ult=D.largo?D.F.d1.slice(0,7):lunesA(D.F.d1);
   const barras=el("div",{"aria-hidden":"true",style:"display:grid;grid-template-columns:repeat("+D.serie.length+",1fr);gap:2px;align-items:end;height:46px"},
     D.serie.map(s=>el("div",{title:(D.largo?fmtMes(s.k):"Semana del "+fmtF(s.k))+": "+D.fmt(s.v),style:"height:"+Math.max(2,Math.round(s.v/mx*44))+"px;border-radius:2px;background:"+(s.k>=(D.largo?D.F.d0.slice(0,7):lunesA(D.F.d0))&&s.k<=ult?"var(--warn)":"var(--acc)")+";opacity:"+(s.k<=ult?1:.35)})));
+  const otra=G=>{const ov=[...document.querySelectorAll(".dlg-ov:not(.op-ov)")].pop();if(ov)ov.remove();investigar(Object.assign({},F,G),o);};
   const body=[o.intro?el("p",{class:"hint",style:"margin:0",text:o.intro}):null,
+    selPeriodo(F.d0,F.d1,(d0,d1,t)=>otra({d0,d1,per:t})),
+    el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[el("span",{class:"sub",text:"Comparar con"}),el("div",{class:"seg",role:"group","aria-label":"Comparar con"},[["normal","Lo normal"],["ant","Periodo anterior"],["ano","Año pasado"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(D.cmp===k),text:t,onclick:()=>otra({cmp:k})})))]),
     el("p",{style:"margin:0;font-weight:600",text:D.en.length?D.fmt(D.tot)+" en "+perInvTxt(F)+(D.modo!=="n"?" ("+D.en.length+(D.en.length===1?" apunte":" apuntes")+")":"")+(D.modo==="u"&&D.eurT>0?" · "+eur(D.eurT):"")+".":"No hay nada apuntado en "+perInvTxt(F)+"."}),
     D.hint.length?el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Lo que llama la atención"})].concat(D.hint.map(h=>el("div",{class:"banner"+(h.niv==="bad"?" w":""),style:"margin:0",text:h.t})))):null,
     D.falta.length?el("div",{class:"banner w",style:"margin:0",text:"Falta información: "+D.falta.join(", ")+". Pulsa en cada apunte para completarlo."}):null,
@@ -82,12 +87,12 @@ function botonInvQ(res,q){const F=filtroInvQ(nq(q));if(!F)return;const b=el("but
 /* ===== CONCLUSIONES: causa + acción + comprobación a las semanas ===== 
    colección «inv», doc «lista», items {id,f,t,F,causa,accion,resp,rev,antes:{pd,modo,ud,per},estado:"abierta"|"cerrada"|"funciono"|"no",res:{f,pd,pct},por,ts,desv} */
 let INV=[];
-const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje","mot","quien"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
+const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje","mot","quien","cmp"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
 async function invGuarda(fn){const ref=db.doc("inv/lista"),sn=await ref.get();const L=(sn.exists&&sn.data().items)||[];await ref.set({items:fn(L.slice())});}
 function formConclusion(F,D,o){o=o||{};if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede apuntar");return;}
   const v={causa:o.sug!=null?o.sug:sugInv(D),accion:"",resp:"",sem:"4"};
   const box=el("div",{style:"display:grid;gap:10px"});const pinta=()=>{box.textContent="";
-    box.appendChild(el("p",{class:"hint",style:"margin:0",text:F.t+" · "+perInvTxt(F)+(D.tot?": "+D.fmt(D.tot)+(D.totB>0?" (lo normal, unos "+D.fmt(D.totB)+")":""):"")}));
+    box.appendChild(el("p",{class:"hint",style:"margin:0",text:F.t+" · "+perInvTxt(F)+(D.tot?": "+D.fmt(D.tot)+(D.totB>0?" ("+D.cN+", "+D.fmt(D.totB)+")":""):"")}));
     box.appendChild(fld("Causa: ¿qué ha pasado?",inp("cnCausa",v.causa,x=>v.causa=x,{autocomplete:"off",placeholder:"Molde nuevo, avería, fallo de apunte…"})));
     box.appendChild(el("div",{class:"chips"},["Molde nuevo","Avería","Prueba","Error al apuntar","Más producción","Cambio de proveedor"].map(c=>el("button",{type:"button",class:"chip",text:c,onclick:()=>{v.causa=c;pinta();}}))));
     box.appendChild(fld("Acción (opcional): ¿qué se va a hacer?",inp("cnAcc",v.accion,x=>v.accion=x,{autocomplete:"off",placeholder:"Revisar la refrigeración, hablar con el turno…"})));
@@ -133,3 +138,19 @@ function invArt(a){const h=hoy(),st=stockDe(a.id),c=consDia(a),pl=plazoDe(a);
 function introEje(e){const R=todasRep().filter(r=>r.eje===e.cod&&r.env&&r.res!=="anulada"&&!r.recuento).sort((a,b)=>a.env.localeCompare(b.env));if(!R.length)return"Este eje no ha ido nunca al taller.";
   const T=R.filter(r=>r.rec&&r.res).map(r=>dias(r.env,r.rec)),iv=[];for(let i=1;i<R.length;i++)if(R[i-1].rec)iv.push(dias(R[i-1].rec,R[i].env));
   return R.length+(R.length===1?" vez":" veces")+" al taller"+(T.length?"; tarda de media "+Math.round(T.reduce((s,x)=>s+x,0)/T.length)+" días en volver":"")+(iv.length?"; aguanta en planta unos "+Math.round(iv.reduce((s,x)=>s+x,0)/iv.length)+" días entre reparaciones":"")+".";}
+/* ===== FRANJAS DE TIEMPO (como en SAP): atajos y «desde / hasta» ===== */
+function periodosStd(){const h=hoy(),y=+h.slice(0,4),mo=+h.slice(5,7),lun=lunesA(h),ini=h.slice(0,7)+"-01",mp=sumaDias(ini,-1),t0=Math.floor((mo-1)/3)*3+1;
+  return[["hoy","Hoy",h,h],["sem","Esta semana",lun,h],["semp","Semana pasada",sumaDias(lun,-7),sumaDias(lun,-1)],["mes","Este mes",ini,h],["mesp","Mes pasado",mp.slice(0,7)+"-01",mp],
+    ["30","Últimos 30 días",sumaDias(h,-29),h],["90","Últimos 90 días",sumaDias(h,-89),h],["tri","Este trimestre",y+"-"+String(t0).padStart(2,"0")+"-01",h],["ano","Este año",y+"-01-01",h],["anop","Año pasado",(y-1)+"-01-01",(y-1)+"-12-31"]]
+    .map(([k,t,d0,d1])=>({k,t,d0,d1,q:{hoy:"hoy",sem:"esta semana",semp:"la semana pasada",mes:"este mes",mesp:"el mes pasado","30":"últimos 30 días","90":"últimos 90 días",tri:"este trimestre",ano:"este año",anop:"el año pasado"}[k]}));}
+const fCorta=f=>f.slice(8,10)+"-"+f.slice(5,7)+"-"+f.slice(0,4);
+/* fila de chips + «Desde / hasta»; elige(d0,d1,texto,clave) */
+function selPeriodo(d0,d1,elige){const P=periodosStd(),cur=P.find(p=>p.d0===d0&&p.d1===d1);const wrap=el("div",{style:"display:grid;gap:6px"});let abierto=!cur&&!!d0;
+  const pinta=()=>{wrap.textContent="";wrap.appendChild(el("div",{class:"chips",style:"flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px"},P.map(p=>el("button",{type:"button",class:"chip","aria-pressed":String(!!cur&&cur.k===p.k),style:"white-space:nowrap",text:p.t,onclick:()=>elige(p.d0,p.d1,p.t.toLowerCase(),p)})).concat([el("button",{type:"button",class:"chip","aria-pressed":String(abierto),style:"white-space:nowrap",text:"Desde / hasta…",onclick:()=>{abierto=!abierto;pinta();}})])));
+    if(abierto){const v={d0:d0||sumaDias(hoy(),-29),d1:d1||hoy()};wrap.appendChild(el("div",{class:"row",style:"align-items:end"},[fld("Desde",inp("perD0",v.d0,x=>v.d0=x,{type:"date",max:hoy()})),fld("Hasta",inp("perD1",v.d1,x=>v.d1=x,{type:"date",max:hoy()})),
+      el("button",{type:"button",class:"btn",text:"Aplicar",onclick:()=>{if(!v.d0||!v.d1||v.d0>v.d1){toast("La fecha «desde» tiene que ser antes que «hasta»");return;}elige(v.d0,v.d1,"del "+fmtF(v.d0)+" al "+fmtF(v.d1),null);}})]));}};
+  pinta();return wrap;}
+/* en Consultas: cambia la franja de la pregunta escrita */
+function barraPeriodoQ(res,q0,pon){const q=nq(q0),P=periodoQ(q);const base=(P.re?q.replace(P.re," "):q).replace(/\s+/g," ").trim();
+  const w=selPeriodo(P.def?null:P.d,P.def?null:P.h,(d0,d1,t,p)=>pon(base+" "+(p?p.q:"del "+fCorta(d0)+" al "+fCorta(d1)),true));
+  const box=el("div",{class:"bd-per",style:"margin:4px 0 8px"},[el("div",{class:"sub",style:"margin-bottom:4px",text:"Periodo: "+(P.def?"sin elegir (últimos 12 meses)":P.t)}),w]);res.insertBefore(box,res.firstChild);}

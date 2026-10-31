@@ -1056,3 +1056,31 @@ test('Investigar desde las fichas y comprobar una acción vencida en Hoy', async
   await expect(inv).toHaveCount(1); { await inv.click(); await page.waitForTimeout(300); d = page.locator('.dlg').last(); await expect(d).toContainText('Investigar:'); await expect(d).toContainText('Hay '); await expect(d).toContainText('Apuntar conclusión'); }
   expect(err).toEqual([]);
 });
+
+test('Franjas de tiempo: atajos y desde/hasta en Consultas y en Investigar', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'pistones de 80'); await page.waitForTimeout(300);
+  await expect(page.locator('.bd-per')).toContainText('sin elegir');
+  await page.locator('.bd-per .chip', { hasText: 'Este año' }).click(); await page.waitForTimeout(300);
+  expect(await page.inputValue('#bdQ')).toBe('pistones de 80 este año');
+  await expect(page.locator('.bd-per')).toContainText('Periodo: este año');
+  await page.locator('.bd-per .chip', { hasText: 'Desde / hasta' }).click();
+  const y = new Date().getFullYear();
+  await page.fill('#perD0', y + '-01-01'); await page.fill('#perD1', y + '-06-30');
+  await page.locator('.bd-per button', { hasText: 'Aplicar' }).click(); await page.waitForTimeout(300);
+  expect(await page.inputValue('#bdQ')).toBe('pistones de 80 del 01-01-' + y + ' al 30-06-' + y);
+  await expect(page.locator('.bd-per')).toContainText('Periodo: del 01/01/');
+  await page.locator('.bd-per .chip', { hasText: 'Este año' }).click(); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Investigar esto' }).click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('en este año');
+  await d.locator('.chip', { hasText: 'Últimos 90 días' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('en últimos 90 días'); expect(await page.locator('.dlg').count()).toBe(1);
+  await d.locator('.seg button', { hasText: 'Periodo anterior' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await expect(d.locator('.seg button[aria-pressed="true"]', { hasText: 'Periodo anterior' })).toHaveCount(1);
+  const t = (await d.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
