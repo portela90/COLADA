@@ -56,9 +56,11 @@
     return box;
   }
   /* las preguntas que más hace cada uno */
+  /* una sola fila de botones pequeños que se desliza de lado: no ocupa más que una línea */
   function topUI(alElegir) {
     if (!S.top.length) return null;
-    return h("div", { class: "ba-top" }, [h("div", { class: "ejs-t", text: "Tus preguntas de siempre" })].concat(S.top.map(q => h("button", { type: "button", class: "ejs-q", text: q, onclick: () => alElegir(q) }))));
+    const cap = t => { t = String(t || "").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
+    return h("div", { class: "ba-top", role: "group", "aria-label": "Tus preguntas habituales" }, [h("span", { class: "ba-top-t", text: "Habituales" })].concat(S.top.slice(0, 5).map(q => h("button", { type: "button", class: "ba-top-q", title: cap(q), text: cap(q), onclick: () => alElegir(q) }))));
   }
   /* después de pintar una respuesta: ofrece enseñar lo que no entendió, la guarda y pone «¿Te ha servido?» */
   function tras(app, res, q, ideas, repintar) {
@@ -73,6 +75,10 @@
   window.BuscaAprende = { tras, cargar, aplicar, registrar, votoUI, ensenarUI, topUI, nz, estado: S };
   const css = document.createElement("style");
   css.textContent = ".ba-voto{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0 4px;font-size:14px}.ba-b{appearance:none;font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--ink);cursor:pointer}" +
-    ".ba-ens{border:1px dashed var(--acc);border-radius:10px;padding:10px 12px;margin:8px 0;display:grid;gap:8px;font-size:14px}.ba-t{font-weight:600}.ba-ideas{display:flex;flex-wrap:wrap;gap:6px}.ba-fila{display:flex;gap:6px}.ba-in{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink)}.ba-ok{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}.ba-top{margin:8px 0 4px}";
+    ".ba-ens{border:1px dashed var(--acc);border-radius:10px;padding:10px 12px;margin:8px 0;display:grid;gap:8px;font-size:14px}.ba-t{font-weight:600}.ba-ideas{display:flex;flex-wrap:wrap;gap:6px}.ba-fila{display:flex;gap:6px}.ba-in{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink)}.ba-ok{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}" +
+    ".ba-top{display:flex;flex:1 1 100%;min-width:0;max-width:100%;box-sizing:border-box;gap:6px;align-items:center;overflow-x:auto;overflow-y:hidden;white-space:nowrap;margin:2px 0 6px;padding:2px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;width:100%}.ba-top::-webkit-scrollbar{display:none}" +
+    ".bd-ej,.bq-ej{display:block!important;overflow:visible!important;-webkit-mask-image:none!important;mask-image:none!important;padding-right:0!important;min-width:0;max-width:100%}" +
+    ".ba-top-t{flex:none;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}" +
+    ".ba-top-q{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;appearance:none;font:inherit;font-size:13px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--ink);cursor:pointer}";
   document.head.appendChild(css);
 })();

@@ -705,3 +705,19 @@ test('Desviaciones: pico de gasto por tonelada, causa apuntada y aviso semanal g
   await expect(page.locator('.dlg').last()).toContainText('Informe de desviaciones');
   expect(err).toEqual([]);
 });
+
+test('Consultas: las preguntas habituales van en una sola fila que no se sale de la pantalla', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => { window.BuscaAprende.estado.top = ['qué maquina tiene mas consumo', 'dime modelo de la máquina de la F25', 'compara lo que ha consumido', 'quien cambio las ultima BE-02', 'qué maquina tiene mas consumo de barras', 'qué máquina tiene horno krown']; });
+  await page.fill('#bdQ', 'x'); await page.fill('#bdQ', ''); await page.waitForTimeout(300);
+  await expect(page.locator('.ba-top-q')).toHaveCount(5);
+  const r = await page.evaluate(() => { const t = document.querySelector('.ba-top').getBoundingClientRect(); return { h: t.height, sw: document.documentElement.scrollWidth, w: window.innerWidth }; });
+  expect(r.h).toBeLessThan(45); expect(r.sw).toBeLessThanOrEqual(r.w);
+  await page.locator('.ba-top-q').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('#bdQ')).toHaveValue('qué maquina tiene mas consumo');
+  expect(err).toEqual([]);
+});
