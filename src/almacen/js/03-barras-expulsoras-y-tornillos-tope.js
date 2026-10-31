@@ -47,7 +47,7 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   if(mods.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Modificaciones de planos"})),el("div",{class:"lst"},mods.slice(0,10).map(({a,r})=>el("button",{type:"button",class:"it",onclick:()=>histRev(a)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:(a.cod||a.desc)+" · "+revTxt(r.n)+" · "+fmtF(r.f)}),el("div",{class:"t2",text:[r.cambio,r.by?"por "+r.by:null,"quedaban "+fmtN(r.stock)+" de la "+revTxt(r.antes)].filter(Boolean).join(" · ")})])])))]));
   const P=pedidosBT().filter(p=>p.lin.some(l=>(art(l.art)||{}).fam===f)).slice(-10).reverse();
   if(P.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Pedidos al proveedor"})),el("div",{class:"lst"},P.map(p=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(p.f)+" · "+(provN(p.prov)||"—")}),el("div",{class:"t2",text:p.lin.map(l=>l.cod+" ×"+fmtN(l.cant)+(l.rev?" ("+revTxt(l.rev)+")":" (sin plano)")).join(" · ")+(p.by?" · "+p.by:"")})])])))]));}
-function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",cant:"1",motivo:"ROTURA",alm:"",resp:(typeof lsGet==="function"?lsGet("alm.resp"):"")||"",nota:""};
+function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",cant:"1",motivo:"",smOk:false,alm:"",resp:(typeof lsGet==="function"?lsGet("alm.resp"):"")||"",nota:""};
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const A=artsBT(f);const m=d.maq?cat.maquinas.find(z=>z.id===d.maq):null;
     const suyas=m?A.filter(a=>(a.iny||[]).includes(m.id)):[];const otras=A.filter(a=>!suyas.includes(a));
@@ -60,13 +60,14 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
     const pm=a?porMaqDe(a):4;if(+d.cant>pm)d.cant=String(pm);
     box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Cuántas se cambian"+(a?" (la máquina lleva "+pm+")":"")}),el("div",{class:"inf-r"},Array.from({length:pm},(_,i)=>String(i+1)).map(k=>el("button",{type:"button",class:"chip","aria-pressed":String(d.cant===k),style:"min-width:48px",text:k===String(pm)&&pm>1?k+" (todas)":k,onclick:()=>{d.cant=k;pinta();}})))]));
     if(m&&!suyas.length&&A.length)box.appendChild(el("p",{class:"hint",text:"La "+m.cod+" no tiene ninguna asignada: si eliges una, se le asigna sola para la próxima vez."}));
-    box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Motivo"}),el("div",{class:"inf-r"},MOT_BT.map(k=>el("button",{type:"button",class:"chip","aria-pressed":String(d.motivo===k),text:cap(k),onclick:()=>{d.motivo=k;pinta();}})))]));
+    box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Motivo"}),el("div",{class:"inf-r"},MOT_BT.map(k=>el("button",{type:"button",class:"chip","aria-pressed":String(d.motivo===k),text:cap(k),onclick:()=>{d.motivo=k;d.smOk=false;pinta();}})))].concat(d.motivo?[]:[el("p",{class:"hint",style:"margin:6px 0 0",text:"Elige el motivo del cambio."})])));
     box.appendChild(el("div",{class:"row"},[fld("Sale de",sel("btAl",almOpts().map(([id,t])=>[id,t+(a?" (hay "+fmtN(stockDe(a.id,id))+")":"")]),d.alm,v=>d.alm=v,"Elige…")),fld("Responsable",inp("btR",d.resp,v=>d.resp=v,{autocomplete:"off"}))]));
     box.appendChild(fld("Observaciones",inp("btN",d.nota,v=>d.nota=v,{autocomplete:"off"})));};
   pinta();
   dlg("Cambio de "+N.uno,[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const a=art(d.art),q=parseN(d.cant);
     if(!d.maq){toast("Elige la inyectora");return false;}if(!a){toast("Elige la "+N.uno);return false;}if(!(q>0)){toast("Pon la cantidad");return false;}if(!d.alm){toast("Elige de qué almacén sale");return false;}
-    const neg=stockDe(a.id,d.alm)-q<0;try{await addMov({f:d.f||hoy(),tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,motivo:d.motivo,resp:(d.resp||"").trim()||null,nota:"Cambio de "+N.uno+" · "+cap(d.motivo)+(d.nota.trim()?" · "+d.nota.trim():"")});
+    if(!d.motivo&&!d.smOk){d.smOk=true;toast("Falta el motivo del cambio. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return false;}
+    const neg=stockDe(a.id,d.alm)-q<0;try{await addMov({f:d.f||hoy(),tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,motivo:d.motivo||null,resp:(d.resp||"").trim()||null,nota:"Cambio de "+N.uno+(d.motivo?" · "+cap(d.motivo):"")+(d.nota.trim()?" · "+d.nota.trim():"")});
       if(!(a.iny||[]).includes(d.maq)){const x=art(a.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}
       if(d.resp.trim()&&typeof lsSet==="function")lsSet("alm.resp",d.resp.trim());
       toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}

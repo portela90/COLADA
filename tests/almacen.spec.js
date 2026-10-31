@@ -941,3 +941,24 @@ test('Carga completa en un Excel: se descarga relleno, se completa y al subirlo 
   expect(aj.length).toBe(1); expect(aj[0].contado).toBe(12);
   expect(err).toEqual([]);
 });
+
+test('Cambio de barra: el motivo empieza vacío y avisa si falta', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Barras expulsoras$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#view button', { hasText: /^Registrar cambio$/ }).first().click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await expect(d.locator('.chip[aria-pressed="true"]', { hasText: /Rotura|Desgaste/ })).toHaveCount(0);
+  await expect(d).toContainText('Elige el motivo del cambio');
+  const maq = await page.locator('#btM option').nth(1).getAttribute('value'); await page.selectOption('#btM', maq); await page.waitForTimeout(200);
+  const a = await page.locator('#btA option[value]:not([value=""])').first().getAttribute('value');
+  if (a) {
+    await page.selectOption('#btA', a); await page.waitForTimeout(200);
+    if (!(await page.inputValue('#btAl'))) { const al = await page.locator('#btAl option').nth(1).getAttribute('value'); await page.selectOption('#btAl', al); }
+    await d.getByRole('button', { name: 'Guardar' }).click();
+    await expect(page.locator('body')).toContainText('Falta el motivo del cambio');
+    await expect(page.locator('.dlg').last()).toBeVisible();
+  }
+  expect(err).toEqual([]);
+});
