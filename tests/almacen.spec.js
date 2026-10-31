@@ -708,7 +708,13 @@ test('Desviaciones: pico de gasto por tonelada, causa apuntada y aviso semanal g
   await page.fill('#ccResp', 'Operario X'); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
   dI = page.locator('.dlg').last(); await expect(dI).toContainText('Investigar: Rodillo de prueba'); await expect(dI).toContainText('Operario X');
   await dI.getByRole('button', { name: 'Apuntar causa' }).click(); await page.waitForTimeout(300);
-  await expect(page.locator('.dlg').last()).toContainText('Causa de la desviación'); await page.locator('.dlg').last().getByRole('button', { name: 'Cancelar' }).click(); await page.waitForTimeout(200);
+  let dc = page.locator('.dlg').last(); await expect(dc).toContainText('Causa y acción');
+  await page.fill('#cnCausa', 'Fallo de prueba'); await dc.locator('.chip', { hasText: 'Revisar la máquina' }).click(); await page.waitForTimeout(150);
+  dc = page.locator('.dlg').last(); await expect(dc).toContainText('Comprobar si ha funcionado'); await dc.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(800);
+  await expect(v).toContainText('Investigaciones y acciones'); await expect(v).toContainText('Acción: Revisar la máquina');
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.inv || {}))).toContain('Revisar la máquina');
+  await v.locator('button.it', { hasText: 'Acción: Revisar la máquina' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Comprobar'); await page.locator('.dlg').last().getByRole('button', { name: 'Cerrar' }).click(); await page.waitForTimeout(200);
   await v.locator('section', { hasText: 'F25 · ' }).first().locator('button', { hasText: 'Apuntar causa' }).click(); await page.waitForTimeout(300);
   await page.locator('.dlg').last().locator('.chip', { hasText: 'Molde nuevo' }).click();
   await page.locator('.dlg').last().locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
@@ -1026,5 +1032,24 @@ test('Investigar: botón en Consultas, bajar por máquina y volver', async ({ pa
   d = page.locator('.dlg').last();
   if (await d.getByRole('button', { name: '‹ Atrás' }).count()) { await d.getByRole('button', { name: '‹ Atrás' }).click(); await page.waitForTimeout(300); await expect(page.locator('.dlg').last()).toContainText('Investigar: Pistón Ø 80'); }
   expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Investigar desde las fichas y comprobar una acción vencida en Hoy', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 40); const f = m.toISOString().slice(0, 10); const r = new Date(); r.setDate(r.getDate() - 2);
+      v.inv = { lista: { items: [{ id: 'c1', f, t: 'Pistón Ø 80', F: { t: 'Pistón Ø 80', arts: [] }, causa: 'Roturas', accion: 'Revisar refrigeración', rev: r.toISOString().slice(0, 10), antes: { pd: 1, modo: 'u', ud: 'ud', per: 'x' }, estado: 'abierta', ts: 1 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await expect(page.locator('#view')).toContainText('acción para comprobar');
+  await page.locator('#view button', { hasText: 'Comprobar' }).first().click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('Revisar refrigeración'); await expect(d).toContainText('Desde que se apuntó');
+  await d.getByRole('button', { name: 'Ha funcionado', exact: true }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.inv))).toContain('"funciono"');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Stock')).click()); await page.waitForTimeout(300);
+  await page.locator('#view button.it').first().click(); await page.waitForTimeout(400);
+  const inv = page.locator('.op-foot button', { hasText: 'Investigar' });
+  await expect(inv).toHaveCount(1); { await inv.click(); await page.waitForTimeout(300); d = page.locator('.dlg').last(); await expect(d).toContainText('Investigar:'); await expect(d).toContainText('Hay '); await expect(d).toContainText('Apuntar conclusión'); }
   expect(err).toEqual([]);
 });

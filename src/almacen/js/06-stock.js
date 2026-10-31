@@ -78,7 +78,7 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
   close=objPage({tipo:"Artículo",ruta:["Stock",FAM[a.fam]||"Artículo"],titulo:a.desc,sub:[a.cod,a.ubic?"Ubicación "+a.ubic:null,provN(a.prov)].filter(Boolean).join(" · "),estado:NV[n]||null,
     kpis:[["Stock",fmtN(st)+" "+a.ud,n==="bad"?"neg":""],["Mínimo",fmtN(+a.min||0)],["Dura",cob==null?"—":cob>365?"+1 año":cob+" días",cob!=null&&cob<14?"neg":""],["Pedir ahora",cantPedir(a)?fmtN(cantPedir(a)):"—"]],
     tabs:[["General",gen],["Movimientos ("+movs.length+")",tabM],["Consumo",tabC],["Planos y documentos",tabD]],
-    acts:[{t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formArticulo(a),0);}},{t:"Contar",cls:"sec",fn:()=>ir("ajuste")},{t:"Entrada",cls:"sec",fn:()=>ir("entrada")},{t:"Consumo",fn:()=>ir("salida")}]});}
+    acts:[{t:"🔎 Investigar",cls:"sec",fn:()=>{invArt(a);return false;}},{t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formArticulo(a),0);}},{t:"Contar",cls:"sec",fn:()=>ir("ajuste")},{t:"Entrada",cls:"sec",fn:()=>ir("entrada")},{t:"Consumo",fn:()=>ir("salida")}]});}
 function signo(m){const c=+m.cant||0;if(m.tipo==="entrada")return"+"+fmtN(c);if(m.tipo==="salida")return"−"+fmtN(c);if(m.tipo==="ajuste")return(c>=0?"+":"−")+fmtN(Math.abs(c));return fmtN(c);}
 /* Consumos de limpieza: la nave va en la nota («Limpieza: <tarea> · Nave 2») */
 const naveDeNota=m=>{const r=/·\s*(Nave\s[^·]+?)\s*$/i.exec(m&&m.nota||"");return r?r[1]:"";};

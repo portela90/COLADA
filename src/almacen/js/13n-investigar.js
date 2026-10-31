@@ -67,7 +67,7 @@ function investigar(F,o){o=o||{};const D=datosInv(F),reabre=()=>investigar(F,o);
       return fila(fmtF(e.f)+" · "+(maqInv(e)?maqInv(e).cod:(e.nave||"—"))+" · "+e.ref,[e.mot?cap(e.mot):(e.k==="m"&&!(e.a&&["barra","tornillo","horno"].includes(e.a.fam))?null:"sin motivo"),e.quien||"sin responsable",e.por&&!e.quien?"lo apuntó "+e.por:null,e.nota&&!/^Cambio de /.test(e.nota)?e.nota:null].filter(Boolean).join(" · "),
         fmtN(e.cant)+(e.ud&&e.ud!=="ud"?" "+e.ud:""),e.k==="r"?()=>{const x=ejes.find(z=>z.cod===e.eje);if(x){cierraDlgs();fichaEje(x);}}:()=>{cierraDlgs();completarCambio(e.r,e.k==="p",{sinMot:e.k==="m"&&!(e.a&&["barra","tornillo","horno"].includes(e.a.fam)),despues:reabre});},pide?"warn":"ok");}))];
   dlg("Investigar: "+F.t,[el("div",{class:"inv",style:"display:grid;gap:12px;max-height:64vh;overflow:auto"},body)],
-    (o.prev?[{t:"‹ Atrás",cls:"sec",fn:()=>{setTimeout(o.prev,0);}}]:[]).concat([{t:"Cerrar",cls:"sec"}]).concat((o.acciones||[]).map(a=>({t:a.t,fn:()=>{setTimeout(()=>a.fn(D),0);}}))));}
+    (o.prev?[{t:"‹ Atrás",cls:"sec",fn:()=>{setTimeout(o.prev,0);}}]:[]).concat([{t:"Cerrar",cls:"sec"}]).concat((o.acciones||[{t:"Apuntar conclusión",fn:D=>formConclusion(F,D)}]).map(a=>({t:a.t,fn:()=>{setTimeout(()=>a.fn(D),0);}}))));}
 /* «Investigar esto» debajo de una pregunta de Consultas: saca máquina, artículos, nave y periodo de lo que se ha escrito */
 function filtroInvQ(q){const F={};const m=maqDeQ(q);if(m)F.maq=m.id;const nv=naveQA(q);if(nv&&!m)F.nave=nv;
   if(/\b(reparacion\w* de ejes?|ejes? (al|en el) taller)\b/.test(q))F.fam="Reparación de ejes";
@@ -79,3 +79,57 @@ function filtroInvQ(q){const F={};const m=maqDeQ(q);if(m)F.maq=m.id;const nv=nav
   F.t=[art1,m?m.cod:null,F.nave?cap(F.nave):null].filter(Boolean).join(" · ");return F;}
 function botonInvQ(res,q){const F=filtroInvQ(nq(q));if(!F)return;const b=el("button",{type:"button",class:"btn sec",style:"justify-self:start;margin:6px 0",text:"🔎 Investigar esto ("+F.t+", "+F.per+")",onclick:()=>investigar(F)});
   const ent=res.querySelector(".bd-ent");if(ent&&ent.nextSibling)res.insertBefore(b,ent.nextSibling);else res.appendChild(b);}
+/* ===== CONCLUSIONES: causa + acción + comprobación a las semanas ===== 
+   colección «inv», doc «lista», items {id,f,t,F,causa,accion,resp,rev,antes:{pd,modo,ud,per},estado:"abierta"|"cerrada"|"funciono"|"no",res:{f,pd,pct},por,ts,desv} */
+let INV=[];
+const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
+async function invGuarda(fn){const ref=db.doc("inv/lista"),sn=await ref.get();const L=(sn.exists&&sn.data().items)||[];await ref.set({items:fn(L.slice())});}
+function formConclusion(F,D,o){o=o||{};if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede apuntar");return;}
+  const v={causa:o.sug!=null?o.sug:sugInv(D),accion:"",resp:"",sem:"4"};
+  const box=el("div",{style:"display:grid;gap:10px"});const pinta=()=>{box.textContent="";
+    box.appendChild(el("p",{class:"hint",style:"margin:0",text:F.t+" · "+perInvTxt(F)+(D.tot?": "+D.fmt(D.tot)+(D.totB>0?" (lo normal, unos "+D.fmt(D.totB)+")":""):"")}));
+    box.appendChild(fld("Causa: ¿qué ha pasado?",inp("cnCausa",v.causa,x=>v.causa=x,{autocomplete:"off",placeholder:"Molde nuevo, avería, fallo de apunte…"})));
+    box.appendChild(el("div",{class:"chips"},["Molde nuevo","Avería","Prueba","Error al apuntar","Más producción","Cambio de proveedor"].map(c=>el("button",{type:"button",class:"chip",text:c,onclick:()=>{v.causa=c;pinta();}}))));
+    box.appendChild(fld("Acción (opcional): ¿qué se va a hacer?",inp("cnAcc",v.accion,x=>v.accion=x,{autocomplete:"off",placeholder:"Revisar la refrigeración, hablar con el turno…"})));
+    box.appendChild(el("div",{class:"chips"},["Revisar la máquina","Revisar refrigeración","Hablar con el turno","Cambiar de proveedor","Apuntar mejor"].map(c=>el("button",{type:"button",class:"chip",text:c,onclick:()=>{v.accion=c;pinta();}}))));
+    if(String(v.accion).trim()){box.appendChild(fld("Quién se encarga (opcional)",inp("cnResp",v.resp,x=>v.resp=x,{autocomplete:"off"})));
+      box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Comprobar si ha funcionado dentro de"}),el("div",{class:"seg",role:"group","aria-label":"Comprobar en"},[["2","2 semanas"],["4","4 semanas"],["8","8 semanas"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(v.sem===k),text:t,onclick:()=>{v.sem=k;pinta();}})))]));
+      box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Ese día la app compara el gasto de después con el de ahora y te avisa en Hoy."}));}};
+  pinta();
+  dlg(o.desv?"Causa y acción":"Conclusión",[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const causa=String(v.causa).trim(),acc=String(v.accion).trim();if(!causa){toast("Escribe la causa");return false;}
+    const h=hoy(),rec={id:uid(),f:h,t:F.t,F:filtroSinFechas(F),causa,accion:acc||null,resp:String(v.resp).trim()||null,rev:acc?sumaDias(h,7*(+v.sem)):null,
+      antes:{pd:D.tot/Math.max(1,D.len),modo:D.modo,ud:D.ud,per:perInvTxt(F),tot:D.tot,normal:D.totB},estado:acc?"abierta":"cerrada",por:(window.yoNombre&&window.yoNombre())||"",ts:Date.now()};
+    if(o.desv)rec.desv=o.desv.clave||o.desv.key;
+    try{await invGuarda(L=>L.concat([rec]));if(o.desv)await guardaCausaDesv(o.desv,causa+(acc?" · Acción: "+acc:""));}catch(e){toast("No se pudo guardar");return false;}
+    const i=INV.findIndex(x=>x.id===rec.id);if(i<0)INV.push(rec);
+    toast(acc?"Guardado. Se comprobará el "+fmtF(rec.rev):"Conclusión guardada");render(true);}}]);}
+/* comprobar: gasto al día desde que se apuntó, frente al gasto al día del periodo investigado */
+function evalConclusion(c){const h=hoy(),d1=c.rev&&c.rev<h?c.rev:h,d0=sumaDias(c.f,1);if(d0>d1)return{pend:true,pd:0,pct:null,dias:0};
+  const D=datosInv(Object.assign({},c.F,{d0,d1})),n=Math.max(1,dias(d0,d1)+1),pd=D.tot/n,a=c.antes&&c.antes.pd||0;
+  return{pend:!c.rev||c.rev>h,pd,pct:a>0?Math.round((pd/a-1)*100):null,dias:n,fmt:D.fmt,D};}
+const resConcTxt=(c,E)=>E.pct==null?"No se puede comparar (antes no había gasto)":E.pct<=-20?"Ha bajado un "+(-E.pct)+" %: parece que ha funcionado":E.pct>=20?"Ha subido un "+E.pct+" %: no ha funcionado":"Sigue más o menos igual ("+(E.pct>0?"+":"")+E.pct+" %)";
+async function cierraConclusion(c,estado,E){try{await invGuarda(L=>L.map(x=>x.id===c.id?Object.assign({},x,estado==="mas"?{rev:sumaDias(hoy(),28)}:{estado,res:{f:hoy(),pd:E?E.pd:null,pct:E?E.pct:null}}):x));}catch(e){toast("No se pudo guardar");return false;}
+  toast(estado==="mas"?"Se vuelve a comprobar en 4 semanas":"Guardado");render(true);}
+function fichaConclusion(c){const E=evalConclusion(c),h=hoy();const F={...c.F,d0:sumaDias(h,-27),d1:h,per:"los últimos 28 días"};
+  const L=[["Investigado",fmtF(c.f)+" · "+(c.antes&&c.antes.per||"")],["Causa",c.causa],["Acción",c.accion||"—"],["Se encarga",c.resp||"—"],c.rev?["Comprobar",fmtF(c.rev)]:null,
+    c.res?["Resultado",(c.estado==="funciono"?"Ha funcionado":c.estado==="no"?"No ha funcionado":"—")+(c.res.pct!=null?" ("+(c.res.pct>0?"+":"")+c.res.pct+" %)":"")+" · "+fmtF(c.res.f)]:null,c.por?["Apuntado por",c.por]:null].filter(Boolean);
+  const body=[el("dl",{class:"bd-kv"},[].concat(...L.map(([a,b])=>[el("dt",{text:a}),el("dd",{text:b})])))];
+  if(c.estado==="abierta"&&E.dias)body.push(el("div",{class:"banner"+(E.pct!=null&&E.pct>=20?" w":""),style:"margin:0",text:"Desde que se apuntó ("+E.dias+" días): "+resConcTxt(c,E)+"."+(E.pend?" Aún no ha llegado la fecha de comprobar.":"")}));
+  const acts=[{t:"Cerrar",cls:"sec"},{t:"Investigar ahora",cls:"sec",fn:()=>{setTimeout(()=>investigar(F),0);}}];
+  if(c.estado==="abierta")acts.push({t:"No ha funcionado",cls:"sec",fn:()=>cierraConclusion(c,"no",E)},{t:"4 semanas más",cls:"sec",fn:()=>cierraConclusion(c,"mas",E)},{t:"Ha funcionado",fn:()=>cierraConclusion(c,"funciono",E)});
+  dlg(c.t,body,acts);}
+const invPorComprobar=()=>INV.filter(c=>c.estado==="abierta"&&c.rev&&c.rev<=hoy());
+function cardConclusiones(){if(!INV.length)return null;const ab=INV.filter(c=>c.estado==="abierta").sort((a,b)=>(a.rev||"").localeCompare(b.rev||"")),ce=INV.filter(c=>c.estado!=="abierta").sort((a,b)=>b.f.localeCompare(a.f)).slice(0,10),h=hoy();
+  const fila=c=>el("button",{type:"button",class:"it",onclick:()=>fichaConclusion(c)},[el("span",{class:"stripe "+(c.estado==="abierta"?(c.rev<=h?"bad":"warn"):c.estado==="funciono"?"ok":c.estado==="no"?"bad":"")}),
+    el("div",{class:"ppal"},[el("div",{class:"t1",text:c.t}),el("div",{class:"t2",text:[c.causa,c.accion?"Acción: "+c.accion:null,c.estado==="abierta"?(c.rev<=h?"toca comprobar":"comprobar el "+fmtF(c.rev)):c.estado==="funciono"?"funcionó":c.estado==="no"?"no funcionó":null].filter(Boolean).join(" · ")})]),el("div",{class:"cant"},el("small",{text:fmtF(c.f)}))]);
+  return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Investigaciones y acciones"}),el("span",{class:"der sub",text:ab.length?ab.length+" en marcha":""})]),
+    ab.length?el("div",{class:"lst"},ab.map(fila)):null,ce.length?el("details",{},[el("summary",{class:"sub",style:"padding:8px 14px;cursor:pointer",text:"Cerradas ("+INV.filter(c=>c.estado!=="abierta").length+")"}),el("div",{class:"lst"},ce.map(fila))]):null]);}
+function concDelMes(mes){return INV.filter(c=>c.f.slice(0,7)===mes||(c.res&&c.res.f.slice(0,7)===mes)).sort((a,b)=>a.f.localeCompare(b.f));}
+const concTxt=c=>c.t+": "+c.causa+(c.accion?" · Acción: "+c.accion+(c.resp?" ("+c.resp+")":""):"")+" · "+(c.estado==="abierta"?"comprobar el "+fmtF(c.rev):c.estado==="funciono"?"funcionó":c.estado==="no"?"no funcionó":"sin acción");
+/* desde las fichas */
+function invArt(a){const h=hoy(),st=stockDe(a.id),c=consDia(a),pl=plazoDe(a);
+  const intro="Hay "+fmtN(st)+" "+a.ud+(+a.min?" (mínimo "+fmtN(+a.min)+")":"")+". Se gastan unos "+fmtN(Math.round(c*300)/10)+" al mes"+(c>0?" (da para "+Math.floor(st/c)+" días)":"")+"; el proveedor tarda "+pl+" días"+(a.pedido?". Pedido el "+fmtF(a.pedido)+(a.prevista?", llega el "+fmtF(a.prevista)+(a.prevista<h?" (con retraso)":""):""):". No hay pedido en marcha")+".";
+  investigar({t:TEC(a.fam)?nomBT(a):a.desc,arts:[a.id],d0:sumaDias(h,-89),d1:h,per:"los últimos 90 días"},{intro});}
+function introEje(e){const R=todasRep().filter(r=>r.eje===e.cod&&r.env&&r.res!=="anulada"&&!r.recuento).sort((a,b)=>a.env.localeCompare(b.env));if(!R.length)return"Este eje no ha ido nunca al taller.";
+  const T=R.filter(r=>r.rec&&r.res).map(r=>dias(r.env,r.rec)),iv=[];for(let i=1;i<R.length;i++)if(R[i-1].rec)iv.push(dias(R[i-1].rec,R[i].env));
+  return R.length+(R.length===1?" vez":" veces")+" al taller"+(T.length?"; tarda de media "+Math.round(T.reduce((s,x)=>s+x,0)/T.length)+" días en volver":"")+(iv.length?"; aguanta en planta unos "+Math.round(iv.reduce((s,x)=>s+x,0)/iv.length)+" días entre reparaciones":"")+".";}

@@ -360,7 +360,7 @@ function datosSinApuntar(d0,d1){const P=todosPist().filter(p=>p.f>=d0&&p.f<=d1);
 /* completar desde la pregunta: poner el motivo o el responsable que faltan */
 async function patchPist(p,pt){if(db.itemsPatchId){await db.itemsPatchId("pist",p.f.slice(0,4),[Object.assign({},pt,{id:p.id})]);return;}
   const ref=db.doc("pist/"+p.f.slice(0,4)),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).map(x=>x.id===p.id?Object.assign({},x,pt):x)});}
-const cierraDlgs=()=>document.querySelectorAll(".dlg-ov").forEach(o=>o.remove());
+const cierraDlgs=()=>document.querySelectorAll(".dlg-ov:not(.op-ov)").forEach(o=>o.remove());
 function elegirCambio(tit,L,esPist){if(L.length===1){completarCambio(L[0],esPist);return;}
   dlg(tit,[el("p",{class:"hint",text:"Elige el cambio que quieres completar."}),el("div",{class:"lst"},L.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(x=>el("button",{type:"button",class:"it",onclick:()=>{cierraDlgs();completarCambio(x,esPist);}},[el("span",{class:"stripe warn"}),
     el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(x.f)+" · "+maqN(x.maq)+(x.diam?" · "+x.diam:"")}),el("div",{class:"t2",text:[x.motivo?cap(x.motivo):"sin motivo",x.resp?respTxt(x.resp):"sin responsable",x.por?"lo apuntó "+x.por:null].filter(Boolean).join(" · ")})])])))],[{t:"Cerrar",cls:"sec"}]);}

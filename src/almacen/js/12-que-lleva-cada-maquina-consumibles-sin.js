@@ -198,7 +198,7 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
     tabs:[["Ahora",[S("Lo que monta ahora",ahora,avisosMaq(m).length?el("div",{class:"banner w",text:avisosMaq(m).join(" · ")}):null),S("Ficha técnica",B[5]),S("Horno · placa",(()=>{return el("div",{style:"display:grid;gap:8px"},[hornoBox.firstChild.cloneNode(true),el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:hd.length?"Editar · "+hd.length+(hd.length===1?" documento":" documentos")+" en Documentos":"Editar datos del horno",onclick:()=>formHorno(m,reabre(0))})]);})())]],
       ["Consumibles",C(9,10,11,12,13)],["Ejes",C(6,7,8)],["Historial",[S(null,hist)]],["Gasto",[S(null,gasto,B[14],B[15])]],
       ["Documentos",[S("De la máquina",B[17],B[18]),S("Del horno",hornoBox),S("Planos de lo que monta",docsPl)]]],
-    acts:[{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},{t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
+    acts:[{t:"🔎 Investigar",cls:"sec",fn:()=>{const h=hoy();investigar({t:m.cod,maq:m.id,d0:sumaDias(h,-89),d1:h,per:"los últimos 90 días"});return false;}},{t:"Editar ficha",cls:"sec",fn:()=>{setTimeout(()=>formMaquina(m),0);}},{t:"Eje en cuarentena",cls:"sec",fn:()=>{setTimeout(()=>formCuarentena(m.id),0);}},
       {t:"Cambio de pistón",fn:()=>{Object.assign(draft.p,{maq:m.id,diam:dm||draft.p.diam,alm:""});setTimeout(()=>{irA("pist");const f=document.getElementById("pForm");if(f)f.scrollIntoView();},0);}}]});}
 /* editar lo que monta una máquina: en cada campo se tocan las opciones */
 /* fecha de fabricación del horno (mes y año de la placa) y los años que tiene */

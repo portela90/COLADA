@@ -84,9 +84,10 @@ function apuntarCausa(d,despues,sug){let t=sug||"";
   dlg("Causa de la desviación",[el("p",{class:"hint",text:d.tit+": "+d.txt}),fld("¿Qué ha pasado?",inp("dvCausa",t,v=>t=v,{autocomplete:"off",placeholder:"Molde nuevo, avería, prueba, fallo de apunte…"})),
     el("div",{class:"chips"},["Molde nuevo","Avería","Prueba","Error al apuntar","Más producción","Cambio de proveedor"].map(c=>el("button",{type:"button",class:"chip",text:c,onclick:()=>{const i=$("dvCausa");i.value=c;t=c;}})))],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!String(t).trim()){toast("Escribe la causa");return false;}const R=calcDesv();
-      const rec={id:uid(),key:d.key,tipo:d.tipo,sem:R.W0,tit:d.tit,txt:d.txt,causa:String(t).trim(),eu:Math.round(d.eu||0),f:hoy(),ts:Date.now()};
-      try{const ref=db.doc("desv/causas"),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).concat([rec])});}catch(e){toast("No se pudo guardar");return false;}
-      _desvC=null;toast("Causa apuntada");if(despues)despues();}}]);}
+      try{await guardaCausaDesv(d,String(t).trim());}catch(e){toast("No se pudo guardar");return false;}
+      toast("Causa apuntada");if(despues)despues();}}]);}
+async function guardaCausaDesv(d,causa){const R=calcDesv();const rec={id:uid(),key:d.key,tipo:d.tipo,sem:R.W0,tit:d.tit,txt:d.txt,causa,eu:Math.round(d.eu||0),f:hoy(),ts:Date.now(),por:(window.yoNombre&&window.yoNombre())||""};
+  const ref=db.doc("desv/causas"),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).concat([rec])});_desvC=null;}
 function sparkDesv(E){const vs=E.serie.map(p=>p.r||0),mx=Math.max(...vs,E.mu+2*E.sg,1e-9);
   return el("div",{"aria-hidden":"true",style:"display:grid;grid-template-columns:repeat("+vs.length+",1fr);gap:2px;align-items:end;height:42px;position:relative"},
     E.serie.map((p,i)=>el("div",{title:fmtF(p.w),style:"height:"+Math.max(2,Math.round((p.r||0)/mx*40))+"px;border-radius:2px;background:"+(i===vs.length-1?(p.r>E.mu+2*E.sg?"var(--bad)":"var(--warn)"):p.r==null?"var(--line)":"var(--acc)")+";opacity:"+(i===vs.length-1?1:.55)})));}
@@ -101,6 +102,7 @@ function vDesv(v){const R=calcDesv(),act=R.L.filter(d=>!d.just),jus=R.L.filter(d
       el("div",{class:"acciones"},[d.tipo!=="cont"?el("button",{type:"button",class:"btn peq",text:"Investigar",onclick:()=>investigarDesv(d)}):null,d.just?null:el("button",{type:"button",class:"btn sec peq",text:"Apuntar causa",onclick:()=>apuntarCausa(d,()=>render(true))}),
         d.m?el("button",{type:"button",class:"btn sec peq",text:"Ficha de la "+d.m.cod,onclick:()=>fichaIny(d.m)}):d.a?el("button",{type:"button",class:"btn sec peq",text:"Ficha",onclick:()=>ficha(d.a)}):null,
         d.x?el("button",{type:"button",class:"btn sec peq",text:"Comparar meses",onclick:()=>{draft.bd=draft.bd||{};draft.bd.q="compara el gasto de "+(d.x.tipo==="art"?nomArtC(d.x.a).toLowerCase():d.x.tipo==="mf"?d.x.fam.toLowerCase()+" de la "+d.x.cod:d.x.tipo==="cont"?"aceites":"la "+d.x.cod)+" este mes con los meses anteriores";irA("bd");}}):null])])]);};
+  {const cc=cardConclusiones();if(cc)v.appendChild(cc);}
   if(!act.length)v.appendChild(el("div",{class:"banner",text:"La "+semTxt(R.W0)+" no se ha salido nada de lo normal."}));
   act.forEach(d=>v.appendChild(card(d)));
   if(jus.length){v.appendChild(el("h3",{class:"sub",style:"margin:14px 2px 6px",text:"Justificadas (no vuelven a avisar en 4 semanas)"}));jus.forEach(d=>v.appendChild(card(d)));}}
@@ -123,7 +125,8 @@ function informeDesv(){const h=hoy();const meses=[0,1,2,3,4,5].map(i=>mesMas(h.s
     if(D.R.length)box.appendChild(cTabla(["","Gastado","Lo normal","Diferencia","Causa"],D.R.map(g=>[g.tit,fv(g),fe(g),(g.pct!=null?"+"+g.pct+" %":"nuevo")+(g.eu?" · "+eur(g.eu):""),g.causas.join("; ")||"—"]),[1,2,3]));
     if(D.R.some(g=>g.nb<3))box.appendChild(el("div",{class:"banner w",text:"Todavía hay pocos meses de referencia (hay datos de producción desde hace poco): tómalo como orientativo. Se afina solo cada mes."}));
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Lo normal = gasto medio "+(PROD?"por tonelada ":"")+"de los 6 meses anteriores (solo los meses completos desde que se apunta cada cosa)"+(PROD?" × toneladas de este mes":"")+". Solo salen las que pasan de un 25 % y de 50 € (o 2 unidades)."}));
-    const txt=["DESVIACIONES DE CONSUMO · "+fmtMes(mes).toUpperCase()].concat(D.R.map(g=>"- "+g.tit+": "+fv(g)+" (normal "+fe(g)+", "+(g.pct!=null?"+"+g.pct+" %":"nuevo")+(g.eu?", "+eur(g.eu)+" de más":"")+")"+(g.causas.length?" · Causa: "+g.causas.join("; "):""))).concat(tot?["","Total de más: "+eur(tot)]:[]).join("\n");
+    const CM=concDelMes(mes);if(CM.length)box.appendChild(el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Investigaciones y acciones"})].concat(CM.map(c=>el("p",{style:"margin:0",text:"· "+concTxt(c)})))));
+    const txt=["DESVIACIONES DE CONSUMO · "+fmtMes(mes).toUpperCase()].concat(D.R.map(g=>"- "+g.tit+": "+fv(g)+" (normal "+fe(g)+", "+(g.pct!=null?"+"+g.pct+" %":"nuevo")+(g.eu?", "+eur(g.eu)+" de más":"")+")"+(g.causas.length?" · Causa: "+g.causas.join("; "):""))).concat(tot?["","Total de más: "+eur(tot)]:[]).concat(CM.length?["","INVESTIGACIONES Y ACCIONES"].concat(CM.map(c=>"- "+concTxt(c))):[]).join("\n");
     box.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Copiar",onclick:async()=>{try{await navigator.clipboard.writeText(txt);toast("Copiado");}catch(e){dlg("Para copiar",[el("textarea",{style:"width:100%;min-height:220px",text:txt})],[{t:"Cerrar",cls:"sec"}]);}}}),
       el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>cExcel("Desviaciones "+fmtMes(mes),D.R.length?D.R.map(g=>({"Máquina o artículo":g.tit,"Gastado":Math.round(g.v*100)/100,"Lo normal":Math.round(g.esp*100)/100,"Unidad":g.usaEu?"€":(g.ud||"ud"),"Diferencia %":g.pct,"De más (€)":Math.round((g.eu||0)*100)/100,"Causa":g.causas.join("; ")})):[{"Máquina o artículo":"Sin desviaciones"}],e.currentTarget)})]));};
   pinta();dlg("Informe de desviaciones",[box],[{t:"Cerrar",cls:"sec"}]);}
@@ -132,4 +135,4 @@ function informeDesv(){const h=hoy();const meses=[0,1,2,3,4,5].map(i=>mesMas(h.s
 function filtroDesv(d){const R=calcDesv(),x=d.x||{},a=d.a||x.a||null,m=d.m||x.m||null,larga=d.tipo==="rot"||d.tipo==="dur",h=hoy();
   const F={t:d.tit,d0:larga?sumaDias(h,-59):R.W0,d1:larga?h:sumaDias(R.W0,6),per:larga?"los últimos 60 días":"la "+semTxt(R.W0)};
   if(a)F.arts=[a.id];if(m)F.maq=m.id;if(x.fam)F.fam=x.fam;if(larga)F.fam="Pistones";return F;}
-function investigarDesv(d){investigar(filtroDesv(d),{intro:d.txt,acciones:d.just?[]:[{t:"Apuntar causa",fn:D=>apuntarCausa(d,()=>render(true),sugInv(D))}]});}
+function investigarDesv(d){investigar(filtroDesv(d),{intro:d.txt,acciones:d.just?[]:[{t:"Apuntar causa",fn:D=>formConclusion(filtroDesv(d),D,{desv:d})}]});}
