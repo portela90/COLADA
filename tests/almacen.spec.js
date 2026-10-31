@@ -1167,3 +1167,22 @@ test('Barras rotas: guardar para recuperar con el tornillo, mandar al taller, vu
   d = page.locator('.dlg').last(); await expect(d).toContainText('Recuperación'); await expect(d).toContainText('40 €');
   expect(err).toEqual([]);
 });
+
+test('Pestaña Consumo con un pistón: pide motivo y destino, se guarda como cambio de pistón y sin pistonwax pregunta la avería con la causa puesta', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.locator('#tabs button', { hasText: 'Consumo' }).click(); await page.waitForTimeout(300);
+  const pa = await page.$eval('#mArt', s => [...s.options].find(o => /Pistón/.test(o.text)).value); await page.selectOption('#mArt', pa); await page.waitForTimeout(300);
+  await expect(page.locator('#mMot')).toHaveCount(1); await expect(page.locator('#mDestP')).toHaveCount(1);
+  await page.fill('#mCant', '1');
+  const maq = await page.$eval('#mMaq', s => [...s.options].find(o => o.value && !o.value.startsWith('nave:')).value); await page.selectOption('#mMaq', maq);
+  await page.selectOption('#mMot', 'TRABAJANDO SIN PISTONWAX'); await page.waitForTimeout(300);
+  await page.selectOption('#mDestP', 'DESECHADO'); await page.fill('#mResp', '707');
+  const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"motivo"').length);
+  await page.locator('#mBtn').click(); await page.waitForTimeout(900);
+  expect(await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"motivo"').length)).toBe(antes + 1);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
+  await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"causa":"Trabajando sin pistonwax"');
+  expect(err).toEqual([]);
+});

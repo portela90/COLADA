@@ -222,7 +222,7 @@ async function guardarR(){const L=rq.acc||[];if(!L.length)return;if(L.some(r=>fa
     else if(r.tipo==="conteo"){const st=stockA(r.art,r.alm,r.f);movs.push({f:r.f,tipo:"ajuste",art:r.art,alm:r.alm,cant:Math.round((q-st)*1000)/1000,contado:q,teorico:st,nota:nota||"Recuento"});}
     else{const m={f:r.f,tipo:r.tipo==="consumo"?"salida":r.tipo,art:r.art,alm:r.alm,cant:q,nota};if(r.tipo==="traslado")m.dest=r.dest;if(r.tipo==="consumo"){ponPara(m,r.maq);if((r.resp||"").trim())m.resp=r.resp.trim();}
       if(r.tipo==="entrada"){if(r.prov)m.prov=r.prov;if((r.alb||"").trim())m.alb=r.alb.trim();}movs.push(m);}});
-  try{if(movs.length)await addMovs(movs);if(pists.length){await addPists(pists);try{await ejePendDe(pists);}catch(e){}}
+  try{if(movs.length)await addMovs(movs);if(pists.length){await addPists(pists);try{await ejePendDe(pists);}catch(e){}const pa=pists.find(x=>MOT_AV_P[x.motivo||""]);if(pa)avPistAveria(pa);}
     for(const r of L.filter(x=>x.tipo.startsWith("eje_"))){const e=ejeDe(r.eje);if(!e)continue;
       if(r.tipo==="eje_prep"){await addRep({eje:e.cod,desp:r.desp.trim().toUpperCase(),alta:r.f,env:null});await updEje(e,{estado:"preparado"});}
       else if(r.tipo==="eje_env")await enviar([e],r.f);else await recibir([e],r.f,(r.alb||"").trim(),"ok");}

@@ -21,9 +21,9 @@ function avLinks(a){const E=evInv(),out=[];(a.links||[]).forEach(l=>{
 const avCoste=a=>avLinks(a).reduce((s,e)=>s+(e.eur||0),0);
 const avLinkSet=()=>{const S={};AVER.forEach(a=>(a.links||[]).forEach(l=>{S[l.k+":"+l.id]=a;}));return S;};
 /* ¿es por una avería? (al apuntar una rotura) */
-function preguntaAveria(maqId,link0,que){if(window.SOLO_CONSULTA||!db||!maqId)return;const LK=[].concat(link0).filter(Boolean),link=LK[0];if(!link)return;const m=cat.maquinas.find(x=>x.id===maqId||x.cod===maqId);if(!m)return;
+function preguntaAveria(maqId,link0,que,causa0){if(window.SOLO_CONSULTA||!db||!maqId)return;const LK=[].concat(link0).filter(Boolean),link=LK[0];if(!link)return;const m=cat.maquinas.find(x=>x.id===maqId||x.cod===maqId);if(!m)return;
   const ab=AVER.filter(a=>a.estado==="abierta"&&(a.maq===m.id||a.maq===m.cod));
-  const nueva=async()=>{const n=AVER.reduce((s,a)=>Math.max(s,+a.n||0),0)+1;const a={id:uid(),n,maq:m.id,f:link.f||hoy(),t:que,causa:"",evit:null,resp:null,nota:null,estado:"abierta",links:LK,por:(window.yoNombre&&window.yoNombre())||"",ts:Date.now()};
+  const nueva=async()=>{const n=AVER.reduce((s,a)=>Math.max(s,+a.n||0),0)+1;const a={id:uid(),n,maq:m.id,f:link.f||hoy(),t:que,causa:causa0||"",evit:causa0?evitDe(causa0):null,resp:null,nota:null,estado:"abierta",links:LK,por:(window.yoNombre&&window.yoNombre())||"",ts:Date.now()};
     try{await avGuarda(L=>L.concat([a]));}catch(e){toast("No se pudo guardar");return false;}toast("Avería abierta: "+m.cod+" · "+que);render(true);setTimeout(()=>fichaAveria(a),0);};
   const anade=async a=>{try{await avCambia(a.id,x=>{x.links=(x.links||[]).concat(LK);return x;});}catch(e){toast("No se pudo guardar");return false;}toast("Añadido a la avería "+avNom(a));render(true);};
   dlg("¿Es por una avería?",[el("p",{class:"hint",style:"margin:0",text:m.cod+": "+que+". Si es una avería, todo lo que se cambie por ella suma a su coste y luego se puede poner la causa (por ejemplo, sin refrigeración o sin pistonwax)."}),
