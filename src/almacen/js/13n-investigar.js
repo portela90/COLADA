@@ -11,7 +11,7 @@ function evInv(){const L=[];
     L.push({k:"r",r,f:r.env,maq:r.maq||null,a:null,ref:"Eje "+r.eje,eje:r.eje,fam:"Reparación de ejes",cant:1,ud:"eje",eur:ok?costeRep(r).v:0,mot:String(r.desp||"").trim()?motivoRep(r.desp):"",quien:r.por||"",por:r.por||"",nota:r.obs||""});});
   return L.filter(e=>e.f);}
 const maqInv=e=>e.maq?(cat.maquinas.find(x=>x.id===e.maq||x.cod===e.maq)||null):null;
-function casaInv(F,e){if(F.arts&&!(e.a&&F.arts.includes(e.a.id)))return false;if(F.fam&&e.fam!==F.fam)return false;if(F.eje&&e.eje!==F.eje)return false;
+function casaInv(F,e){if(F.mot!=null&&(e.mot?cap(e.mot):"Sin motivo")!==F.mot)return false;if(F.quien!=null&&(e.quien||"Sin responsable")!==F.quien)return false;if(F.arts&&!(e.a&&F.arts.includes(e.a.id)))return false;if(F.fam&&e.fam!==F.fam)return false;if(F.eje&&e.eje!==F.eje)return false;
   if(F.maq){const m=maqInv(e);if(!m||m.id!==F.maq)return false;}
   if(F.nave){const m=maqInv(e);const z=m?zonaDe(m):(e.nave||"");if(!(" "+nq(z)+" ").includes(" "+nq(F.nave)))return false;}return true;}
 function datosInv(F){const E=evInv().filter(e=>casaInv(F,e)),d0=F.d0,d1=F.d1,len=Math.max(1,dias(d0,d1)+1),B0=sumaDias(d0,-84),kB=len/84;
@@ -59,10 +59,10 @@ function investigar(F,o){o=o||{};const D=datosInv(F),reabre=()=>investigar(F,o);
     D.hint.length?el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Lo que llama la atención"})].concat(D.hint.map(h=>el("div",{class:"banner"+(h.niv==="bad"?" w":""),style:"margin:0",text:h.t})))):null,
     D.falta.length?el("div",{class:"banner w",style:"margin:0",text:"Falta información: "+D.falta.join(", ")+". Pulsa en cada apunte para completarlo."}):null,
     el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Cuándo ("+(D.largo?"por meses":"por semanas")+"; en naranja, el periodo que miras)"}),barras]),
-    bloque("Por motivo",D.mot.map(g=>fila(g.k,normalTxt(g),D.fmt(g.v),null,nivG(g)))),
+    bloque(F.mot!=null?"Por motivo":"Por motivo (pulsa para ver solo ese)",D.mot.map(g=>fila(g.k,normalTxt(g),D.fmt(g.v),F.mot!=null||!g.n?null:baja({mot:g.k,t:F.t+" · "+g.k.toLowerCase()}),nivG(g)))),
     bloque("Por máquina (pulsa para ver solo esa)",D.maq.map(g=>{const m=cat.maquinas.find(x=>x.cod===g.k);return fila(g.k,normalTxt(g),D.fmt(g.v),m?baja({maq:m.id,t:F.t+" · "+m.cod}):null,nivG(g));})),
     bloque("Por artículo (pulsa para ver solo ese)",D.artG.map(g=>{const e=g.L[0]||{};return fila(g.k,normalTxt(g),D.fmt(g.v),e.a?baja({arts:[e.a.id],t:g.k+(F.maq?" · "+maqN(F.maq):"")}):null,nivG(g));})),
-    bloque("Quién",D.qui.filter(g=>g.v>0).map(g=>fila(g.k,g.n+(g.n===1?" apunte":" apuntes"),D.fmt(g.v),null,g.k==="Sin responsable"?"warn":"ok"))),
+    bloque(F.quien!=null?"Quién":"Quién (pulsa para ver solo lo suyo)",D.qui.filter(g=>g.v>0).map(g=>fila(g.k,g.n+(g.n===1?" apunte":" apuntes"),D.fmt(g.v),F.quien!=null?null:baja({quien:g.k,t:F.t+" · "+g.k}),g.k==="Sin responsable"?"warn":"ok"))),
     bloque("Cada apunte (pulsa para completar o abrir)",D.en.slice(0,80).map(e=>{const pide=e.k!=="r"&&(!e.quien||(!e.mot&&(e.k==="p"||(e.a&&["barra","tornillo","horno"].includes(e.a.fam)))));
       return fila(fmtF(e.f)+" · "+(maqInv(e)?maqInv(e).cod:(e.nave||"—"))+" · "+e.ref,[e.mot?cap(e.mot):(e.k==="m"&&!(e.a&&["barra","tornillo","horno"].includes(e.a.fam))?null:"sin motivo"),e.quien||"sin responsable",e.por&&!e.quien?"lo apuntó "+e.por:null,e.nota&&!/^Cambio de /.test(e.nota)?e.nota:null].filter(Boolean).join(" · "),
         fmtN(e.cant)+(e.ud&&e.ud!=="ud"?" "+e.ud:""),e.k==="r"?()=>{const x=ejes.find(z=>z.cod===e.eje);if(x){cierraDlgs();fichaEje(x);}}:()=>{cierraDlgs();completarCambio(e.r,e.k==="p",{sinMot:e.k==="m"&&!(e.a&&["barra","tornillo","horno"].includes(e.a.fam)),despues:reabre});},pide?"warn":"ok");}))];
@@ -82,7 +82,7 @@ function botonInvQ(res,q){const F=filtroInvQ(nq(q));if(!F)return;const b=el("but
 /* ===== CONCLUSIONES: causa + acción + comprobación a las semanas ===== 
    colección «inv», doc «lista», items {id,f,t,F,causa,accion,resp,rev,antes:{pd,modo,ud,per},estado:"abierta"|"cerrada"|"funciono"|"no",res:{f,pd,pct},por,ts,desv} */
 let INV=[];
-const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
+const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje","mot","quien"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
 async function invGuarda(fn){const ref=db.doc("inv/lista"),sn=await ref.get();const L=(sn.exists&&sn.data().items)||[];await ref.set({items:fn(L.slice())});}
 function formConclusion(F,D,o){o=o||{};if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede apuntar");return;}
   const v={causa:o.sug!=null?o.sug:sugInv(D),accion:"",resp:"",sem:"4"};

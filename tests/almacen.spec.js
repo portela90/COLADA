@@ -1028,6 +1028,9 @@ test('Investigar: botón en Consultas, bajar por máquina y volver', async ({ pa
   let d = page.locator('.dlg').last();
   await expect(d).toContainText('Investigar: Pistón Ø 80'); await expect(d).toContainText('Por motivo'); await expect(d).toContainText('Cuándo');
   const t = (await d.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  await d.locator('button.it', { hasText: 'Pistón agarrotado' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Investigar: Pistón Ø 80 · pistón agarrotado'); await page.locator('.dlg').last().getByRole('button', { name: '‹ Atrás' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last();
   const fm = d.locator('button.it').first(); await fm.click(); await page.waitForTimeout(300);
   d = page.locator('.dlg').last();
   if (await d.getByRole('button', { name: '‹ Atrás' }).count()) { await d.getByRole('button', { name: '‹ Atrás' }).click(); await page.waitForTimeout(300); await expect(page.locator('.dlg').last()).toContainText('Investigar: Pistón Ø 80'); }
