@@ -121,11 +121,20 @@ const subs={};
 function canal(col,fn){col=P+col;(subs[col]=subs[col]||[]).push(fn);
   if(subs[col].length===1)sb.channel("docs-"+col).on("postgres_changes",{event:"*",schema:"public",table:"docs",filter:"col=eq."+col},p=>{subs[col].forEach(f=>f(p));}).subscribe(st=>{if(st==="SUBSCRIBED")subs[col].forEach(f=>f(null));});}
 /* lecturas: si no hay red se usa la última copia guardada en el móvil (con los cambios pendientes ya puestos) */
+/* lectura con lo guardado en el móvil: primero solo «qué documentos hay y cuándo cambiaron» (pocos bytes)
+   y después solo los que han cambiado desde la última vez. Con años de datos y muchos usuarios ahorra casi todo el tráfico. */
+async function leeColDelta(C,mem){const k="c:"+C;const prev=mem||(await OFF.lee(k))||[];const P=new Map(prev.map(r=>[r.id,r]));
+  const r=await sb.from("docs").select("id,updated_at").eq("col",C);if(r.error)throw r.error;const L=r.data||[];
+  const pedir=L.filter(x=>{const p=P.get(x.id);return !p||!p.u||p.u!==x.updated_at;}).map(x=>x.id);const nuevos=new Map();
+  for(let i=0;i<pedir.length;i+=60){const q=await sb.from("docs").select("id,data,updated_at").eq("col",C).in("id",pedir.slice(i,i+60));if(q.error)throw q.error;(q.data||[]).forEach(x=>nuevos.set(x.id,{id:x.id,data:x.data,u:x.updated_at}));}
+  const rows=L.map(x=>nuevos.get(x.id)||P.get(x.id)).filter(Boolean);OFF.guarda(k,rows);return rows;}
 async function leeCol(col){const C=P+col,k="c:"+C;
   try{if(!navigator.onLine)throw new TypeError("offline");const r=await sb.from("docs").select("id,data").eq("col",C);if(r.error)throw r.error;const d=r.data||[];OFF.guarda(k,d);OFF.red(true);return OFF.aplicaCol(C,d);}
   catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);const d=await OFF.lee(k);if(!d)throw e;return OFF.aplicaCol(C,d);}}
 async function leeDoc(col,id){const C=P+col,k="d:"+C+"/"+id,ap=d=>d?{data:OFF.aplicaDoc(C,id,d.data)}:(OFF.cola().some(o=>o.col===C&&o.id===id)?{data:OFF.aplicaDoc(C,id,{})}:null);
-  try{if(!navigator.onLine)throw new TypeError("offline");const r=await sb.from("docs").select("data").eq("col",C).eq("id",id).maybeSingle();if(r.error)throw r.error;OFF.guarda(k,r.data||null);OFF.red(true);return ap(r.data);}
+  try{if(!navigator.onLine)throw new TypeError("offline");
+    const ya=await OFF.lee(k);if(ya&&ya.u){const t=await sb.from("docs").select("updated_at").eq("col",C).eq("id",id).maybeSingle();if(t.error)throw t.error;if(t.data&&t.data.updated_at===ya.u){OFF.red(true);return ap(ya);}}
+    const r=await sb.from("docs").select("data,updated_at").eq("col",C).eq("id",id).maybeSingle();if(r.error)throw r.error;const v=r.data?{data:r.data.data,u:r.data.updated_at}:null;OFF.guarda(k,v);OFF.red(true);return ap(v);}
   catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);let d=await OFF.lee(k);if(d===undefined){const L=await OFF.lee("c:"+C);const x=(L||[]).find(z=>z.id===id);d=x?{data:x.data}:undefined;}
     if(d===undefined&&!OFF.cola().some(o=>o.col===C&&o.id===id))throw e;return ap(d||null);}}
 const rpc=async(f,a)=>{noConsulta();const r=await sb.rpc(f,a);if(r.error)throw r.error;};
@@ -145,11 +154,11 @@ const db={
   itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:P+col,p_id:id,p_i:i}),
   /* al cambiar un documento no se vuelve a leer toda la colección: el aviso de la base ya trae el documento nuevo (mucho menos tráfico con muchos usuarios y años de datos) */
   collection:col=>({onSnapshot:(cb,er)=>{const C=P+col;let cache=null;
-    const todo=()=>sb&&navigator.onLine?sb.from("docs").select("id,data").eq("col",C).then(r=>{if(r.error)throw r.error;cache=r.data||[];OFF.guarda("c:"+C,cache);OFF.red(true);return OFF.aplicaCol(C,cache);}).catch(e=>{if(!OFF.esRed(e))throw e;return leeCol(col);}):leeCol(col);
+    const todo=()=>sb&&navigator.onLine?leeColDelta(C,cache).then(rows=>{cache=rows;OFF.red(true);return OFF.aplicaCol(C,cache);}).catch(e=>{if(!OFF.esRed(e))throw e;return leeCol(col);}):leeCol(col);
     const full=()=>todo().then(rows=>cb(snap(rows))).catch(e=>er&&er(e));
     const go=p=>{const ev=p&&(p.eventType||p.type);const nu=p&&p.new,ol=p&&p.old;
       if(!cache||!p||(p.errors&&p.errors.length)||(ev!=="DELETE"&&(!nu||nu.id==null||nu.data===undefined))||(ev==="DELETE"&&(!ol||ol.id==null))){full();return;}
-      if(ev==="DELETE")cache=cache.filter(r=>r.id!==ol.id);else{const i=cache.findIndex(r=>r.id===nu.id);const row={id:nu.id,data:nu.data};if(i<0)cache=cache.concat([row]);else{cache=cache.slice();cache[i]=row;}}
+      if(ev==="DELETE")cache=cache.filter(r=>r.id!==ol.id);else{const i=cache.findIndex(r=>r.id===nu.id);const row={id:nu.id,data:nu.data,u:nu.updated_at||null};if(i<0)cache=cache.concat([row]);else{cache=cache.slice();cache[i]=row;}}
       OFF.guarda("c:"+C,cache);try{cb(snap(OFF.aplicaCol(C,cache)));}catch(e){er&&er(e);}};
     full();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
@@ -157,7 +166,7 @@ const db={
     set:async data=>{await escribe(()=>sb.from("docs").upsert({col:P+col,id,data}));},
     update:async patch=>{if(!navigator.onLine)throw sinRed();const d=await leeDoc(col,id);await escribe(()=>sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)}));},
     onSnapshot:(cb,er)=>{const C=P+col;const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();
-      canal(col,p=>{if(!p){go();return;}const ev=p.eventType||p.type;if(ev!=="DELETE"&&p.new&&p.new.id===id&&p.new.data!==undefined&&!(p.errors&&p.errors.length)){const d=p.new.data;OFF.guarda("d:"+C+"/"+id,{data:d});try{cb({exists:true,data:()=>OFF.aplicaDoc(C,id,d)});}catch(e){er&&er(e);}return;}if((p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
+      canal(col,p=>{if(!p){go();return;}const ev=p.eventType||p.type;if(ev!=="DELETE"&&p.new&&p.new.id===id&&p.new.data!==undefined&&!(p.errors&&p.errors.length)){const d=p.new.data;OFF.guarda("d:"+C+"/"+id,{data:d,u:p.new.updated_at||null});try{cb({exists:true,data:()=>OFF.aplicaDoc(C,id,d)});}catch(e){er&&er(e);}return;}if((p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
 /* ---------- historial de cambios y deshacer ---------- */
 const sinP=col=>P&&col.startsWith(P)?col.slice(P.length):col;

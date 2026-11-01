@@ -33,10 +33,13 @@ async function servidor(page, P, D, yo) {
     const json = (x, st) => r.fulfill({ status: st || 200, contentType: 'application/json', body: JSON.stringify(x) });
     if (u.pathname === '/rest/v1/usuarios') return json(obj ? fila : [fila]);
     if (u.pathname === '/rest/v1/docs' && r.request().method() === 'GET') {
-      const col = (q.get('col') || '').replace(/^eq\./, ''), id = (q.get('id') || '').replace(/^eq\./, '');
+      const col = (q.get('col') || '').replace(/^eq\./, ''), idq = q.get('id') || '';
+      const lista = /^in\.\(/.test(idq) ? idq.slice(4, -1).split(',').map(x => x.replace(/^"|"$/g, '')) : null, id = lista ? '' : idq.replace(/^eq\./, '');
       const c = S.D[col.slice(P.length)] || {};
-      const rows = Object.entries(c).filter(([k]) => !id || k === id).map(([k, v]) => ({ id: k, data: v }));
-      if (id) return json(obj ? (rows[0] ? { data: rows[0].data } : null) : rows.map(x => ({ data: x.data })));
+      /* updated_at simulado: cambia cuando cambia el documento (como el de la base de verdad) */
+      const ver = v => { const t = JSON.stringify(v); let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return '2026-01-01T00:00:00.' + (h >>> 0) + '+00:00'; };
+      const rows = Object.entries(c).filter(([k]) => (!id || k === id) && (!lista || lista.includes(k))).map(([k, v]) => ({ id: k, data: v, updated_at: ver(v) }));
+      if (id) return json(obj ? (rows[0] ? { data: rows[0].data, updated_at: rows[0].updated_at } : null) : rows.map(x => ({ data: x.data, updated_at: x.updated_at })));
       return json(rows);
     }
     if (u.pathname.startsWith('/rest/v1/rpc/')) {
