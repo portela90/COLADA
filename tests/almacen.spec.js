@@ -1101,7 +1101,7 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   await page.locator('#pBtn').click(); await page.waitForTimeout(900);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
   await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(600);
-  d = page.locator('.dlg').last(); await expect(d).toContainText('Pistón roto'); await expect(d).toContainText('Lo que se ha cambiado por esta avería');
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Pistón roto'); await expect(d).toContainText('Lo que se ha cambiado por esta avería'); await expect(d).toContainText('Pistas'); await expect(d).toContainText('2 meses anteriores');
   await d.locator('.chip', { hasText: 'Trabajando sin pistonwax' }).click(); await page.waitForTimeout(150);
   d = page.locator('.dlg').last(); await expect(d.locator('.seg button[aria-pressed="true"]', { hasText: 'Sí' })).toHaveCount(1);
   await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);

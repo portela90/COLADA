@@ -47,6 +47,7 @@ function fichaAveria(a0){const a=Object.assign({},AVER.find(x=>x.id===a0.id)||a0
   const pinta=()=>{box.textContent="";
     box.appendChild(el("dl",{class:"bd-kv"},[].concat(...[["Máquina",m?m.cod+" ("+zonaDe(m)+")":a.maq],["Abierta",fmtF(a.f)+(a.estado==="abierta"?" · "+hace(dias(a.f,h)):"")],a.fc?["Cerrada",fmtF(a.fc)+" · duró "+(dias(a.f,a.fc)+1)+" días"]:null,["Coste",eur(tot)+(L.some(e=>e.aprox)?" (los ejes, al precio de reparación de su modelo hasta que llegue el albarán)":"")+(L.some(e=>e.sinP)?" · falta precio de algo: ponlo en la ficha del artículo o del modelo":"")],a.por?["Abierta por",a.por]:null]
       .filter(Boolean).map(([k,x])=>[el("dt",{text:k}),el("dd",{text:x})]))));
+    {const P=pistasAveria(a);if(P.length)box.appendChild(el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Pistas (salen solas de lo apuntado)"})].concat(P.map(x=>el("div",{class:"banner"+(x.w?" w":""),style:"margin:0",text:x.t})))));}
     box.appendChild(fld("Qué se ha roto",inp("avT",v.t,x=>v.t=x,{autocomplete:"off"})));
     box.appendChild(el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"Causa: ¿por qué se ha roto?"}),el("div",{class:"chips"},[["","Sin saber todavía"]].concat(CAUSAS_AV.map(c=>[c[0],c[0]])).map(([k,t])=>{const otra=k==="Otra",on=otra?esOtraCausa(v.causa):v.causa===k;return el("button",{type:"button",class:"chip","aria-pressed":String(on),text:t,onclick:()=>{v.causa=otra?(esOtraCausa(v.causa)?v.causa:"Otra"):k;if(k&&!otra)v.evit=evitDe(k);pinta();if(otra)setTimeout(()=>{const i=$("avOtra");if(i)i.focus();},0);}});}))].concat(esOtraCausa(v.causa)?[fld("Escribe la causa",inp("avOtra",v.causa==="Otra"?"":v.causa,x=>{v.causa=String(x).trim()||"Otra";},{autocomplete:"off",placeholder:"Por ejemplo: golpe con la pinza, material sucio…"}))]:[])));
     if(v.causa)box.appendChild(el("div",{style:"display:grid;gap:6px;justify-items:start"},[el("span",{class:"sub",text:"¿Se podía haber evitado?"}),el("div",{class:"seg",role:"group","aria-label":"Evitable"},[[true,"Sí"],[false,"No"],[null,"No sé"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(v.evit===k),text:t,onclick:()=>{v.evit=k;pinta();}})))]));
@@ -110,3 +111,20 @@ function revisarLimpieza(){const G=limpPorRevisar();if(!G.length){toast("No hay 
 /* borrar una avería (por ejemplo, una de prueba): solo la avería; lo apuntado sigue en el almacén */
 function borrarAveria(a){confirmar("¿Borrar la avería?","Se borra solo la avería «"+avNom(a)+"». Los cambios que tenía (pistones, barras, ejes, piezas) siguen apuntados en el almacén; si también eran de prueba, bórralos en Más › Movimientos.","Borrar",async()=>{
   try{await avGuarda(L=>L.filter(x=>x.id!==a.id));}catch(e){toast("No se pudo borrar");return false;}toast("Avería borrada");render(true);});}
+
+/* pistas para decidir la causa, sacadas de lo que ya se apunta (sin fotos ni trabajo extra) */
+const ROT_P=/^(ROTURA|PISTÓN AGARROTADO)$/;
+function pistasAveria(a){const out=[],m=avMaq(a);if(!m)return out;const P=todosPist().filter(p=>p.maq===m.id||p.maq===m.cod).sort((x,y)=>x.f.localeCompare(y.f));
+  const lp=(a.links||[]).find(l=>l.k==="p"),pr=lp?P.find(p=>p.id===lp.id):null;
+  /* 1) cuánto duró el pistón frente a lo normal en esa máquina */
+  if(pr){const i=P.indexOf(pr),ant=i>0?P[i-1]:null;const fs=[...new Set(P.map(p=>p.f))].sort(),iv=fs.slice(1).map((f,k)=>dias(fs[k],f)).filter(x=>x>0).sort((x,y)=>x-y);const med=iv.length>=3?iv[Math.floor(iv.length/2)]:null;
+    if(ant){const d=dias(ant.f,pr.f);out.push({w:med&&d<0.5*med,t:"El pistón duró "+(d===1?"1 día":d+" días")+(med?"; en la "+m.cod+" suelen durar unos "+med+" días"+(d<0.5*med?". Mucho menos de lo normal: suele ser cómo se ha trabajado, no desgaste.":d>1.5*med?". Más de lo normal: puede ser desgaste.":"."):".")});}}
+  /* 2) roturas y averías de esa máquina en los últimos 2 meses */
+  const h=hoy(),d60=sumaDias(a.f,-60),rot=P.filter(p=>p.f>=d60&&p.f<=a.f&&ROT_P.test(p.motivo||"")&&(!pr||p.id!==pr.id)).length,avs=AVER.filter(x=>x.id!==a.id&&(x.maq===a.maq)&&x.f>=d60&&x.f<=a.f).length;
+  if(rot||avs)out.push({w:rot+avs>=2,t:"En los 2 meses anteriores la "+m.cod+" tuvo "+[rot?rot+(rot===1?" pistón roto o agarrotado":" pistones rotos o agarrotados"):null,avs?avs+(avs===1?" avería":" averías"):null].filter(Boolean).join(" y ")+"."+(rot+avs>=2?" Se repite en la máquina: mira refrigeración, eje y molde.":"")});
+  else out.push({w:false,t:"La "+m.cod+" no tuvo roturas ni averías en los 2 meses anteriores."});
+  /* 3) el responsable de ese cambio frente a los demás (90 días) */
+  const quien=pr&&pr.resp?respTxt(pr.resp):"";if(quien){const d90=sumaDias(a.f,-90),T=todosPist().filter(p=>p.f>=d90&&p.f<=a.f),suyo=T.filter(p=>p.resp&&respTxt(p.resp)===quien);
+    if(suyo.length>=3){const r1=suyo.filter(p=>ROT_P.test(p.motivo||"")).length/suyo.length,s1=suyo.filter(p=>!String(p.motivo||"").trim()).length;const otros=T.filter(p=>!(p.resp&&respTxt(p.resp)===quien)),r0=otros.length?otros.filter(p=>ROT_P.test(p.motivo||"")).length/otros.length:0;
+      const alto=r1>=0.4&&r1>=2*Math.max(r0,0.05);out.push({w:alto||s1>=2,t:quien+": "+suyo.length+" cambios en 90 días, "+Math.round(r1*100)+" % por rotura o agarrotado (los demás, "+Math.round(r0*100)+" %)"+(s1?"; "+s1+" sin motivo":"")+"."+(alto?" Por encima de lo normal.":"")});}}
+  return out;}
