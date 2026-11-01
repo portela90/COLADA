@@ -52,6 +52,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(d.tipo==="salida"&&["piston","barra","tornillo","horno"].includes(a.fam)){if(!d.maq||String(d.maq).startsWith("nave:")){toast("Elige la inyectora");return;}
     if(a.fam==="piston"&&!d.sDest){toast("Indica qué se ha hecho con el pistón usado");return;}
     if(a.fam==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")&&!d.sRota){toast("Elige qué se hace con la barra rota: guardarla para recuperar o chatarra");return;}
+    if(d.sMot==="OTRO"&&!String(d.sMotO||"").trim()){toast("Escribe cuál es el motivo");return;}
     if(!d.sMot&&!d.mOk){d.mOk=true;toast("Falta el motivo. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return;}}
   if(d.tipo==="salida"&&!String(d.resp||"").trim()&&!d.rOk){d.rOk=true;toast("Falta el operario que lo ha cogido. Si no se sabe, pulsa Guardar otra vez.");const r=$("mResp");if(r)r.focus();return;}
   const rec={f:d.f,tipo:d.tipo,art:a.id,alm:d.alm,cant:q,nota:d.nota.trim()||null};
@@ -60,7 +61,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(d.tipo==="salida"){ponPara(rec,d.maq);if(String(d.resp||"").trim())rec.resp=String(d.resp).trim();}
   if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;if(a.pedido)rec.ped=a.pedido;}
   if(d.tipo==="salida"&&a.fam==="piston"){const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}await guardaPistDesdeConsumo(d,a,q);render(true);return;}
-  if(d.tipo==="salida"&&["barra","tornillo","horno"].includes(a.fam)){rec.motivo=d.sMot||null;rec.nota="Cambio de "+(a.fam==="barra"?"barra expulsora":a.fam==="tornillo"?"tornillo tope":"pieza de horno")+(d.sMot?" · "+cap(d.sMot):"")+(rec.nota?" · "+rec.nota:"");}
+  if(d.tipo==="salida"&&["barra","tornillo","horno"].includes(a.fam)){rec.motivo=d.sMot||null;if(d.sMot==="OTRO")rec.motOrig=String(d.sMotO).trim();rec.nota="Cambio de "+(a.fam==="barra"?"barra expulsora":a.fam==="tornillo"?"tornillo tope":"pieza de horno")+(d.sMot==="OTRO"?" · "+String(d.sMotO).trim():d.sMot?" · "+cap(d.sMot):"")+(rec.nota?" · "+rec.nota:"");}
   const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{
     if(d.tipo==="entrada"&&draft.mFile&&assets){const blob=await comprimir(draft.mFile);const r=await assets.upload(blob);rec.foto=r.id;}
@@ -402,6 +403,7 @@ function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeM
 /* Consumo de un pistón, una barra o un tornillo: lleva motivo (y en el pistón, qué se hace con el usado); el pistón se guarda como cambio de pistón */
 function campoMotSal(d){const a=art(d.art);if(!a||!["piston","barra","tornillo","horno"].includes(a.fam))return null;const M=a.fam==="piston"?MOTIVOS:MOT_BT;
   return el("div",{style:"display:grid;gap:10px"},[el("div",{class:"row"},[fld("Motivo del cambio",sel("mMot",M.map(m=>[m,cap(m)]),d.sMot||"",x=>{d.sMot=x;d.mOk=false;render(true);},"Elige…")),
+      d.sMot==="OTRO"?fld("¿Cuál es el motivo?",inp("mMotO",d.sMotO||"",x=>d.sMotO=x,{autocomplete:"off",placeholder:"Escribe el motivo"})):null,
       a.fam==="piston"?fld("Pistón usado",sel("mDestP",DESTINOS.map(m=>[m,cap(m)]),d.sDest||"",x=>d.sDest=x,"Elige…")):null]),
     a.fam==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")?el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"¿Qué se hace con la barra rota?"}),el("div",{class:"seg",role:"group","aria-label":"Barra rota"},[["guardar","Guardar para recuperar"],["chat","Chatarra"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(d.sRota===k),text:t,onclick:()=>{d.sRota=k;render(true);}})))]):null,
     a.fam==="piston"?el("p",{class:"hint",style:"margin:0",text:"Se guarda como cambio de pistón (sale en el informe para "+destPist().nom.split(" ")[0]+")."}):null]);}
