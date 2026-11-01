@@ -65,14 +65,15 @@ function fichaAveria(a0){const a=Object.assign({},AVER.find(x=>x.id===a0.id)||a0
 /* añadir a mano un cambio de esa máquina (últimos 60 días, que no esté ya en otra avería) */
 function elegirParaAveria(a){const m=avMaq(a),S=avLinkSet(),h=hoy(),d0=sumaDias(a.f,-15);
   const L=evInv().filter(e=>e.r&&e.r.id&&maqInv(e)&&m&&maqInv(e).id===m.id&&e.f>=d0&&e.f<=h&&!S[e.k+":"+e.r.id]).sort((x,y)=>y.f.localeCompare(x.f)).slice(0,40);
+  if(m)ejePend().filter(p=>(p.maq===m.cod||p.maq===m.id)&&!S["q:"+p.id]&&!(p.pist&&S["p:"+p.pist])&&!(p.pist&&L.some(e=>e.k==="p"&&e.r.id===p.pist))).forEach(p=>L.unshift({k:"q",r:{id:p.id},f:p.f,ref:"Eje en cuarentena · "+(p.motivo?cap(p.motivo):"sin motivo"),mot:"",quien:"",cant:1,mods:p.mods||[]}));
   dlg("Añadir a la avería",[el("p",{class:"hint",style:"margin:0",text:"Cambios de la "+(m?m.cod:"máquina")+" desde el "+fmtF(d0)+" que no están en ninguna avería."}),
-    L.length?el("div",{class:"lst"},L.map(e=>el("button",{type:"button",class:"it",onclick:async()=>{cierraDlgs();try{await avCambia(a.id,x=>{x.links=(x.links||[]).concat([{k:e.k,id:e.r.id,f:e.f}]);return x;});}catch(er){toast("No se pudo guardar");return;}toast("Añadido");render(true);fichaAveria(a);}},
+    L.length?el("div",{class:"lst"},L.map(e=>el("button",{type:"button",class:"it",onclick:async()=>{cierraDlgs();try{await avCambia(a.id,x=>{x.links=(x.links||[]).concat([Object.assign({k:e.k,id:e.r.id,f:e.f},e.k==="q"?{mods:e.mods}:{})]);return x;});}catch(er){toast("No se pudo guardar");return;}toast("Añadido");render(true);fichaAveria(a);}},
       [el("span",{class:"stripe ok"}),el("div",{class:"ppal"},[el("div",{class:"t1",text:fmtF(e.f)+" · "+e.ref}),el("div",{class:"t2",text:[e.mot?cap(e.mot):null,e.quien||null].filter(Boolean).join(" · ")})]),el("div",{class:"num",text:fmtN(e.cant)})]))):el("p",{class:"hint",text:"No hay cambios sueltos en esas fechas."})],
     [{t:"Volver",cls:"sec",fn:()=>{setTimeout(()=>fichaAveria(a),0);}}]);}
-function nuevaAveriaMano(maqId){const v={maq:maqId||"",t:""};dlg("Abrir avería",[fld("Inyectora",sel("avM",maqOpts(),v.maq,x=>v.maq=x,"Elige…")),fld("Qué se ha roto",inp("avQ","",x=>v.t=x,{autocomplete:"off",placeholder:"Eje roto, barras rotas, fuga…"})),
+function nuevaAveriaMano(maqId){const v={maq:maqId||"",t:"",f:hoy()};dlg("Abrir avería",[el("div",{class:"row"},[fld("Inyectora",sel("avM",maqOpts(),v.maq,x=>v.maq=x,"Elige…")),fld("Fecha de la avería",inp("avF",v.f,x=>v.f=x,{type:"date",max:hoy()}))]),fld("Qué se ha roto",inp("avQ","",x=>v.t=x,{autocomplete:"off",placeholder:"Eje roto, barras rotas, fuga…"})),
     el("div",{class:"chips"},["Eje roto","Barras rotas","Pistón agarrotado","Fuga de agua","Postizo roto"].map(c=>el("button",{type:"button",class:"chip",text:c,onclick:()=>{v.t=c;const i=$("avQ");if(i)i.value=c;}})))],
   [{t:"Cancelar",cls:"sec"},{t:"Abrir",fn:async()=>{if(!v.maq){toast("Elige la inyectora");return false;}if(!String(v.t).trim()){toast("Escribe qué se ha roto");return false;}const n=AVER.reduce((s,a)=>Math.max(s,+a.n||0),0)+1;
-    const a={id:uid(),n,maq:v.maq,f:hoy(),t:String(v.t).trim(),causa:"",evit:null,resp:null,nota:null,estado:"abierta",links:[],por:(window.yoNombre&&window.yoNombre())||"",ts:Date.now()};
+    const a={id:uid(),n,maq:v.maq,f:v.f||hoy(),t:String(v.t).trim(),causa:"",evit:null,resp:null,nota:null,estado:"abierta",links:[],por:(window.yoNombre&&window.yoNombre())||"",ts:Date.now()};
     try{await avGuarda(L=>L.concat([a]));}catch(e){toast("No se pudo guardar");return false;}render(true);setTimeout(()=>fichaAveria(a),0);}}]);}
 /* números */
 function datosAverias(d0,d1){const L=AVER.filter(a=>a.f>=d0&&a.f<=d1).map(a=>({a,eur:avCoste(a)}));const G=(f)=>{const o={};L.forEach(x=>{const k=f(x.a);const g=o[k]=o[k]||{k,n:0,eur:0};g.n++;g.eur+=x.eur;});return Object.values(o).sort((p,q)=>q.eur-p.eur||q.n-p.n);};
@@ -138,3 +139,8 @@ function tabAveriasMaq(m){const L=AVER.filter(a=>a.maq===m.id||a.maq===m.cod).so
     top?el("p",{class:"sub",style:"margin:0",text:"Causa que más se repite: "+top[0]+" ("+top[1]+(top[1]===1?" vez":" veces")+")."}):null,
     L.length?el("div",{class:"lst"},L.map(a=>el("button",{type:"button",class:"it",onclick:()=>fichaAveria(a)},[el("span",{class:"stripe "+(a.estado==="abierta"?"warn":a.evit?"bad":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.t}),el("div",{class:"t2",text:[fmtF(a.f),a.estado==="abierta"?"abierta":"cerrada",a.causa||"sin causa",a.evit===true?"evitable":null].filter(Boolean).join(" · ")})]),el("div",{class:"num",style:"font-weight:600",text:eur(avCoste(a))})]))):el("p",{class:"hint",style:"margin:0",text:"Esta máquina no tiene averías apuntadas."}),
     el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Abrir avería",onclick:()=>nuevaAveriaMano(m.id)})])])]);}
+
+/* desde la cuarentena: meter un eje en una avería (si vino de un cambio de pistón, entra el cambio y el eje con él) */
+function aveDePend(p){const S=avLinkSet();return S["q:"+p.id]||(p.pist?S["p:"+p.pist]:null)||null;}
+function averiaDesdePend(p){const ya=aveDePend(p);if(ya){fichaAveria(ya);return;}const m=cat.maquinas.find(x=>x.cod===p.maq||x.id===p.maq);if(!m){toast("No encuentro la máquina "+p.maq);return;}
+  const lk=p.pist?{k:"p",id:p.pist,f:p.f}:{k:"q",id:p.id,f:p.f,mods:p.mods||[]};preguntaAveria(m.id,lk,p.motivo==="PISTÓN AGARROTADO"?"Pistón agarrotado y eje":p.motivo==="ROTURA"?"Pistón roto y eje":"Eje: "+String(p.motivo||"roto").toLowerCase());}

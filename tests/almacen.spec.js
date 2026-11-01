@@ -1212,6 +1212,30 @@ test('Cambios de horno de Limpieza: llegan con motivo y quién, se revisan en Ho
   expect(err).toEqual([]);
 });
 
+test('Averías: eje en cuarentena sin cambio de pistón entra en una avería desde Ejes', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 3); const mq = v.cat.app.maquinas[1];
+      v.cat.app.ejePend = [{ id: 'pq1', f: m.toISOString().slice(0, 10), maq: mq.cod, mods: [], pist: null, diam: null, motivo: 'PISTÓN AGARROTADO', nota: null, manual: true }]; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
+  const v = page.locator('#view'); await expect(v).toContainText('Ejes en cuarentena (1)');
+  await v.getByRole('button', { name: 'Avería', exact: true }).click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
+  await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(700);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"k":"q","id":"pq1"');
+  const f0 = await page.evaluate(() => window.__D.cat.app.ejePend[0].f);
+  await expect.poll(() => page.evaluate(() => window.__D.aver.lista.items[0].f)).toBe(f0);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click().catch(() => {}); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelectorAll('.dlg-ov').forEach(x => x.remove()));
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
+  await expect(v.getByRole('button', { name: 'Ver avería', exact: true })).toHaveCount(1);
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);
