@@ -12,13 +12,19 @@ async function avGuarda(fn){const ref=db.doc("aver/lista"),sn=await ref.get();co
 const avCambia=(id,fn)=>avGuarda(L=>L.map(a=>a.id===id?fn(Object.assign({},a)):a));
 /* lo que cuelga de cada avería, con su coste */
 function avLinks(a){const E=evInv(),out=[];(a.links||[]).forEach(l=>{
-    if(l.k==="q"){const rs=E.filter(e=>e.k==="r"&&e.r.pend===l.id);if(rs.length)rs.forEach(e=>out.push(e));else{const p=ejePend().find(x=>x.id===l.id);out.push(ejeEstim(p,l));}return;}
+    if(l.k==="q"){const rs=E.filter(e=>e.k==="r"&&e.r.pend===l.id);if(rs.length)rs.forEach(e=>out.push(e));else{const x=ejeSinTaller({pend:l.id});if(x)out.push(x);else{const p=ejePend().find(z=>z.id===l.id);out.push(ejeEstim(p,l));}}return;}
     const e=E.find(x=>x.k===l.k&&x.r.id===l.id);if(e)out.push(e);
     if(l.k==="m"&&typeof BREC!=="undefined")BREC.filter(b=>b.mov===l.id).forEach(b=>{const a0=art(b.art),nm=a0?nomBT(a0):"barra";(b.vuelta||[]).forEach(v=>{const a1=art(v.art);out.push({k:"b",f:v.f,ref:"Recuperada "+nm+" → "+(a1?nomBT(a1):"?")+" × "+v.cant+(+v.eur>0?" por "+eur(+v.eur):"")+" (vuelve al stock)",cant:v.cant,ud:"ud",eur:0,info:true,mot:"",quien:""});});
       const pd=brecPend(b);if(pd.guard)out.push({k:"b",f:b.f,ref:nm+" × "+pd.guard+" guardada para recuperar",cant:pd.guard,ud:"ud",eur:0,mot:"",quien:""});if(pd.taller)out.push({k:"b",f:b.env.f,ref:nm+" × "+pd.taller+" en "+(provN(b.env.prov)||"el taller")+" recuperándose",cant:pd.taller,ud:"ud",eur:0,mot:"",quien:""});});
-    if(l.k==="p"){const R=E.filter(x=>x.k==="r"&&x.r.pendPist===l.id);R.forEach(x=>out.push(x));if(!R.length){const p=ejePend().find(x=>x.pist===l.id);if(p)out.push(ejeEstim(p,{f:p.f}));}}});
+    if(l.k==="p"){const R=E.filter(x=>x.k==="r"&&x.r.pendPist===l.id);R.forEach(x=>out.push(x));if(!R.length){const x=ejeSinTaller({pist:l.id});if(x)out.push(x);else{const p=ejePend().find(z=>z.pist===l.id);if(p)out.push(ejeEstim(p,{f:p.f}));}}}});
   out.forEach(e=>{if(e.k==="r"&&!(e.eur>0)){const c=costeRep(e.r).v;if(c){e.eur=c;e.aprox=!(+e.r.imp>0);}else e.sinP=true;}});
   const vis=new Set();return out.filter(e=>{const k=e.k+":"+(e.r?e.r.id:e.ref+e.f);if(vis.has(k))return false;vis.add(k);return true;});}
+/* eje que al final no fue al taller: recuperado en planta, «no hay que repararlo» o reparación anulada → no cuesta reparación */
+function ejeSinTaller(q){const k=q.pend?"pend":"pist",id=q.pend||q.pist;
+  const rc=(cat.ejeRecup||[]).find(x=>x[k]===id);if(rc){const pr=(rc.mods||[]).map(c=>precioMod(c)).find(x=>x>0)||0;return{k:"q",f:rc.f,ref:"Eje recuperado en planta el "+fmtF(rc.f)+" (no fue al taller"+(pr?"; se ahorró unos "+eur(pr):"")+")",cant:1,ud:"eje",eur:0,info:true,mot:"",quien:""};}
+  const sr=(cat.ejeSinRep||[]).find(x=>x[k==="pend"?"id":"pist"]===id);if(sr)return{k:"q",f:sr.f,ref:"Eje: no hubo que repararlo",cant:1,ud:"eje",eur:0,info:true,mot:"",quien:""};
+  const an=todasRep().find(r=>r.res==="anulada"&&(k==="pend"?r.pend===id:r.pendPist===id));if(an)return{k:"q",f:an.rec||an.alta,ref:"Eje "+an.eje+": volvió a planta sin ir al taller",cant:1,ud:"eje",eur:0,info:true,mot:"",quien:""};
+  return null;}
 /* eje roto que aún no tiene reparación apuntada: se cuenta ya al precio de reparación de su modelo */
 function ejeEstim(p,l){const mods=(p&&p.mods)||(l&&l.mods)||[];const pr=mods.map(c=>precioMod(c)).find(x=>x>0)||0;const mo=mods[0]?modelo(mods[0]):null;
   return{k:"q",f:(l&&l.f)||(p&&p.f),ref:"Eje "+(mo?mo.ref+" ":"")+"roto (en cuarentena, sin número todavía)",cant:1,ud:"eje",eur:pr,aprox:pr>0,sinP:!pr,mot:p?cap(p.motivo||""):"",quien:""};}
