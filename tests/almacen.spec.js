@@ -1236,6 +1236,27 @@ test('Averías: eje en cuarentena sin cambio de pistón entra en una avería des
   expect(err).toEqual([]);
 });
 
+test('Cuarentena a mano y luego el cambio de pistón de esa máquina: se juntan en un solo eje', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 1); const mq = v.cat.app.maquinas[1];
+      v.cat.app.ejePend = [{ id: 'pq2', f: m.toISOString().slice(0, 10), maq: mq.cod, mods: [], pist: null, diam: null, motivo: 'PISTÓN AGARROTADO', nota: null, manual: true }]; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  const mq = await page.evaluate(() => window.__D.cat.app.maquinas[1]);
+  const vals = await page.locator('#pMaq option').evaluateAll(o => o.map(x => x.value));
+  await page.selectOption('#pMaq', vals.find(x => x === mq.id || x === mq.cod));
+  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
+  await page.selectOption('#pMot', 'ROTURA');
+  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  await page.locator('#pBtn').click(); await page.waitForTimeout(1200);
+  await expect.poll(() => page.evaluate(() => window.__D.cat.app.ejePend.length)).toBe(1);
+  await expect.poll(() => page.evaluate(() => !!window.__D.cat.app.ejePend[0].pist)).toBe(true);
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);
