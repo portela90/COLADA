@@ -20,6 +20,7 @@ function sesion() {
 }
 /* Monta el servidor simulado en la página. P = prefijo de colecciones ("alm_" en Almacén). */
 async function servidor(page, P, D, yo) {
+  { const fp = require('./util').fechaPruebas(); if (fp) await page.clock.setFixedTime(fp); }
   const S = { D, online: true, llamadas: [] };
   const fila = Object.assign({ user_id: USER.id, activo: true, nombre: 'Prueba', email: USER.email }, yo || {});
   await page.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, ['sb-whemhkcrgwyjucpaswrm-auth-token', JSON.stringify(sesion())]);

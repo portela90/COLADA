@@ -24,8 +24,12 @@ function original(nombre) { return 'file://' + path.join(ROOT, nombre); }
 
 /* Recoge errores de la página y corta todo acceso a internet. */
 const ECHARTS = path.join(__dirname, 'node_modules/echarts/dist/echarts.min.js');
+/* Los datos de prueba se crean alrededor de «hoy» (ayer, hace 3 días, este mes…). Los primeros y últimos días del mes
+   esos datos caen en otro mes y las pruebas fallan sin que la app tenga nada mal: los días 1 a 4 se fija la fecha del navegador al último día del mes anterior. */
+function fechaPruebas() { const h = new Date(); if (h.getDate() > 4) return null; return new Date(h.getFullYear(), h.getMonth(), 0, 12, 0, 0); }
 async function vigila(page, alInternet) {
   const errores = [];
+  const fp = fechaPruebas(); if (fp) await page.clock.setFixedTime(fp);
   page.on('pageerror', e => errores.push(e.message));
   await page.route(/^https?:/, r => {
     if (r.request().url().includes('/echarts')) return r.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(ECHARTS, 'utf8') });
@@ -60,4 +64,4 @@ async function desbordes(page) {
     return out.slice(0, 5);
   });
 }
-module.exports = { ROOT, montar, original, vigila, pulsa, desbordes };
+module.exports = { ROOT, montar, original, vigila, pulsa, desbordes, fechaPruebas };
