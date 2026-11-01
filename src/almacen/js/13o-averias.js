@@ -81,3 +81,21 @@ function vAver(v){const h=hoy(),k=draft.avP||"ano",y=h.slice(0,4),P={mes:[h.slic
     v.appendChild(tab("Por causa ("+P[2]+")",D.causa));v.appendChild(tab("Por máquina ("+P[2]+")",D.maq));v.appendChild(tab("Qué se rompe ("+P[2]+")",D.que));
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Todas ("+P[2]+")"})),el("div",{class:"lst"},D.L.map(x=>x.a).sort((p,q)=>q.f.localeCompare(p.f)).map(fila))]));}
   else v.appendChild(el("p",{class:"hint",text:"Sin averías "+P[2]+". Se abren solas al apuntar una rotura (eje, barra o pistón roto o agarrotado) si dices que es por una avería, o con «Abrir avería»."}));}
+
+/* ===== CAMBIOS DE HORNO QUE MANDA LIMPIEZA =====
+   Llegan solos al cerrar la orden en Limpieza (id «hor_<orden>_…», nota «Horno H-F55: …», con motivo y quién).
+   Los de rotura, atasco, fallo, fuga u otro (o sin motivo) se revisan aquí: ¿es por una avería? Se marcan rev:true. */
+const LIMP_REV_DESDE="2026-10-01",MOT_REV=/^(ROTURA|ATASCO|FALLO|FUGA|OTRO|DOBLADA)$/;
+function limpPorRevisar(){const S=avLinkSet(),G={};
+  todosMov().forEach(m=>{if(m.tipo!=="salida"||!/^hor_/.test(m.id||"")||!m.maq||m.rev||m.f<LIMP_REV_DESDE||S["m:"+m.id])return;if(m.motivo&&!MOT_REV.test(m.motivo))return;
+    const k=String(m.id).replace(/_(c\d+_)?\d+$/,"");const g=G[k]=G[k]||{k,maq:maqN(m.maq)||m.maq,maqId:m.maq,f:m.f,L:[],mot:m.motivo||"",orig:m.motOrig||"",quien:m.resp||""};g.L.push(m);});
+  return Object.values(G).map(g=>{const a=art(g.L[0].art);g.que=a?queAveria(a,g.mot||"ROTURA"):"Pieza de horno";return g;}).sort((a,b)=>a.f.localeCompare(b.f));}
+async function marcaRevLimp(g){for(const m of g.L)try{await patchMov(m,{rev:true});m.rev=true;}catch(e){}}
+function revisarLimpieza(){const G=limpPorRevisar();if(!G.length){toast("No hay nada por revisar");return;}
+  dlg("Cambios de horno de Limpieza",[el("p",{class:"hint",style:"margin:0",text:"Los ha cambiado el equipo de Limpieza. Decide si cada uno es por una avería (suma su coste y luego se pone la causa) o no."}),
+    el("div",{class:"lst"},G.map(g=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe warn"}),
+      el("div",{class:"ppal"},[el("div",{class:"t1",text:g.maq+" · "+g.L.map(m=>{const a=art(m.art);return(a?(TEC(a.fam)?nomBT(a):a.desc):"?")+" × "+fmtN(+m.cant||0);}).join(", ")}),
+        el("div",{class:"t2",text:[fmtF(g.f),g.orig||(g.mot?cap(g.mot):"sin motivo"),g.quien||null].filter(Boolean).join(" · ")})]),
+      el("div",{style:"display:flex;gap:6px"},[el("button",{type:"button",class:"btn sec peq",text:"No es avería",onclick:async()=>{await marcaRevLimp(g);toast("Revisado");cierraDlgs();render(true);if(limpPorRevisar().length)setTimeout(revisarLimpieza,200);}}),
+        el("button",{type:"button",class:"btn peq",text:"Es avería",onclick:async()=>{await marcaRevLimp(g);cierraDlgs();render(true);preguntaAveria(g.maqId,g.L.map(m=>({k:"m",id:m.id,f:m.f})),g.que,g.mot==="ATASCO"||g.mot==="FALLO"?"":"");}})])])))],
+    [{t:"Cerrar",cls:"sec"}]);}

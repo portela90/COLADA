@@ -1187,3 +1187,23 @@ test('Pestaña Consumo con un pistón: pide motivo y destino, se guarda como cam
   expect(err).toEqual([]);
 });
 
+
+test('Cambios de horno de Limpieza: llegan con motivo y quién, se revisan en Hoy y abren avería', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov).sort().pop();
+      const a = v.cat.app.articulos.find(x => x.fam === 'horno') || v.cat.app.articulos[0]; const m = v.cat.app.maquinas[2];
+      const f = new Date(); f.setDate(f.getDate() - 1); const fs = f.toISOString().slice(0, 10);
+      v.mov[k].items.push({ id: 'hor_ot1_1', f: fs, tipo: 'salida', art: a.id, alm: 'gen', cant: 1, maq: m.id, nota: 'Horno H-' + m.cod + ': cambio tolva', motivo: 'ATASCO', motOrig: 'Tolva atascada', resp: 'Juan José Guerrero', ts: 1 });
+      v.mov[k].items.push({ id: 'hor_ot2_1', f: fs, tipo: 'salida', art: a.id, alm: 'gen', cant: 1, maq: m.id, nota: 'Horno H-' + m.cod + ': cambio juntas', motivo: 'PREVENTIVO', motOrig: 'Cambio preventivo', resp: 'Juan José Guerrero', ts: 2 }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await expect(page.locator('#view')).toContainText('1 cambio de horno de Limpieza por revisar');
+  await page.locator('#view button', { hasText: /^Revisar$/ }).first().click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('Tolva atascada'); await expect(d).toContainText('Juan José Guerrero');
+  await d.getByRole('button', { name: 'Es avería', exact: true }).click(); await page.waitForTimeout(700);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
+  await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(700);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('hor_ot1_1');
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.mov))).toContain('"rev":true');
+  expect(err).toEqual([]);
+});

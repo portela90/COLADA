@@ -1,7 +1,7 @@
 /* ===== BARRAS EXPULSORAS Y TORNILLOS TOPE ===== */
 const porMaqDe=a=>+a.porMaq>0?+a.porMaq:(a.fam==="barra"?4:1);
 const BT={barra:{nom:"Barras expulsoras",uno:"barra expulsora",corto:"Barra"},tornillo:{nom:"Tornillos tope",uno:"tornillo tope",corto:"Tornillo"},horno:{nom:"Horno",uno:"pieza de horno",corto:"Pieza"}};
-const MOT_BT=["ROTURA","DESGASTE","DOBLADA","ATASCO","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
+const MOT_BT=["ROTURA","DESGASTE","DOBLADA","ATASCO","FALLO","FUGA","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
 const PREF_BT={barra:"BE"};
 const artsBT=f=>artsActivos().filter(a=>a.fam===f).sort((x,y)=>(x.cod||"~"+x.desc).localeCompare(y.cod||"~"+y.desc,"es",{numeric:true}));
 function sigCodBT(f){const p=PREF_BT[f];if(!p)return"";const re=new RegExp("^"+p+"-(\\d+)$","i");let mx=0;cat.articulos.forEach(a=>{const m=re.exec(String(a.cod||"").trim());if(m)mx=Math.max(mx,+m[1]);});return p+"-"+String(mx+1).padStart(2,"0");}
@@ -15,6 +15,7 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   const bajo=A.filter(a=>{const n=nivel(a);return n==="bad"||n==="warn";});
   if(f==="horno"&&typeof cardTolvas==="function"){const ct=cardTolvas();if(ct)v.appendChild(ct);}
   if(f==="barra"&&typeof cardBrec==="function"){const cb=cardBrec();if(cb)v.appendChild(cb);}
+  if(f==="horno"&&typeof limpPorRevisar==="function"){const G=limpPorRevisar();if(G.length)v.appendChild(el("div",{class:"banner w",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{text:G.length+(G.length===1?" cambio de horno de Limpieza por revisar":" cambios de horno de Limpieza por revisar")+" (rotura, atasco, fallo o fuga)."}),el("button",{type:"button",class:"btn peq",text:"Revisar",onclick:revisarLimpieza})]));}
   v.appendChild(el("dl",{class:"kpis num"},[["Referencias",String(A.length)],["En stock",fmtN(A.reduce((t,a)=>t+stockDe(a.id),0))+" ud"],["Para pedir",String(bajo.length)],["Cambios 30 días",fmtN(C30.reduce((t,m)=>t+(+m.cant||0),0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>cambioBT(f)}),
     el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}}),
@@ -268,4 +269,5 @@ function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.lengt
 /* texto de la avería según la pieza y el motivo: «Barras rotas», «Tolva de hierro atascada», «Tubo dosificador roto»… */
 function queAveria(a,mot){const n=a.fam==="barra"?"Barras":a.fam==="tornillo"?"Tornillos tope":(a.grupo&&!/^otros$/i.test(a.grupo)?a.grupo.replace(/s$/,""):a.desc.split(/[·(]/)[0].trim());
   const pl=a.fam==="barra"||a.fam==="tornillo",fem=/^(barra|tolva|junta|resistencia|conexi)/i.test(n);
+  if(mot==="FALLO")return n+" con fallo (no calienta)";if(mot==="FUGA")return"Fuga en "+n.toLowerCase();
   const w=mot==="ATASCO"?(fem?"atascada":"atascado"):mot==="DOBLADA"?(fem?"doblada":"doblado"):(fem?"rota":"roto");return n+" "+(pl?w+"s":w);}
