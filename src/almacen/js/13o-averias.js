@@ -128,3 +128,13 @@ function pistasAveria(a){const out=[],m=avMaq(a);if(!m)return out;const P=todosP
     if(suyo.length>=3){const r1=suyo.filter(p=>ROT_P.test(p.motivo||"")).length/suyo.length,s1=suyo.filter(p=>!String(p.motivo||"").trim()).length;const otros=T.filter(p=>!(p.resp&&respTxt(p.resp)===quien)),r0=otros.length?otros.filter(p=>ROT_P.test(p.motivo||"")).length/otros.length:0;
       const alto=r1>=0.4&&r1>=2*Math.max(r0,0.05);out.push({w:alto||s1>=2,t:quien+": "+suyo.length+" cambios en 90 días, "+Math.round(r1*100)+" % por rotura o agarrotado (los demás, "+Math.round(r0*100)+" %)"+(s1?"; "+s1+" sin motivo":"")+"."+(alto?" Por encima de lo normal.":"")});}}
   return out;}
+
+/* pestaña «Averías» en la ficha de la inyectora: su historial, coste, evitables, cada cuánto se avería y la causa que más se repite */
+function tabAveriasMaq(m){const L=AVER.filter(a=>a.maq===m.id||a.maq===m.cod).sort((a,b)=>b.f.localeCompare(a.f)),h=hoy(),y=h.slice(0,4),LA=L.filter(a=>a.f.slice(0,4)===y);
+  const cA=LA.reduce((s,a)=>s+avCoste(a),0),ev=LA.filter(a=>a.evit===true).reduce((s,a)=>s+avCoste(a),0);const fs=L.map(a=>a.f).sort(),iv=fs.slice(1).map((f,i)=>dias(fs[i],f));const cada=iv.length?Math.round(iv.reduce((s,x)=>s+x,0)/iv.length):null;
+  const C={};L.forEach(a=>{const k=a.causa||"";if(k)C[k]=(C[k]||0)+1;});const top=Object.entries(C).sort((p,q)=>q[1]-p[1])[0];
+  return el("section",{class:"card"},[el("div",{class:"bd",style:"display:grid;gap:10px"},[
+    el("dl",{class:"kpis num"},[["Averías este año",String(LA.length)],["Coste este año",eur(cA)],["Evitable",eur(ev)],["Se avería cada",cada!=null?cada+" días":"—"]].map(([p,q])=>el("div",{},[el("dt",{text:p}),el("dd",{text:q})]))),
+    top?el("p",{class:"sub",style:"margin:0",text:"Causa que más se repite: "+top[0]+" ("+top[1]+(top[1]===1?" vez":" veces")+")."}):null,
+    L.length?el("div",{class:"lst"},L.map(a=>el("button",{type:"button",class:"it",onclick:()=>fichaAveria(a)},[el("span",{class:"stripe "+(a.estado==="abierta"?"warn":a.evit?"bad":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.t}),el("div",{class:"t2",text:[fmtF(a.f),a.estado==="abierta"?"abierta":"cerrada",a.causa||"sin causa",a.evit===true?"evitable":null].filter(Boolean).join(" · ")})]),el("div",{class:"num",style:"font-weight:600",text:eur(avCoste(a))})]))):el("p",{class:"hint",style:"margin:0",text:"Esta máquina no tiene averías apuntadas."}),
+    el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Abrir avería",onclick:()=>nuevaAveriaMano(m.id)})])])]);}

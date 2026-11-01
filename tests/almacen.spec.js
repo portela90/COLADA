@@ -1211,3 +1211,26 @@ test('Cambios de horno de Limpieza: llegan con motivo y quién, se revisan en Ho
   await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.mov))).toContain('"rev":true');
   expect(err).toEqual([]);
 });
+
+test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Recuentos y ABC$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view'); await expect(v).toContainText('Clase A'); await expect(v).toContainText('Recuento de esta semana'); await expect(v).toContainText('Análisis ABC');
+  const t = (await v.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  await v.locator('button', { hasText: 'Contar ahora' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last(); await expect(d).toContainText('Recuento');
+  await d.locator('tbody input').first().fill('5');
+  await d.getByRole('button', { name: 'Guardar recuento' }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.mov))).toContain('Recuento cíclico');
+  expect(await desbordes(page)).toEqual([]);
+  // pestaña Averías en la ficha de la inyectora
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'todo sobre la F25'); await page.waitForTimeout(400);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha de la F25' }).click(); await page.waitForTimeout(400);
+  await page.locator('.op-tabs button', { hasText: /^Averías/ }).click(); await page.waitForTimeout(200);
+  await expect(page.locator('.op-body')).toContainText('Averías este año');
+  expect(err).toEqual([]);
+});
