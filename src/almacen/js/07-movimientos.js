@@ -20,7 +20,7 @@ function vMov(v,solo){const d=draft.m;if(solo)d.tipo="salida";
       t==="traslado"?fld("Hasta",sel("mDest",almOptsArt(art(d.art),d.alm),d.dest,x=>{d.dest=x;pintaCalc();},"Destino…")):null,
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
     t==="salida"?campoMotSal(d):null,
-    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—")),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
+    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo","horno"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—")),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
     t==="entrada"&&!window.SOLO_CONSULTA?(()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"mLeerAlb"});fi.addEventListener("change",()=>{const f=fi.files[0];fi.value="";leerAlbaranAlm(f);});
       return el("div",{style:"display:grid;gap:4px"},[fi,el("button",{type:"button",class:"btn sec",text:"📷 Leer albarán con la cámara",onclick:()=>fi.click()}),el("p",{class:"hint",style:"margin:0",text:"Haz la foto del albarán y la app rellena las entradas para que las revises."})]);})():null,
     t==="entrada"&&art(d.art)&&art(d.art).fam==="piston"?el("div",{class:"seg",role:"group","aria-label":"Pistones nuevos o recuperados"},[[false,"Nuevos"],[true,"Recuperados"]].map(([r,l])=>el("button",{type:"button","aria-pressed":String(!!d.pRec===r),text:l,onclick:()=>{d.pRec=r;render(true);}}))):null,
@@ -49,7 +49,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(!a){toast("Elige un artículo");return;}if(!d.alm){toast("Elige un almacén");return;}if(!d.f){toast("Pon la fecha");return;}
   if(!isFinite(q)||(d.tipo!=="ajuste"&&q<=0)||q<0){toast("Escribe una cantidad válida");return;}
   if(d.tipo==="traslado"&&(!d.dest||d.dest===d.alm)){toast("Elige un almacén de destino distinto");return;}
-  if(d.tipo==="salida"&&["piston","barra","tornillo"].includes(a.fam)){if(!d.maq||String(d.maq).startsWith("nave:")){toast("Elige la inyectora");return;}
+  if(d.tipo==="salida"&&["piston","barra","tornillo","horno"].includes(a.fam)){if(!d.maq||String(d.maq).startsWith("nave:")){toast("Elige la inyectora");return;}
     if(a.fam==="piston"&&!d.sDest){toast("Indica qué se ha hecho con el pistón usado");return;}
     if(a.fam==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")&&!d.sRota){toast("Elige qué se hace con la barra rota: guardarla para recuperar o chatarra");return;}
     if(!d.sMot&&!d.mOk){d.mOk=true;toast("Falta el motivo. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return;}}
@@ -60,13 +60,13 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   if(d.tipo==="salida"){ponPara(rec,d.maq);if(String(d.resp||"").trim())rec.resp=String(d.resp).trim();}
   if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;if(a.pedido)rec.ped=a.pedido;}
   if(d.tipo==="salida"&&a.fam==="piston"){const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}await guardaPistDesdeConsumo(d,a,q);render(true);return;}
-  if(d.tipo==="salida"&&(a.fam==="barra"||a.fam==="tornillo")){rec.motivo=d.sMot||null;rec.nota="Cambio de "+(a.fam==="barra"?"barra expulsora":"tornillo tope")+(d.sMot?" · "+cap(d.sMot):"")+(rec.nota?" · "+rec.nota:"");}
+  if(d.tipo==="salida"&&["barra","tornillo","horno"].includes(a.fam)){rec.motivo=d.sMot||null;rec.nota="Cambio de "+(a.fam==="barra"?"barra expulsora":a.fam==="tornillo"?"tornillo tope":"pieza de horno")+(d.sMot?" · "+cap(d.sMot):"")+(rec.nota?" · "+rec.nota:"");}
   const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
   try{
     if(d.tipo==="entrada"&&draft.mFile&&assets){const blob=await comprimir(draft.mFile);const r=await assets.upload(blob);rec.foto=r.id;}
     await addMov(rec);
-    if(d.tipo==="salida"&&(a.fam==="barra"||a.fam==="tornillo")&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")){if(a.fam==="barra"&&d.sRota==="guardar")try{await brecGuarda(L=>L.concat([{id:uid(),f:rec.f,art:a.id,maq:rec.maq,cant:q,mov:rec.id,env:null,vuelta:[],chat:[],ts:Date.now()}]));}catch(e){}
-      const mq=rec.maq,lk={k:"m",id:rec.id,f:rec.f},qq=(a.fam==="barra"?"Barras ":"Tornillos ")+(d.sMot==="ROTURA"?(a.fam==="barra"?"rotas":"rotos"):(a.fam==="barra"?"dobladas":"doblados"));setTimeout(()=>preguntaAveria(mq,lk,qq),400);}
+    if(d.tipo==="salida"&&["barra","tornillo","horno"].includes(a.fam)&&/^(ROTURA|DOBLADA|ATASCO)$/.test(d.sMot||"")){if(a.fam==="barra"&&d.sRota==="guardar")try{await brecGuarda(L=>L.concat([{id:uid(),f:rec.f,art:a.id,maq:rec.maq,cant:q,mov:rec.id,env:null,vuelta:[],chat:[],ts:Date.now()}]));}catch(e){}
+      const mq=rec.maq,lk={k:"m",id:rec.id,f:rec.f},qq=queAveria(a,d.sMot);setTimeout(()=>preguntaAveria(mq,lk,qq),400);}
     if(d.tipo==="entrada"&&a.pedido){aplicarPedido(art(a.id),null);await saveCat();}
     toast(TIPOS[d.tipo]+" guardado: "+a.desc);
     Object.assign(d,{cant:"",nota:"",alb:"",resp:"",rOk:false,sMot:"",mOk:false,sRota:""});draft.mFile=null;
@@ -400,7 +400,7 @@ function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeM
     toast("Movimiento modificado");render(true);}}]);}
 
 /* Consumo de un pistón, una barra o un tornillo: lleva motivo (y en el pistón, qué se hace con el usado); el pistón se guarda como cambio de pistón */
-function campoMotSal(d){const a=art(d.art);if(!a||!["piston","barra","tornillo"].includes(a.fam))return null;const M=a.fam==="piston"?MOTIVOS:MOT_BT;
+function campoMotSal(d){const a=art(d.art);if(!a||!["piston","barra","tornillo","horno"].includes(a.fam))return null;const M=a.fam==="piston"?MOTIVOS:MOT_BT;
   return el("div",{style:"display:grid;gap:10px"},[el("div",{class:"row"},[fld("Motivo del cambio",sel("mMot",M.map(m=>[m,cap(m)]),d.sMot||"",x=>{d.sMot=x;d.mOk=false;render(true);},"Elige…")),
       a.fam==="piston"?fld("Pistón usado",sel("mDestP",DESTINOS.map(m=>[m,cap(m)]),d.sDest||"",x=>d.sDest=x,"Elige…")):null]),
     a.fam==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")?el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"¿Qué se hace con la barra rota?"}),el("div",{class:"seg",role:"group","aria-label":"Barra rota"},[["guardar","Guardar para recuperar"],["chat","Chatarra"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(d.sRota===k),text:t,onclick:()=>{d.sRota=k;render(true);}})))]):null,

@@ -157,7 +157,7 @@ function formCuarentena(maqId){const m0=maqId?cat.maquinas.find(x=>x.id===maqId)
    [{t:"Cancelar",cls:"sec"},{t:"Poner en cuarentena",fn:async()=>{const m=cat.maquinas.find(x=>x.id===f.maq);if(!m){toast("Elige la inyectora");return false;}
      if(f.mot==="OTRO"&&!f.nota.trim()){toast("Escribe el motivo en la nota");return false;}
      const pid=uid();cat.ejePend=ejePend().concat([{id:pid,f:f.f||hoy(),maq:m.cod,mods:modsMaq(m.cod).map(x=>x.cod),pist:null,diam:null,motivo:f.mot,nota:f.nota.trim()||null,manual:true}]);
-     try{await saveCat();toast("Eje de la "+m.cod+" en cuarentena");}catch(e){return false;}render(true);if(f.mot!=="OTRO"||f.nota.trim())setTimeout(()=>preguntaAveria(m.id,{k:"q",id:pid,f:f.f||hoy()},"Eje: "+((MOT_CUAR.find(x=>x[0]===f.mot)||[])[1]||f.nota.trim()).toLowerCase()),400);}}]);}
+     try{await saveCat();toast("Eje de la "+m.cod+" en cuarentena");}catch(e){return false;}render(true);if(f.mot!=="OTRO"||f.nota.trim())setTimeout(()=>preguntaAveria(m.id,{k:"q",id:pid,f:f.f||hoy(),mods:modsMaq(m.cod).map(x=>x.cod)},"Eje: "+((MOT_CUAR.find(x=>x[0]===f.mot)||[])[1]||f.nota.trim()).toLowerCase()),400);}}]);}
 const QUEDA_EJE=DESTINOS[1];/* «queda puesto en el eje»: el eje no se puede usar hasta sacarle el pistón */
 async function ejePendDe(recs){const nue=(recs||[]).filter(r=>r&&r.maq&&(MOT_EJE.includes(r.motivo)||r.dest===QUEDA_EJE)).map(r=>{const cod=maqN(r.maq);return{id:uid(),f:r.f,maq:cod,mods:modsMaq(cod).map(m=>m.cod),pist:r.id||null,diam:r.diam||null,motivo:MOT_EJE.includes(r.motivo)?r.motivo:AGARR};});
   if(!nue.length)return;cat.ejePend=ejePend().concat(nue);await saveCat();setTimeout(()=>toast("Eje de "+nue.map(p=>p.maq).join(", ")+" apuntado para preparar (falta poner su número)"),2700);}

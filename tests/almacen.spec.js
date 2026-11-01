@@ -1164,7 +1164,7 @@ test('Barras rotas: guardar para recuperar con el tornillo, mandar al taller, vu
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Averías$/ }).click(); await page.waitForTimeout(400);
   await page.locator('#view button.it', { hasText: 'Barras rotas' }).first().click(); await page.waitForTimeout(300);
-  d = page.locator('.dlg').last(); await expect(d).toContainText('Recuperación'); await expect(d).toContainText('40 €');
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Recuperada'); await expect(d).toContainText('por 40 €');
   expect(err).toEqual([]);
 });
 
@@ -1186,3 +1186,4 @@ test('Pestaña Consumo con un pistón: pide motivo y destino, se guarda como cam
   await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"causa":"Trabajando sin pistonwax"');
   expect(err).toEqual([]);
 });
+

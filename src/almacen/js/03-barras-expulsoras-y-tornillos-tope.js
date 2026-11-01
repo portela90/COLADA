@@ -1,7 +1,7 @@
 /* ===== BARRAS EXPULSORAS Y TORNILLOS TOPE ===== */
 const porMaqDe=a=>+a.porMaq>0?+a.porMaq:(a.fam==="barra"?4:1);
 const BT={barra:{nom:"Barras expulsoras",uno:"barra expulsora",corto:"Barra"},tornillo:{nom:"Tornillos tope",uno:"tornillo tope",corto:"Tornillo"},horno:{nom:"Horno",uno:"pieza de horno",corto:"Pieza"}};
-const MOT_BT=["ROTURA","DESGASTE","DOBLADA","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
+const MOT_BT=["ROTURA","DESGASTE","DOBLADA","ATASCO","CAMBIO DE REFERENCIA","PREVENTIVO","OTRO"];
 const PREF_BT={barra:"BE"};
 const artsBT=f=>artsActivos().filter(a=>a.fam===f).sort((x,y)=>(x.cod||"~"+x.desc).localeCompare(y.cod||"~"+y.desc,"es",{numeric:true}));
 function sigCodBT(f){const p=PREF_BT[f];if(!p)return"";const re=new RegExp("^"+p+"-(\\d+)$","i");let mx=0;cat.articulos.forEach(a=>{const m=re.exec(String(a.cod||"").trim());if(m)mx=Math.max(mx,+m[1]);});return p+"-"+String(mx+1).padStart(2,"0");}
@@ -83,7 +83,7 @@ function cambioBT(f,maqId){const N=BT[f];const d={f:hoy(),maq:maqId||"",art:"",c
         const mt=await addMov({f:d.f||hoy(),tipo:"salida",art:ta.id,alm:tal,cant:tq,maq:d.maq,motivo:"ROTURA",resp:(d.resp||"").trim()||null,nota:"Cambio de tornillo tope · Rotura · roto con la barra"});LK.push({k:"m",id:mt.id,f:mt.f});conTor=true;
         if(!(ta.iny||[]).includes(d.maq)){const x=art(ta.id);x.iny=(x.iny||[]).concat([d.maq]);await saveCat();}}}
       if(d.resp.trim()&&typeof lsSet==="function")lsSet("alm.resp",d.resp.trim());
-      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));if(/^(ROTURA|DOBLADA)$/.test(d.motivo||"")&&mv&&mv.id)setTimeout(()=>preguntaAveria(d.maq,LK,(f==="barra"?"Barras":"Tornillos")+" "+(d.motivo==="ROTURA"?(f==="barra"?"rotas":"rotos"):(f==="barra"?"dobladas":"doblados"))+(conTor?" y tornillo tope":"")),400);}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
+      toast("Cambio registrado en "+maqN(d.maq)+(neg?" · ¡no había stock en ese almacén, revisa!":""));if(/^(ROTURA|DOBLADA|ATASCO)$/.test(d.motivo||"")&&mv&&mv.id)setTimeout(()=>preguntaAveria(d.maq,LK,queAveria(a,d.motivo)+(conTor?" y tornillo tope":"")),400);}catch(e){toast("No se pudo guardar");return false;}render(true);}}]);}
 /* ===== PLANOS CON HISTORIAL DE REVISIONES (barras, tornillos y modelos de eje) ===== */
 const revsDe=a=>((a&&a.revs)||[]).slice().sort((x,y)=>x.n-y.n);
 const revVig=a=>{const r=revsDe(a);return r[r.length-1]||null;};
@@ -264,3 +264,8 @@ function formGeo(a0,despues){const a=revObj(a0.id);const R=revsDe(a),v=R[R.lengt
       z.revs=(z.revs||[]).concat([{n,f:hoy(),ts:Date.now(),by:x.by.trim(),cambio:v?x.cambio.trim():"Plano inicial",motivo:(x.motivo||"").trim()||null,gen:Object.assign({},g),doc:null,stock:st,stockAlm:alm,antes:v?v.n:null,cotas:G.cotas(g)}]);z.geo=Object.assign({},g);
       try{await saveCat();toast(revTxt(n)+" guardada");}catch(e){return false;}if(despues)despues();}}]);}
 
+
+/* texto de la avería según la pieza y el motivo: «Barras rotas», «Tolva de hierro atascada», «Tubo dosificador roto»… */
+function queAveria(a,mot){const n=a.fam==="barra"?"Barras":a.fam==="tornillo"?"Tornillos tope":(a.grupo&&!/^otros$/i.test(a.grupo)?a.grupo.replace(/s$/,""):a.desc.split(/[·(]/)[0].trim());
+  const pl=a.fam==="barra"||a.fam==="tornillo",fem=/^(barra|tolva|junta|resistencia|conexi)/i.test(n);
+  const w=mot==="ATASCO"?(fem?"atascada":"atascado"):mot==="DOBLADA"?(fem?"doblada":"doblado"):(fem?"rota":"roto");return n+" "+(pl?w+"s":w);}
