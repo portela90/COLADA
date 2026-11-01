@@ -102,6 +102,8 @@ function merge3(b,l,s){if(jsEq(l,b))return s===undefined?l:s;if(s===undefined||j
   if(l&&s&&typeof l==="object"&&typeof s==="object"&&!Array.isArray(l)&&!Array.isArray(s)){const o={},bb=b&&typeof b==="object"?b:{};new Set([...Object.keys(l),...Object.keys(s)]).forEach(k=>{const v=merge3(bb[k],l[k],s[k]);if(v!==undefined)o[k]=v;});return o;}
   return l;}
 async function saveCat(){if(!catOk){toast("El catálogo no se ha cargado bien: cierra y vuelve a abrir la app antes de guardar.");throw new Error("CAT_NO_CARGADO");}
+  /* historial de precios: si cambia el precio de un artículo se guarda el anterior (para «qué ha subido de precio») */
+  try{if(catBase&&catBase.articulos){const B=new Map(catBase.articulos.map(a=>[a.id,a]));const por=(window.yoNombre&&window.yoNombre())||"";(cat.articulos||[]).forEach(a=>{const o=B.get(a.id);if(!o)return;const de=parseN(o.precio),nu=parseN(a.precio);if(de>0&&nu>0&&Math.abs(de-nu)>1e-9&&JSON.stringify(o.ph||[])===JSON.stringify(a.ph||[]))a.ph=(a.ph||[]).concat([{f:hoy(),de,a:nu,por}]).slice(-20);});}}catch(e){}
   try{if(catBase&&db.doc("cat/app").get){try{const sn=await db.doc("cat/app").get();const srv=sn.exists?sn.data():null;if(srv&&!jsEq(srv,catBase)){const M=merge3(catBase,JSON.parse(JSON.stringify(cat)),srv);Object.keys(cat).forEach(k=>{if(!(k in M))delete cat[k];});Object.assign(cat,M);}}catch(e){}}
     await db.doc("cat/app").set(cat);catBase=JSON.parse(JSON.stringify(cat));}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));throw e;}}
 /* listas en un documento (averías, acciones, barras, tolvas, causas): se guardan solo los cambios con operaciones atómicas,

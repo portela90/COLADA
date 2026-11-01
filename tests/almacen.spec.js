@@ -1291,6 +1291,70 @@ test('Consultas sobre averías: abiertas, sin causa, coste, máquinas, repetidas
   expect(err).toEqual([]);
 });
 
+test('Más consultas: cuarentena, taller, agarrotados, barras, conclusiones, recuentos, Limpieza, precios, proveedores, sin apuntar y mantener', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const f = n => { const m = new Date(); m.setDate(m.getDate() - n); return m.toISOString().slice(0, 10); };
+      const a = v.cat.app, M1 = a.maquinas[1], M2 = a.maquinas[2], k = Object.keys(v.mov)[0], kr = Object.keys(v.rep)[0];
+      a.ejePend = [{ id: 'q1', f: f(12), maq: M1.cod, mods: [], pist: null, motivo: 'PISTÓN AGARROTADO', manual: true }, { id: 'q2', f: f(2), maq: M2.cod, mods: [], pist: null, motivo: 'ROTURA', manual: true }];
+      a.ejeRecup = [{ id: 'rc1', f: f(5), maq: M1.cod, mods: [], motivo: 'PISTÓN AGARROTADO' }];
+      a.articulos.push({ id: 'res1', desc: 'Resistencia de horno 2kW', fam: 'horno', ud: 'ud', alms: ['gen'], precio: '50' });
+      const p60 = a.articulos.find(x => x.id === 'pist-60'); p60.precio = '110'; p60.ph = [{ f: f(10), de: 100, a: 110, por: 'Cristian' }];
+      v.rep[kr].items.push({ id: 'rx1', eje: '3.2.B-1', desp: 'PISTÓN AGARROTADO', alta: f(40), env: f(40), rec: f(10), res: 'ok', imp: 400, maq: M1.cod },
+        { id: 'rx2', eje: '3.2.B-2', desp: 'ROTURA', alta: f(20), env: f(20), rec: null, res: null, maq: M1.cod });
+      v.mov[k].items.push(
+        { id: 'aj1', f: f(30), ts: 1, alm: 'n1', art: 'pist-80', cant: -2, tipo: 'ajuste', contado: 3, teorico: 5, nota: 'Recuento' },
+        { id: 'aj2', f: f(3), ts: 2, alm: 'n1', art: 'pist-80', cant: 1, tipo: 'ajuste', contado: 4, teorico: 3, nota: 'Recuento' },
+        { id: 'hor_77_0', f: f(1), ts: 3, alm: 'gen', art: 'res1', maq: M1.id, cant: 1, tipo: 'salida', motivo: 'ROTURA', resp: 'Juan', nota: 'Horno H-' + M1.cod },
+        { id: 'sx1', f: f(4), ts: 4, alm: 'gen', art: 'res1', maq: M1.id, cant: 3, tipo: 'salida', por: 'Ana' },
+        { id: 'sx2', f: f(4), ts: 5, alm: 'gen', art: 'res1', maq: M2.id, cant: 1, tipo: 'salida', por: 'Ana' },
+        { id: 'en1', f: f(6), ts: 6, alm: 'gen', art: 'res1', cant: 10, tipo: 'entrada', prov: a.proveedores[0].id, alb: 'A1' });
+      v.brec = { lista: { items: [{ id: 'b1', f: f(30), art: a.articulos.find(x => x.fam === 'barra').id, maq: M1.id, cant: 2, env: { f: f(25) }, vuelta: [{ f: f(5), cant: 1, art: a.articulos.find(x => x.fam === 'barra').id, eur: 10 }], chat: [], ts: 1 }] } };
+      v.inv = { lista: { items: [{ id: 'c1', f: f(30), t: 'Pistones de la ' + M1.cod, F: { maq: M1.id }, causa: 'Sin pistonwax', accion: 'Revisar el bidón cada turno', rev: f(2), estado: 'abierta', antes: { pd: 1 } },
+        { id: 'c2', f: f(60), t: 'Barras', F: {}, causa: 'Mal montaje', accion: 'Formación', estado: 'funciono', res: { f: f(20), pct: -40 } }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  const [c1, prov] = await page.evaluate(() => [window.__D.cat.app.maquinas[1].cod, window.__D.cat.app.proveedores[0].nom]);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); expect(t, q).not.toMatch(/undefined|NaN|Infinity/); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
+  expect(await resp('qué ejes llevan más tiempo en cuarentena')).toContain('El que más lleva: ' + c1 + ' (12 días');
+  expect(await resp('cuánto tarda el taller en devolver los ejes')).toContain('El que más tardó: 3.2.B-1 (30 días)');
+  expect(await resp('cuántos agarrotados se recuperan en planta')).toContain('Se han recuperado en planta 1 (');
+  expect(await resp('cuánto nos cuestan los ejes de la ' + c1 + ' este año')).toContain('han costado');
+  expect(await resp('qué barras hay para recuperar')).toContain('En Meyusa: 1');
+  expect(await resp('cuánto tarda Meyusa')).toContain('Meyusa tarda 20 días de media');
+  expect(await resp('qué conclusiones toca comprobar')).toContain('1 toca comprobar ya');
+  expect(await resp('qué acciones han funcionado')).toContain('1 han funcionado');
+  expect(await resp('qué toca contar esta semana')).toContain('Esta semana tocan');
+  expect(await resp('qué artículos descuadran más en los recuentos')).toContain('2 de 2 recuentos');
+  expect(await resp('qué cambios de horno ha mandado Limpieza sin revisar')).toContain('1 cambio de horno de Limpieza');
+  expect(await resp('qué máquina cambia más resistencias')).toContain('la que más cambia es la ' + c1);
+  expect(await resp('qué ha subido de precio este año')).toContain('+10 %');
+  expect(await resp('cuánto le hemos comprado a ' + prov + ' este año')).toContain('por unos 500 €');
+  expect(await resp('a qué proveedor le compramos más')).toContain('El que más: ' + prov);
+  expect(await resp('qué máquinas no tienen nada apuntado desde hace 30 días')).toContain('nada apuntado desde hace más de 30 días');
+  expect(await resp('cuánto cuesta mantener la ' + c1)).toContain('mantener la ' + c1 + ' ha costado');
+  expect(await resp('qué máquina cuesta más de mantener')).toContain('la más cara de mantener');
+  expect(err).toEqual([]);
+});
+
+test('Cambiar el precio de un artículo guarda el anterior (historial de precios)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Stock')).click()); await page.waitForTimeout(400);
+  await page.locator('#view button.it').first().click(); await page.waitForTimeout(400);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Editar', exact: true }).click(); await page.waitForTimeout(400);
+  const antes = await page.inputValue('#aPrecio'); const nuevo = String((parseFloat(String(antes).replace(',', '.')) || 10) + 5);
+  if (!(parseFloat(antes) > 0)) { await page.fill('#aPrecio', '10'); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
+    await page.locator('#view button.it').first().click(); await page.waitForTimeout(400); await page.locator('.dlg').last().getByRole('button', { name: 'Editar', exact: true }).click(); await page.waitForTimeout(400); }
+  await page.fill('#aPrecio', nuevo); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(800);
+  await expect.poll(() => page.evaluate(() => window.__D.cat.app.articulos.filter(a => (a.ph || []).length).length)).toBe(1);
+  const ph = await page.evaluate(() => window.__D.cat.app.articulos.find(a => (a.ph || []).length).ph[0]);
+  expect(ph.a).toBe(parseFloat(nuevo)); expect(ph.de).toBeGreaterThan(0);
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);
