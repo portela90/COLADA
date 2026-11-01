@@ -244,4 +244,7 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 
 /* ventanas: nada empuja el ancho (las rejillas no se ensanchan con su contenido) y los chips bajan de línea */
 .dlg div,.dlg label,.dlg form{min-width:0}
+.pend-acc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;margin-top:6px}
+.pend-acc .btn{min-width:0;white-space:normal;line-height:1.2;padding-left:8px;padding-right:8px}
+@media (min-width:640px){.pend-acc{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .dlg .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}

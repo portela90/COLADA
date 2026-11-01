@@ -1222,6 +1222,8 @@ test('Averías: eje en cuarentena sin cambio de pistón entra en una avería des
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
   const v = page.locator('#view'); await expect(v).toContainText('Ejes en cuarentena (1)');
+  const fuera = await page.evaluate(() => [...document.querySelectorAll('.pend-acc .btn')].filter(b => { const r = b.getBoundingClientRect(), c = b.closest('.card').getBoundingClientRect(); return r.left < c.left - 1 || r.right > c.right + 1; }).length);
+  expect(fuera, 'botones de la cuarentena fuera del marco').toBe(0);
   await v.getByRole('button', { name: 'Avería', exact: true }).click(); await page.waitForTimeout(300);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
   await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(700);
