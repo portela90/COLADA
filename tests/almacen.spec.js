@@ -1259,6 +1259,38 @@ test('Cuarentena a mano y luego el cambio de pistón de esa máquina: se juntan 
   expect(err).toEqual([]);
 });
 
+test('Consultas sobre averías: abiertas, sin causa, coste, máquinas, repetidas, causas, evitables y responsables', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const f = n => { const m = new Date(); m.setDate(m.getDate() - n); return m.toISOString().slice(0, 10); };
+      const A = v.cat.app.maquinas[1].id, B = v.cat.app.maquinas[2].id;
+      v.aver = { lista: { items: [
+        { id: 'a1', n: 1, maq: A, f: f(2), t: 'Pistón agarrotado y eje', causa: 'Trabajando sin pistonwax', evit: true, resp: 'Juan', estado: 'cerrada', links: [], ts: 1 },
+        { id: 'a2', n: 2, maq: A, f: f(1), t: 'Pistón agarrotado y eje', causa: 'Trabajando sin pistonwax', evit: true, resp: 'Juan', estado: 'abierta', links: [], ts: 2 },
+        { id: 'a3', n: 3, maq: B, f: f(1), t: 'Barra rota', causa: 'Desgaste normal', evit: false, resp: 'Ana', estado: 'cerrada', links: [], ts: 3 },
+        { id: 'a4', n: 4, maq: B, f: f(0), t: 'Eje: rotura', causa: '', evit: null, resp: null, estado: 'abierta', links: [], ts: 4 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  const cod = await page.evaluate(() => window.__D.cat.app.maquinas[1].cod);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); expect(t, q).not.toMatch(/undefined|NaN/); return (await page.locator('.bd-resp').allTextContents()).join(' '); };
+  expect(await resp('averías abiertas')).toContain('Hay 2 averías abiertas');
+  expect(await resp('averías sin causa')).toContain('1 avería sin causa');
+  expect(await resp('cuánto nos han costado las averías este año')).toContain('4 averías');
+  expect(await resp('qué máquina tiene más averías')).toContain('la que más averías');
+  expect(await resp('averías de la ' + cod)).toContain('2 averías en la ' + cod);
+  expect(await resp('se repiten las averías')).toContain(cod + ' · Trabajando sin pistonwax (2 veces');
+  expect(await resp('por qué se rompen los ejes')).toContain('Trabajando sin pistonwax');
+  expect(await resp('averías por pistonwax')).toContain('2 averías por «Trabajando sin pistonwax»');
+  expect(await resp('cuántas averías eran evitables')).toContain('2 averías evitables');
+  expect(await resp('quién tiene más averías evitables')).toContain('Quien más tiene: Juan (2 de 2');
+  await page.locator('#bdRes button.it', { hasText: 'Juan' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().locator('button.it').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Pistas');
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);

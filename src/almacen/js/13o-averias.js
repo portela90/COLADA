@@ -144,3 +144,78 @@ function tabAveriasMaq(m){const L=AVER.filter(a=>a.maq===m.id||a.maq===m.cod).so
 function aveDePend(p){const S=avLinkSet();return S["q:"+p.id]||(p.pist?S["p:"+p.pist]:null)||null;}
 function averiaDesdePend(p){const ya=aveDePend(p);if(ya){fichaAveria(ya);return;}const m=cat.maquinas.find(x=>x.cod===p.maq||x.id===p.maq);if(!m){toast("No encuentro la máquina "+p.maq);return;}
   const lk=p.pist?{k:"p",id:p.pist,f:p.f}:{k:"q",id:p.id,f:p.f,mods:p.mods||[]};preguntaAveria(m.id,lk,p.motivo==="PISTÓN AGARROTADO"?"Pistón agarrotado y eje":p.motivo==="ROTURA"?"Pistón roto y eje":"Eje: "+String(p.motivo||"roto").toLowerCase());}
+
+/* ===== PREGUNTAS SOBRE AVERÍAS (Consultas) =====
+   «averías abiertas», «averías sin causa», «cuánto nos han costado las averías este año», «qué máquina tiene más averías»,
+   «averías de la F21», «se repiten las averías», «por qué se rompen los ejes», «averías por pistonwax», «averías evitables»,
+   «quién tiene más averías evitables». intencionAv(q,o) decide; pintaAveriasQ contesta. */
+const CAUSA_Q=[[/\bpistonwax|pistowax|piston wax\b/,"Trabajando sin pistonwax"],[/\brefrigera\w*|\bsin agua\b|\bagua\b/,"Refrigeración mal puesta o sin agua"],[/\bmontaje|\bmal ajust\w*|\bajuste\b/,"Mal montaje o mal ajuste"],[/\bdesgaste\b/,"Desgaste normal"],[/\breparacion anterior\b|\bmal reparad\w*/,"Fallo de la reparación anterior"],[/\bmolde\b/,"Molde o pieza"]];
+const TIPO_AV=[["eje",/\bejes?\b/],["piston",/\bpiston\w*\b/],["barra",/\bbarras?\b/],["tornillo",/\btornillos?\b/],["horno",/\bhornos?\b|\btolvas?\b|\btubos?\b|\bresistencias?\b/]];
+function tiposAv(a){const t=nq(a.t||""),S=new Set();(a.links||[]).forEach(l=>{if(l.k==="q")S.add("eje");if(l.k==="p")S.add("piston");if(l.k==="brec")S.add("barra");});TIPO_AV.forEach(([k,re])=>{if(re.test(t))S.add(k);});return S;}
+function intencionAv(q){const av=/\baverias?\b|\baveriad\w*/.test(q),rompe=/\bpor que se (rompen?|rompio|rompieron|agarrotan?|agarroto|estropean?|estropeo)\b/.test(q),ev=/\bevitables?\b/.test(q);
+  if(!av&&!rompe&&!(ev&&/\b(cuant\w*|quien|que|coste|cuesta|cuestan|costado)\b/.test(q)))return null;
+  const r={tipo:(TIPO_AV.find(([k,re])=>re.test(q))||[])[0]||null,causa:(CAUSA_Q.find(([re])=>re.test(q))||[])[1]||null};
+  if(/\bquien(es)?\b|\bresponsables?\b|\boperari\w*|\bculpa\b/.test(q))r.que="resp";
+  else if(/\bsin causa\b|\bsin (poner|saber) (la )?causa\b|\bfalta (la )?causa\b/.test(q))r.que="sincausa";
+  else if(/\babiertas?\b|\bpendientes?\b|\bsin cerrar\b|\bpor cerrar\b/.test(q))r.que="abiertas";
+  else if(/\brepit\w*|\brepite\w*|\botra vez\b|\bmisma (causa|averia)\b|\bvuelven?\b/.test(q))r.que="repite";
+  else if(ev)r.que="evit";
+  else if(r.causa)r.que="lista";
+  else if(rompe||/\bpor que\b|\bcausas?\b|\bmotivos?\b/.test(q))r.que="causas";
+  else if(/\b(que|cual|cuales) (maquinas?|inyectoras?)\b|\bmas averias\b|\bmaquinas? con (mas )?averias\b|\branking\b/.test(q))r.que="maqs";
+  else if(/\bcuant\w*|\bcoste\w*|\bcuesta\w*|\bcostad\w*|\bdinero\b|\beuros\b|\bgast\w*|\bimporte\b/.test(q))r.que="coste";
+  else r.que="resumen";
+  return r;}
+function listaAvDlg(tit,L){dlg(tit,[el("div",{class:"lst"},L.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(a=>el("button",{type:"button",class:"it",onclick:()=>{cierraDlgs();fichaAveria(a);}},[el("span",{class:"stripe "+(a.estado==="abierta"?"warn":a.evit?"bad":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:avNom(a)}),el("div",{class:"t2",text:[fmtF(a.f),a.estado==="abierta"?"abierta":"cerrada",a.causa||"sin causa",a.resp?"resp. "+a.resp:null].filter(Boolean).join(" · ")})]),el("div",{class:"num",style:"font-weight:600",text:eur(avCoste(a))})])))],[{t:"Cerrar",cls:"sec"}]);}
+function pintaAveriasQ(I,P,H){const {add,frase,nota,ent,lista,it,pon}=H,h=hoy(),y0=h.slice(0,4)+"-01-01",m=I.maq;
+  const per=P.def?{d:P.d,h:P.h,t:"los últimos 12 meses"}:P;
+  const deMaq=a=>!m||a.maq===m.id||a.maq===m.cod,deTipo=a=>!I.tipo||tiposAv(a).has(I.tipo),deCausa=a=>!I.causa||a.causa===I.causa;
+  const base=AVER.filter(a=>deMaq(a)&&deTipo(a)&&deCausa(a)),L=base.filter(a=>a.f>=per.d&&a.f<=per.h);
+  const sufTipo=I.tipo?" de "+{eje:"ejes",piston:"pistones",barra:"barras",tornillo:"tornillos",horno:"horno"}[I.tipo]:"",sufM=m?" en la "+m.cod:"";
+  const fila=a=>it(avNom(a),[[fmtF(a.f),a.estado==="abierta"?"abierta "+(dias(a.f,h)<=0?"desde hoy":"hace "+dias(a.f,h)+(dias(a.f,h)===1?" día":" días")):"cerrada",a.causa||"sin causa",a.evit===true?"evitable":null].filter(Boolean).join(" · "),a.resp?"Responsable: "+a.resp:null],eur(avCoste(a)),null,()=>fichaAveria(a),a.estado==="abierta"?"warn":a.evit?"bad":"ok");
+  const sum=X=>X.reduce((s,a)=>s+avCoste(a),0),grupo=(X,f)=>{const o={};X.forEach(a=>{const k=f(a);if(k==null)return;const g=o[k]=o[k]||{k,L:[],eur:0};g.L.push(a);g.eur+=avCoste(a);});return Object.values(o).sort((p,q)=>q.L.length-p.L.length||q.eur-p.eur);};
+  const nA=n=>n+(n===1?" avería":" averías");
+  if(!AVER.length){ent("averías");frase("Todavía no hay ninguna avería apuntada. Se abren al apuntar una rotura (pistón, eje, barra, horno) si dices que es por una avería, o en Más › Averías › «Abrir avería».");return;}
+  if(I.que==="abiertas"){const X=base.filter(a=>a.estado==="abierta").sort((a,b)=>a.f.localeCompare(b.f));ent("averías abiertas"+sufTipo+sufM);
+    frase(X.length?"Hay "+nA(X.length)+" abierta"+(X.length===1?"":"s")+sufTipo+sufM+" ("+eur(sum(X))+" hasta ahora)."+(X.filter(a=>!a.causa).length?" "+X.filter(a=>!a.causa).length+" sin causa.":""):"No hay ninguna avería abierta"+sufTipo+sufM+".");
+    if(X.length)lista(null,X.map(fila));if(X.length)nota("Ciérrala cuando tenga la causa y no quede nada pendiente. Si un eje sigue en el taller, el coste se actualiza solo cuando llegue la factura.");return;}
+  if(I.que==="sincausa"){const X=base.filter(a=>!a.causa).sort((a,b)=>a.f.localeCompare(b.f));ent("averías sin causa"+sufTipo+sufM);
+    frase(X.length?nA(X.length)+" sin causa"+sufTipo+sufM+" ("+eur(sum(X))+"). Mientras no tengan causa no se sabe si eran evitables.":"Todas las averías"+sufTipo+sufM+" tienen la causa puesta.");
+    if(X.length){lista(null,X.map(fila));nota("Pulsa en una para poner la causa.");}return;}
+  if(I.que==="repite"){ent("averías que se repiten",[sufTipo.trim()||null,m?m.cod:null,per.t]);
+    const G=grupo(L,a=>(avMaq(a)||{cod:a.maq}).cod+"|"+((a.causa||(tiposAv(a).size?"sin causa, "+{eje:"eje",piston:"pistón",barra:"barra",tornillo:"tornillo",horno:"horno"}[[...tiposAv(a)][0]]:"")))).filter(g=>g.L.length>=2&&g.k.split("|")[1]);
+    if(!G.length){frase("En "+per.t+" ninguna máquina ha tenido dos averías por la misma causa"+sufTipo+sufM+".");const M2=grupo(L,a=>(avMaq(a)||{cod:a.maq}).cod).filter(g=>g.L.length>=2);if(M2.length)nota("Con más de una avería (por causas distintas o sin causa): "+M2.map(g=>g.k+" ("+g.L.length+")").join(", ")+".");return;}
+    frase(G.length+(G.length===1?" máquina repite":" máquinas repiten")+" avería por lo mismo en "+per.t+". La que más: "+G[0].k.replace("|"," · ")+" ("+G[0].L.length+" veces, "+eur(G[0].eur)+").");
+    lista("Misma máquina y misma causa",G.map(g=>{const [mc,c]=g.k.split("|"),fs=g.L.map(a=>a.f).sort(),iv=fs.slice(1).map((f,i)=>dias(fs[i],f));return it(mc+" · "+c,[fs.map(fmtF).join(" · "),iv.length?"Cada "+Math.round(iv.reduce((s,x)=>s+x,0)/iv.length)+" días de media":null],String(g.L.length),"veces",()=>listaAvDlg(mc+" · "+c,g.L),g.L.length>=3?"bad":"warn");}));
+    nota("Si una avería se repite, mira las pistas de la ficha (cuánto duró el pistón, quién estaba) y apunta una conclusión con 🔎 Investigar.");return;}
+  if(I.que==="resp"){const X=L.filter(a=>a.causa);ent("averías por responsable",[I.causa||null,sufTipo.trim()||null,m?m.cod:null,per.t]);
+    const G=grupo(X,a=>a.resp?cap(String(a.resp).trim()):"Sin responsable");const tE=X.filter(a=>a.evit===true).length;
+    if(!X.length){frase("En "+per.t+" no hay averías con la causa puesta"+sufTipo+sufM+". Pon la causa y el responsable en cada avería para poder verlo.");return;}
+    const R=G.map(g=>Object.assign(g,{ev:g.L.filter(a=>a.evit===true),eEur:g.L.filter(a=>a.evit===true).reduce((s,a)=>s+avCoste(a),0)})).sort((p,q)=>q.ev.length-p.ev.length||q.eEur-p.eEur);
+    const top=R.find(g=>g.k!=="Sin responsable"&&g.ev.length);
+    frase(cap(per.t)+": "+nA(X.length)+" con causa, "+tE+" evitable"+(tE===1?"":"s")+"."+(top?" Quien más tiene: "+top.k+" ("+top.ev.length+" de "+tE+", "+Math.round(top.ev.length/Math.max(1,tE)*100)+" % de las evitables, "+eur(top.eEur)+").":" Ninguna evitable tiene responsable puesto."));
+    lista("Por responsable",R.map(g=>it(g.k,[g.ev.length+" evitable"+(g.ev.length===1?"":"s")+" de "+g.L.length+" · "+eur(g.eEur)+" evitable",tE?Math.round(g.ev.length/tE*100)+" % de todas las evitables":null],String(g.ev.length),"evitables",()=>listaAvDlg(g.k,g.L),g.ev.length&&g.k!=="Sin responsable"&&g.ev.length/Math.max(1,tE)>=0.4?"bad":g.ev.length?"warn":"ok")));
+    nota("Solo cuentan las averías con causa. El responsable se pone en la ficha de cada avería; sirve para ver dónde hace falta formación, no para culpar a nadie por una sola avería.");return;}
+  if(I.que==="evit"){const E=L.filter(a=>a.evit===true),Nc=L.filter(a=>a.causa).length;ent("averías evitables",[sufTipo.trim()||null,m?m.cod:null,per.t]);
+    frase(cap(per.t)+": "+nA(E.length)+" evitable"+(E.length===1?"":"s")+sufTipo+sufM+" de "+L.length+" ("+eur(sum(E))+" de "+eur(sum(L))+")."+(L.length-Nc?" "+(L.length-Nc)+" no tienen causa todavía, así que no se sabe.":""));
+    if(E.length){lista("Por causa",grupo(E,a=>a.causa).map(g=>it(g.k,null,eur(g.eur),g.L.length+(g.L.length===1?" avería":" averías"),()=>listaAvDlg(g.k,g.L),"bad")));lista("Evitables",E.sort((a,b)=>b.f.localeCompare(a.f)).map(fila));}return;}
+  if(I.que==="lista"){ent("averías por "+I.causa.toLowerCase(),[sufTipo.trim()||null,m?m.cod:null,per.t]);
+    frase(L.length?cap(per.t)+": "+nA(L.length)+" por «"+I.causa+"»"+sufTipo+sufM+", "+eur(sum(L))+".":"No hay averías por «"+I.causa+"»"+sufTipo+sufM+" en "+per.t+".");
+    if(L.length){const G=grupo(L,a=>(avMaq(a)||{cod:a.maq}).cod);if(!m&&G.length>1)lista("Por máquina",G.map(g=>it(g.k,null,eur(g.eur),nA(g.L.length),()=>listaAvDlg(g.k+" · "+I.causa,g.L))));lista(null,L.sort((a,b)=>b.f.localeCompare(a.f)).map(fila));}return;}
+  if(I.que==="causas"){ent("causas de las averías",[sufTipo.trim()||null,m?m.cod:null,per.t]);if(!L.length){frase("No hay averías"+sufTipo+sufM+" en "+per.t+".");return;}
+    const G=grupo(L,a=>a.causa||"Sin saber todavía"),G1=G.filter(g=>g.k!=="Sin saber todavía");
+    frase(cap(per.t)+", "+nA(L.length)+sufTipo+sufM+"."+(G1.length?" La causa que más se repite: "+G1[0].k+" ("+G1[0].L.length+", "+eur(G1[0].eur)+").":" Ninguna tiene la causa puesta todavía."));
+    lista("Por causa",G.map(g=>it(g.k,evitDe(g.k)===true?"Evitable":evitDe(g.k)===false?"No evitable":null,String(g.L.length),"· "+eur(g.eur),()=>listaAvDlg(g.k,g.L),g.k==="Sin saber todavía"?"warn":evitDe(g.k)===true?"bad":"ok")));
+    if(!I.tipo){const T=grupo(L,a=>cap(a.t));if(T.length>1)lista("Qué se rompe",T.slice(0,10).map(g=>it(g.k,null,String(g.L.length),"· "+eur(g.eur),()=>listaAvDlg(g.k,g.L))));}return;}
+  if(I.que==="maqs"&&!m){ent("máquinas con más averías",[sufTipo.trim()||null,I.causa||null,per.t]);if(!L.length){frase("No hay averías"+sufTipo+" en "+per.t+".");return;}
+    const G=grupo(L,a=>(avMaq(a)||{cod:a.maq}).cod);frase(cap(per.t)+": la que más averías"+sufTipo+" tiene es la "+G[0].k+" ("+G[0].L.length+", "+eur(G[0].eur)+"). La que más ha costado: "+G.slice().sort((p,q)=>q.eur-p.eur)[0].k+".");
+    lista("Por máquina",G.map(g=>it(g.k,[g.L.filter(a=>a.evit===true).length?g.L.filter(a=>a.evit===true).length+" evitable"+(g.L.filter(a=>a.evit===true).length===1?"":"s"):null,(grupo(g.L,a=>a.causa||null)[0]||{}).k?"Causa más repetida: "+grupo(g.L,a=>a.causa||null)[0].k:null].filter(Boolean),String(g.L.length),"· "+eur(g.eur),()=>pon("averías de la "+g.k+" "+per.t))));return;}
+  /* coste, resumen y averías de una máquina */
+  ent(m?"averías de la "+m.cod:"averías",[sufTipo.trim()||null,I.causa||null,per.t]);
+  if(!L.length){frase("No hay averías"+sufTipo+sufM+" en "+per.t+"."+(m&&base.length?" La última fue el "+fmtF(base.map(a=>a.f).sort().pop())+".":""));return;}
+  const E=L.filter(a=>a.evit===true),ab=L.filter(a=>a.estado==="abierta");
+  frase(cap(per.t)+": "+nA(L.length)+sufTipo+sufM+", "+eur(sum(L))+" en total"+(E.length?" ("+E.length+(E.length===1?" evitable, ":" evitables, ")+eur(sum(E))+")":"")+"."+(ab.length?" "+ab.length+" sigue"+(ab.length===1?"":"n")+" abierta"+(ab.length===1?"":"s")+".":"")+(L.filter(a=>!a.causa).length?" "+L.filter(a=>!a.causa).length+" sin causa.":""));
+  if(!m){const G=grupo(L,a=>(avMaq(a)||{cod:a.maq}).cod).sort((p,q)=>q.eur-p.eur);if(G.length>1)lista("Por máquina",G.slice(0,12).map(g=>it(g.k,null,eur(g.eur),nA(g.L.length),()=>pon("averías de la "+g.k+" "+per.t))));}
+  {const G=grupo(L,a=>a.causa||"Sin saber todavía").sort((p,q)=>q.eur-p.eur);if(G.length>1||m)lista("Por causa",G.map(g=>it(g.k,null,eur(g.eur),nA(g.L.length),()=>listaAvDlg(g.k,g.L),g.k==="Sin saber todavía"?"warn":evitDe(g.k)===true?"bad":null)));}
+  lista(m?"Averías":"Todas",L.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,60).map(fila));
+  if(m)add(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Abrir avería en la "+m.cod,onclick:()=>nuevaAveriaMano(m.id)})].filter(()=>!window.SOLO_CONSULTA)));}
