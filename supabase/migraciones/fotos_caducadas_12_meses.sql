@@ -1,0 +1,7 @@
+-- 2026-11-01 · limpieza-cie: las fotos de más de 12 meses se quitan del Storage (no las de trabajos NO-OK).
+-- Decisión de Cristian: 12 meses, guardar siempre las de trabajos que quedaron NO-OK. El trabajo y sus datos se quedan.
+-- Piezas: config_int «fotos_limpia» (clave aleatoria, no está en el repositorio), funciones fotos_caducadas y
+-- fotos_marcar_borradas (solo service_role), función Edge «fotos-caducadas» (supabase/functions/fotos-caducadas)
+-- y tarea pg_cron «fotos-caducadas» el día 3 de cada mes a las 03:40 UTC:
+--   select cron.schedule('fotos-caducadas', '40 3 3 * *', $$select net.http_post(url := 'https://uddejncrjcyyaxjocbpj.supabase.co/functions/v1/fotos-caducadas',
+--     headers := jsonb_build_object('Content-Type','application/json','x-clave',(select v from public.config_int where k='fotos_limpia')), body := '{}'::jsonb)$$);
