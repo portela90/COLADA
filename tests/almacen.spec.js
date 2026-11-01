@@ -1128,6 +1128,10 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
   d = page.locator('.dlg').last(); await d.getByRole('button', { name: 'Cerrar avería' }).click(); await page.waitForTimeout(600);
   await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"fc":"');
+  await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Borrar', exact: true }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Borrar', exact: true }).click(); await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).not.toContain('Pistón roto');
   const t = (await v.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
