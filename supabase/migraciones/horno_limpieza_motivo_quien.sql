@@ -40,3 +40,8 @@ grant execute on function public.alm_consumo_limpieza(text, text, numeric, text,
 -- ots_consumo_horno, horno_corregir_material y consumos_horno_reenviar: el body de la llamada a
 -- rpc/alm_consumo_limpieza lleva además 'p_motivo' (ots.motivo) y 'p_resp' (trabajadores.nombre / consumos_horno.hecho_por_n).
 -- Se completaron a mano los 4 apuntes de octubre que ya habían llegado sin motivo (F55 conexión fase y resistencia: FALLO; F25 cono y junta: PREVENTIVO).
+
+-- ===== limpieza-cie · migración «ots_borrada_quita_consumo_almacen» =====
+-- Disparador ots_borrada_quita_consumo (AFTER UPDATE OF borrado ON ots): si se borra una OT ya hecha, llama a
+-- rpc/alm_consumo_quitar con cada envio_id de consumos_horno (y con 'lim_<ot>' si era una tarea habitual con consumo)
+-- y los marca como anulados. Si la OT se borra antes de terminarla, no había nada en el Almacén.
