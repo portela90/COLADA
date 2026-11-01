@@ -143,12 +143,21 @@ const db={
   itemsPatchId:(col,id,items)=>rpcQ("docs_items_patch_id",{p_col:P+col,p_id:id,p_items:items}),
   itemsPut:(col,id,item)=>rpc("docs_items_put",{p_col:P+col,p_id:id,p_item:item}),
   itemsDel:(col,id,i)=>rpc("docs_items_del",{p_col:P+col,p_id:id,p_i:i}),
-  collection:col=>({onSnapshot:(cb,er)=>{const go=()=>leeCol(col).then(rows=>cb(snap(rows))).catch(e=>er&&er(e));go();canal(col,go);return()=>{};}}),
+  /* al cambiar un documento no se vuelve a leer toda la colección: el aviso de la base ya trae el documento nuevo (mucho menos tráfico con muchos usuarios y años de datos) */
+  collection:col=>({onSnapshot:(cb,er)=>{const C=P+col;let cache=null;
+    const todo=()=>sb&&navigator.onLine?sb.from("docs").select("id,data").eq("col",C).then(r=>{if(r.error)throw r.error;cache=r.data||[];OFF.guarda("c:"+C,cache);OFF.red(true);return OFF.aplicaCol(C,cache);}).catch(e=>{if(!OFF.esRed(e))throw e;return leeCol(col);}):leeCol(col);
+    const full=()=>todo().then(rows=>cb(snap(rows))).catch(e=>er&&er(e));
+    const go=p=>{const ev=p&&(p.eventType||p.type);const nu=p&&p.new,ol=p&&p.old;
+      if(!cache||!p||(p.errors&&p.errors.length)||(ev!=="DELETE"&&(!nu||nu.id==null||nu.data===undefined))||(ev==="DELETE"&&(!ol||ol.id==null))){full();return;}
+      if(ev==="DELETE")cache=cache.filter(r=>r.id!==ol.id);else{const i=cache.findIndex(r=>r.id===nu.id);const row={id:nu.id,data:nu.data};if(i<0)cache=cache.concat([row]);else{cache=cache.slice();cache[i]=row;}}
+      OFF.guarda("c:"+C,cache);try{cb(snap(OFF.aplicaCol(C,cache)));}catch(e){er&&er(e);}};
+    full();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
     get:async()=>{const d=await leeDoc(col,id);return{exists:!!d,data:()=>d?d.data:undefined};},
     set:async data=>{await escribe(()=>sb.from("docs").upsert({col:P+col,id,data}));},
     update:async patch=>{if(!navigator.onLine)throw sinRed();const d=await leeDoc(col,id);await escribe(()=>sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)}));},
-    onSnapshot:(cb,er)=>{const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();canal(col,p=>{if(!p||(p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
+    onSnapshot:(cb,er)=>{const C=P+col;const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();
+      canal(col,p=>{if(!p){go();return;}const ev=p.eventType||p.type;if(ev!=="DELETE"&&p.new&&p.new.id===id&&p.new.data!==undefined&&!(p.errors&&p.errors.length)){const d=p.new.data;OFF.guarda("d:"+C+"/"+id,{data:d});try{cb({exists:true,data:()=>OFF.aplicaDoc(C,id,d)});}catch(e){er&&er(e);}return;}if((p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
 /* ---------- historial de cambios y deshacer ---------- */
 const sinP=col=>P&&col.startsWith(P)?col.slice(P.length):col;

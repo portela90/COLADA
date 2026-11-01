@@ -90,7 +90,26 @@ function nivel(a){const st=stockDe(a.id),mn=+a.min||0;const pp=puntoPedido(a);if
 const NIV={bad:"Crítico",warn:"Pedir",ok:"OK",na:"Sin mínimo"};
 
 /* ---------- writes ---------- */
-async function saveCat(){if(!catOk){toast("El catálogo no se ha cargado bien: cierra y vuelve a abrir la app antes de guardar.");throw new Error("CAT_NO_CARGADO");}try{await db.doc("cat/app").set(cat);}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));throw e;}}
+/* el catálogo es un solo documento: antes de guardarlo se mezcla con lo que haya guardado otra persona mientras tanto
+   (lo que yo no he tocado se queda como lo dejó el otro; en listas con id, artículo a artículo), así no se pisan */
+let catBase=null;
+const jsEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function merge3(b,l,s){if(jsEq(l,b))return s===undefined?l:s;if(s===undefined||jsEq(s,b))return l;if(jsEq(l,s))return l;
+  const conId=x=>Array.isArray(x)&&x.every(o=>o&&typeof o==="object"&&!Array.isArray(o)&&o.id!=null);
+  if(conId(b||[])&&conId(l)&&conId(s)){const B=new Map((b||[]).map(o=>[o.id,o])),L=new Map(l.map(o=>[o.id,o])),out=[],vis=new Set();
+    s.forEach(o=>{vis.add(o.id);const lb=B.get(o.id),lo=L.get(o.id);if(!lo){if(lb)return;out.push(o);return;}out.push(lb?merge3(lb,lo,o):lo);});
+    l.forEach(o=>{if(!vis.has(o.id)&&!B.has(o.id))out.push(o);});return out;}
+  if(l&&s&&typeof l==="object"&&typeof s==="object"&&!Array.isArray(l)&&!Array.isArray(s)){const o={},bb=b&&typeof b==="object"?b:{};new Set([...Object.keys(l),...Object.keys(s)]).forEach(k=>{const v=merge3(bb[k],l[k],s[k]);if(v!==undefined)o[k]=v;});return o;}
+  return l;}
+async function saveCat(){if(!catOk){toast("El catálogo no se ha cargado bien: cierra y vuelve a abrir la app antes de guardar.");throw new Error("CAT_NO_CARGADO");}
+  try{if(catBase&&db.doc("cat/app").get){try{const sn=await db.doc("cat/app").get();const srv=sn.exists?sn.data():null;if(srv&&!jsEq(srv,catBase)){const M=merge3(catBase,JSON.parse(JSON.stringify(cat)),srv);Object.keys(cat).forEach(k=>{if(!(k in M))delete cat[k];});Object.assign(cat,M);}}catch(e){}}
+    await db.doc("cat/app").set(cat);catBase=JSON.parse(JSON.stringify(cat));}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));throw e;}}
+/* listas en un documento (averías, acciones, barras, tolvas, causas): se guardan solo los cambios con operaciones atómicas,
+   así dos personas a la vez no se pisan (antes se reescribía la lista entera) */
+async function listaGuarda(path,fn){const ref=db.doc(path),sn=await ref.get();const V=(sn.exists&&sn.data().items)||[];const N=fn(JSON.parse(JSON.stringify(V)));const [col,id]=path.split("/");
+  if(db.itemsAdd&&db.itemsPatchId&&db.itemsDelId){const VM=new Map(V.map(x=>[x.id,x])),NM=new Map(N.map(x=>[x.id,x]));const add=N.filter(x=>!VM.has(x.id)),del=V.filter(x=>!NM.has(x.id)).map(x=>x.id),ch=N.filter(x=>VM.has(x.id)&&JSON.stringify(VM.get(x.id))!==JSON.stringify(x));
+    if(add.length)await db.itemsAdd(col,id,add);if(ch.length)await db.itemsPatchId(col,id,ch);if(del.length)await db.itemsDelId(col,id,del);}
+  else await ref.set({items:N});return N;}
 async function addMov(rec){rec.id=rec.id||uid();rec.ts=Date.now();if(db.itemsAdd){await db.itemsAdd("mov",mesDe(rec.f),[rec]);return rec;}const ref=db.doc("mov/"+mesDe(rec.f)),sn=await ref.get();
   const items=sn.exists?(sn.data().items||[]).slice():[];items.push(rec);await ref.set({items});return rec;}
 async function delMov(id,f){if(db.itemsDelId){await db.itemsDelId("mov",mesDe(f),[id]);return;}const ref=db.doc("mov/"+mesDe(f)),sn=await ref.get();if(!sn.exists)return;

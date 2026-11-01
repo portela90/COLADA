@@ -9,8 +9,8 @@ const trepVuelta=r=>(r.vuelta||[]).reduce((s,v)=>s+(+v.cant||0),0);
 const trepAbiertas=()=>TREP.filter(r=>trepVuelta(r)<(+r.cant||0));
 const trepCoste=(r,v)=>v.eur!=null&&v.eur!==""?+v.eur:(+v.cant||0)*precioDe(art(r.art));
 async function guardaTrep(lista){const ref=db.doc("trep/lista");await ref.set({items:lista});}
-async function trepNuevo(rec){const ref=db.doc("trep/lista"),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).concat([rec])});}
-async function trepCambia(id,fn){const ref=db.doc("trep/lista"),sn=await ref.get();const it=((sn.exists&&sn.data().items)||[]).map(r=>r.id===id?fn(Object.assign({},r)):r);await ref.set({items:it});}
+async function trepNuevo(rec){await listaGuarda("trep/lista",L=>L.concat([rec]));}
+async function trepCambia(id,fn){await listaGuarda("trep/lista",L=>L.map(r=>r.id===id?fn(Object.assign({},r)):r));}
 function formEnviarTolvas(){const T=tolvasArts();if(!T.length){toast("No hay tolvas en el catálogo");return;}
   const v={f:hoy(),c:{},prov:(T.find(a=>a.prov)||{}).prov||"",alb:"",nota:""};
   dlg("Enviar tolvas a reparar",[fld("Fecha",inp("tvF",v.f,x=>v.f=x,{type:"date",max:hoy()}))].concat(T.map(a=>fld(a.desc+" · cuántas",inp("tvC"+a.id,"",x=>v.c[a.id]=x,{inputmode:"numeric",class:"num",placeholder:"0"}))))

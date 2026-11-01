@@ -8,7 +8,7 @@ const esOtraCausa=c=>!!c&&!CAUSAS_AV.some(x=>x[0]===c&&c!=="Otra");
 const evitDe=c=>{const x=CAUSAS_AV.find(z=>z[0]===c);return x?x[1]:null;};
 const avMaq=a=>cat.maquinas.find(m=>m.id===a.maq||m.cod===a.maq)||null;
 const avNom=a=>(avMaq(a)||{cod:a.maq||"?"}).cod+" · "+a.t;
-async function avGuarda(fn){const ref=db.doc("aver/lista"),sn=await ref.get();const L=(sn.exists&&sn.data().items)||[];const N=fn(L.slice());await ref.set({items:N});AVER=N;}
+async function avGuarda(fn){AVER=await listaGuarda("aver/lista",fn);}
 const avCambia=(id,fn)=>avGuarda(L=>L.map(a=>a.id===id?fn(Object.assign({},a)):a));
 /* lo que cuelga de cada avería, con su coste */
 function avLinks(a){const E=evInv(),out=[];(a.links||[]).forEach(l=>{

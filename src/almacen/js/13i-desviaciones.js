@@ -87,7 +87,7 @@ function apuntarCausa(d,despues,sug){let t=sug||"";
       try{await guardaCausaDesv(d,String(t).trim());}catch(e){toast("No se pudo guardar");return false;}
       toast("Causa apuntada");if(despues)despues();}}]);}
 async function guardaCausaDesv(d,causa){const R=calcDesv();const rec={id:uid(),key:d.key,tipo:d.tipo,sem:R.W0,tit:d.tit,txt:d.txt,causa,eu:Math.round(d.eu||0),f:hoy(),ts:Date.now(),por:(window.yoNombre&&window.yoNombre())||""};
-  const ref=db.doc("desv/causas"),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).concat([rec])});_desvC=null;}
+  await listaGuarda("desv/causas",L=>L.concat([rec]));_desvC=null;}
 function sparkDesv(E){const vs=E.serie.map(p=>p.r||0),mx=Math.max(...vs,E.mu+2*E.sg,1e-9);
   return el("div",{"aria-hidden":"true",style:"display:grid;grid-template-columns:repeat("+vs.length+",1fr);gap:2px;align-items:end;height:42px;position:relative"},
     E.serie.map((p,i)=>el("div",{title:fmtF(p.w),style:"height:"+Math.max(2,Math.round((p.r||0)/mx*40))+"px;border-radius:2px;background:"+(i===vs.length-1?(p.r>E.mu+2*E.sg?"var(--bad)":"var(--warn)"):p.r==null?"var(--line)":"var(--acc)")+";opacity:"+(i===vs.length-1?1:.55)})));}

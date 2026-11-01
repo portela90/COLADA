@@ -5,7 +5,7 @@
 let BREC=[];
 const brecSum=(L,k)=>(L||[]).reduce((s,x)=>s+(+x[k]||0),0);
 function brecPend(b){const v=brecSum(b.vuelta,"cant"),c=brecSum(b.chat,"cant"),q=+b.cant||0;return b.env?{guard:0,taller:Math.max(0,q-v-c)}:{guard:Math.max(0,q-c),taller:0};}
-async function brecGuarda(fn){const ref=db.doc("brec/lista"),sn=await ref.get();const N=fn(((sn.exists&&sn.data().items)||[]).slice());await ref.set({items:N});BREC=N;}
+async function brecGuarda(fn){BREC=await listaGuarda("brec/lista",fn);}
 const brecCambia=(id,fn)=>brecGuarda(L=>L.map(b=>b.id===id?fn(JSON.parse(JSON.stringify(b))):b));
 const provMeyusa=()=>(cat.proveedores.find(p=>/meyusa/i.test(p.nom||""))||{}).id||"";
 function formEnviarBrec(){const G=BREC.filter(b=>brecPend(b).guard>0);if(!G.length){toast("No hay barras guardadas");return;}const sel0={};G.forEach(b=>sel0[b.id]=true);const v={f:hoy(),prov:provMeyusa(),alb:""};

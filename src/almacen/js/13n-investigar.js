@@ -89,7 +89,7 @@ function botonInvQ(res,q){const F=filtroInvQ(nq(q));if(!F)return;const b=el("but
    colección «inv», doc «lista», items {id,f,t,F,causa,accion,resp,rev,antes:{pd,modo,ud,per},estado:"abierta"|"cerrada"|"funciono"|"no",res:{f,pd,pct},por,ts,desv} */
 let INV=[];
 const filtroSinFechas=F=>{const o={};["t","arts","maq","nave","fam","eje","mot","quien","cmp"].forEach(k=>{if(F[k]!=null)o[k]=F[k];});return o;};
-async function invGuarda(fn){const ref=db.doc("inv/lista"),sn=await ref.get();const L=(sn.exists&&sn.data().items)||[];await ref.set({items:fn(L.slice())});}
+async function invGuarda(fn){await listaGuarda("inv/lista",fn);}
 function formConclusion(F,D,o){o=o||{};if(window.SOLO_CONSULTA||!db){toast("Desde aquí no se puede apuntar");return;}
   const v={causa:o.sug!=null?o.sug:sugInv(D),accion:"",resp:"",sem:"4"};
   const box=el("div",{style:"display:grid;gap:10px"});const pinta=()=>{box.textContent="";
