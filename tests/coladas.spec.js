@@ -357,3 +357,39 @@ test('Kilos sin redondeos acumulados: una colada gastada entera (con un ajuste p
   await expect(page.locator('body')).toContainText('34.200');
   expect(err).toEqual([]);
 });
+
+test('Consumo por kilos: kilos de cada fardo, peso raro, se guarda con kilos reales y al acabar la colada se ajusta la diferencia', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.seg button', { hasText: 'Por kilos' }).click(); await page.waitForTimeout(300);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await card.locator('select').first().selectOption({ label: '⬅ C25003 · 8 f' });
+  await page.waitForTimeout(200);
+  await card.locator('input.num').first().fill('650 640 700'); await page.waitForTimeout(200);
+  await expect(card.locator('.kil-f')).toHaveCount(3);
+  await expect(card.locator('.kil-f.raro')).toHaveCount(1);
+  await expect(card).toContainText('3 fardos · 1990 kg');
+  await expect(page.locator('body')).toContainText('1 peso raro');
+  await page.locator('#k-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Registrar' }).click(); await page.waitForTimeout(600);
+  const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'C').pop());
+  expect(m.fa).toBe(3); expect(m.kg).toBe(1990); expect(m.pk).toEqual([650, 640, 700]); expect(m.o).toBe('l3');
+  // el resto de la colada (5 fardos) pesado: se acaba con 40 kg de menos
+  await page.locator('.seg button', { hasText: 'Por kilos' }).click(); await page.waitForTimeout(300);
+  const card2 = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await card2.locator('select').first().selectOption({ label: '⬅ C25003 · 5 f' }); await page.waitForTimeout(200);
+  await card2.locator('input.num').first().fill('650 650 650 650 650'); await page.waitForTimeout(200);
+  await page.locator('#k-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: /^(Registrar|Sumar)$/ }).click(); await page.waitForTimeout(700);
+  const resto = page.locator('.card', { hasText: 'Coladas acabadas con diferencia de peso' });
+  await expect(resto).toContainText('C25003');
+  await expect(resto).toContainText('faltan 40 kg');
+  await resto.getByRole('button', { name: 'Apuntar ajuste' }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Apuntar ajuste' }).click(); await page.waitForTimeout(600);
+  const a = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'A').pop());
+  expect(a.kg).toBe(40); expect(a.d).toBe('l3'); expect(a.fa).toBe(0);
+  await expect(page.locator('.card', { hasText: 'Coladas acabadas con diferencia de peso' })).toHaveCount(0);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

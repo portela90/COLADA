@@ -8,7 +8,7 @@ function fifoReparto(lista,tot,S){const rows=[];let rem=tot;
   for(const l of lista){if(rem<=0)break;const t=Math.min(rem,S[l.id].fa);if(t>0){rows.push({lote:l.id,fa:String(t)});rem-=t;}}
   if(rem>0){if(rows.length)rows[rows.length-1].fa=String(numES(rows[rows.length-1].fa)+rem);else rows.push({lote:"",fa:String(tot)});}
   return rows;}
-function modoConsumo(){return el("div",{class:"seg",role:"group","aria-label":"Forma de apuntar"},[["relevo","Por relevo"],["suelto","Apunte suelto"]].map(([v,t])=>
+function modoConsumo(){return el("div",{class:"seg",role:"group","aria-label":"Forma de apuntar"},[["relevo","Por relevo"],["kilos","Por kilos"],["suelto","Apunte suelto"]].map(([v,t])=>
   el("button",{type:"button","aria-pressed":String(consModo===v),text:t,onclick:()=>{consModo=v;render();}})));}
 function vRelevo(){
   const d=draft.rel;if(!d.fecha)d.fecha=hoy();if(!d.turno)d.turno=TURNOS[0];if(!d.L)d.L={};if(!d.g)d.g={};
@@ -89,6 +89,7 @@ function vRelevo(){
 
 function vConsumo(){
   if(consModo==="relevo")return [modoConsumo()].concat(vRelevo());
+  if(consModo==="kilos")return [modoConsumo()].concat(vKilos());
   const d=draft.cons;if(!d.fecha)d.fecha=hoy();if(!d.turno)d.turno=TURNOS[0];
   const {S}=bloques();
   const cand=lotes.filter(l=>(!d.nave||l.nave===d.nave)&&(!d.mat||l.material===d.mat)&&l.donde==="nave"&&S[l.id]&&S[l.id].fa>0)

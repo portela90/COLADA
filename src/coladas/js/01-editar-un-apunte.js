@@ -37,7 +37,8 @@ function editarApunte(r){
     if(mal.length){err.textContent=mal.join(" ");err.hidden=false;return;}
     if(r.t==="C"){n.u=v.u;n.o=v.lote;n.fa=fa;
       const kgOrig=typeof r.kg==="number"?String(Math.abs(r.kg)).replace(".",","):"";
-      if(v.kg.trim()===""||(v.lote!==r.o&&v.kg===kgOrig))delete n.kg;else n.kg=kg;}
+      if(v.kg.trim()===""||(v.lote!==r.o&&v.kg===kgOrig))delete n.kg;else n.kg=kg;
+      if(r.pk&&(n.fa!==r.fa||n.kg!==r.kg||n.o!==r.o))delete n.pk;}
     if(r.t==="G"){n.kg=r.kg<0?-kg:kg;if(!r.aj){n.u=v.u;if(r.kg<0)n.nv=v.nv;}}
     if(r.t==="E"){n.fa=fa;n.kg=kg;if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
     if(r.t==="A"){n.fa=fa;const b=S[r.o||r.d];n.kg=Math.round(fa*((b&&b.ratio)||0));}

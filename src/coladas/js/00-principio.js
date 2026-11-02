@@ -102,7 +102,8 @@ function saldos(){
   lotes.forEach(l=>{
     const ent=act.filter(r=>r.d===l.id),sal=act.filter(r=>r.o===l.id);
     let kN=l.kgInv||0,fN=l.fardosInv||0;
-    ent.forEach(r=>{if(typeof r.kg==="number")kN+=r.kg;if(typeof r.fa==="number")fN+=r.fa;});
+    /* los ajustes solo de kilos (0 fardos, p. ej. la diferencia de peso al acabar una colada) no cambian los kg por fardo */
+    ent.forEach(r=>{if(r.t==="A"&&!(r.fa>0))return;if(typeof r.kg==="number")kN+=r.kg;if(typeof r.fa==="number")fN+=r.fa;});
     res[l.id]={l,ent,sal,ratio:fN>0?Math.round(kN/fN*100)/100:0,rx:fN>0?kN/fN:0,kgC:{}};
   });
   /* Los consumos se apuntan en fardos. Antes cada uno pasaba a kilos redondeando por su cuenta

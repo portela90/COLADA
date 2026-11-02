@@ -33,6 +33,11 @@ function checksCierre(I){const out=[],h=hoy(),acabado=I.dn<h;
   out.push({id:"aj",ok:true,aviso:AJ.length>0,t:AJ.length?AJ.length+(AJ.length===1?" ajuste de recuento grande":" ajustes de recuento grandes")+" (2 fardos o más)":"Ningún recuento ha movido mucho el stock",
     det:AJ.length?"La fábrica no siempre los tiene: si su final no coincide, compara la diferencia con estos ajustes.":null,
     chips:AJ.map(r=>{const l=lote(r.o||r.d);return{t:(l.nombre||"?")+" · "+(l.nave||"")+" · "+dmy(r.f)+" · "+(r.d?"+":"−")+fmt(r.kg)+" kg",fn:()=>{try{abrirFicha(l.id);}catch(e){}}};})});
+  /* coladas pesadas fardo a fardo que se han acabado con kilos sueltos */
+  {const RS=typeof coladasConResto==="function"?coladasConResto():[];
+   out.push({id:"resto",ok:!RS.length,t:RS.length?RS.length+(RS.length===1?" colada acabada con diferencia de peso":" coladas acabadas con diferencia de peso"):"Ninguna colada acabada con kilos sueltos",
+     det:RS.length?"Sus fardos pesados no suman lo mismo que el albarán. Apunta el ajuste para dejarlas a cero; si no, el cierre no cuadra.":null,
+     chips:RS.map(x=>({t:x.l.nombre+" · "+(x.kg>0?"sobran ":"faltan ")+fmt(Math.abs(x.kg))+" kg",fn:()=>ajustarResto(x)}))});}
   /* 4 · recuento de cierre */
   const RC=recuentoCierre(I),falta=RC.filter(x=>!x.hecho),[va,vb]=ventanaCierre(I);
   out.push({id:"rc",ok:!falta.length,pend:!acabado&&h<va,t:falta.length?(!acabado&&h<va?"Recuento de cierre: hazlo el "+dmy(I.dn)+" (o hasta el "+dmy(vb)+")":"Falta el recuento de cierre en "+falta.map(x=>x.nave+(x.donde==="externo"?" externo":" nave")).join(", ")):"Recuento de cierre hecho en todo",
