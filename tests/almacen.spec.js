@@ -928,6 +928,7 @@ test('Carga completa en un Excel: se descarga relleno, se completa y al subirlo 
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('.pv-t', { hasText: 'Carga completa en un Excel' }).first().click(); await page.waitForTimeout(400);
   await page.locator('button', { hasText: 'Descargar Excel para rellenar' }).click();
   await expect.poll(() => page.evaluate(() => !!window.__dl), { timeout: 15000 }).toBe(true);
   const dl = await page.evaluate(() => window.__dl);
@@ -1125,10 +1126,13 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   }
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Averías$/ }).click(); await page.waitForTimeout(400);
-  const v = page.locator('#view'); await expect(v).toContainText('Abiertas'); await expect(v).toContainText('Pistón roto'); await expect(v).toContainText('Por causa'); await expect(v).toContainText('Trabajando sin pistonwax');
+  const v = page.locator('#view'); await expect(v).toContainText('Abiertas'); await expect(v).toContainText('Pistón roto'); await expect(v).toContainText('Por causa');
+  await page.locator('.pv-t', { hasText: 'Por causa' }).first().click(); await page.waitForTimeout(400); await expect(v).toContainText('Trabajando sin pistonwax');
   await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
   d = page.locator('.dlg').last(); await d.getByRole('button', { name: 'Cerrar avería' }).click(); await page.waitForTimeout(600);
   await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver))).toContain('"fc":"');
+  await page.locator('.pv-volver-m').click(); await page.waitForTimeout(300);
+  await page.locator('.pv-grid .pv-t', { hasText: 'Todas' }).first().click(); await page.waitForTimeout(400);
   await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
   await page.locator('.dlg').last().getByRole('button', { name: 'Borrar', exact: true }).click(); await page.waitForTimeout(300);
   await page.locator('.dlg').last().getByRole('button', { name: 'Borrar', exact: true }).click(); await page.waitForTimeout(600);
@@ -1424,6 +1428,24 @@ test('Consultas de valor: cantidades en palabras, x2, IVA, ¿tengo para?, con un
   expect(await resp('valor de todo lo de westofen')).toContain('vale');
   expect(await resp('cuánto cuesta reponer los tubos dosificadores')).toContain('Reponer');
   expect(await resp('valor de lo que se ha cambiado en la ' + c1 + ' este mes')).toContain('mantener la ' + c1);
+  expect(err).toEqual([]);
+});
+
+test('Paneles de mosaicos en Almacén: Catálogo abre cada ventana con la lista al lado y vuelve; Hoy deja «Qué hacer hoy» arriba', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1300, height: 850 });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await expect(page.locator('#view .card', { hasText: 'Qué hacer hoy' }).first()).toBeVisible();
+  await expect(page.locator('.pv-grid .pv-t').first()).toBeVisible();
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(400);
+  for (const t of ['Copia de seguridad', 'Artículos', 'Proveedores']) await expect(page.locator('.pv-grid .pv-t', { hasText: t })).toHaveCount(1);
+  await page.locator('.pv-grid .pv-t', { hasText: 'Proveedores' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.pv-side .pv-t.on')).toContainText('Proveedores');
+  await expect(page.locator('.pv-det')).toContainText('Proveedores');
+  await page.locator('.pv-side .pv-volver').click(); await page.waitForTimeout(300);
+  await expect(page.locator('.pv-grid')).toBeVisible();
+  expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
 

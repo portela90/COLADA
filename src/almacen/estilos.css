@@ -248,3 +248,26 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .pend-acc .btn{min-width:0;white-space:normal;line-height:1.2;padding-left:8px;padding-right:8px}
 @media (min-width:640px){.pend-acc{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .dlg .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
+
+/* paneles de mosaicos */
+.pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.pv-t{appearance:none;font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.pv-t:hover{border-color:var(--acc)}
+.pv-t:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.pv-t.s-ok{border-left-color:var(--ok)}.pv-t.s-warn{border-left-color:var(--warn)}.pv-t.s-bad{border-left-color:var(--bad)}
+.pv-t-t{font-size:12.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2);overflow-wrap:anywhere}
+.pv-t-big{font-size:28px;font-weight:600;line-height:1.1}
+.pv-t-sub{font-size:13px;color:var(--mut);overflow-wrap:anywhere}
+.pv-pan{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+.pv-side{display:flex;flex-direction:column;gap:8px;position:sticky;top:0}
+.pv-t.mini{padding:8px 10px;gap:2px;box-shadow:none}
+.pv-t.mini .pv-t-big{font-size:18px}
+.pv-t.mini .pv-t-t{font-size:11px}
+.pv-t.mini .pv-t-sub{font-size:12px}
+.pv-t.mini.on{background:var(--acc-soft);border-color:var(--acc)}
+.pv-volver{appearance:none;font:inherit;font-size:14px;font-weight:600;text-align:left;background:none;border:0;color:var(--acc);cursor:pointer;padding:4px 2px}
+.pv-det{display:flex;flex-direction:column;gap:14px;min-width:0}
+.pv-det-hd{display:none;align-items:center;gap:12px}
+.pv-det-hd h2{margin:0;font-size:18px}
+@media (max-width:899px){.pv-pan{grid-template-columns:minmax(0,1fr)}.pv-side{display:none}.pv-det-hd{display:flex}}
+@media (max-width:420px){.pv-t{padding:10px 11px}.pv-t-big{font-size:24px}}
