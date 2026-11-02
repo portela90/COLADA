@@ -9,7 +9,7 @@ const elDia=f=>f===hoy()?"hoy":f===diaSig(hoy())?"mañana ("+diaLargo(f)+")":"el
 const pc=(a,b)=>b?Math.round((a-b)/b*100):null;
 const eurE=v=>Math.round(v).toLocaleString("es-ES")+" €";
 /* «el lunes», «el 12/10», «ayer», «hoy»: un día concreto (para máquinas) */
-function diaQ(q){const h=hoy();if(/\bayer\b/.test(q))return diaAntes(h);if(/\bantes de ayer|anteayer\b/.test(q))return diaAntes(diaAntes(h));
+function diaQ(q){const h=hoy();{const D=diaSueltoC(q);if(D)return D.d;}if(/\bayer\b/.test(q))return diaAntes(h);if(/\bantes de ayer|anteayer\b/.test(q))return diaAntes(diaAntes(h));
   const ds=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"],i=ds.findIndex(d=>new RegExp("\\b"+d+"\\b").test(q));
   if(i>=0){let f=h;for(let n=0;n<7;n++){if(new Date(+f.slice(0,4),+f.slice(5,7)-1,+f.slice(8,10)).getDay()===i)return f;f=diaAntes(f);}}
   const m=q.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);if(m){const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):h.slice(0,4);return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");}

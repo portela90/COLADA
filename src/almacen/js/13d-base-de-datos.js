@@ -45,14 +45,14 @@ function tiposBD(){
   otros:artBD("Otros consumibles",a=>!["piston","barra","tornillo","horno","eje"].includes(a.fam)&&!GRUPOS_Q.includes(grupoDe(a)),[["Grupo",a=>GRUPO_N[grupoDe(a)]||"Varios"],["Familia",a=>FAM[a.fam]||a.fam]])};}
 
 /* ---------- el buscador: entiende la pregunta con las palabras de siempre ---------- */
-const nq=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/ø/g,"").replace(/[^a-z0-9ñ\s.-]/g," ").replace(/\b([fm])\s*-\s*(\d)/g,"$1$2").replace(/\s+/g," ").trim();
+const nq=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/ø/g,"").replace(/[^a-z0-9ñ\s.-]/g," ").replace(/\b([fm])\s*-\s*(\d)/g,"$1$2").replace(/\s+/g," ").replace(/\ban (entrado|llegado|consumido|gastado|salido|venido|cambiado|puesto|sacado)\b/g,"han $1").trim();
 const raiz=w=>w.length>4&&/es$/.test(w)&&!/(ces|ses)$/.test(w)?w.slice(0,-2):w.length>3&&/s$/.test(w)?w.slice(0,-1):w;
 /* qué se busca: palabras → tipo (el orden importa: «recambios de horno» antes que «horno») */
 const QE=[["rhorno",/\b(recambios? de hornos?|piezas? de hornos?|repuestos? de hornos?)\b/],["modelos",/\bmodelos? de ejes?\b/],["hornos",/\bhornos?\b/],["maquinas",/\b(maquinas?|inyectoras?)\b/],
   ["ejes",/\bejes?\b/],["contenedores",/\bcontenedor(es)?\b/],["moldes",/\bmoldes?\b/],["pistones",/\bpiston(es)?\b/],["barras",/\bbarras?( expulsoras?)?\b/],["tornillos",/\btornillos?( tope)?\b/],
   ["quim",/\b(aceites?|taladrinas?|jabon(es)?|desmoldeantes?|pistonwax|liquidos?)\b/],["otros",/\bconsumibles?\b/]];
 /* palabras que no filtran */
-const QSTOP=new Set("han ha hemos he sido llevamos lleva llevan llevado hecho hizo hicieron mucho mas menos que qu cual cuales cuantos cuantas cuanto hay tenemos tiene tienen de del la el los las lo con en y a al por para son es esta estan dame dime ver ensena muestrame lista listado todos todas todo un una unos unas se sus su me fabrica planta kg mm recambios recambio expulsoras expulsora tope inyectoras inyectora maquinas maquina hornos horno ejes eje contenedores contenedor moldes molde pistones piston barras barra tornillos tornillo consumibles consumible piezas pieza repuestos repuesto".split(" "));
+const QSTOP=new Set("han ha hemos he sido llevamos lleva llevan llevado hecho hizo hicieron mucho mas menos que qu cual cuales cuantos cuantas cuanto hay tenemos tiene tienen de del la el los las lo con en y a al por para son es esta estan dame dime ver ensena muestrame lista listado todos todas todo un una unos unas se sus su me tengo estoy estamos quien quienes no an fabrica planta kg mm recambios recambio expulsoras expulsora tope inyectoras inyectora maquinas maquina hornos horno ejes eje contenedores contenedor moldes molde pistones piston barras barra tornillos tornillo consumibles consumible piezas pieza repuestos repuesto".split(" "));
 /* quiere un recuento por grupos */
 const QGR=/\b(que|cuantos|cuantas|cuanto|tipos?|modelos?|marcas?|capacidades|clases|distintos|por)\b/;
 /* frases de estado con su texto en la app */
@@ -73,6 +73,8 @@ function entender(q0,T){const q=nq(q0);const out={q,t:null,grupo:null,filtros:[]
   if(!out.t){let best=null,bn=0;["maquinas"].concat(Object.keys(T).filter(k=>k!=="maquinas")).forEach(k=>{const D=T[k];const n=D.filas().filter(x=>casaFila(D,x,fl)).length;if(n>bn){bn=n;best=k;}});out.t=best||"maquinas";}
   const D=T[out.t];
   /* palabras que no casan con nada de ese tipo: se dejan fuera y se avisa */
+  /* una letra de más o de menos al final («westofent»): se prueba quitándola */
+  fl.forEach(f=>{if(!D.filas().some(x=>casaFila(D,x,[f]))&&f.t.length>=6){const a2=[f.t.slice(0,-1)];if(D.filas().some(x=>casaFila(D,x,[{alt:a2}])))f.alt=a2;}});
   fl.forEach(f=>{if(D.filas().some(x=>casaFila(D,x,[f])))out.filtros.push(f);else out.ignoradas.push(f.t);});
   out.filtros=out.filtros.filter(f=>{const ok=D.filas().some(x=>casaFila(D,x,[f]));if(!ok&&!out.ignoradas.includes(f.t))out.ignoradas.push(f.t);return ok;});
   if(quiereG){const G=D.grupos.map(g=>[g,nq(g)]);const m=/\b(marcas?)\b/.test(q)?"marca":/\bcapacidad/.test(q)?"capacidad":/\bzonas?\b|\bnaves?\b/.test(q)?"zona":/\b(estado|donde)\b/.test(q)?"donde":/\bproveedor/.test(q)?"proveedor":/\bdiametro|\bø\b/.test(q)?"o":/\blargo/.test(q)?"largo":/\bmodelos?\b/.test(q)?"modelo":/\btipos?\b/.test(q)?"tipo":null;
@@ -102,6 +104,9 @@ function periodoQ(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini
   {const RE=/\b(?:del?|desde(?: el)?) (\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2,4}))? (?:al|hasta(?: el)?|a) (\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2,4}))?\b/;
    if((m=q.match(RE))){const Y=x=>!x?y:x.length===2?2000+ +x:+x,F=(d,mm,yy)=>Y(yy)+"-"+String(+mm).padStart(2,"0")+"-"+String(+d).padStart(2,"0");let d0=F(m[1],m[2],m[3]),d1=F(m[4],m[5],m[6]||m[3]);
      if(!m[3]&&!m[6]&&d0>d1)d0=(y-1)+d0.slice(4);if(d0<=d1&&!isNaN(new Date(d0))&&!isNaN(new Date(d1)))return{d:d0,h:d1,t:"del "+fmtF(d0)+" al "+fmtF(d1),re:RE};}}
+  /* un día suelto: «20/10/26», «el 26/10». Sin año, el último que ya ha pasado */
+  {const s=q.replace(/\bnave\s*(1a|1b|1|2)\b/g," ");for(const z of s.matchAll(/\b(?:(?:el|dia) )?(\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2}|20\d\d))?\b/g)){const dd=+z[1],mm=+z[2];if((!/^(el|dia) /.test(z[0])&&!z[3])||dd<1||dd>31||mm<1||mm>12)continue;
+    const fy=yy=>yy+"-"+String(mm).padStart(2,"0")+"-"+String(dd).padStart(2,"0");let f=z[3]?fy(z[3].length===2?2000+ +z[3]:+z[3]):fy(y);if(!z[3]&&f>hy)f=fy(y-1);return{d:f,h:f,t:"el "+fmtF(f),re:new RegExp("\\b"+z[0].replace(/[.-]/g,"\\$&")+"\\b")};}}
   if(/\b(la )?(semana pasada|semana anterior|ultima semana)\b/.test(q)){const l=sumaDias(hy,-((new Date(hy+"T12:00:00").getDay()+6)%7)-7);return{d:l,h:sumaDias(l,6),t:"la semana pasada",re:/\b(la )?(semana pasada|semana anterior|ultima semana)\b/};}
   if(/\b(este|el) trimestre\b/.test(q)&&!/trimestre pasado/.test(q)){const t0=Math.floor((mo-1)/3)*3+1;return{d:ini(y,t0),h:hy,t:"este trimestre",re:/\b(este|el) trimestre\b/};}
   if(/\b(el )?trimestre (pasado|anterior)\b/.test(q)){let t0=Math.floor((mo-1)/3)*3+1-3,yy=y;if(t0<1){t0+=12;yy--;}return{d:ini(yy,t0),h:fin(yy,t0+2),t:"el trimestre pasado",re:/\b(el )?trimestre (pasado|anterior)\b/};}
@@ -118,9 +123,9 @@ function periodoQ(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const ini
   if((m=q.match(/\b(20\d\d)\b/)))return{d:m[1]+"-01-01",h:m[1]+"-12-31",t:"el año "+m[1],re:/\b(en |el )?20\d\d\b/};
   return{d:sumaDias(hy,-365),h:hy,t:"últimos 12 meses",re:null,def:true};}
 function entenderEv(q0){const q=nq(q0),EV=evTipos();const out={q,ev:true,filtros:[],ignoradas:[]};let rest=" "+q+" ";
-  out.ultimo=(/\b(ultim[oa]|ultima vez|mas reciente|cuando)\b/.test(q)||(/\bquien\b/.test(q)&&!/\bmas\b|\bpor quien\b|\bquienes\b/.test(q)))&&!/\bultim[oa]s? \d+/.test(q)&&!/\bultimo mes\b/.test(q);out.primero=/\b(primer[oa]?|primera vez|mas antigu[oa])\b/.test(q);
+  out.ultimo=(/\b(ultim[oa]s?|ultima vez|mas reciente|cuando)\b/.test(q)||(/\bquien\b/.test(q)&&!/\bmas\b|\bpor quien\b|\bquienes\b/.test(q)))&&!/\bultim[oa]s? \d+/.test(q)&&!/\bultimo mes\b/.test(q);out.primero=/\b(primer[oa]?|primera vez|mas antigu[oa])\b/.test(q);
   let P=periodoQ(q);if(P.def&&(out.ultimo||out.primero))P={d:"0000-00-00",h:hoy(),t:"todo el historial",re:null,def:false,todo:true};out.per=P;if(P.re)rest=rest.replace(P.re," ");
-  rest=rest.replace(/\b(ultim[oa]|ultima vez|mas reciente|cuando|primer[oa]?|primera vez|mas antigu[oa]|vez)\b/g," ");
+  rest=rest.replace(/\b(ultim[oa]s?|ultima vez|mas reciente|cuando|primer[oa]?|primera vez|mas antigu[oa]|vez)\b/g," ");
   const mapa={pistones:"pist",ejes:"ejes",modelos:"ejes",contenedores:"cont",barras:"btb",tornillos:"btt",rhorno:"bth",hornos:"bth",quim:"quim",otros:"otros",maquinas:"todo",moldes:"todo"};
   let best=null,bi=1e9;for(const [k,re] of QE){const m=rest.match(re);if(m){if(m.index<bi){bi=m.index;best=k;}if(k!=="quim")rest=rest.replace(re,s0=>" ".repeat(s0.length));}}
   out.t=best?mapa[best]:"todo";if(/\b(entradas?|llegad\w*|llegado|llego|recibid\w*|albaran(es)?)\b/.test(q))out.t="ent";if(/\b(contador(es)?|glicol|lecturas?|litros|engrase|termico|prensa|iso\s*46)\b/.test(q))out.t="cont";const D=EV[out.t];out.D=D;
@@ -143,7 +148,7 @@ function pintaEv(E,res,B,pon){const D=E.D,L0=E.filas;if(E.rel)L0.__rel=true;
   if(ef.length)res.appendChild(el("div",{class:"chips",style:"margin:2px 0 8px"},[el("span",{class:"sub",text:"Solo:"})].concat(ef.map((f,i)=>el("button",{type:"button",class:"chip","aria-pressed":"true",text:f.v+"  ✕","aria-label":"Quitar "+f.v,onclick:()=>{B.ef=ef.filter((_,j)=>j!==i);pon(B.q,true);}})))));
   if(E.ignoradas.length)res.appendChild(el("p",{class:"hint",style:"margin:4px 2px",text:"No he encontrado «"+E.ignoradas.join("», «")+"» en "+D.nom.toLowerCase()+" ("+E.per.t+"), así que no lo he tenido en cuenta."}));
   if(E.per.def)res.appendChild(el("div",{class:"chips",style:"margin:2px 0 8px"},[el("span",{class:"sub",text:"Periodo:"})].concat(["este mes","el mes pasado","este año"].map(t=>el("button",{type:"button",class:"chip",text:t,onclick:()=>pon(B.q+" "+t)})))));
-  if(!L.length){res.appendChild(el("div",{class:"card"},el("p",{class:"hint",style:"padding:12px 14px",text:(D.unos&&E.t!=="todo"?"No hay "+D.nom.toLowerCase()+" apuntados":"No hay nada apuntado")+(maq?" en la "+maq.t.toUpperCase():"")+(/^(hoy|ayer|esta|este)/.test(E.per.t)?" ":" en ")+E.per.t+"."})));return;}
+  if(!L.length){res.appendChild(el("div",{class:"card"},el("p",{class:"hint",style:"padding:12px 14px",text:(D.unos&&E.t!=="todo"?"No hay "+D.nom.toLowerCase()+" apuntados":"No hay nada apuntado")+(maq?" en la "+maq.t.toUpperCase():"")+(/^(hoy|ayer|esta|este|el \d)/.test(E.per.t)?" ":" en ")+E.per.t+"."})));return;}
   if((E.ultimo||E.primero)&&D.ult){const e=E.primero?L[L.length-1]:L[0];const otros=E.filtros.filter(f=>f!==maq).map(f=>/\d/.test(f.t)&&/^[a-z0-9.\-]+$/.test(f.t)?f.t.toUpperCase():f.t);
     const dias_=dias(e.f,hoy());
     res.appendChild(el("div",{class:"bd-ult"},[el("div",{class:"sub",text:(E.primero?D.ult[1]:D.ult[0])+(maq?" de la "+maq.t.toUpperCase():"")+(otros.length?" ("+otros.join(", ")+")":"")}),
@@ -189,7 +194,7 @@ const EJ_ALM=[["Lo importante",["informe del valor de los pistones robados","qu�
   ["Control",["qué conclusiones toca comprobar","qué acciones han funcionado","qué toca contar esta semana","qué artículos descuadran más en los recuentos","qué cambios de horno ha mandado Limpieza sin revisar","qué máquina cambia más resistencias","qué máquinas no tienen nada apuntado desde hace 30 días"]],
   ["Compras y costes",["qué ha subido de precio este año","a qué proveedor le compramos más","cuánto cuesta mantener la F21","qué máquina cuesta más de mantener"]],
   ["Stock",["qué pistones tengo en nave 2","qué hay en el almacén general","qué está bajo mínimo","para cuántos días tengo pistones de 60","qué se va a acabar antes","cuántos pistones hay en la zona de usados"]],
-  ["Máquinas y ejes",["todo sobre la F25","quién cambió el último pistón de la F62","cuánto dura de media un pistón en la F15","qué ejes están pendientes de reparar"]],
+  ["Máquinas y ejes",["todo sobre la F25","quién cambió el último pistón de la F62","cuánto dura de media un pistón en la F15","en qué máquina estoy consumiendo más","qué ejes están pendientes de reparar"]],
   ["Dinero",["valor del stock de pistones de 80","importe de los ejes que hay en el taller","presupuesto de 15 pistones de 100 especial","cuánto hemos gastado este mes","qué máquina gasta más dinero en pistones","cuánto vale lo que hay en el almacén","cuánto me voy a gastar el mes que viene"]],
   ["Catálogo",["qué modelos de horno tenemos","dónde están los contenedores A1","qué ejes valen para la F28","qué molde lleva la F30"]]];
 function ejemplosA(pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});
@@ -212,7 +217,7 @@ function vBD(v){const T=tiposBD();draft.bd=draft.bd||{};const B=draft.bd;if(type
         return el("button",{type:"button",class:"btn",style:"justify-self:start;margin-top:6px",text:"Abrir el albarán "+k+(f?" · "+fmtF(f):"")+" ("+(d.movs.length+d.reps.length)+(d.movs.length+d.reps.length===1?" línea)":" líneas)"),onclick:()=>fichaAlbaran(k,d)});}))));}
     {const I0=intencionA2(nq(QQ));if(I0&&I0.rewev){pintaEv(entenderEv(I0.rewev),res,B,pon);return;}if(I0){pintaIntA2(I0,res,pon);return;}}
     {const I=intencionA(nq(QQ));if(I&&I.modo!=="rew"){pintaIntA(I,res,pon);return;}}
-    {const qn=" "+nq(QQ)+" ";if(QCO.test(qn)||/\b(entradas?|han llegado|ha llegado|llegaron)\b/.test(qn)||(/\b(ultim[oa]|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(QQ)).re){pintaEv(entenderEv(QQ),res,B,pon);return;}}
+    {const qn=" "+nq(QQ)+" ";if(QCO.test(qn)||/\b(entradas?|han llegado|ha llegado|llegaron)\b/.test(qn)||(/\b(ultim[oa]s?|cuando|primera vez|ultima vez)\b/.test(qn)&&!/\bultim[oa]s? \d+/.test(qn))||periodoQ(nq(QQ)).re){pintaEv(entenderEv(QQ),res,B,pon);return;}}
     const I2=intencionA(nq(QQ)),E=entender(I2&&I2.rew?I2.rew:QQ,T),D=T[E.t];const L=D.filas().filter(E.casa);
     /* lo que ha entendido */
     res.appendChild(el("div",{class:"bd-ent"},[el("span",{class:"sub",text:"Buscando en "}),el("b",{text:D.nom}),

@@ -1,7 +1,15 @@
 /* ---------- Buscador: «todo sobre la colada…», lo raro, previsión de coste y cruces con el Almacén ----------
    Los cruces (pistones y ejes por tonelada, resumen del mes) leen los datos del Almacén de la misma base de datos. */
 function intencionC2(q){const o={q,nave:/\bnave\s*(1|uno)\b/.test(q)&&/\bnave\s*(2|dos)\b|\by (la )?(2|dos)\b/.test(q)?null:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
-  if(/\b(camion(es)?|cargas?|viajes?|bp)\b/.test(q)&&!/\b(quedan?|faltan?|por traer|contratad\w*|tiene que|tienen que|va a|van a|previst\w*|planificad\w*|manana|pasado manana|proxim\w*|pedir|pido)\b/.test(q)&&(/\b(cuantos|cuantas|entrad\w*|entrado|llegad\w*|llegado|venido|traid\w*|externo|proveedor(es)?|bp|subid\w*)\b/.test(q)||o.prov||periodoC(q))&&!/\bultim[oa]\b/.test(q))return M("camiones",{per:periodoC(q)});
+  if(/\bcargador(es)?\b/.test(q))return M("cargador");
+  /* «cuántos kilos tengo que pedir para diciembre»: lo que falta para llegar a final de ese mes */
+  if(/\b(cuant\w*|que)\b/.test(q)&&!/\bcuando\b/.test(q)&&/\b(tengo|hay|tenemos|debo|debemos)( que| de)? (pedir|comprar|traer)\b|\b(necesito|necesitamos)\b|\b(hace|haria) falta\b/.test(q)&&!/\bpiston\w*\b/.test(q)){const F=periodoFut(q);return M("pedirkg",{per:F.todo||!/\bmes\b|\bsemana\b|\bmanana\b/.test(q)&&!MES_C.some(x=>q.includes(x))?periodoFut("mes que viene"):F});}
+  /* «cuántas cargas tenemos en el externo»: lo que hay allí, no lo que ha entrado */
+  if(/\b(camion(es)?|cargas?|viajes?)\b/.test(q)&&/\bexterno\b/.test(q)&&/\b(tenemos|tengo|hay|queda|quedan)\b/.test(q)&&!/\b(entrad\w*|llegad\w*|subid\w*|por traer)\b/.test(q))return M("extcarg");
+  /* un trozo de albarán («ceva26») y la lista de albaranes de un proveedor */
+  {const tk=q.split(" ").find(w=>w.length>=5&&/[a-z]/.test(w)&&/\d/.test(w));if(tk){const k=albKey(tk),A=Object.values(albaranes()).filter(a=>albKey(a.alb).includes(k));if(A.length&&!A.some(a=>albKey(a.alb)===k))return M("albs",{per:periodoC(q),tok:k});}}
+  if(/\balbaran(es)?\b/.test(q)&&!/\bsin albaran|\bpendientes?\b|\bpor completar\b|\bultim[oa]\b|\bprimer[oa]?\b/.test(q)&&(o.prov||/\b(dame|dime|lista|listado|ver|que|cuales|cuantos|todos)\b/.test(q)))return M("albs",{per:periodoC(q)});
+  if((/\b(camion(es)?|cargas?|viajes?|bp)\b/.test(q)||/\bentradas?\b.*\bdel? proveedor\b/.test(q))&&!/\b(quedan?|faltan?|por traer|contratad\w*|tiene que|tienen que|va a|van a|previst\w*|planificad\w*|manana|pasado manana|proxim\w*|pedir|pido|necesit\w*)\b/.test(q)&&(/\b(cuantos|cuantas|que|entrad\w*|entrado|entro|entraron|llegad\w*|llegado|llego|llegaron|venido|traid\w*|externo|proveedor(es)?|bp|subid\w*)\b/.test(q)||o.prov||periodoC(q))&&!/\bultim[oa]\b/.test(q))return M("camiones",{per:periodoC(q)});
   {const c=[/\b(tengo|tenemos|hay|stock|queda|quedan|existencias)\b/,/\b(entrad\w*|entrado|llegad\w*|recibid\w*)\b/,/\b(consum\w*|gastad\w*|gasto)\b/].filter(re=>re.test(q)).length;
     if(c>=2||/\b(informe|balance|movimiento) (de|del|por) (cada )?naves?\b|\b(informe|balance) (del )?aluminio\b|\bcada nave\b.*\b(informe|balance)\b/.test(q))return M("balance",{per:periodoC(q)});}
   if(/\bresumen (del|de este|de) mes\b|\bresumen mensual\b|\bcomo (ha ido|va) el mes\b/.test(q))return M("resumen",{per:periodoC(q)});
@@ -39,6 +47,37 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
   const consNave=(d,hh)=>{const o={};movs().forEach(r=>{if(r.t!=="C"||!r.f||r.f<d||r.f>hh)return;const l=lotes.find(x=>x.id===r.o);if(!l)return;o[l.nave]=(o[l.nave]||0)+Math.abs(kgAp(r,S));});return o;};
   const mesesAtras=n=>{const out=[];for(let i=n-1;i>=0;i--){const d=new Date(+h.slice(0,4),+h.slice(5,7)-1-i,1);out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));}return out;};
 
+  if(E.modo==="cargador"){const ns=E.nave?[E.nave]:NAVES;ent("cargador de bebederos",[E.nave]);
+    /* varios «roto» seguidos son la misma avería: cuenta desde el primero hasta que se arregla */
+    const tramos=n=>{const L=[];let ab=null;evCarg(n).forEach(e=>{if(!e.on){if(!ab){ab={n,f:e.f,u:e.u,ok:null};L.push(ab);}}else if(ab){ab.ok=e;ab=null;}});return L;};
+    const T=[].concat(...ns.map(tramos));
+    if(!T.length){frase("No hay ninguna avería del cargador apuntada"+(E.nave?" en "+E.nave:"")+". Se apunta en Stock › Máquinas.");return;}
+    ns.forEach(n=>{const L=tramos(n),u=L[L.length-1];if(!u){if(E.nave||ns.length>1)frase(n+": no hay ninguna avería del cargador apuntada.");return;}
+      frase(n+": el cargador se estropeó por última vez el "+diaLargo(u.f)+" ("+(u.u||"").toLowerCase()+")"+(u.ok?" y se arregló el "+diaLargo(u.ok.f)+".":" y sigue roto.")+(L.length>1?" En total, "+L.length+" veces.":""));});
+    card("Averías del cargador",[el("div",{class:"bq-lst"},T.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(x=>it(x.n+" · "+Mayus(diaLargo(x.f)),"Relevo de "+(x.u||"").toLowerCase()+(x.ok?" · arreglado el "+dmyA(x.ok.f):" · sigue roto"),x.ok?fmt(Math.max(1,Math.round((new Date(x.ok.f)-new Date(x.f))/864e5)))+" días":"⚠",null)))]);
+    nota("Sale de lo apuntado en Stock › Máquinas. Con el cargador roto se funde solo lingote y sube el consumo.");return;}
+  if(E.modo==="pedirkg"){const P=E.per,SM=simLineas(P.h);
+    const R=LINEAS.filter(([n,m])=>(!E.nave||n===E.nave)&&(!E.mat||m===E.mat)).map(([n,m])=>{const k=key(n,m),s=SM[k],M0=mediaCamion(m),kgFa=M0&&M0.fa?M0.kg/M0.fa:KG_CAM/FA_CAM;
+      const hay=s.b.faN+s.b.faE,cons=s.dias.reduce((a,x)=>a+x.g,0),ent_=s.pend.filter(x=>x.o!=="B"&&x.f<=P.h).reduce((a,x)=>a+x.fa,0),fa=Math.max(0,Math.ceil(cons+s.min-hay-ent_));return{k,m,hay,cons,ent_,min:s.min,fa,kg:Math.round(fa*kgFa)};}).filter(x=>x.hay>0||x.cons>0||x.ent_>0);
+    const tx=/^en /.test(P.t)?P.t.slice(3):P.t,kg=R.reduce((a,x)=>a+x.kg,0),fa=R.reduce((a,x)=>a+x.fa,0),cam=Math.ceil(kg/KG_CAM);ent("lo que hay que pedir para "+tx,[E.nave,E.mat?MAT[E.mat].nom:null]);
+    if(!R.length){frase("No hay material ni consumo en esa línea para calcularlo.");return;}
+    frase(kg?"Para "+tx+" hay que pedir unos "+fmt(kg)+" kg ("+fmt(fa)+" fardos, unos "+cam+(cam===1?" camión).":" camiones)."):"Para "+tx+" no hace falta pedir más: con lo que hay y lo planificado se llega al mínimo.");
+    card(null,[el("div",{class:"bq-lst"},R.map(x=>it(etiqLinea(x.k),["Hay "+fmt(x.hay)+" fardos (nave y externo)"+(x.ent_?" · entran "+fmt(x.ent_)+" planificados":""),"Se gastarán ≈ "+fmt(x.cons)+" fardos hasta el "+dmyA(P.h)+(x.min?" · mínimo "+fmt(x.min):"")],x.kg?fmt(x.kg)+" kg":"Nada",x.fa?fmt(x.fa)+" fardos":null)))]);
+    nota("Gasto previsto con las máquinas en marcha y los relevos del calendario, más el mínimo de cada línea, menos lo que hay (nave y externo) y las entradas del proveedor que ya están en el Plan.");return;}
+  if(E.modo==="extcarg"){const L=lotes.filter(l=>l.donde==="externo"&&S[l.id]&&S[l.id].fa>0&&(!E.nave||l.nave===E.nave)&&(!E.mat||l.material===E.mat)&&(!E.prov||nqC(l.proveedor||"")===nqC(E.prov)));ent("lo que hay en el almacén externo",[E.nave,E.mat?MAT[E.mat].nom:null,E.prov]);
+    if(!L.length){frase("No hay nada en el almacén externo"+(E.nave?" de "+E.nave:"")+".");return;}
+    const fa=L.reduce((a,l)=>a+S[l.id].fa,0),kg=L.reduce((a,l)=>a+S[l.id].kg,0),cg=L.reduce((a,l)=>{const M0=mediaCamion(l.material);return a+S[l.id].fa/(M0&&M0.fa?M0.fa:FA_CAM);},0),cgT=(Math.round(cg*10)/10).toLocaleString("es-ES");
+    frase("En el externo"+(E.nave?" de "+E.nave:"")+" hay unas "+cgT+" cargas: "+fmt(fa)+" fardos ("+fmt(kg)+" kg) en "+L.length+(L.length===1?" colada.":" coladas."));
+    card(null,[el("div",{class:"bq-lst"},L.slice().sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||"")).map(l=>it(l.nombre,l.nave+" · "+MAT[l.material].nom+(l.proveedor?" · "+l.proveedor:""),fmt(S[l.id].fa)+" f",fmt(S[l.id].kg)+" kg",()=>abrirFicha(l.id))))]);
+    nota("Una carga son los fardos de un camión de media de esa aleación.");return;}
+  if(E.modo==="albs"){const P=E.per,ents=todosMovs().filter(r=>r.t==="E"&&r.a);
+    const L=Object.values(albaranes()).filter(a=>(!E.tok||albKey(a.alb).includes(E.tok))&&(!E.prov||nqC(a.prov)===nqC(E.prov))&&(!P||(a.f>=P.d&&a.f<=P.h))&&(!E.nave||a.lotes.some(l=>l.nave===E.nave))&&(!E.mat||a.lotes.some(l=>l.material===E.mat))).sort((a,b)=>String(b.f).localeCompare(String(a.f)));
+    ent("albaranes",[E.tok?E.tok.toUpperCase():null,E.prov,P?P.t:null,E.nave,E.mat?MAT[E.mat].nom:null]);
+    if(!L.length){frase("No hay albaranes que cumplan eso.");return;}
+    const dat=a=>{const k=albKey(a.alb),R=ents.filter(r=>albKey(r.a)===k);return{fa:R.reduce((s,r)=>s+Math.abs(r.fa||0),0),kg:R.reduce((s,r)=>s+Math.abs(r.kg||0),0)};},D=L.map(dat),kg=D.reduce((s,x)=>s+x.kg,0);
+    frase(L.length+(L.length===1?" albarán":" albaranes")+(E.prov?" de "+E.prov:"")+(P?" "+perTxt(P):"")+(kg?": "+fmt(kg)+" kg.":".")+" El último, "+L[0].alb+(L[0].f?" ("+dmyA(L[0].f)+")":"")+".");
+    card(null,[el("div",{class:"bq-lst"},L.slice(0,100).map((a,i)=>it(a.alb,[[a.f?dmyA(a.f):null,a.prov||null].filter(Boolean).join(" · "),a.lotes.length?a.lotes.map(l=>l.nombre).join(", "):null],D[i].kg?fmt(D[i].kg)+" kg":null,D[i].fa?fmt(D[i].fa)+" f":null,a.lotes.length?()=>abrirAlbaran(a.alb):null)))]);
+    if(L.length>100)nota("Salen los 100 últimos. Acota con un mes o una nave.");return;}
   if(E.modo==="camiones"){const P=E.per||{d:mesDe(h)+"-01",h,t:"este mes"},hh=P.h>h?h:P.h,Sf=conCorte(hh,saldos);
     const V=[];todosMovs().forEach(r=>{if(r.h||!r.f||r.f<P.d||r.f>hh)return;const l=lotes.find(x=>x.id===(r.t==="E"?r.d:r.o));if(!l||!MAT[l.material])return;if(E.nave&&l.nave!==E.nave)return;if(E.mat&&l.material!==E.mat)return;
       if(r.t==="E"){if(E.prov&&nqC(l.proveedor||r.p||"")!==nqC(E.prov))return;V.push({t:"P",id:l.id,f:r.f,nave:l.nave,mat:l.material,fa:Math.abs(r.fa||0),kg:Math.abs(kgAp(r,Sf)),prov:l.proveedor||r.p||"Sin proveedor",ext:dondeEn(l,r.f)==="externo",col:l.nombre,alb:r.a||l.albaran||""});}

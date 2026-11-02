@@ -34,7 +34,7 @@ function intencionA(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};cons
   if(/\bcontenedor(es)?\b/.test(q)&&!(cat.contens||[]).length)return M("sincont");
   const ct=q.match(/\b([a-e])\s?([1-5])\b/);if(ct&&(/\bcontenedor(es)?\b|\btipo\b|\bdonde (esta|estan)\b|\bcuantos\b/.test(q)))return M("rew",{rew:"contenedores "+ct[1]+ct[2]+(/\bdonde\b/.test(q)?" por dónde está":"")});
   if(/\bmoldes?\b/.test(q)&&(o.cod||/\b(en que|que) maquina\b|\bdonde esta\b/.test(q))&&!QCO.test(q))return M("molde");
-  if(/\b(cuanto|cuantos dias) (dura|duran|aguanta|aguantan)\b.*\b(de media|cada uno|un piston|un eje)\b|\bde media\b.*\b(dura|duran)\b|\bduracion\b|\bcada cuanto\b.*\b(cambia|cambian|repara|reparan)\b|\bvida (media|util)\b/.test(q))return M("dura",{eje:/\bejes?\b/.test(q)});
+  if(/\b(cuanto|cuantos dias) (dura|duran|aguanta|aguantan)\b.*\b(de media|cada uno|un piston|un eje)\b|\bde media\b.*\b(dura|duran)\b|\bduracion\b|\bcada cuanto\b.*\b(cambia|cambian|repara|reparan)\b|\bvida (media|util)\b|\bcuanto (tiempo )?(ha durado|han durado|duro|duraron)\b|\bcuanto tiempo (dura|duran|aguanta|aguantan)\b/.test(q))return M("dura",{eje:/\bejes?\b/.test(q)});
   if(/\b(llevan?|lleva) mas tiempo sin (cambiar|cambio|cambios)\b|\bsin cambiar (el )?piston\b|\bhace cuanto (que )?no se cambia\b|\bultimo cambio de piston de cada\b/.test(q))return M("sincambio");
   if(/\bejes?\b/.test(q)&&o.cod&&/\b(valen|vale|sirven?|sirve|montan?|monta|lleva|para)\b/.test(q)&&!QCO.test(q))return M("ejesmaq");
   if(/\bdonde (esta|estan)\b.*\beje\b|\beje\b.*\bdonde (esta|estan)\b|\bcomo esta el eje\b/.test(q))return M("dondeeje",{cod:q.replace(/.*\beje\b/,"").replace(/\b(donde|esta|estan|como|el|la|ahora)\b/g," ").trim()});
@@ -105,7 +105,9 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     if(!L.length){frase("Hacen falta al menos dos cambios en la misma máquina para calcularlo.");return;}
     if(I.cod&&!I.maq)nota("No encuentro la máquina "+I.cod+"; salen todas.");
     frase("Donde menos dura es la "+L[0].m.cod+" ("+fmtN(Math.round(L[0].md))+" días de media) y donde más, la "+L[L.length-1].m.cod+" ("+fmtN(Math.round(L[L.length-1].md))+" días).");
-    lista("Días de media entre cambios",L.map(x=>it(x.m.cod,x.fs.length+" cambios · último "+fmtF(x.fs[x.fs.length-1]),fmtN(Math.round(x.md)),"días",()=>pon("cuánto dura de media un pistón en la "+x.m.cod))));return;}
+    lista("Días de media entre cambios",L.map(x=>it(x.m.cod,x.fs.length+" cambios · último "+fmtF(x.fs[x.fs.length-1]),fmtN(Math.round(x.md)),"días",()=>pon("cuánto dura de media un pistón en la "+x.m.cod))));
+    /* dos preguntas en una: «qué máquina tiene más consumo este mes, cuánto ha durado el pistón» */
+    if(/\bmas consumo\b|\b(consume|gasta) mas\b/.test(q))add(el("button",{type:"button",class:"btn sec",style:"margin-top:8px",text:"Ver también qué máquina tiene más consumo",onclick:()=>pon("qué máquina tiene más consumo "+(P.def?"este mes":P.t))}));return;}
 
   if(I.modo==="sincambio"){const L=cat.maquinas.filter(m=>enNave(m,I.nave)&&(diamDe(m)||ultimoPist(m.id))).map(m=>{const u=ultimoPist(m.id);return{m,u,d:u?dias(u.f,h):null};}).sort((a,b)=>(b.d==null?1e9:b.d)-(a.d==null?1e9:a.d));
     ent("máquinas sin cambiar pistón",[I.nave]);const con=L.filter(x=>x.u);if(!con.length){frase("No hay cambios de pistón apuntados.");return;}

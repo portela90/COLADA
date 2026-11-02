@@ -192,6 +192,7 @@ test('Base de datos: el buscador entiende las preguntas', async ({ page }) => {
   await expect(page.locator('#bdRes .it', { hasText: 'Krown 900 kg' })).toContainText('F4, F21, F22, F26, F28, F32, F33');
   expect(await resp('que marcas de horno hay')).toContain('Hay 3 marcas distintas');
   expect(await resp('hornos westofen')).toContain('14 hornos');
+  expect(await resp('hornos westofent')).toContain('14 hornos');
   expect(await resp('máquinas con horno krown de 900')).toContain('7 máquinas');
   expect(await resp('cuántas STP hay')).toContain('6 modelos de máquina distintos entre 14 máquinas');
   expect(await resp('hornos de la nave 2')).toContain('13 hornos');
@@ -1336,6 +1337,27 @@ test('Más consultas: cuarentena, taller, agarrotados, barras, conclusiones, rec
   expect(await resp('qué máquinas no tienen nada apuntado desde hace 30 días')).toContain('nada apuntado desde hace más de 30 días');
   expect(await resp('cuánto cuesta mantener la ' + c1)).toContain('mantener la ' + c1 + ' ha costado');
   expect(await resp('qué máquina cuesta más de mantener')).toContain('la más cara de mantener');
+  expect(err).toEqual([]);
+});
+
+test('Consultas: preguntas de la revisión semanal (estoy, últimas, quién, cuánto ha durado, un día suelto y palabras comunes)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(250); const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); expect(t, q).not.toMatch(/undefined|NaN/); return t; };
+  let t = await resp('En que maquina estoy consumiendo mas'); expect(t).toContain('Todo lo gastado'); expect(t).toContain('por máquina'); expect(t).not.toContain('«estoy»');
+  t = await resp('Últimas entradas de pis'); expect(t).toContain('Entradas'); expect(t).not.toContain('«ultimas»');
+  expect(await resp('Quién')).not.toContain('«quien»');
+  expect(await resp('Quien no apunta')).toContain('quién no apunta');
+  for (const q of ['cuanto tiempo ha durado el pistón', 'cuánto tiempo duran los pistones']) expect(await resp(q), q).toMatch(/cuánto dura un pistón/);
+  t = await resp('Qué maquina tiene mas consumo este mes cuanto tiempo ha durado el pistón en maquina'); expect(t).toContain('cuánto dura un pistón'); expect(t).not.toContain('«durado»');
+  expect(await resp('Cuántos pistones an entrado')).not.toContain('«an»');
+  expect(await resp('Consumo 20/10/26')).toMatch(/el 20\/10\/(20)?26/);
+  expect(await resp('cambios de pistón del 1/9 al 15/10')).toMatch(/del \S+ al \S+/);
+  const ap = await page.evaluate(() => { Object.assign(BuscaAprende.estado.sin, { 'almacen|no': 'pistones', 'almacen|apunta': 'quien no apunta el motivo de cambio de pistones', 'almacen|estoy': 'que maquina consume mas consumibles', 'almacen|grasa': 'aceite' });
+    return [BuscaAprende.aplicar('almacen', 'qué máquinas no tienen nada apuntado'), BuscaAprende.aplicar('almacen', 'quien no apunta'), BuscaAprende.aplicar('almacen', 'stock de grasa')]; });
+  expect(ap).toEqual(['que maquinas no tienen nada apuntado', 'quien no apunta', 'stock de aceite']);
   expect(err).toEqual([]);
 });
 

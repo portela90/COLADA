@@ -243,6 +243,45 @@ test('Consultas: el buscador aprende (enseñar una palabra, guardar la pregunta 
   expect(err).toEqual([]);
 });
 
+test('Consultas: preguntas de la revisión semanal (fechas, camiones, albaranes, externo, cargador, cuánto pedir y palabras comunes)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  const F = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 10); const p = n => String(n).padStart(2, '0'); return { iso: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), dd: p(d.getDate()), mm: p(d.getMonth() + 1), yy: String(d.getFullYear()).slice(2), m: d.getMonth() }; });
+  const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  await page.evaluate(async F => {
+    const mm = F.iso.slice(0, 7);
+    await db.doc('cfg/app').update({ proveedores: ['BEFESA'] });
+    await db.doc('lotes/k1').set({ nombre: 'C30001', material: 'L-2630', nave: 'Nave 1', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: F.iso, proveedor: 'BEFESA', albaran: 'CEVA2601688' });
+    await db.doc('mov/' + mm).set({ items: [{ i: 'e1', t: 'E', f: F.iso, d: 'k1', fa: 30, kg: 21000, a: 'CEVA2601688' }, { i: 'c1', t: 'C', f: F.iso, u: 'Mañana', o: 'k1', fa: 3, kg: 2100 }] });
+    await db.doc('maq/' + mm).set({ items: [{ i: 'q1', f: F.iso, u: 'Mañana', m: 'CARG|Nave 2', on: false }, { i: 'q2', f: F.iso, u: 'Noche', m: 'CARG|Nave 2', on: true }] });
+  }, F);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(400);
+  const pregunta = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(200); const r = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); expect(r, t).not.toMatch(/undefined|NaN/); return r; };
+  const dm = F.dd + '/' + F.mm, dmy = dm + '/' + F.yy;
+  // un día suelto, con nave y aunque sobre «este año»
+  for (const q of ['Consumo ' + dmy, 'Consumo ' + dmy + ' nave 1', 'Consumo el ' + dmy + ' nave 1 este año']) expect(await pregunta(q), q).toMatch(/se han consumido 2\.?100 kg \(3 fardos\)/);
+  // «entró» y el camión de un día
+  let r = await pregunta('Que camión entró el ' + dm + ' en nave 1');
+  expect(r).toContain('han llegado a Nave 1 1 camión: 1 del proveedor'); expect(r).toContain('CEVA2601688');
+  expect(await pregunta('Cuántos kg an entrado a nave 1 los últimos 30 días')).toMatch(/ha entrado 21\.?000 kg/);
+  // entradas del proveedor frente a las del externo
+  expect(await pregunta('Entradas ' + MES[F.m] + ' nave 1 de proveedor')).toContain('1 del proveedor');
+  // albaranes: de un proveedor y por un trozo del número
+  r = await pregunta('Dame albaranes de BEFESA'); expect(r).toContain('1 albarán de BEFESA: 21.000 kg'); expect(r).toContain('C30001');
+  r = await pregunta('Ceva26'); expect(r).toContain('1 albarán'); expect(r).toContain('CEVA2601688');
+  // lo que hay en el externo
+  r = await pregunta('Cuantas cargas tenemos en externo de nave 1'); expect(r).toContain('En el externo de Nave 1 hay unas'); expect(r).toContain('44 fardos');
+  // el cargador
+  r = await pregunta('Qué día se estropeó el cargador de nave 2'); expect(r).toContain('Nave 2: el cargador se estropeó por última vez'); expect(r).toContain('y se arregló');
+  // cuánto pedir para un mes
+  r = await pregunta('Cuantos kilos tengo que pedir para diciembre'); expect(r).toContain('lo que hay que pedir para diciembre'); expect(r).toMatch(/Para diciembre (hay que pedir unos|no hace falta)/);
+  // las palabras de todos los días no se cambian aunque estén enseñadas; las de verdad, sí
+  const ap = await page.evaluate(() => { Object.assign(BuscaAprende.estado.sin, { 'coladas|tengo': 'cuantos aluminio necesito para diciembre 2026', 'coladas|an': 'alsi9', 'coladas|dia': 'que dia se estropeo el cargador en nave 2', 'coladas|proveedor': 'que cuantas cargas han entrado', 'coladas|ceva26': 'dame el albaran', 'coladas|blanquitas': 'alsi9' });
+    return [BuscaAprende.aplicar('coladas', 'qué día tengo más proveedor'), BuscaAprende.aplicar('coladas', 'stock de las blanquitas'), BuscaAprende.aplicar('coladas', 'ceva26')]; });
+  expect(ap).toEqual(['que dia tengo mas proveedor', 'stock de las alsi9', 'dame el albaran']);
+  expect(err).toEqual([]);
+});
+
 test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);

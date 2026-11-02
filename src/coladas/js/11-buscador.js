@@ -3,10 +3,10 @@
    «entradas de Befesa en octubre», «último camión de Idalsa», «consumo por relevo», «precio de Befesa».
    Responde con el total, un reparto que se puede tocar para afinar y la lista. Todo con los datos que ya hay en el móvil. */
 const bq={q:"",ef:[],g:null};
-const nqC=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9ñ\s.-]/g," ").replace(/\s+/g," ").trim();
+const nqC=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9ñ\s.-]/g," ").replace(/\s+/g," ").replace(/\ban (entrado|llegado|consumido|gastado|salido|venido|traido|subido)\b/g,"han $1").trim();
 const raizC=w=>w.length>4&&/es$/.test(w)&&!/(ces|ses)$/.test(w)?w.slice(0,-2):w.length>3&&/s$/.test(w)?w.slice(0,-1):w;
 const reC=a=>new RegExp("(^|[\\s/,.(])"+a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+(/\d$/.test(a)?"(?![0-9])":""));
-const STOP_C=new Set("han ha hemos he sido llevamos lleva llevan que qu cual cuales cuantos cuantas cuanto hay tenemos tiene tienen de del la el los las lo con en y a al por para son es esta estan dame dime ver lista todos todas todo un una unos unas se sus su me fabrica kg kilos fardos fardo aluminio coladas colada lotes lote stock queda quedan total mas menos vez fue ultimo ultima primer primera cuando quien".split(" "));
+const STOP_C=new Set("han ha hemos he sido llevamos lleva llevan que qu cual cuales cuantos cuantas cuanto hay tenemos tiene tienen de del la el los las lo con en y a al por para son es esta estan dame dime ver lista todos todas todo un una unos unas se sus su me tengo necesito quiero saber estoy estamos an fabrica kg kilos fardos fardo aluminio coladas colada lotes lote stock queda quedan total mas menos vez fue ultimo ultima primer primera cuando quien".split(" "));
 const MES_C=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPO_C={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};
 /* lo que tiene que venir: «mañana», «esta semana», «este mes»… contando desde hoy */
@@ -22,8 +22,15 @@ function periodoFut(q){const h=hoy(),y=+h.slice(0,4),mo=+h.slice(5,7),mas=n=>{co
   if(/\beste mes\b/.test(q))return{d:h,h:fin(y,mo),t:"lo que queda de mes"};
   return{d:h,h:"9999-12-31",t:"de aquí en adelante",todo:true};}
 const RE_FUT=/\b(tiene|tienen|tenemos) que (entrar|llegar|venir|traer)|\bvan? a (entrar|llegar|venir)|\bprevist\w*|\bplanificad\w*|\bpendientes? de (entrar|llegar)|\bfalta(n)? por (entrar|llegar|venir)|\bquedan? por (entrar|llegar|venir)|\b(entrara|entraran|llegara|llegaran|vendra|vendran)\b|\bpasado manana\b|\bsemana que viene\b|\bmes que viene\b|\bproxim[oa]s? (camion|camiones|entradas?)\b/;
+/* un día suelto: «20/10/26», «el 26/10» (las barras llegan como espacios). Sin año, el último que ya ha pasado */
+function diaSueltoC(q){const h=hoy(),s=q.replace(/\bnave\s*(1|2|uno|dos)\b/g," ");
+  for(const m of s.matchAll(/\b(?:(?:el|dia) )?(\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2}|20\d\d))?\b/g)){const tx=m[0],d=+m[1],mo=+m[2];if(!/^(el|dia) /.test(tx)&&!m[3])continue;if(d<1||d>31||mo<1||mo>12)continue;
+    const fy=y=>y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0"),y0=+h.slice(0,4),f=m[3]?fy(m[3].length===2?2000+ +m[3]:+m[3]):fy(y0);
+    return{d:!m[3]&&f>h?fy(y0-1):f,re:new RegExp("\\b"+tx.replace(/[.-]/g,"\\$&")+"\\b")};}
+  return null;}
 function periodoC(q){const h=hoy(),y=+h.slice(0,4),mo=+h.slice(5,7),ini=(a,b)=>a+"-"+String(b).padStart(2,"0")+"-01",fin=(a,b)=>a+"-"+String(b).padStart(2,"0")+"-"+String(new Date(a,b,0).getDate()).padStart(2,"0");
   const menos=n=>{const d=new Date();d.setDate(d.getDate()-n);return ymd(d);};let m;
+  {const D=diaSueltoC(q);if(D)return{d:D.d,h:D.d,t:"el "+dmyA(D.d),re:D.re};}
   if(/\bhoy\b/.test(q))return{d:h,h,t:"hoy",re:/\bhoy\b/};
   if(/\bayer\b/.test(q))return{d:menos(1),h:menos(1),t:"ayer",re:/\bayer\b/};
   if(/\besta semana\b/.test(q))return{d:menos((new Date().getDay()+6)%7),h,t:"esta semana",re:/\besta semana\b/};
@@ -61,10 +68,10 @@ function entenderC(q0){const q=nqC(q0),out={q,filtros:[],ignoradas:[]};let rest=
   /* «qué relevo consume más», «qué nave gasta menos», «qué proveedor ha traído más» */
   const sup=q.match(/\b(mas|menos)\b/);const supG=[["relevo",/\b(relevos?|turnos?)\b/],["nave",/\bnaves?\b(?!\s*(1|2|uno|dos)\b)/],["prov",/\bproveedor(es)?\b/],["colada",/\bcoladas?\b/],["dia",/\bdias?\b/],["mes",/\bmes(es)?\b(?! (pasado|anterior|que viene))/],["aleacion",/\b(aleacion(es)?|material)\b/]];
   if(sup&&/\b(que|cual|cuales|quien)\b/.test(q)){const g=supG.find(x=>x[1].test(q.replace(/\b(este|esta|el|ultimo|ultimos|cada) (mes|dia|dias)\b/g," ")));if(g){out.sup=sup[1];out.supG=g[0];}}
-  const P=periodoC(q);if(P&&P.re)rest=rest.replace(P.re," ");
+  const P=periodoC(q);if(P&&P.re)rest=rest.replace(P.re," ");if(P&&P.d===P.h)rest=rest.replace(/\b(este|el) ano\b/," ");
   out.ultimo=/\b(ultim[oa]|ultima vez|mas reciente|cuando)\b/.test(q)&&!/\bultim[oa]s? \d+/.test(q)&&!/\bultimo mes\b/.test(q);out.primero=/\b(primer[oa]?|primera vez)\b/.test(q);
   /* tipo de apunte */
-  const tipos=[];[["C",/\b(consum\w*|gast\w*|usad\w*|salidas?|fundid\w*)\b/],["E",/\b(entrad\w*|entrado|entrar|entra|entran|camion(es)?|llegad\w*|llego|llegaron|recibid\w*|albaran(es)?|compras?|comprad\w*|traid\w*)\b/],["A",/\b(ajustes?|recuentos?)\b/],["G",/\b(granalla|cobre)\b/],["T",/\b(traslad\w*)\b/]]
+  const tipos=[];[["C",/\b(consum\w*|gast\w*|usad\w*|salidas?|fundid\w*)\b/],["E",/\b(entrad\w*|entrado|entrar|entra|entran|entro|entraron|camion(es)?|llegad\w*|llego|llegaron|recibid\w*|albaran(es)?|compras?|comprad\w*|traid\w*)\b/],["A",/\b(ajustes?|recuentos?)\b/],["G",/\b(granalla|cobre)\b/],["T",/\b(traslad\w*)\b/]]
     .forEach(([k,re])=>{if(re.test(rest)){tipos.push(k);rest=rest.replace(new RegExp(re.source,"g")," ");}});
   out.precio=/\bprecios?\b|\bcuesta\b|\bvale\b|\beuros?\b/.test(q);rest=rest.replace(/\bprecios?\b|\bcuesta\b|\bvale\b|\beuros?\b/g," ");
   if(out.sup&&!tipos.length){tipos.push("C");}
@@ -89,9 +96,9 @@ function donde(ok){const p=ok.map(f=>{const t=f.t;if(/^nave \d/.test(t))return"e
 /* ejemplos: recogidos en un desplegable, por temas, para no llenar la pantalla */
 const EJ_COL=[["Stock y coladas",["para cuántos días tengo aluminio","qué colada toca gastar en nave 1","coladas más antiguas del externo","todo sobre la colada C25073"]],
   ["Consumo",["qué relevo consume más este mes","consumo de este mes comparado con el pasado","qué día se consumió más este mes","cuánto aluminio se gasta por máquina en marcha"]],
-  ["Camiones",["cuántos camiones han entrado este mes en cada nave, del proveedor y del externo","qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
+  ["Camiones",["cuántos camiones han entrado este mes en cada nave, del proveedor y del externo","qué camión entró el 26/10","cuántas cargas tenemos en el externo","cuántos kilos tengo que pedir para el mes que viene","albaranes de BEFESA","qué camiones tienen que entrar mañana","cuándo tengo que pedir camión","con cuánto stock acabo el mes","cuántos camiones quedan por traer este mes"]],
   ["Dinero",["cuánto ha costado el aluminio este mes","cuánto me va a costar el aluminio este mes","qué proveedor sale más barato","cuánto vale lo que tengo en stock"]],
-  ["Revisar",["lo que tengo, lo que ha entrado y lo que ha consumido cada nave este mes","qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
+  ["Revisar",["qué día se estropeó el cargador de nave 2","lo que tengo, lo que ha entrado y lo que ha consumido cada nave este mes","qué hay que revisar","qué relevos no se han apuntado esta semana","qué máquinas están paradas","resumen del mes"]]];
 function ejemplos(G,pon,st){const d=el("details",{class:"ejs"});if(st.ejAb)d.open=true;d.addEventListener("toggle",()=>{st.ejAb=d.open;});
   d.appendChild(el("summary",{text:"Ver ejemplos de preguntas"}));
   G.forEach(([t,L])=>d.appendChild(el("div",{class:"ejs-g"},[el("div",{class:"ejs-t",text:t})].concat(L.map(q=>el("button",{type:"button",class:"ejs-q",text:q,onclick:()=>pon(q)}))))));return d;}

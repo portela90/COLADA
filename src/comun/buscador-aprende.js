@@ -7,6 +7,8 @@
   const h = (t, a, k) => { const n = document.createElement(t); if (a) for (const p in a) { if (p === "class") n.className = a[p]; else if (p === "text") n.textContent = a[p]; else if (p.slice(0, 2) === "on") n.addEventListener(p.slice(2), a[p]); else if (a[p] != null) n.setAttribute(p, a[p]); } (k || []).forEach(c => c && n.appendChild(c)); return n; };
   const sb = () => window.sbColada && window.sbColada.from ? window.sbColada : null;
   const S = { sin: {}, top: [], cargado: {}, ultimo: null, tim: null, pend: null };
+  /* palabras de todos los días: no se cambian aunque estén enseñadas (cambiar «no», «tengo» o «día» estropea cualquier otra pregunta) ni se ofrece enseñarlas */
+  const COMUNES = new Set("a al an ante con de del desde el en entre es esta estan este esto estoy estamos fue ha han hay he hemos la las le lo los me mi mis nada ni no nos o para pero por porque que quien quienes se si sin son su sus te tengo tenemos tiene tienen todo todos tu un una unas uno unos y ya cual cuales cuando cuanto cuanta cuantos cuantas como donde dame dime hoy ayer mas menos muy dia dias semana semanas mes meses ano anos proveedor proveedores entro entra entran entraron entrar apunta apuntan apunto apuntar".split(" "));
   async function cargar(app) {
     const c = sb(); if (!c || S.cargado[app]) return; S.cargado[app] = true;
     try { const r = await c.from("sinonimos").select("palabra,significa").eq("app", app); if (!r.error) (r.data || []).forEach(x => { S.sin[app + "|" + nz(x.palabra)] = nz(x.significa); }); } catch (e) {}
@@ -16,10 +18,13 @@
   }
   /* cambia las palabras enseñadas por lo que significan (frases enteras, de más larga a más corta) */
   function aplicar(app, q) {
-    let t = " " + nz(q) + " ";
-    Object.keys(S.sin).filter(k => k.startsWith(app + "|")).map(k => k.slice(app.length + 1)).sort((a, b) => b.length - a.length)
-      .forEach(p => { const re = new RegExp("(^|\\s)" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=\\s|$)", "g"); t = t.replace(re, "$1" + S.sin[app + "|" + p]); });
-    return t.trim();
+    const t = nz(q), sig = p => S.sin[app + "|" + p];
+    /* una palabra suelta enseñada como una frase larga solo vale si es la pregunta entera: dentro de otra pregunta la estropearía */
+    const P = Object.keys(S.sin).filter(k => k.startsWith(app + "|")).map(k => k.slice(app.length + 1))
+      .filter(p => !COMUNES.has(p) && (t === p || p.includes(" ") || sig(p).split(" ").length < 4)).sort((a, b) => b.length - a.length);
+    if (!P.length) return t;
+    /* de una pasada, para que lo que se pone no se vuelva a cambiar */
+    return t.replace(new RegExp("(^|\\s)(" + P.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")(?=\\s|$)", "g"), (m, a, p) => a + sig(p)).trim();
   }
   /* se guarda la pregunta cuando se deja de escribir (no cada letra) */
   function registrar(app, q, modo, ignoradas) {
@@ -67,7 +72,8 @@
     if (!nz(q) || !res) return;
     const hint = [...res.querySelectorAll("p,div")].find(n => !n.children.length && /No (he encontrado|encuentro) «/.test(n.textContent));
     const pal = hint ? [...hint.textContent.matchAll(/«([^»]+)»/g)].map(m => m[1]).filter(w => w.length > 1 && !/\s/.test(w)) : [];
-    if (pal.length) { const u = ensenarUI(app, pal, ideas, repintar); if (u) hint.after(u); }
+    const ens = pal.filter(w => !COMUNES.has(nz(w)));
+    if (ens.length) { const u = ensenarUI(app, ens, ideas, repintar); if (u) hint.after(u); }
     const vacio = /No hay (ninguno|nada) que cumpla/.test(res.textContent);
     const b = res.querySelector("b"); registrar(app, q, vacio ? "nada" : (b ? b.textContent.slice(0, 60) : null), pal);
     const v = votoUI(); if (v) res.appendChild(v);
