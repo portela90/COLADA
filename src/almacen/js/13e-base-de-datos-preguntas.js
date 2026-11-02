@@ -15,7 +15,7 @@ function artsQ(q){let rest=" "+q+" ";const F=[];
   [[/\bpiston(es)?\b/,a=>a.fam==="piston"],[/\bbarras?( expulsoras?)?\b/,a=>a.fam==="barra"],[/\btornillos?( tope)?\b/,a=>a.fam==="tornillo"],[/\b(recambios? de hornos?|hornos?)\b/,a=>a.fam==="horno"],
    [/\baceites?\b/,a=>grupoDe(a)==="aceite"],[/\btaladrinas?\b/,a=>grupoDe(a)==="taladrina"],[/\bjabon(es)?\b/,a=>grupoDe(a)==="jabon"],[/\b(desmoldeantes?|pistonwax)\b/,a=>grupoDe(a)==="desmold"]]
     .forEach(([re,f])=>{if(re.test(rest)){F.push(f);rest=rest.replace(re," ");}});
-  let L=artsActivos().filter(a=>a.fam!=="eje"&&(!F.length||F.some(f=>f(a))));const txt=a=>" "+nq([a.desc,a.cod,a.diam,GRUPO_N[grupoDe(a)],FAM[a.fam]].join(" "))+" ";
+  let L=artsActivos().filter(a=>a.fam!=="eje"&&(!F.length||F.some(f=>f(a))));const txt=a=>" "+nq([a.desc,a.cod,a.codProv,a.refProv,a.diam,GRUPO_N[grupoDe(a)],FAM[a.fam]].join(" "))+" ";
   const ign=[];rest.split(" ").filter(w=>w&&!QSTOP.has(w)&&!QM_STOP.has(w)&&w.length>1&&!/^(nave|1a|1b|recambios?|articulos?|material(es)?|productos?|cosas?|almacen|stock|euros?|dinero)$/.test(w)).forEach(w=>{const a0=raiz(w);const L2=L.filter(a=>reQ(a0).test(txt(a)));if(L2.length)L=L2;else ign.push(w);});
   return{L,ign,fam:F.length>0};}
 function evTodo(){const L=SECC.pist.ev().map(e=>Object.assign({fam:"Pistones"},e)).concat(SECC.ejes.ev().map(e=>Object.assign({fam:"Reparación de ejes"},e)));

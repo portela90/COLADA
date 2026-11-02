@@ -21,7 +21,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bquien(es)? no (apunta|apuntan|pone|ponen|rellena|rellenan|escribe|escriben|mete|meten|indica|indican)\b|\bquien(es)? (deja|dejan|se deja|se dejan|olvida|olvidan|se olvida|se olvidan)\b.*\b(motivo|responsable|sin)\b|\bsin (poner|apuntar|rellenar) (el )?(motivo|responsable)\b|\b(cambios?|pistones?) sin motivo\b|\bsin motivo\b|\bno consta el motivo\b|\bmotivos? (sin|por) (poner|apuntar|rellenar)\b/.test(q))return M("sinapuntar");
   /* «valor de 2 tubos de westofen 21 y 3 krown 18», «cuánto valen 4 resistencias RST-900» */
-  if(/\b(?:el |los )?valor(?:es)? de \d|\bcuanto (?:valen|vale|cuestan|cuesta|suman?|es|son) \d|\bprecio de \d/.test(q))return M("presupuesto",{valor:true});
+  {const V=intencionValor(q,o);if(V){if(V.mas)return M("mas",V);if(V.modo==="presupuesto")return M("presupuesto",{valor:V.valor,qn:V.qn});return M("valorq",V);}}
   {const A=intencionAv(q);if(A)return M("averias",{av:A});}
   {const X=intencionMas(q,o);if(X)return M("mas",X);}
   if(/\btolvas?\b/.test(q)&&!/\bque (tengo|hay|tenemos) que pedir\b/.test(q))return M("tolvas");
@@ -74,20 +74,16 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     frase("En "+I.almT+(pist?" hay "+fmtN(tot)+(tot===1?" pistón":" pistones")+": "+L.filter(x=>x.st>0).map(x=>x.a.diam+": "+fmtN(x.st)).join(" · ")+(L.some(x=>x.st<=0)?". Sin ninguno: "+L.filter(x=>x.st<=0).map(x=>x.a.diam).join(", "):""):" hay "+L.filter(x=>x.st>0).length+" artículos con stock")+".");
     lista(null,L.map(x=>it(nomArt(x.a),[I.alms.length>1&&x.por.length?x.por.map(([al,n])=>al.nom.replace(/^Almacén (de )?/,"")+": "+fmtN(Math.round(n*10)/10)).join(" · "):null,"En total (todos los almacenes): "+fmtN(Math.round(stockDe(x.a.id)*10)/10)],fmtN(Math.round(x.st*10)/10),x.a.ud||"ud",()=>ficha(x.a),x.st<=0?"bad":nivel(x.a)==="bad"?"warn":"")));
     if(L.some(x=>x.st<0))nota("Un número negativo quiere decir que se ha sacado más de lo que constaba en ese almacén: falta apuntar un traslado o un recuento.");return;}
-  if(I.modo==="presupuesto"){const q2=q.replace(/\bespecial(es)?\b/g,"esp").replace(/\b(presupuesto|valor|valores|precio|suma|suman|son|es|el|los|las|dame|dime|hazme|haz|un|una|unos|unas|de|del|para|pedido|pedir|comprar|traer|cuanto|cuesta|cuestan|costaria|costarian|vale|valen|valdria|valdrian|sale|saldria|aproximadamente|mas o menos|sobre)\b/g," ");
-    const trozos=q2.split(/\s(?:y|,|mas)\s|,/).map(t=>t.trim()).filter(Boolean),L=[],mal=[];
-    trozos.forEach(t=>{const m=t.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(pistones|piston|uds?|unidades|kg|kilos|litros|l|bidones|cajas|rollos|pares)?(?=\s|$)/);let n=null,rest=t;
-      if(m){const cand=t.match(/(\d+(?:[.,]\d+)?)\s*(pistones|piston|uds?|unidades|kg|kilos|litros|bidones|cajas|rollos|pares)\b/);const pick=cand||m;n=parseN(pick[1]);rest=t.replace(pick[0]," "+(pick[2]&&/piston/.test(pick[2])?"piston":"")+" ");}
-      const S=artsQ(rest);if(n>0&&S.L.length===1)L.push({a:S.L[0],n});else mal.push({t,n,L:S.L});});
+  if(I.modo==="presupuesto"){const {L,mal,iva}=parseCantQ(I.qn||normCant(q));
     ent(I.valor?"valor":"presupuesto");
     if(!L.length){frase("Dime qué y cuánto, por ejemplo «presupuesto de 15 pistones de 100 especial» o «valor de 2 tubos de westofen 21 y 3 krown 18».");
       mal.filter(x=>x.L.length>1&&x.L.length<=10).forEach(x=>add(el("div",{class:"chips"},x.L.map(a=>el("button",{type:"button",class:"chip",text:nomArt(a),onclick:()=>pon("presupuesto de "+(x.n||1)+" "+nomArt(a))})))));return;}
     const tot=L.reduce((s,x)=>s+x.n*precioDe(x.a),0),sinP=L.filter(x=>!precioDe(x.a));
-    frase((I.valor?"Valor: ":"Presupuesto: ")+(tot?eur(tot):"sin valorar")+(sinP.length&&tot?" (falta el precio de "+sinP.length+")":"")+", sin IVA.");
+    frase((I.valor?"Valor: ":"Presupuesto: ")+(tot?eur(tot):"sin valorar")+(sinP.length&&tot?" (falta el precio de "+sinP.length+")":"")+", sin IVA."+(iva&&tot?" Con IVA (21 %): "+eur(tot*1.21)+".":""));
     lista(null,L.map(x=>{const p=precioDe(x.a),c=consDia(x.a),st=stockDe(x.a.id);return it(fmtN(x.n)+" × "+nomArt(x.a),[p?eur(p)+" / "+(x.a.ud||"ud"):"Sin precio",(provN(x.a.prov)?provN(x.a.prov)+" · ":"")+(plazoArt(x.a)?"plazo "+plazoArt(x.a)+" días · ":"")+"hay "+fmtN(Math.round(st*10)/10)+(c>0?" · con el pedido, para "+diasTxt(Math.floor((st+x.n)/c)):"")],p?eur(x.n*p):"—",null,()=>ficha(x.a),p?"":"warn");}),tot?eur(tot):null);
     if(mal.length)nota("No he sabido qué es «"+mal.map(x=>x.t).join("», «")+"»: escribe la cantidad y el artículo, por ejemplo «10 de 80».");
     if(sinP.length)ponPrecio(sinP.map(x=>x.a),"Sin precio: "+sinP.map(x=>nomArt(x.a)).join(", ")+".");
-    copiarT(I.valor?"Copiar":"Copiar el presupuesto",[(I.valor?"VALOR":"PRESUPUESTO")+" · "+fmtF(h)].concat(L.map(x=>{const p=precioDe(x.a);return"- "+fmtN(x.n)+" "+(x.a.ud||"ud")+" "+nomArt(x.a)+(x.a.cod?" ["+x.a.cod+"]":"")+" × "+(p?eur(p):"sin precio")+" = "+(p?eur(x.n*p):"—")+(provN(x.a.prov)?" · "+provN(x.a.prov):"");})).concat(["TOTAL (sin IVA): "+(tot?eur(tot):"—")]).join("\n"));
+    copiarT(I.valor?"Copiar":"Copiar el presupuesto",[(I.valor?"VALOR":"PRESUPUESTO")+" · "+fmtF(h)].concat(L.map(x=>{const p=precioDe(x.a);return"- "+fmtN(x.n)+" "+(x.a.ud||"ud")+" "+nomArt(x.a)+(x.a.cod?" ["+x.a.cod+"]":"")+" × "+(p?eur(p):"sin precio")+" = "+(p?eur(x.n*p):"—")+(provN(x.a.prov)?" · "+provN(x.a.prov):"");})).concat(["TOTAL (sin IVA): "+(tot?eur(tot):"—")]).concat(iva&&tot?["TOTAL (con IVA 21 %): "+eur(tot*1.21)]:[]).join("\n"));
     nota("Con los precios del catálogo. Si el proveedor te ha dado otro precio, cámbialo en la ficha del artículo.");return;}
   if(I.modo==="tallereur"){const L=ejes.filter(e=>["reparacion","devuelto","preparado"].includes(e.estado)).map(e=>{const md=modelo(e.mod),p=md?+md.precioRep||0:0,r=abiertaDe(e.cod);return{e,md,p,r,d:r&&r.env?diasAb(r):null};}).sort((a,b)=>b.p-a.p);
     const tal=L.filter(x=>x.e.estado!=="preparado"),pre=L.filter(x=>x.e.estado==="preparado"),sT=tal.reduce((s,x)=>s+x.p,0),sP=pre.reduce((s,x)=>s+x.p,0);ent("importe de los ejes en reparación");
@@ -203,6 +199,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     if(D.sinMot.length||D.sinResp.length||OL.length)nota("Pulsa en un cambio para ponerle el motivo o el responsable.");
     if(!D.sinMot.length&&!D.sinResp.length&&!OL.length)nota("Todo lo cambiado en "+per.t+" tiene motivo y responsable.");
     if(per.d<MOT_VACIO_DESDE)nota("Hasta el "+fmtF(sumaDias(MOT_VACIO_DESDE,-1))+" el motivo venía puesto solo si nadie lo cambiaba («Desgaste» en pistones, «Rotura» en barras y tornillos), así que de antes no se puede saber quién no lo elegía. Desde entonces empieza vacío y aquí sale quien no lo pone.");return;}
+  if(I.modo==="valorq"){pintaValor(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
   if(I.modo==="mas"){pintaMas(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
   if(I.modo==="averias"){pintaAveriasQ(Object.assign({maq:I.maq},I.av),P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);

@@ -1396,6 +1396,37 @@ test('Consultas: «valor de 2 tubos de westofen 21 y 3 krown 18» suma cada art�
   expect(err).toEqual([]);
 });
 
+test('Consultas de valor: cantidades en palabras, x2, IVA, ¿tengo para?, con un presupuesto, comparar, reponer, todo lo de y ref. del proveedor', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0], M1 = v.cat.app.maquinas[1];
+      v.cat.app.articulos.push({ id: 'hr-tdw21', cod: 'TD-W21', refProv: 'RTDW-021', desc: 'Tubo dosificador Westofen 21', fam: 'horno', grupo: 'Tubos dosificadores', ud: 'ud', alms: ['gen'], precio: '518.01', min: 6 },
+        { id: 'hr-tdk18', cod: 'TD-K18', refProv: 'RTDM-018', desc: 'Tubo dosificador Krown 18', fam: 'horno', grupo: 'Tubos dosificadores', ud: 'ud', alms: ['gen'], precio: '517.18', min: 2 },
+        { id: 'hr-tdk21', cod: 'TD-K21', refProv: 'RTDM-021', desc: 'Tubo dosificador Krown 21', fam: 'horno', grupo: 'Tubos dosificadores', ud: 'ud', alms: ['gen'], precio: '518.01' },
+        { id: 'hr-ccs040', cod: 'CCS-040', desc: 'Cono sin pestaña Westofen CCS-040', fam: 'horno', grupo: 'Conos', ud: 'ud', alms: ['gen'], precio: '243.6' });
+      v.mov[k].items.push({ id: 'st1', f: '2026-10-27', ts: 1, alm: 'gen', art: 'hr-tdw21', cant: 5, tipo: 'entrada' }, { id: 'st2', f: '2026-10-27', ts: 2, alm: 'gen', art: 'hr-tdk18', cant: 1, tipo: 'entrada' },
+        { id: 'st3', f: '2026-10-27', ts: 3, alm: 'gen', art: 'hr-ccs040', cant: 7, tipo: 'entrada' }, { id: 'st4', f: '2026-10-28', ts: 4, alm: 'gen', art: 'hr-ccs040', cant: 1, tipo: 'salida', maq: M1.id }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  const c1 = await page.evaluate(() => window.__D.cat.app.maquinas[1].cod);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); const t = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); expect(t, q).not.toMatch(/undefined|NaN|Infinity/); return t; };
+  expect(await resp('cuánto sale un par de conos CCS-040 con IVA')).toContain('Valor: 487,2 €');
+  expect(await resp('cuánto sale un par de conos CCS-040 con IVA')).toContain('Con IVA (21 %): 589,51 €');
+  expect(await resp('tubos westofen 21 x2')).toContain('Valor: 1036,02 €');
+  expect(await resp('valor de dos tubos westofen 21 y tres krown 18')).toContain('Valor: 2587,56 €');
+  expect(await resp('valor de 2 RTDW-021')).toContain('2 × Tubo dosificador Westofen 21');
+  expect(await resp('¿tengo para 2 tubos westofen 21 y 3 krown 18?')).toContain('Faltan 2');
+  expect(await resp('cuántos tubos krown 21 puedo comprar con 2000 €')).toContain('entran 3 ud');
+  expect(await resp('cuántos tubos krown 21 puedo comprar con 2.000 euros')).toContain('entran 3 ud');
+  expect(await resp('qué entra en 1500 €')).toContain('por orden de urgencia');
+  expect(await resp('qué es más caro, el tubo krown 18 o el westofen 21')).toContain('El más caro es Tubo dosificador Westofen 21');
+  expect(await resp('valor de todo lo de westofen')).toContain('vale');
+  expect(await resp('cuánto cuesta reponer los tubos dosificadores')).toContain('Reponer');
+  expect(await resp('valor de lo que se ha cambiado en la ' + c1 + ' este mes')).toContain('mantener la ' + c1);
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);
