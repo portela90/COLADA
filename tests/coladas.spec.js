@@ -344,3 +344,16 @@ test('Cierre de mes: «Antes de cerrar», recuento de cierre guardado aunque cua
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Kilos sin redondeos acumulados: una colada gastada entera (con un ajuste por medio) queda en 0 kg exactos', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      v.lotes.l4 = { nombre: 'C25193', material: 'L-2630', nave: 'Nave 1', donde: 'nave', kgInv: 25007, fardosInv: 34, entrada: '2026-09-27' };
+      const C = (i, f, u, fa) => ({ i, t: 'C', f, u, o: 'l4', fa });
+      v.mov['2026-10'].items.push(C('r1', '2026-10-01', 'Tarde', 4), C('r2', '2026-10-01', 'Noche', 3), C('r3', '2026-10-02', 'Noche', 3), C('r4', '2026-10-02', 'Mañana', 1), C('r5', '2026-10-02', 'Tarde', 4), C('r6', '2026-10-05', 'Tarde', 4),
+        { i: 'r7', t: 'A', f: '2026-10-05', o: 'l4', fa: 1, kg: 736, n: 'Recuento físico: 14 fardos (la app tenía 15)' }, C('r8', '2026-10-07', 'Mañana', 14)); } }); });
+  await page.goto(url); await page.waitForTimeout(900);
+  await expect(page.locator('body')).toContainText('34.200');
+  expect(err).toEqual([]);
+});

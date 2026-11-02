@@ -103,18 +103,28 @@ function saldos(){
     const ent=act.filter(r=>r.d===l.id),sal=act.filter(r=>r.o===l.id);
     let kN=l.kgInv||0,fN=l.fardosInv||0;
     ent.forEach(r=>{if(typeof r.kg==="number")kN+=r.kg;if(typeof r.fa==="number")fN+=r.fa;});
-    res[l.id]={l,ent,sal,ratio:fN>0?Math.round(kN/fN*100)/100:0};
+    res[l.id]={l,ent,sal,ratio:fN>0?Math.round(kN/fN*100)/100:0,rx:fN>0?kN/fN:0,kgC:{}};
   });
+  /* Los consumos se apuntan en fardos. Antes cada uno pasaba a kilos redondeando por su cuenta
+     (fardos × kg por fardo) y los redondeos se iban sumando: una colada podía acabar con 1-2 kg de más
+     o de menos y los ajustes no cuadraban. Ahora, tras cada consumo, la colada se queda justo en
+     fardos que quedan × kg por fardo (redondeado una vez), y ese consumo se lleva la diferencia. */
+  const ord=r=>(r.f||"")+"|"+(TURNOS.indexOf(r.u)+1)+"|"+String(r.ts||0).padStart(15,"0");
   for(const id in res){
-    const s=res[id],ap=r=>typeof r.kg==="number"?r.kg:(r.t==="C"&&typeof r.fa==="number"&&r.o&&res[r.o]?Math.round(r.fa*res[r.o].ratio):0);
+    const s=res[id],rx=s.rx;
+    const L=s.ent.map(r=>({r,io:1})).concat(s.sal.filter(r=>r.d!==id).map(r=>({r,io:-1}))).filter(x=>!(x.io===1&&x.r.o===id));
+    L.forEach((x,n)=>{x.n=n;});L.sort((a,b)=>ord(a.r).localeCompare(ord(b.r))||a.n-b.n);
     let kg=s.l.kgInv||0,fa=s.l.fardosInv||0;
-    s.ent.forEach(r=>{kg+=ap(r);fa+=(typeof r.fa==="number"?r.fa:0);});
-    s.sal.forEach(r=>{kg-=ap(r);fa-=(typeof r.fa==="number"?r.fa:0);});
+    L.forEach(({r,io})=>{const f=typeof r.fa==="number"?r.fa:0;
+      if(io===1){kg+=typeof r.kg==="number"?r.kg:0;fa+=f;return;}
+      if(typeof r.kg==="number"){kg-=r.kg;fa-=f;return;}
+      if(r.t==="C"&&f&&rx>0){const nf=fa-f,obj=nf>0?Math.round(nf*rx):nf===0?0:kg-Math.round(f*rx);const k=kg-obj;s.kgC[r.i]=k;kg=obj;fa=nf;return;}
+      fa-=f;});
     s.kg=kg;s.fa=fa;
   }
   return res;
 }
-function kgAp(r,S){return typeof r.kg==="number"?r.kg:(r.t==="C"&&typeof r.fa==="number"&&r.o&&S[r.o]?Math.round(r.fa*S[r.o].ratio):0);}
+function kgAp(r,S){if(typeof r.kg==="number")return r.kg;if(r.t==="C"&&typeof r.fa==="number"&&r.o&&S[r.o]){const k=S[r.o].kgC&&S[r.o].kgC[r.i];return k!=null?k:Math.round(r.fa*S[r.o].ratio);}return 0;}
 /* consumo medio = fardos consumidos / nº de días distintos con consumo (tu fórmula del Excel) */
 function diasConConsumo(){const d={};movs().forEach(r=>{if(r.t==="C"&&r.f)d[r.f]=1;});return Object.keys(d).length;}
 function bloques(diaFijo){

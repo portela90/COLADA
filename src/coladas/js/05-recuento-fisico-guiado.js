@@ -30,7 +30,7 @@ function abrirRecuento(nv,dn){if(typeof nv==="string")rcNave=nv;if(typeof dn==="
     const seg=(vals,cur,fn)=>el("div",{class:"seg"},vals.map(([v,t])=>el("button",{type:"button","aria-pressed":String(cur===v),text:t,onclick:()=>fn(v)})));
     go.onclick=async()=>{const S2=saldos(),recs=[],txt=[];
       ls.forEach(l=>{const v=cont[l.id];if(v==null||v==="")return;const x=parseInt(v,10);if(!(x>=0)||String(x)!==String(v).trim())return;
-        const b=S2[l.id],d=x-b.fa;if(!d)return;const r={i:uid("m"),t:"A",f:hoy(),kg:Math.round(Math.abs(d)*(b.ratio||0)),fa:Math.abs(d),n:"Recuento físico: "+x+" fardos (la app tenía "+b.fa+")"};
+        const b=S2[l.id],d=x-b.fa;if(!d)return;const r={i:uid("m"),t:"A",f:hoy(),kg:(()=>{const rx=b.rx||b.ratio||0,k0=Math.round(b.fa*rx),k1=Math.round(x*rx);return Math.abs(k0-k1);})(),fa:Math.abs(d),n:"Recuento físico: "+x+" fardos (la app tenía "+b.fa+")"};
         if(d>0)r.d=l.id;else r.o=l.id;recs.push(r);txt.push(l.nombre+": "+(d>0?"+":"−")+fmt(Math.abs(d))+" f (quedará en "+x+")");});
       if(gCont!==""){const g=numES(gCont);if(g>=0){const gk2=granallaKg(),d=Math.round((g-gk2)*1000)/1000;
         if(d){recs.push({i:uid("m"),t:"G",aj:true,f:hoy(),kg:d,n:"Recuento físico: "+g.toLocaleString("es-ES")+" kg (la app tenía "+(Math.round(gk2*100)/100).toLocaleString("es-ES")+")"});txt.push("Granalla de cobre: "+(d>0?"+":"−")+Math.abs(d).toLocaleString("es-ES")+" kg");}}}
