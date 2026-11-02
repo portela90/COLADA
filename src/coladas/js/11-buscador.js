@@ -113,7 +113,8 @@ function vBuscaCol(resto){
   function pinta0(){res.textContent="";sug.textContent="";if(resto)resto.hidden=!!nqC(bq.q);
     if(!nqC(bq.q)){sug.classList.add("bq-ej");const tp=window.BuscaAprende&&BuscaAprende.topUI(pon);if(tp)sug.appendChild(tp);sug.appendChild(ejemplos(EJ_COL,pon,bq));return;}
     sug.classList.remove("bq-ej");
-    const E=entenderC(window.BuscaAprende?BuscaAprende.aplicar("coladas",bq.q):bq.q),S=saldos();
+    /* un trozo de albarán («ceva26») se busca tal cual, aunque se haya enseñado como otra cosa */
+    const E0=intencionC2(nqC(bq.q)),E=E0&&E0.tok?E0:entenderC(window.BuscaAprende?BuscaAprende.aplicar("coladas",bq.q):bq.q),S=saldos();
     {const qa=" "+nqC(bq.q).replace(/\s+/g," ")+" ",AL=albaranes(),hit=Object.values(AL).filter(a=>{const k=albKey(a.alb);return k.length>=4&&(qa.replace(/\s/g,"").includes(k));}).slice(0,3);
       if(hit.length)res.appendChild(el("div",{class:"bq-ult"},[el("div",{class:"sub",text:hit.length===1?"Albarán encontrado":"Albaranes encontrados"})].concat(hit.map(a=>el("button",{type:"button",class:"btn",style:"justify-self:start",text:"Abrir el albarán "+a.alb+(a.prov?" · "+a.prov:"")+(a.f?" · "+dmyA(a.f):""),onclick:()=>abrirAlbaran(a.alb)})))));}
     if(E.modo==="precio")return pintaPrecio(E,res);

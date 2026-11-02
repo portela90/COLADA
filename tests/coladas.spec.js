@@ -252,6 +252,7 @@ test('Consultas: preguntas de la revisión semanal (fechas, camiones, albaranes,
     const mm = F.iso.slice(0, 7);
     await db.doc('cfg/app').update({ proveedores: ['BEFESA'] });
     await db.doc('lotes/k1').set({ nombre: 'C30001', material: 'L-2630', nave: 'Nave 1', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: F.iso, proveedor: 'BEFESA', albaran: 'CEVA2601688' });
+    await db.doc('lotes/k2').set({ nombre: 'C30002', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 700, fardosInv: 1, entrada: F.iso, proveedor: 'IDALSA', albaran: 'ZZZ-999' });
     await db.doc('mov/' + mm).set({ items: [{ i: 'e1', t: 'E', f: F.iso, d: 'k1', fa: 30, kg: 21000, a: 'CEVA2601688' }, { i: 'c1', t: 'C', f: F.iso, u: 'Mañana', o: 'k1', fa: 3, kg: 2100 }] });
     await db.doc('maq/' + mm).set({ items: [{ i: 'q1', f: F.iso, u: 'Mañana', m: 'CARG|Nave 2', on: false }, { i: 'q2', f: F.iso, u: 'Noche', m: 'CARG|Nave 2', on: true }] });
   }, F);
@@ -279,6 +280,7 @@ test('Consultas: preguntas de la revisión semanal (fechas, camiones, albaranes,
   const ap = await page.evaluate(() => { Object.assign(BuscaAprende.estado.sin, { 'coladas|tengo': 'cuantos aluminio necesito para diciembre 2026', 'coladas|an': 'alsi9', 'coladas|dia': 'que dia se estropeo el cargador en nave 2', 'coladas|proveedor': 'que cuantas cargas han entrado', 'coladas|ceva26': 'dame el albaran', 'coladas|blanquitas': 'alsi9' });
     return [BuscaAprende.aplicar('coladas', 'qué día tengo más proveedor'), BuscaAprende.aplicar('coladas', 'stock de las blanquitas'), BuscaAprende.aplicar('coladas', 'ceva26')]; });
   expect(ap).toEqual(['que dia tengo mas proveedor', 'stock de las alsi9', 'dame el albaran']);
+  r = await pregunta('Ceva26'); expect(r).toContain('1 albarán'); expect(r).not.toContain('ZZZ-999'); // aunque «ceva26» esté enseñada como otra cosa
   expect(err).toEqual([]);
 });
 
