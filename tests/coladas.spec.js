@@ -45,7 +45,8 @@ test('Consultas: gráficos de aluminio por mes', async ({ page }) => {
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
   await page.waitForTimeout(1500);
-  await expect(page.getByText('Aluminio por mes')).toBeVisible();
+  await page.locator('.stk-t', { hasText: 'Aluminio por mes' }).first().click(); await page.waitForTimeout(800);
+  await expect(page.locator('.stk-det h2', { hasText: 'Aluminio por mes' }).last()).toBeVisible();
   expect(await page.locator('.card svg').count()).toBeGreaterThanOrEqual(1);
   if (process.env.CAPTURA) { await page.evaluate(() => [...document.querySelectorAll('h2')].find(h => h.textContent === 'Aluminio por mes').scrollIntoView()); await page.waitForTimeout(300); await page.screenshot({ path: process.env.CAPTURA }); }
   expect(await desbordes(page)).toEqual([]);
@@ -315,6 +316,7 @@ test('Cierre de mes: «Antes de cerrar», recuento de cierre guardado aunque cua
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
   const card = page.locator('.card', { hasText: 'Antes de cerrar' }).last();
   await expect(card).toContainText(/recuento de cierre/i);
   await expect(card).toContainText('relevo');
@@ -362,7 +364,7 @@ test('Consumo por kilos: kilos de cada fardo, peso raro, se guarda con kilos rea
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
-  await page.locator('.seg button', { hasText: 'Por kilos' }).click(); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Por kilos' }).first().click(); await page.waitForTimeout(300);
   const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   await card.locator('select').first().selectOption({ label: '⬅ C25003 · 8 f' });
   await page.waitForTimeout(200);
@@ -375,8 +377,7 @@ test('Consumo por kilos: kilos de cada fardo, peso raro, se guarda con kilos rea
   await page.locator('.dlg button', { hasText: 'Registrar' }).click(); await page.waitForTimeout(600);
   const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'C').pop());
   expect(m.fa).toBe(3); expect(m.kg).toBe(1990); expect(m.pk).toEqual([650, 640, 700]); expect(m.o).toBe('l3');
-  // el resto de la colada (5 fardos) pesado: se acaba con 40 kg de menos
-  await page.locator('.seg button', { hasText: 'Por kilos' }).click(); await page.waitForTimeout(300);
+  // el resto de la colada (5 fardos) pesado: se acaba con 40 kg de menos (la ventana «Por kilos» sigue abierta)
   const card2 = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   await card2.locator('select').first().selectOption({ label: '⬅ C25003 · 5 f' }); await page.waitForTimeout(200);
   await card2.locator('input.num').first().fill('650 650 650 650 650'); await page.waitForTimeout(200);
@@ -412,6 +413,28 @@ test('Stock: panel de mosaicos que abren su ventana (lista al lado en el ordenad
   await expect(page.locator('.stk-side')).toBeHidden();
   await page.locator('.stk-volver-m').click(); await page.waitForTimeout(300);
   await expect(page.locator('.stk-grid')).toBeVisible();
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Consumo, Consultas y Plan: panel de mosaicos que abre cada ventana', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1300, height: 850 });
+  await page.goto(url); await page.waitForTimeout(900);
+  const ir = t => page.evaluate(t => [...document.querySelectorAll('nav button')].find(b => b.textContent === t).click(), t);
+  await ir('Consumo'); await page.waitForTimeout(400);
+  for (const t of ['Por relevo', 'Por kilos', 'Apunte suelto', 'Falta por apuntar']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
+  await page.locator('.stk-grid .stk-t', { hasText: 'Por relevo' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.stk-det')).toContainText('Consumo del relevo');
+  await ir('Consultas'); await page.waitForTimeout(600);
+  for (const t of ['Cierre de mes', 'Movimientos', 'Copia de seguridad']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
+  await page.locator('.stk-grid .stk-t', { hasText: 'Movimientos' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.stk-det')).toContainText('Consultar movimientos');
+  await expect(page.locator('.stk-det')).toContainText('Detalle');
+  await ir('Plan'); await page.waitForTimeout(600);
+  await expect(page.locator('.card', { hasText: 'Plan del mes' }).first()).toBeVisible();
+  await page.locator('.stk-grid .stk-t', { hasText: 'Valor del stock' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.stk-side .stk-t.on')).toContainText('Valor del stock');
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

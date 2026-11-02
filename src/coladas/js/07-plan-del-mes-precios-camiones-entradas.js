@@ -114,7 +114,8 @@ const eur=n=>(Math.round((n||0)*100)/100).toLocaleString("es-ES",{minimumFractio
 const nomMes=mes=>{const[y,mo]=mes.split("-");return["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+mo-1]+" "+y;};
 const etiqLinea=k=>{const[n,m]=k.split("|");return n+" · "+MAT[m].nom;};
 
-function vPlan(){
+function vPlan(){const a=vPlan0().filter(Boolean);return autoPanel("plan",a.slice(1),{},[a[0]]);}
+function vPlan0(){
   const m=mesPlan(),PL=plmes(),bl=bloques(),B=bl.B,S=bl.S;
   const provs=(cfg.proveedores||[]).slice().sort((a,b)=>a.localeCompare(b,"es"));
   const selMes=el("select",{id:"p-mes",onchange:e=>{planMes=e.target.value;render();}},

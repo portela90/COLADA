@@ -33,7 +33,7 @@ async function pulsarHueco(x){
     const que=(x.g?"Granalla de cobre · "+x.n:x.n)+" · "+diaSem(x.f)+" "+dmy(x.f)+" · "+x.t;
     const v=await dialogo({titulo:que,texto:"No hay "+(x.g?"consumo de granalla de cobre":"ningún consumo")+" apuntado en este relevo.\n\nSi hubo producción, apúntalo ahora. Si la línea estuvo parada, márcalo y dejará de avisar.",
       ok:"Apuntar ahora",extra:{text:"No hubo consumo",valor:"paro"}});
-    if(v===true){consModo="relevo";draft.rel={fecha:x.f,turno:x.t,L:{},g:{}};tab="consumo";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}
+    if(v===true){consModo="relevo";PANV.consumo="relevo";draft.rel={fecha:x.f,turno:x.t,L:{},g:{}};tab="consumo";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}
     else if(v==="paro"){cfg.paros=(cfg.paros||[]).concat([x.k]);try{await saveCfg();toast("Marcado: no hubo consumo");}catch(e){toast("No se pudo guardar");}}
   }
 function vHuecos(){

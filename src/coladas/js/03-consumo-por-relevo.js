@@ -88,6 +88,19 @@ function vRelevo(){
 }
 
 function vConsumo(){
+  let H=[];try{H=huecos();}catch(e){}const nH=H.reduce((s,d)=>s+d.falta.length,0);
+  const ult=todosMovs().filter(r=>r.t==="C"&&!r.h&&r.f&&r.u).sort((a,b)=>(a.f+TURNOS.indexOf(a.u)).localeCompare(b.f+TURNOS.indexOf(b.u))).pop();
+  const RS=typeof coladasConResto==="function"?coladasConResto():[];
+  const tiles=[
+    {v:"relevo",t:"Por relevo",sub:"Total de fardos de cada línea, reparto por FIFO"+(ult?" · último: "+dmy(ult.f)+" "+ult.u.toLowerCase():""),nodes:()=>{consModo="relevo";return vRelevo();}},
+    {v:"kilos",t:"Por kilos",sub:"Los kilos de cada fardo, copiados de la hoja del hornero",nodes:()=>{consModo="kilos";return vKilos();}},
+    {v:"suelto",t:"Apunte suelto",sub:"Una colada, un relevo",nodes:()=>{consModo="suelto";return vConsumo0().slice(1);}},
+    {v:"huecos",t:"Falta por apuntar",big:String(nH),u:nH===1?"relevo":"relevos",st:nH?"bad":"ok",pill:nH?"Revisar":"OK",sub:nH?"sin consumo apuntado":"todo apuntado",
+      nodes:()=>[vHuecos()||el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),el("div",{class:"empty",text:"Todos los relevos de las dos últimas semanas tienen consumo apuntado."})])]}];
+  if(RS.length)tiles.push({v:"restos",t:"Diferencias de peso",big:String(RS.length),u:RS.length===1?"colada":"coladas",st:"warn",sub:"acabadas con kilos de más o de menos",nodes:()=>[cardRestos()]});
+  return panelGen("consumo",tiles);
+}
+function vConsumo0(){
   if(consModo==="relevo")return [modoConsumo()].concat(vRelevo());
   if(consModo==="kilos")return [modoConsumo()].concat(vKilos());
   const d=draft.cons;if(!d.fecha)d.fecha=hoy();if(!d.turno)d.turno=TURNOS[0];

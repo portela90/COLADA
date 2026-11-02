@@ -458,7 +458,9 @@ function vConsultas(){
       rows.length?detalle:el("div",{class:"empty",text:"Ningún apunte con esos filtros."})]),
     copia
   ]);
-  return [vBuscaCol(resto),resto];
+  /* panel de mosaicos: el buscador arriba y cada parte en su ventana */
+  const cont=el("div",{class:"bq-resto"},autoPanel("hist",[...resto.children],{juntar:{"Consumo por nave y relevo":"Consultar movimientos","Detalle":"Consultar movimientos"},nombre:{"Consultar movimientos":"Movimientos"},sub:{"Aluminio por mes":"consumo y entradas de los últimos 12 meses"}}));
+  return [vBuscaCol(cont),cont];
 }
 function vMin(){
   const rows=[];
