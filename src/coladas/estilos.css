@@ -271,3 +271,31 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .kil-f small{color:var(--mut);font-size:11px;font-family:inherit}
 .kil-f.raro{background:var(--warn-bg);border-color:transparent;color:var(--warn);font-weight:600}
 .kil-pie{font-size:13px;color:var(--mut)}
+
+/* Stock: panel de mosaicos y ventanas */
+.stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.stk-t{appearance:none;font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.stk-t:hover{border-color:var(--acc)}
+.stk-t:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.stk-t.s-ok{border-left-color:var(--ok)}.stk-t.s-warn{border-left-color:var(--warn)}.stk-t.s-bad{border-left-color:var(--bad)}
+.stk-t-hd{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.stk-t-hd .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.stk-t-t{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);min-width:0;overflow-wrap:anywhere}
+.stk-t-hd .pill{margin-left:auto;flex:none}
+.stk-t-big b{font-size:30px;font-weight:600;line-height:1.1}
+.stk-t-big span{font-size:13px;color:var(--mut)}
+.stk-t-sub{font-size:13px;color:var(--mut)}
+.stk-pan{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+.stk-side{display:flex;flex-direction:column;gap:8px;position:sticky;top:0}
+.stk-t.mini{padding:8px 10px;gap:2px;box-shadow:none}
+.stk-t.mini .stk-t-big b{font-size:18px}
+.stk-t.mini .stk-t-t{font-size:11px}
+.stk-t.mini .stk-t-sub{font-size:12px}
+.stk-t.mini.on{background:var(--acc-soft);border-color:var(--acc)}
+.stk-volver{appearance:none;font:inherit;font-size:14px;font-weight:600;text-align:left;background:none;border:0;color:var(--acc);cursor:pointer;padding:4px 2px}
+.stk-det{display:flex;flex-direction:column;gap:16px;min-width:0}
+.stk-det-hd{display:none;align-items:center;gap:12px}
+.stk-det-hd h2{margin:0;font-size:18px}
+.stk-volver-m{display:none}
+@media (max-width:899px){.stk-pan{grid-template-columns:minmax(0,1fr)}.stk-side{display:none}.stk-det-hd{display:flex}.stk-volver-m{display:inline-flex}}
+@media (max-width:420px){.stk-t{padding:10px 11px}.stk-t-big b{font-size:24px}}

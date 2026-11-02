@@ -324,12 +324,9 @@ function vStock(){
     el("div",{class:"foot"},[el("button",{type:"button",class:"btn sec",style:"font-size:13px;padding:5px 10px",text:"Ajustar por recuento",onclick:ajustarGranalla})])
   ]));
   const alerta=Object.keys(B).filter(k=>{const b=B[k];return b.dias!=null&&b.dias<=5&&pasaF(b.nave,b.mat);}).map(k=>B[k]);
-  const der=[vHuecos(),vPrevision(),vMaquinas(),g];
-  if(alerta.length)der.push(el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}));
-  der.push(vMin());
-  /* en el ordenador: coladas y parte a la izquierda, el resto a la derecha; en el móvil, una cosa debajo de otra como siempre */
-  const out=[avisoCierre(),filtroStock(B),dosCol([coladasStock(),parte],der,"ancha-izq")].filter(Boolean);
-  out.push(el("p",{class:"hint",text:"El gasto medio sale de "+dias+" días distintos con consumo registrado. Los días de material cuentan sólo los fardos que están en la nave: lo del almacén externo no se puede fundir hasta traerlo."}));
-  return out;
+  const alertaN=alerta.length?el("div",{class:"banner b",text:"Queda material para "+alerta.map(b=>b.nave+" "+MAT[b.mat].nom+": "+b.dias+" día"+(b.dias===1?"":"s")).join(" · ")+". Conviene traer del almacén externo o pedir."}):null;
+  const hint=el("p",{class:"hint",text:"El gasto medio sale de "+dias+" días distintos con consumo registrado. Los días de material cuentan sólo los fardos que están en la nave: lo del almacén externo no se puede fundir hasta traerlo."});
+  /* panel de mosaicos; al abrir uno, en el ordenador la lista queda a la izquierda y el detalle a la derecha */
+  return stockPanel({B,P,ud,g,parte,alertaN,hint,gk,gm,gst});
 }
 

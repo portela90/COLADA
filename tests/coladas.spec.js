@@ -393,3 +393,25 @@ test('Consumo por kilos: kilos de cada fardo, peso raro, se guarda con kilos rea
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Stock: panel de mosaicos que abren su ventana (lista al lado en el ordenador) y vuelven al panel', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1300, height: 850 });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => { try { localStorage.removeItem('colada.stkv'); } catch (e) {} });
+  await page.reload(); await page.waitForTimeout(900);
+  for (const t of ['Granalla de cobre', 'Máquinas', 'Falta por apuntar', 'Parte del día', 'Previsión de gasto', 'Mínimos']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
+  await page.locator('.stk-grid .stk-t', { hasText: 'Máquinas' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.stk-side')).toBeVisible();
+  await expect(page.locator('.stk-side .stk-t.on')).toContainText('Máquinas');
+  await expect(page.locator('.stk-det')).toContainText('Cargador de bebederos');
+  await page.locator('.stk-side .stk-t', { hasText: 'Nave 1' }).first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.stk-det')).toContainText('Coladas');
+  expect(await desbordes(page)).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+  await expect(page.locator('.stk-side')).toBeHidden();
+  await page.locator('.stk-volver-m').click(); await page.waitForTimeout(300);
+  await expect(page.locator('.stk-grid')).toBeVisible();
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
