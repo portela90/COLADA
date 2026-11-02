@@ -340,7 +340,7 @@ function vCierre(){
       el("label",{text:"Mes"},[sel]),
       (cfg.cierres||{})[cierreMes]&&cfg.cierres[cierreMes].enviado?el("p",{class:"hint",text:"Enviado por correo el "+dmyA((cfg.cierres[cierreMes].enviado||"").slice(0,10))+(cfg.cierres[cierreMes].a?" a "+cfg.cierres[cierreMes].a:"")+"."}):null,
       el("p",{class:"hint",text:(I.completo?periodo(I)+" ":I.arranque?"La app arrancó el "+dmyA(I.arranque)+" con inventario físico: ese es el inicial. ":"")+"Entradas "+fmt(tE)+" kg · Consumo "+fmt(tC)+" kg · Stock final "+fmt(tF)+" kg."+(cierreMes===act?" El mes aún no ha terminado: el final es el de hoy.":"")}),
-      tabla,tablaPrev,valor,cobre,
+      typeof bloqueAntesCierre==="function"?bloqueAntesCierre(I):null,tabla,typeof bloqueFabrica==="function"?bloqueFabrica(I):null,tablaPrev,valor,cobre,
       incluirChips("cierre",opsCierre(I),null,"Qué incluir al copiar, descargar o enviar (se recuerda):").node,
       el("div",{class:"seg"},[
         el("button",{type:"button",class:"btn",text:"Informe de cierre (Excel)",onclick:e=>bajar(e,()=>excelCierre(I),"cierre-colada-"+cierreMes+".xlsx","Informe descargado")}),

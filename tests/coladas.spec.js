@@ -310,3 +310,37 @@ test('Consultas: tocar una fila de la respuesta abre la colada', async ({ page }
   await expect(page.locator('.ficha-ov').last()).toContainText('C2500');
   expect(err).toEqual([]);
 });
+
+test('Cierre de mes: «Antes de cerrar», recuento de cierre guardado aunque cuadre y comparar con la fábrica', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  const card = page.locator('.card', { hasText: 'Antes de cerrar' }).last();
+  await expect(card).toContainText(/recuento de cierre/i);
+  await expect(card).toContainText('relevo');
+  // comparar con la fábrica: inicio 7000 kg menos en la primera línea
+  const det = page.locator('details', { hasText: 'Comparar con el cierre de la fábrica' }).first();
+  await det.locator('summary').click(); await page.waitForTimeout(200);
+  const ins = det.locator('tbody tr').first().locator('input');
+  const apps = await det.locator('tbody tr').first().locator('td .sub').allTextContents();
+  const n = s => parseInt(s.replace(/[^0-9-]/g, ''), 10) || 0;
+  const v = apps.slice(1).map(n);
+  await ins.nth(0).fill(String(v[0] - 7000)); await ins.nth(1).fill(String(v[1])); await ins.nth(2).fill(String(v[2])); await ins.nth(3).fill(String(v[3] - 7000));
+  await det.getByRole('button', { name: 'Comparar' }).click(); await page.waitForTimeout(600);
+  await expect(det).toContainText('Empezáis de distinto stock');
+  await expect(det).toContainText('no cuadra');
+  const fab = await page.evaluate(() => JSON.stringify(window.__D.cfg));
+  expect(fab).toContain('"fab"');
+  // recuento de cierre: todo cuadra → se guarda igual
+  const chip = card.locator('.chip', { hasText: /contar|✓/ }).first();
+  if (await chip.count()) {
+    await chip.click(); await page.waitForTimeout(400);
+    const filas = page.locator('.rc-ov tbody tr');
+    const k = await filas.count();
+    for (let i = 0; i < k; i++) { const app = await filas.nth(i).locator('td').nth(1).textContent(); await filas.nth(i).locator('input').fill(String(n(app))); }
+    await page.locator('.rc-ov button', { hasText: 'Guardar recuento (todo cuadra)' }).click(); await page.waitForTimeout(600);
+    await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.cfg))).toContain('"recuentos"');
+  }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

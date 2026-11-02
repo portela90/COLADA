@@ -6,10 +6,10 @@
 const diaSig=f=>{const d=new Date(+f.slice(0,4),+f.slice(5,7)-1,+f.slice(8,10)+1);return ymd(d);};
 const DSEM=["dom","lun","mar","mié","jue","vie","sáb"];
 const diaSem=f=>DSEM[new Date(+f.slice(0,4),+f.slice(5,7)-1,+f.slice(8,10)).getDay()];
-function huecos(){
+function huecos(d0,d1){
   const ms=todosMovs().filter(r=>!r.h&&r.f),cons=ms.filter(r=>r.t==="C"&&r.u),gran=ms.filter(r=>r.t==="G"&&!r.aj&&r.kg<0&&r.u);
   if(!cons.length)return[];
-  const ini=cons.map(r=>r.f).sort()[0],lim=ymd(new Date(Date.now()-14*864e5)),desde=ini>lim?ini:lim,ayer=diaAntes(hoy());
+  const ini=cons.map(r=>r.f).sort()[0],lim=d0||ymd(new Date(Date.now()-14*864e5)),desde=ini>lim?ini:lim,ayer=d1&&d1<diaAntes(hoy())?d1:diaAntes(hoy());
   const paros=new Set(cfg.paros||[]),conDatos=new Set(ms.map(r=>r.f));
   const gIni=gran.length?gran.map(r=>r.f).sort()[0]:null,gNaves=NAVES.filter(n=>gran.some(r=>r.nv===n));
   const naveDe=r=>{const l=lotes.find(x=>x.id===r.o);return l?l.nave:r.nv;};
@@ -29,6 +29,13 @@ function huecos(){
   }
   return out;
 }
+async function pulsarHueco(x){
+    const que=(x.g?"Granalla de cobre · "+x.n:x.n)+" · "+diaSem(x.f)+" "+dmy(x.f)+" · "+x.t;
+    const v=await dialogo({titulo:que,texto:"No hay "+(x.g?"consumo de granalla de cobre":"ningún consumo")+" apuntado en este relevo.\n\nSi hubo producción, apúntalo ahora. Si la línea estuvo parada, márcalo y dejará de avisar.",
+      ok:"Apuntar ahora",extra:{text:"No hubo consumo",valor:"paro"}});
+    if(v===true){consModo="relevo";draft.rel={fecha:x.f,turno:x.t,L:{},g:{}};tab="consumo";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}
+    else if(v==="paro"){cfg.paros=(cfg.paros||[]).concat([x.k]);try{await saveCfg();toast("Marcado: no hubo consumo");}catch(e){toast("No se pudo guardar");}}
+  }
 function vHuecos(){
   const H=huecos(),lim=ymd(new Date(Date.now()-30*864e5));
   /* marcados "no hubo consumo" del último mes, para poder deshacerlos */
@@ -42,13 +49,7 @@ function vHuecos(){
     el("summary",{text:"Marcados como «no hubo consumo» ("+P.length+")"}),
     el("div",{class:"paros-lista"},P.map(k=>el("div",{class:"paro"},[el("span",{text:txtParo(k)}),
       el("button",{type:"button",class:"btn sec del edit",text:"Deshacer",onclick:()=>deshacer(k)})])))]):null;
-  const pulsar=async x=>{
-    const que=(x.g?"Granalla de cobre · "+x.n:x.n)+" · "+diaSem(x.f)+" "+dmy(x.f)+" · "+x.t;
-    const v=await dialogo({titulo:que,texto:"No hay "+(x.g?"consumo de granalla de cobre":"ningún consumo")+" apuntado en este relevo.\n\nSi hubo producción, apúntalo ahora. Si la línea estuvo parada, márcalo y dejará de avisar.",
-      ok:"Apuntar ahora",extra:{text:"No hubo consumo",valor:"paro"}});
-    if(v===true){consModo="relevo";draft.rel={fecha:x.f,turno:x.t,L:{},g:{}};tab="consumo";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}
-    else if(v==="paro"){cfg.paros=(cfg.paros||[]).concat([x.k]);try{await saveCfg();toast("Marcado: no hubo consumo");}catch(e){toast("No se pudo guardar");}}
-  };
+  const pulsar=pulsarHueco;
   return el("div",{class:"card"},[
     el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),tot?el("span",{class:"pill warn",style:"margin-left:auto",text:tot+" relevo"+(tot===1?"":"s")}):el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),
     el("div",{class:"bd hueco-lista"},H.map(d=>el("div",{class:"hueco-dia"},[

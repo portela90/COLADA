@@ -3,7 +3,7 @@
    y se apuntan de golpe los ajustes de las que no cuadran. Las casillas en
    blanco no se tocan. */
 let rcNave="Nave 1",rcDonde="nave";
-function abrirRecuento(){
+function abrirRecuento(nv,dn){if(typeof nv==="string")rcNave=nv;if(typeof dn==="string")rcDonde=dn;
   const prev=document.querySelector(".rc-ov");if(prev)prev.remove();
   const body=el("div",{class:"ficha-body"}),cont={};let gCont="";
   const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};
@@ -20,7 +20,7 @@ function abrirRecuento(){
         if(c){c.textContent=isNaN(gd)?"número":(gd?(gd>0?"+":"−")+Math.abs(gd).toLocaleString("es-ES")+" kg":"cuadra");c.className="rc-dif"+(isNaN(gd)?" mal":(gd?(gd>0?" mas":" menos"):" ok"));}}
       const tot=n+(gd&&!isNaN(gd)?1:0);
       res.textContent=cont2||gCont!==""?(tot?tot+" diferencia"+(tot===1?"":"s")+" para ajustar · "+cont2+" de "+ls.length+" coladas contadas":"Todo lo contado cuadra ("+cont2+" de "+ls.length+" coladas)"):"Escribe los fardos que cuentas. Las casillas en blanco no se tocan.";
-      res.className="banner"+(tot?" w":"");go.disabled=!tot;};
+      res.className="banner"+(tot?" w":"");go.disabled=!tot&&!cont2;go.textContent=tot?"Apuntar ajustes":"Guardar recuento (todo cuadra)";};
     const filas=ls.map(l=>{const b=S[l.id];return el("tr",{},[
       el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[l.material].col}),document.createTextNode(l.nombre),el("div",{class:"sub",text:MAT[l.material].nom+" · entró "+dmy(l.entrada)})]),
       el("td",{class:"r num",text:fmt(b.fa)}),
@@ -34,10 +34,12 @@ function abrirRecuento(){
         if(d>0)r.d=l.id;else r.o=l.id;recs.push(r);txt.push(l.nombre+": "+(d>0?"+":"−")+fmt(Math.abs(d))+" f (quedará en "+x+")");});
       if(gCont!==""){const g=numES(gCont);if(g>=0){const gk2=granallaKg(),d=Math.round((g-gk2)*1000)/1000;
         if(d){recs.push({i:uid("m"),t:"G",aj:true,f:hoy(),kg:d,n:"Recuento físico: "+g.toLocaleString("es-ES")+" kg (la app tenía "+(Math.round(gk2*100)/100).toLocaleString("es-ES")+")"});txt.push("Granalla de cobre: "+(d>0?"+":"−")+Math.abs(d).toLocaleString("es-ES")+" kg");}}}
-      if(!recs.length)return;
+      const nCont=ls.filter(l=>{const v=cont[l.id];return v!=null&&v!==""&&String(parseInt(v,10))===String(v).trim();}).length;
+      const marca=async()=>{cfg.recuentos=(cfg.recuentos||[]).concat([{f:hoy(),nave:rcNave,donde:rcDonde,n:nCont,de:ls.length,dif:recs.length}]).slice(-200);try{await saveCfg();}catch(e){}};
+      if(!recs.length){if(!nCont)return;await marca();toast("Recuento guardado: todo cuadra");Object.keys(cont).forEach(k=>delete cont[k]);gCont="";pinta();return;}
       if(!(await confirmar(rcNave+" · "+(rcDonde==="nave"?"en nave":"almacén externo")+" · "+dmy(hoy())+"\n\n"+txt.join("\n"),{titulo:"Apuntar "+recs.length+" ajuste"+(recs.length===1?"":"s"),ok:"Apuntar"})))return;
       go.disabled=true;
-      try{await addMovs(recs);toast(recs.length+" ajuste"+(recs.length===1?"":"s")+" apuntado"+(recs.length===1?"":"s"));
+      try{await addMovs(recs);await marca();toast(recs.length+" ajuste"+(recs.length===1?"":"s")+" apuntado"+(recs.length===1?"":"s"));
         Object.keys(cont).forEach(k=>delete cont[k]);gCont="";pinta();}
       catch(e){go.disabled=false;toast("No se pudo guardar");}};
     body.appendChild(el("div",{class:"wrap"},[
