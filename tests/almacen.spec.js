@@ -1377,6 +1377,25 @@ test('Cambiar el precio de un artículo guarda el anterior (historial de precios
   expect(err).toEqual([]);
 });
 
+test('Consultas: «valor de 2 tubos de westofen 21 y 3 krown 18» suma cada artículo a su precio', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      v.cat.app.articulos.push({ id: 'hr-tdw21', cod: 'TD-W21', desc: 'Tubo dosificador Westofen 21', fam: 'horno', grupo: 'Tubos dosificadores', ud: 'ud', alms: ['gen'], precio: '518.01' },
+        { id: 'hr-tdk18', cod: 'TD-K18', desc: 'Tubo dosificador Krown 18', fam: 'horno', grupo: 'Tubos dosificadores', ud: 'ud', alms: ['gen'], precio: '517.18' },
+        { id: 'hr-jcf180', cod: 'JCF-180', desc: 'Junta tubo dosificador Westofen JCF-180', fam: 'horno', ud: 'ud', alms: ['gen'], precio: '22' },
+        { id: 'hr-jplk1', cod: 'JPL-K1', desc: 'Junta puerta limpieza Krown (horno anterior a 2018)', fam: 'horno', ud: 'ud', alms: ['gen'] }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  let t = await resp('Dime el valor de 2 tubos de westofen 21 y 3 krown 18');
+  expect(t).toContain('Valor: 2587,56 €'); expect(t).toContain('2 × Tubo dosificador Westofen 21'); expect(t).toContain('3 × Tubo dosificador Krown 18');
+  t = await resp('cuánto valen 2 tubos westofen 21');
+  expect(t).toContain('Valor: 1036,02 €');
+  expect(err).toEqual([]);
+});
+
 test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averías en la inyectora', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);
