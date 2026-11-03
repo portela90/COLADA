@@ -438,3 +438,39 @@ test('Consumo, Consultas y Plan: panel de mosaicos que abre cada ventana', async
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cuadra o ajusta, y da el parte para compras', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  const k = 'Nave 1|L-2630';
+  const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
+  const ya1 = Number(await page.locator(`[id="rdr-${k}-1"]`).getAttribute('placeholder')) || 0;
+  await expect(page.locator('#rd-go')).toBeDisabled();
+  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ya0 + 2));
+  await page.locator(`[id="rdr-${k}-1"]`).fill(Array(ya1).fill('720').concat(['700', '710']).join(' '));
+  await expect(card).toContainText((ya1 + 2) + ' f · ');
+  await card.locator('.rd-fifo').first().click(); // pone lo que quedaría por FIFO: 8 - 4
+  await expect(card).toContainText('Cuadra: 4 fardos');
+  await page.locator('[id="rdc-l3"]').fill('3'); // uno más gastado de lo que dicen las hojas
+  await expect(card).toContainText('en las hojas falta 1 fardo');
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Lo contado es lo correcto' }).click(); await page.waitForTimeout(700);
+  const ms = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => /Recuento diario/.test(r.n || '')));
+  const C = ms.filter(r => r.t === 'C'), A = ms.filter(r => r.t === 'A');
+  expect(C.reduce((s, r) => s + r.fa, 0)).toBe(4);
+  expect(C.find(r => r.pk)).toMatchObject({ fa: 2, pk: [700, 710], kg: 1410, o: 'l3' });
+  expect(A).toHaveLength(1); expect(A[0]).toMatchObject({ o: 'l3', fa: 1 });
+  const S = await page.evaluate(() => window.__D.cfg.app.rdiario);
+  expect(S.c.l3).toBe(3);
+  // tras guardar se abre el parte para compras
+  await expect(page.locator('.dlg textarea')).toHaveValue(/PARTE DE ALUMINIO/);
+  await expect(page.locator('.dlg textarea')).toHaveValue(/NAVE 1 · ALSI9[\s\S]*Queda en nave: 3 f[\s\S]*C25003: 3 f[\s\S]*Queda en externo/);
+  await page.locator('.dlg button', { hasText: 'Cerrar' }).click();
+  // la próxima vez empieza en el relevo de hoy: lo ya apuntado sale como «ya apuntados»
+  await expect(page.locator('.stk-t', { hasText: 'Recuento diario' }).first()).toContainText('Hecho');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

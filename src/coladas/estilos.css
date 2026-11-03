@@ -299,3 +299,18 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .stk-volver-m{display:none}
 @media (max-width:899px){.stk-pan{grid-template-columns:minmax(0,1fr)}.stk-side{display:none}.stk-det-hd{display:flex}.stk-volver-m{display:inline-flex}}
 @media (max-width:420px){.stk-t{padding:10px 11px}.stk-t-big b{font-size:24px}}
+/* recuento diario */
+.rd-sec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.rd-rels{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.rd-rel{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink2);min-width:0}
+.rd-rel small{color:var(--mut)}
+.rd-rel input,.rd-col input{font-size:18px;text-align:right;width:100%;min-width:0}
+.rd-ya{font-size:12px;color:var(--mut);min-height:1em}.rd-ya.mal{color:var(--bad)}
+.rd-col{display:grid;grid-template-columns:minmax(0,1fr) 64px 80px 48px;gap:8px;align-items:center}
+.rd-col.hdr{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.rd-col.hdr span:not(:first-child){text-align:right}
+.rd-n{min-width:0;overflow-wrap:anywhere;font-size:14.5px}.rd-n small{color:var(--mut)}
+.rd-fifo{appearance:none;background:var(--surf2);border:1px dashed var(--line);border-radius:7px;padding:6px 4px;color:var(--ink2);font-size:14px;cursor:pointer;text-align:right}
+.rd-gas{text-align:right;font-size:14px;color:var(--ink2)}.rd-gas.mal{color:var(--bad);font-weight:700}
+.rd-col input.mal{border-color:var(--bad)}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
