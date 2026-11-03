@@ -32,7 +32,7 @@ function leerRD(t,media){t=String(t||"").trim();if(!t)return null;
   if(nums.some(n=>n<100))return{error:"Mezcla de fardos y kilos: escribe o el número de fardos o los kilos de cada fardo."};
   return{fa:nums.length,k:nums};}
 function vRecuentoDiario(){
-  const d=draft.rd=draft.rd||{};if(!d.R)d.R={};if(!d.C)d.C={};
+  const d=draft.rd=draft.rd||{};if(!d.R)d.R={};if(!d.C)d.C={};if(!d.K)d.K={};
   const {S}=bloques();const R=relevosRD(),h=hoy();
   const lineas=LINEAS.filter(([n,m])=>fifoLista(n,m,S).length);
   const ms=todosMovs();
@@ -45,6 +45,16 @@ function vRecuentoDiario(){
         if(p&&p.error){o.err=p.error;err++;}
         else if(p){if(p.fa<yaFa){o.err="Ya hay "+yaFa+" f apuntados en este relevo: escribe el total de la hoja (como mínimo "+yaFa+").";err++;}
           else{o.nuevo=p.fa-yaFa;o.kNuevo=p.k.length?p.k.slice(yaFa):[];if(p.kgT){o.kgT=p.kgT;}if(o.nuevo)algo=true;}}
+        /* pesos por colada (cuando han bajado varias): mandan sobre la casilla del relevo */
+        const K=((d.K[k]||{})[j])||{},ids=lista.map(l=>l.id).filter(id=>String(K[id]||"").trim());
+        if(ids.length&&!(p&&p.error)){const por=[];let tf=0,mal="";
+          ids.forEach(id=>{const q=leerRD(K[id],mediaCol(S[id]));if(!q)return;if(q.error){mal=nomLote(id)+": "+q.error;return;}
+            const yl=ya.filter(x=>x.o===id).reduce((a,x)=>a+(x.fa||0),0);if(q.fa<yl){mal=nomLote(id)+": ya hay "+yl+" f apuntados de esta colada en este relevo.";return;}
+            tf+=q.fa;por.push({id,nuevo:q.fa-yl,kNuevo:q.k.length?q.k.slice(yl):[],kgT:q.kgT?q.kgT*(q.fa-yl)/q.fa:0});});
+          if(!mal&&tf<yaFa)mal="La suma por colada ("+tf+" f) es menos que lo ya apuntado en este relevo ("+yaFa+" f).";
+          if(!mal&&p&&p.fa!==tf)mal="La casilla del relevo dice "+p.fa+" f y la suma por colada "+tf+" f.";
+          if(mal){o.err=mal;err++;o.nuevo=0;o.kNuevo=[];}
+          else{o.por=por;o.porFa=tf;o.nuevo=por.reduce((a,x)=>a+x.nuevo,0);o.kNuevo=[];o.kgT=0;if(o.nuevo)algo=true;}}
         return o;});
       const tRel=rel.reduce((a,o)=>a+o.nuevo,0);
       const exp={};fifoReparto(lista,tRel,S).forEach(x=>{if(x.lote)exp[x.lote]=(exp[x.lote]||0)+numES(x.fa);});
@@ -57,7 +67,7 @@ function vRecuentoDiario(){
       const msg=[];
       const faltan=C.filter(o=>o.vacio).length;if(faltan)msg.push(["i","Falta contar "+faltan+" colada"+(faltan===1?"":"s")+". Si no ha cambiado, pulsa su número «Por FIFO»."]);
       C.forEach(o=>{if(o.gas<0){msg.push(["b",o.l.nombre+": has contado "+o.c+" y en la app quedaban "+o.s+". Si es así se apunta un ajuste de +"+(-o.gas)+" f; si ha subido algo del externo, apunta antes el traslado."]);avisos++;}});
-      if(!faltan&&!C.some(o=>o.err)){
+      if(!faltan&&!C.some(o=>o.err)&&!rel.some(o=>o.err)){
         if(tCnt!==tRel){avisos++;msg.push(["w","Las hojas dicen "+tRel+" fardos y el recuento dice que se han gastado "+tCnt+(tCnt>tRel?": en las hojas falta"+(tCnt-tRel===1?" 1 fardo":"n "+(tCnt-tRel)+" fardos"):": en las hojas sobra"+(tRel-tCnt===1?" 1 fardo":"n "+(tRel-tCnt)+" fardos"))+". Se guarda lo contado y la diferencia queda como ajuste."]);}
         else if(tRel)msg.push(["ok","Cuadra: "+tRel+" fardo"+(tRel===1?"":"s")+" en las hojas y en el recuento."]);
         const usadas=C.filter(o=>o.gas>0);const fuera=usadas.length>1||(usadas.some(o=>o.gas>(exp[o.l.id]||0))&&C.some(o=>(exp[o.l.id]||0)>0&&(o.gas||0)<exp[o.l.id]));
@@ -70,12 +80,13 @@ function vRecuentoDiario(){
   const plan=C=>{const recs=[],aj=[];
     Object.values(C.out).forEach(o=>{const cap={};o.C.forEach(x=>{cap[x.l.id]=Math.max(0,x.gas||0);});const asig={};
       const orden=o.C.map(x=>x.l.id);
-      o.rel.forEach(rr=>{let rem=rr.nuevo,kk=rr.kNuevo.slice();if(!rem)return;const tomar=(id,q)=>{const pk=kk.splice(0,q);
+      o.rel.forEach(rr=>{let rem=rr.nuevo,kk=rr.kNuevo.slice();if(!rem)return;const tomar=(id,q,lst,kgT,tot)=>{const pk=(lst||kk).splice(0,q);
           const r={i:uid("m"),t:"C",f:rr.r.f,u:rr.r.u,o:id,fa:q,n:"Recuento diario"};
           if(pk.length===q&&q){r.pk=pk;r.kg=Math.round(pk.reduce((a,b)=>a+b,0)*100)/100;}
-          else if(rr.kgT){r.kg=Math.round(rr.kgT*q/rr.nuevo);r.n+=" · kilos totales del relevo";}
-          recs.push(r);asig[id]=(asig[id]||0)+q;rem-=q;};
-        for(const id of orden){if(rem<=0)break;const q=Math.min(rem,cap[id]);if(q>0){cap[id]-=q;tomar(id,q);}}
+          else if(kgT!=null?kgT:rr.kgT){r.kg=Math.round((kgT!=null?kgT:rr.kgT)*q/(tot||rr.nuevo));r.n+=" · kilos totales del relevo";}
+          recs.push(r);asig[id]=(asig[id]||0)+q;cap[id]=Math.max(0,(cap[id]||0)-q);rem-=q;};
+        if(rr.por){rr.por.forEach(x=>{if(x.nuevo>0)tomar(x.id,x.nuevo,x.kNuevo.slice(),x.kgT||null,x.nuevo);});return;}
+        for(const id of orden){if(rem<=0)break;const q=Math.min(rem,cap[id]);if(q>0)tomar(id,q);}
         for(const id of orden){if(rem<=0)break;const libre=(S[id].fa-(asig[id]||0));const q=Math.min(rem,Math.max(0,libre));if(q>0)tomar(id,q);}
         if(rem>0&&orden.length)tomar(orden[orden.length-1],rem);});
       o.C.forEach(x=>{const queda=x.s-(asig[x.l.id]||0),df=queda-x.c;if(!df)return;const rx=S[x.l.id].rx||S[x.l.id].ratio||0;
@@ -87,7 +98,7 @@ function vRecuentoDiario(){
   const cards=lineas.map(([n,m])=>{const k=key(n,m),lista=fifoLista(n,m,S);d.R[k]=d.R[k]||{};
     const pill=el("span",{style:"margin-left:auto"}),res=el("div",{style:"display:flex;flex-direction:column;gap:6px"});
     const rels=R.map((r,j)=>{const ya=yaDe(r,n,m),yaFa=ya.reduce((a,x)=>a+(x.fa||0),0),sub=relSub(r,j),info=el("span",{class:"rd-ya"});
-      vivos.push(C=>{const o=C.out[k].rel[j];info.textContent=o.p&&!o.err&&o.p.k.length?o.p.fa+" f · "+fmt(o.p.k.reduce((a,b)=>a+b,0))+" kg":o.p&&o.p.kgT?"≈ "+o.p.fa+" f":yaFa?"ya apuntados "+yaFa+" f":"";
+      vivos.push(C=>{const o=C.out[k].rel[j];info.textContent=o.por&&!o.err?"por colada: "+o.porFa+" f":o.p&&!o.err&&o.p.k.length?o.p.fa+" f · "+fmt(o.p.k.reduce((a,b)=>a+b,0))+" kg":o.p&&o.p.kgT?"≈ "+o.p.fa+" f":yaFa?"ya apuntados "+yaFa+" f":"";
         info.className="rd-ya"+(o.err?" mal":"");});
       return el("label",{class:"rd-rel"},[el("span",{class:"rd-rl"},[document.createTextNode(relLbl(r,j)),sub?el("small",{text:" ("+sub+")"}):null]),
         el("input",{id:"rdr-"+k+"-"+j,class:"num",type:"text",inputmode:"text",autocomplete:"off",spellcheck:"false",placeholder:yaFa?String(yaFa):"0",value:d.R[k][j]||"",
@@ -105,7 +116,28 @@ function vRecuentoDiario(){
       el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
         el("div",{class:"rd-sec",text:"1 · Fardos de cada relevo (total de la hoja)"}),el("div",{class:"rd-rels"},rels),
         el("div",{class:"rd-sec",text:"2 · Fardos que cuentas ahora en nave"}),
-        el("div",{class:"rd-col hdr"},[el("span",{text:"Colada"}),el("span",{text:"Por FIFO"}),el("span",{text:"Contados"}),el("span",{text:"Gasto"})])].concat(filas,[res]))]);});
+        el("div",{class:"rd-col hdr"},[el("span",{text:"Colada"}),el("span",{text:"Por FIFO"}),el("span",{text:"Contados"}),el("span",{text:"Gasto"})])].concat(filas,[varias(k,lista,n,m),res]))]);});
+  /* si han bajado dos o más coladas, los pesos de cada una en cada relevo (opcional) */
+  function varias(k,lista,n,m){d.K[k]=d.K[k]||{};
+    const caja=el("div",{class:"rd-var"});caja.hidden=true;
+    const grupos=R.map((r,j)=>{d.K[k][j]=d.K[k][j]||{};const ya=yaDe(r,n,m);
+      const filas=lista.map(l=>{const yl=ya.filter(x=>x.o===l.id).reduce((a,x)=>a+(x.fa||0),0);
+        const inp=el("input",{id:"rdk-"+k+"-"+j+"-"+l.id,class:"num",type:"text",inputmode:"text",autocomplete:"off",spellcheck:"false",placeholder:yl?String(yl):"",value:d.K[k][j][l.id]||"",
+          "aria-label":"Pesos de "+l.nombre+" en "+relLbl(r,j),oninput:e=>{d.K[k][j][l.id]=e.target.value;refresca();}});
+        const tot=el("span",{class:"rd-ya"});
+        const fila=el("div",{class:"rd-vf"},[el("span",{class:"rd-n",text:l.nombre}),inp,tot]);
+        return{l,fila,inp,tot,yl};});
+      const g=el("div",{class:"rd-vg"},[el("div",{class:"rd-rl",text:relLbl(r,j)})].concat(filas.map(x=>x.fila)));
+      return{g,filas,j};});
+    caja.appendChild(el("div",{class:"rd-sec",text:"3 · Pesos de cada colada (han bajado varias)"}));
+    caja.appendChild(el("p",{class:"hint",style:"margin:0",text:"Opcional. Para que cada peso vaya a su colada, escribe en cada relevo los kilos de los fardos de cada una («700 769») o solo sus fardos. Si lo dejas vacío, los pesos de la casilla del relevo se reparten empezando por la más antigua."}));
+    grupos.forEach(x=>caja.appendChild(x.g));
+    vivos.push(C=>{const o=C.out[k],usadas=new Set(o.C.filter(x=>x.gas>0).map(x=>x.l.id));let alguno=false;
+      grupos.forEach(G=>{let vis=false;const ro=o.rel[G.j],hay=!!(ro.p&&ro.p.fa>ro.yaFa)||G.filas.some(x=>String(d.K[k][G.j][x.l.id]||"").trim());G.filas.forEach(x=>{const v=String(d.K[k][G.j][x.l.id]||"").trim();const show=hay&&(usadas.size>1&&usadas.has(x.l.id)||!!v);x.fila.hidden=!show;if(show)vis=true;
+        const q=v?leerRD(v,mediaCol(S[x.l.id])):null;x.tot.textContent=q&&!q.error?(q.k.length?q.fa+" f · "+fmt(q.k.reduce((a,b)=>a+b,0))+" kg":q.fa+" f"):x.yl?"ya "+x.yl+" f":"";});
+        G.g.hidden=!vis;if(vis)alguno=true;});
+      caja.hidden=!alguno;});
+    return caja;}
   const goBtn=el("button",{id:"rd-go",class:"btn",type:"button",text:"Guardar recuento del día"});
   const refresca=()=>{const C=calc();vivos.forEach(f=>f(C));goBtn.disabled=C.err>0||!lineas.length;};
   goBtn.onclick=async e=>{const b=e.currentTarget,C=calc();if(C.err)return;const P=plan(C);

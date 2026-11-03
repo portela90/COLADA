@@ -474,3 +474,28 @@ test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cu
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Recuento diario: si bajan dos coladas, los pesos de cada una van a su colada', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { await db.doc('lotes/l2').update({ donde: 'nave' }); }); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const k = 'Nave 1|L-2630', card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
+  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ya0 + 4));
+  await expect(card.locator('.rd-var')).toBeHidden();
+  await page.locator('[id="rdc-l2"]').fill('18'); await page.locator('[id="rdc-l3"]').fill('6');
+  await expect(card.locator('.rd-var')).toBeVisible();
+  await page.locator(`[id="rdk-${k}-0-l2"]`).fill('700 710');
+  await page.locator(`[id="rdk-${k}-0-l3"]`).fill('650 660');
+  await expect(card).toContainText('Cuadra: 4 fardos');
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  const C = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'C' && /Recuento diario/.test(r.n || '')));
+  expect(C.find(r => r.o === 'l2')).toMatchObject({ fa: 2, pk: [700, 710], kg: 1410 });
+  expect(C.find(r => r.o === 'l3')).toMatchObject({ fa: 2, pk: [650, 660], kg: 1310 });
+  const A = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'A'));
+  expect(A).toHaveLength(0);
+  expect(err).toEqual([]);
+});
