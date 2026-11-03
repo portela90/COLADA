@@ -18,7 +18,11 @@ function relevosRD(){const h=hoy(),ta=TURNOS.indexOf(turnoAhora()),R=[];
   if(!ult){let k=0;while(relevosDia(f)===0&&k<10){f=fMas(f,-1);k++;}}
   for(let k=0;k<40&&f<=h;k++,f=fMas(f,1),i0=0){const n=relevosDia(f);
     for(let t=i0;t<n;t++){if(f===h&&t>ta)break;R.push({f,u:TURNOS[t]});}}
-  return R.slice(-RD_MAX);}
+  /* los relevos ya apuntados no se vuelven a pedir: se empieza en el último que tiene consumo
+     (puede estar a medias) y se siguen los que faltan */
+  const ms=todosMovs().filter(r=>r.t==="C"&&!r.h);let j=-1;
+  R.forEach((r,i)=>{if(ms.some(x=>x.f===r.f&&x.u===r.u))j=i;});
+  return R.slice(Math.max(0,j)).slice(-RD_MAX);}
 /* lo escrito en un relevo: un número pequeño = fardos; números de cientos = kilos de cada fardo; uno muy grande = kilos totales */
 function leerRD(t,media){t=String(t||"").trim();if(!t)return null;
   const nums=t.split(/[\s+\/;]+/).map(x=>x.replace(/^[,.]+|[,.]+$/g,"")).filter(Boolean).map(x=>{if(/^\d{1,3}\.\d{3}$/.test(x))x=x.replace(".","");return Number(x.replace(",","."));});
