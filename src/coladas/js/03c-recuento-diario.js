@@ -12,7 +12,9 @@ const fDate=f=>new Date(+f.slice(0,4),+f.slice(5,7)-1,+f.slice(8,10));
 const fMas=(f,n)=>{const d=fDate(f);d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const nomLote=id=>(lotes.find(l=>l.id===id)||{}).nombre||"?";
 /* relevos desde el del último recuento hasta el de ahora */
-function relevosRD(){const h=hoy(),ta=TURNOS.indexOf(turnoAhora()),R=[];
+/* el relevo en marcha: de 0 a 6 h todavía es la noche del día anterior */
+function relevoAhora(){const d=new Date();if(d.getHours()<6){d.setDate(d.getDate()-1);return{f:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),u:"Noche"};}return{f:hoy(),u:turnoAhora()};}
+function relevosRD(){const RA=relevoAhora(),h=RA.f,ta=TURNOS.indexOf(RA.u),R=[];
   const ult=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null;
   let f=ult?ult.f:fMas(h,-1),i0=ult?Math.max(0,TURNOS.indexOf(ult.u)):0;
   if(!ult){let k=0;while(relevosDia(f)===0&&k<10){f=fMas(f,-1);k++;}}
@@ -90,11 +92,11 @@ function vRecuentoDiario(){
         for(const id of orden){if(rem<=0)break;const libre=(S[id].fa-(asig[id]||0));const q=Math.min(rem,Math.max(0,libre));if(q>0)tomar(id,q);}
         if(rem>0&&orden.length)tomar(orden[orden.length-1],rem);});
       o.C.forEach(x=>{const queda=x.s-(asig[x.l.id]||0),df=queda-x.c;if(!df)return;const rx=S[x.l.id].rx||S[x.l.id].ratio||0;
-        const r={i:uid("m"),t:"A",f:h,u:turnoAhora(),fa:Math.abs(df),kg:Math.round(Math.abs(df)*rx),n:"Recuento diario: "+(df>0?"faltan ":"sobran ")+Math.abs(df)+" f frente a las hojas"};
+        const r={i:uid("m"),t:"A",f:relevoAhora().f,u:relevoAhora().u,fa:Math.abs(df),kg:Math.round(Math.abs(df)*rx),n:"Recuento diario: "+(df>0?"faltan ":"sobran ")+Math.abs(df)+" f frente a las hojas"};
         if(df>0)r.o=x.l.id;else r.d=x.l.id;aj.push(r);});});
     return{recs,aj};};
   const relLbl=(r,j)=>NOMDIA[fDate(r.f).getDay()]+" "+dmy(r.f)+" "+r.u.toLowerCase();
-  const relSub=(r,j)=>r.f===h&&r.u===turnoAhora()?"hasta ahora":j===0&&cfg.rdiario&&cfg.rdiario.f===r.f&&cfg.rdiario.u===r.u?"entera, de la hoja":"";
+  const relSub=(r,j)=>r.f===relevoAhora().f&&r.u===relevoAhora().u?"hasta ahora":j===0&&cfg.rdiario&&cfg.rdiario.f===r.f&&cfg.rdiario.u===r.u?"entera, de la hoja":"";
   const cards=lineas.map(([n,m])=>{const k=key(n,m),lista=fifoLista(n,m,S);d.R[k]=d.R[k]||{};
     const pill=el("span",{style:"margin-left:auto"}),res=el("div",{style:"display:flex;flex-direction:column;gap:6px"});
     const rels=R.map((r,j)=>{const ya=yaDe(r,n,m),yaFa=ya.reduce((a,x)=>a+(x.fa||0),0),sub=relSub(r,j),info=el("span",{class:"rd-ya"});
@@ -148,7 +150,7 @@ function vRecuentoDiario(){
     b.disabled=true;
     try{const todo=P.recs.concat(P.aj);if(todo.length)await addMovs(todo);
       const cont={};Object.values(C.out).forEach(o=>o.C.forEach(x=>{cont[x.l.id]=x.c;}));
-      cfg.rdiario={f:h,u:turnoAhora(),ts:Date.now(),hora:new Date().toTimeString().slice(0,5),c:cont};await saveCfg();
+      cfg.rdiario={f:relevoAhora().f,u:relevoAhora().u,ts:Date.now(),hora:new Date().toTimeString().slice(0,5),c:cont};await saveCfg();
       draft.rd={};toast("Recuento guardado"+(todo.length?": "+todo.length+" apunte"+(todo.length===1?"":"s"):""));render();setTimeout(()=>ventanaParteCompras(),60);}
     catch(err){toast("No se pudo guardar");b.disabled=false;}};
   const ult=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null;
@@ -159,7 +161,7 @@ function vRecuentoDiario(){
   return out;}
 /* ---------- parte para compras ---------- */
 function diaAnterior(f){let x=fMas(f,-1),k=0;while(relevosDia(x)===0&&k<10){x=fMas(x,-1);k++;}return x;}
-function textoParteCompras(){const {S}=bloques(),h=hoy(),fa=diaAnterior(h),ms=todosMovs(),ult=cfg.rdiario&&cfg.rdiario.f===h?cfg.rdiario:null;
+function textoParteCompras(){const {S}=bloques(),h=hoy(),fa=diaAnterior(h),ms=todosMovs(),ult=cfg.rdiario&&cfg.rdiario.ts&&new Date(cfg.rdiario.ts).toDateString()===new Date().toDateString()?cfg.rdiario:null;
   const d=fDate(h),L=["PARTE DE ALUMINIO · "+NOMDIAL[d.getDay()]+" "+h.split("-").reverse().join("/")];
   if(ult&&ult.hora)L.push("(recuento de las "+ult.hora+")");
   LINEAS.forEach(([n,m])=>{const lt=lotes.filter(l=>l.nave===n&&l.material===m);

@@ -499,3 +499,14 @@ test('Recuento diario: si bajan dos coladas, los pesos de cada una van a su cola
   expect(A).toHaveLength(0);
   expect(err).toEqual([]);
 });
+
+test('Recuento diario: de madrugada el relevo en marcha es la noche del día anterior', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-04T05:19:00'));
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  const rels = await card.locator('.rd-rels .rd-rl').allInnerTexts();
+  expect(rels[rels.length - 1]).toContain('mar 03/11 noche');
+  expect(rels.join('|')).not.toContain('mié');
+});
