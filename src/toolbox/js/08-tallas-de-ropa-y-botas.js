@@ -107,8 +107,9 @@ async function excelTodos(btn){
 
 // En la lista de fichas (admin): Excel de todos y aviso para que revisen sus tallas
 function enlazaTallasFichas(){
-  $('#w').insertAdjacentHTML('afterbegin',`<div class="row" style="margin:0 0 12px"><button class="btn sec grow" id="xtodos">Excel tallas y EPI (todos)</button><button class="btn sec grow" id="avtal">Avisar para revisar tallas</button></div>`);
+  $('#w').insertAdjacentHTML('afterbegin',`<div class="row" style="margin:0 0 12px"><button class="btn sec grow" id="xtodos">Excel tallas y EPI (todos)</button><button class="btn sec grow" id="avtal">Avisar para revisar tallas</button><button class="btn sec grow" id="pedido">Pedido de ropa (Excel)</button></div>`);
   $('#xtodos').onclick=e=>excelTodos(e.currentTarget);
+  $('#pedido').onclick=e=>excelPedido(e.currentTarget);
   $('#avtal').onclick=async e=>{
     if(!confirm('¿Avisar a todos los trabajadores para que revisen sus tallas?')) return;
     const b=e.currentTarget; busy(b,true);
@@ -136,4 +137,27 @@ async function pantallaMisTallas(){
     try{ await rpc('prl_tallas_pedir',{p_tok:S.tok,p:p}); toast('Enviado. Cristian lo revisará.'); pantallaMisTallas(); }
     catch(er){ toast(er.message==='SIN_CAMBIOS'?'No has cambiado ninguna talla':er.message,true); busy(b,false); }
   };
+}
+
+// ---------- Pedido de ropa: cuántas personas necesitan cada prenda y en qué talla (solo admin) ----------
+async function excelPedido(btn){
+  busy(btn,true);
+  try{
+    const L=(await rpc('prl_fichas',{p_tok:S.tok})).filter(t=>t.activo);
+    if(!L.length){ toast('No hay trabajadores activos'); return; }
+    const Fs=[]; for(const t of L) Fs.push(await rpc('prl_ficha',{p_tok:S.tok,p_trab:t.id}));
+    const orden=Object.keys(TALLAS_N), mapa={};
+    Fs.forEach(F=>{ const t=F.trabajador; orden.forEach(k=>{ const v=(t.tallas||{})[k]; if(!v) return;
+      const c=mapa[k+'|'+v]||(mapa[k+'|'+v]={k,v,n:0,nombres:[]}); c.n++; c.nombres.push(t.nombre); }); });
+    const filas=Object.values(mapa)
+      .sort((a,b)=>orden.indexOf(a.k)-orden.indexOf(b.k)||String(a.v).localeCompare(String(b.v),'es',{numeric:true}))
+      .map(c=>({Prenda:TALLAS_N[c.k],Talla:c.v,'Nº personas':c.n,Personas:c.nombres.join(', ')}));
+    if(!filas.length){ toast('Aún no hay tallas registradas'); return; }
+    await cargaXLSX();
+    const wb=XLSX.utils.book_new(), ws=XLSX.utils.json_to_sheet(filas);
+    ws['!cols']=[{wch:40},{wch:12},{wch:14},{wch:70}];
+    XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+    XLSX.writeFile(wb,'pedido-ropa-'+hoyISO()+'.xlsx');
+  }catch(e){ toast(e.message,true); }
+  finally{ busy(btn,false); }
 }
