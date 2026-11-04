@@ -221,3 +221,57 @@ function bloqueInforme(){S.semInf=S.semInf||sumaD(lunesDe(hoyISO()),-7);const lu
     el("p",{class:"hint",text:"PDF con el resumen, lo hecho por cada persona, lo que no se pudo hacer y las incidencias de los trabajadores con sus fotos. El Excel lleva el detalle de cada trabajo."}),
     el("div",{class:"row"},[comp?el("button",{class:"btn",text:"Enviar PDF + Excel",onclick:()=>informe(lun,"compartir")}):null,el("button",{class:"btn"+(comp?" sec":""),text:"Descargar PDF + Excel",onclick:()=>informe(lun,"ambos")})]),
     el("div",{class:"row",style:"margin-top:8px"},[el("button",{class:"btn sec peq",text:"Solo PDF",onclick:()=>informe(lun,"pdf")}),el("button",{class:"btn sec peq",text:"Solo Excel",onclick:()=>informe(lun,"xlsx")})])])]);}
+
+/* ---------- Informe por operario (solo admin): lo que ha hecho una persona en un día, una semana o un mes. PDF con tiempo estimado ---------- */
+function rangoPeriodo(tipo,f){
+  if(tipo==="dia") return [f,f];
+  if(tipo==="semana"){ const l=lunesDe(f); return [l,sumaD(l,6)]; }
+  const [y,m]=f.split("-").map(Number), mm=String(m).padStart(2,"0");
+  return [y+"-"+mm+"-01", y+"-"+mm+"-"+String(new Date(y,m,0).getDate()).padStart(2,"0")];
+}
+function bloqueInformeOperario(){
+  const st=S.opInf=S.opInf||{tipo:"semana",f:hoyISO(),op:""};
+  const box=el("div",{class:"bd"},el("div",{class:"empty",text:"Cargando…"}));
+  const card=el("div",{class:"card",id:"informeop"},[el("div",{class:"hd"},el("h2",{text:"Informe por operario (solo tú)"})),box]);
+  trabajadores().then(L=>{
+    const ops=(L||[]).filter(w=>w.activo&&w.rol!=="admin").slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),"es"));
+    const selOp=el("select",{class:"inp",onchange:e=>{st.op=e.target.value;}},[el("option",{value:"",text:"— Elige un operario —"})].concat(ops.map(w=>el("option",{value:w.id,text:w.nombre}))));
+    selOp.value=st.op||"";
+    const selT=el("select",{class:"inp",onchange:e=>{st.tipo=e.target.value;}},[["dia","Día"],["semana","Semana"],["mes","Mes"]].map(([k,n])=>el("option",{value:k,text:n})));
+    selT.value=st.tipo;
+    const inF=el("input",{type:"date",value:st.f,onchange:e=>{st.f=e.target.value;}});
+    const bot=el("button",{class:"btn",text:"Descargar PDF",onclick:async e=>{
+      const w=ops.find(x=>x.id===selOp.value);
+      if(!w){ toast("Elige un operario"); return; }
+      const b=e.currentTarget; b.disabled=true;
+      try{ await pdfOperario(w,selT.value,inF.value); }catch(er){ toast(er.message||"No se pudo hacer el PDF"); }
+      finally{ b.disabled=false; }
+    }});
+    box.textContent="";
+    box.appendChild(el("p",{class:"hint",text:"PDF con los trabajos que ha hecho la persona (limpiezas, hornos y cambios), con el tiempo estimado de cada uno y los trabajos que no hizo."}));
+    box.appendChild(selOp); box.appendChild(selT); box.appendChild(inF); box.appendChild(bot);
+  }).catch(er=>{ box.textContent=""; box.appendChild(el("div",{class:"aviso",text:er.message})); });
+  return card;
+}
+async function pdfOperario(w,tipo,f){
+  const [desde,hasta]=rangoPeriodo(tipo,f);
+  const O=await rpc("ots_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta});
+  await libPDF();
+  const hechas=O.filter(o=>o.estado==="hecha"&&o.hecho_por_n===w.nombre).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  const noH=O.filter(o=>o.estado==="no_hecha"&&(o.nombres||[]).includes(w.nombre)).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  const tot=hechas.reduce((s,o)=>s+(o.minutos_est||0),0), sinEst=hechas.filter(o=>!o.minutos_est).length;
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"}); const M=14;
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.text("Informe por operario",M,16);
+  doc.setFontSize(12); doc.text(w.nombre,M,24);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  doc.text(({dia:"Día",semana:"Semana",mes:"Mes"})[tipo]+": "+fDMA(desde)+(desde!==hasta?" al "+fDMA(hasta):""),M,30);
+  doc.text("Trabajos hechos: "+hechas.length+"     Tiempo estimado: "+(durTxt(tot)||"0 min")+(sinEst?"     Sin tiempo estimado: "+sinEst:"")+"     No hechos: "+noH.length,M,36);
+  doc.autoTable({startY:42,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[31,78,121]},
+    head:[["Fecha","Trabajo","Lugar","Estimado","Checklist"]],
+    body:hechas.map(o=>[fDM(o.fecha),o.titulo||"",o.lugar||"",o.minutos_est?durTxt(o.minutos_est):"—",o.resultado||"—"])});
+  if(noH.length){
+    doc.autoTable({startY:doc.lastAutoTable.finalY+8,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[179,38,30]},
+      head:[["Fecha","Trabajo no hecho","Nota"]], body:noH.map(o=>[fDM(o.fecha),o.titulo||"",o.nota||""])});
+  }
+  doc.save("informe-"+String(w.nombre).replace(/\s+/g,"-").toLowerCase()+"-"+tipo+"-"+desde+".pdf");
+}

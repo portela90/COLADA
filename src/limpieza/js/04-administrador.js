@@ -248,7 +248,7 @@ function formAviso(a0,re){const a=Object.assign({fecha:hoyISO(),activo:true},a0)
   bot.push({t:"Guardar",fn:async()=>{await rpc("aviso_guardar",{p_tok:S.tok,p:{id:a.id||null,titulo:a.titulo,descripcion:a.descripcion,fecha:a.fecha,activo:a.activo}});toast("Guardado");re();}});
   dlg(a.id?"Editar aviso":"Nuevo aviso",el("div",null,[fld("Título",inp(a.titulo,v=>a.titulo=v)),fld("Texto",area(a.descripcion,v=>a.descripcion=v)),fld("Hasta el día",inp(a.fecha,v=>a.fecha=v,{type:"date"})),
     el("label",{style:"display:flex;gap:8px;align-items:center"},[el("input",{type:"checkbox",checked:a.activo,onchange:e=>a.activo=e.target.checked}),"Visible"])]),bot);}
-async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=hoyISO();v.appendChild(bloqueInforme());
+async function vResumen(v){S.rs=S.rs||7;const des=sumaD(hoyISO(),-(S.rs-1)),has=hoyISO();v.appendChild(bloqueInforme()); v.appendChild(bloqueInformeOperario());
   v.appendChild(el("div",{class:"chips",style:"margin:0 0 12px"},[[7,"7 días"],[30,"30 días"]].map(([k,t])=>el("button",{class:"chip","aria-pressed":String(S.rs===k),text:t,onclick:()=>{S.rs=k;pinta();}}))));
   const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);v.appendChild(bloqueCopia());
   try{const [O,X]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:des,p_hasta:has}),Promise.resolve(null)]);box.textContent="";
