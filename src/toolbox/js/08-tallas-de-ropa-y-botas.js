@@ -51,7 +51,8 @@ function pintaTallas(F,id){
     (pend?`<div class="card" style="border:2px solid var(--warn)"><b>Cambios pendientes de tu revisión</b>
       <div class="small muted">Enviados el ${fDMY((t.tallas_pend_en||'').slice(0,10))}. Tu ficha no cambia hasta que los aceptes.</div>
       <div class="row" style="margin-top:8px"><button class="btn grow" id="pacep">Aceptar cambios</button><button class="btn sec grow" id="prech">Rechazar</button></div></div>`:'')+
-    `<div class="card"><b style="font-size:17px">${esc(t.nombre)}</b><div class="small muted">Talla de cada prenda y su última entrega.</div></div>
+    `<div class="card"><b style="font-size:17px">${esc(t.nombre)}</b><div class="small muted">Talla de cada prenda y su última entrega.</div>
+      <div class="small muted">Última confirmación de tallas: <b>${t.tallas_rev_en?fDMY(String(t.tallas_rev_en).slice(0,10)):'nunca'}</b></div></div>
     <div class="card">${Object.keys(TALLAS_N).map(fila).join('')}</div>
     <div class="row" style="margin:12px 2px"><button class="btn sec grow" id="etal">Editar tallas</button><button class="btn grow" id="xtal">Descargar Excel</button></div>
     <div class="h2">Historial de tallas</div><div class="card" id="htal"><div class="empty"><span class="spin dk"></span></div></div>`;
@@ -107,13 +108,13 @@ async function excelTodos(btn){
 
 // En la lista de fichas (admin): Excel de todos y aviso para que revisen sus tallas
 function enlazaTallasFichas(){
-  $('#w').insertAdjacentHTML('afterbegin',`<div class="row" style="margin:0 0 12px"><button class="btn sec grow" id="xtodos">Excel tallas y EPI (todos)</button><button class="btn sec grow" id="avtal">Avisar para revisar tallas</button><button class="btn sec grow" id="pedido">Pedido de ropa (Excel)</button></div>`);
+  $('#w').insertAdjacentHTML('afterbegin',`<div class="row" style="margin:0 0 12px"><button class="btn sec grow" id="xtodos">Excel tallas y EPI (todos)</button><button class="btn sec grow" id="avtal">Avisar a quien no ha revisado sus tallas (180 días)</button><button class="btn sec grow" id="pedido">Pedido de ropa (Excel)</button></div>`);
   $('#xtodos').onclick=e=>excelTodos(e.currentTarget);
   $('#pedido').onclick=e=>excelPedido(e.currentTarget);
   $('#avtal').onclick=async e=>{
-    if(!confirm('¿Avisar a todos los trabajadores para que revisen sus tallas?')) return;
+    if(!confirm('¿Avisar a los trabajadores que no han revisado sus tallas en los últimos 180 días?')) return;
     const b=e.currentTarget; busy(b,true);
-    try{ const r=await rpc('prl_tallas_avisar',{p_tok:S.tok}); toast('Aviso enviado a '+r.avisados+' trabajadores'); }
+    try{ const r=await rpc('prl_tallas_avisar',{p_tok:S.tok,p_dias:180}); toast('Aviso enviado a '+r.avisados+' trabajadores'); }
     catch(er){ toast(er.message,true); } finally{ busy(b,false); }
   };
 }
