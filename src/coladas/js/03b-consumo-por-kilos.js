@@ -1,15 +1,19 @@
 /* ---------- Consumo por kilos ----------
    Como «Por relevo», pero para cada colada se escriben de una vez los kilos de cada fardo
-   (los de la hoja del hornero), separados por espacios: «700 769 682». La app cuenta los fardos,
+   (los de la hoja del hornero), separados por comas: «700,769,682» (o con espacios). La app cuenta los fardos,
    suma los kilos y guarda el consumo con esos kilos (r.kg) y la lista de pesos (r.pk).
    Un solo número grande se toma como el total de kilos (los fardos se calculan con la media).
    Al acabarse una colada pesada así, casi siempre sobran o faltan unos kilos frente al albarán:
    se avisa y se puede apuntar el ajuste con un botón. */
 const KIL_TOL=0.06;
 const mediaCol=b=>b?(b.rx||b.ratio||0):0;
+/* los números de una casilla de fardos: se separan con espacio, coma o punto (así basta el teclado numérico:
+   «700,769,682» o «700.769.682»). Un número de miles con un solo separador («10.326», «10,326») es un total de kilos. */
+function numsFardos(t){return String(t||"").trim().split(/[\s+\/;]+/).filter(Boolean).flatMap(x=>{x=x.replace(/^[,.]+|[,.]+$/g,"");if(!x)return[];
+  if(/^\d{1,2}[.,]\d{3}$/.test(x))return[Number(x.replace(/[.,]/,""))];return x.split(/[.,]+/).filter(Boolean).map(Number);});}
 function leerKilos(t,b){t=String(t||"").trim();if(!t)return{k:[],kg:0,fa:0};const m=mediaCol(b);
-  const nums=t.split(/[\s+\/;]+/).filter(Boolean).map(x=>{if(/^\d{1,3}\.\d{3}$/.test(x))x=x.replace(".","");return Number(x.replace(",","."));});
-  if(nums.some(n=>!(n>0)))return{error:"Hay algo que no es un número. Escribe los kilos de cada fardo separados por espacios.",k:[],kg:0,fa:0};
+  const nums=numsFardos(t);
+  if(nums.some(n=>!(n>0)))return{error:"Hay algo que no es un número. Escribe los kilos de cada fardo separados por comas.",k:[],kg:0,fa:0};
   if(nums.length===1&&m>0&&nums[0]>m*1.5)return{total:true,k:[],kg:nums[0],fa:Math.max(1,Math.round(nums[0]/m))};
   return{k:nums,kg:nums.reduce((a,b2)=>a+b2,0),fa:nums.length};}
 const kgRaro=(v,b)=>{const m=mediaCol(b);return m>0&&Math.abs(v-m)/m>KIL_TOL;};
@@ -63,7 +67,7 @@ function vKilos(){
     vivos.push(C=>{const o=C.out.find(z=>z.k===k);totS.textContent=o&&o.tot?fmt(o.tot)+" f · "+fmt(o.kg)+" kg":"";});
     const filas=rows.map((x,i)=>{
       const opts=[el("option",{value:"",text:"— elige la colada —"})].concat(lista.map((l,j)=>{const o=el("option",{value:l.id,text:(j===0?"⬅ ":"")+l.nombre+" · "+fmt(S[l.id].fa)+" f"});if(x.lote===l.id)o.selected=true;return o;}));
-      const inp=el("input",{id:"kk-"+k+"-"+i,class:"num",type:"text",inputmode:"text",autocomplete:"off",autocapitalize:"off",spellcheck:"false",placeholder:"Kilos de los fardos: 700 769 682","aria-label":"Kilos de los fardos",value:x.t||"",style:"font-size:18px;width:100%",oninput:e=>{x.t=e.target.value;refresca();}});
+      const inp=el("input",{id:"kk-"+k+"-"+i,class:"num",type:"text",inputmode:"decimal",autocomplete:"off",autocapitalize:"off",spellcheck:"false",placeholder:"Kilos de los fardos: 700,769,682","aria-label":"Kilos de los fardos",value:x.t||"",style:"font-size:18px;width:100%",oninput:e=>{x.t=e.target.value;refresca();}});
       const chips=el("div",{class:"kil-chips"}),pie=el("div",{class:"kil-pie"}),av=el("div");
       vivos.push(C=>{const o=C.out.find(z=>z.k===k),p=o&&o.P[i];if(!p)return;chips.textContent="";av.textContent="";av.className="";
         p.k.forEach((v,j)=>chips.appendChild(el("span",{class:"kil-f num"+(kgRaro(v,p.b)?" raro":""),title:kgRaro(v,p.b)?"Lo normal en esta colada son unos "+fmt(mediaCol(p.b))+" kg":""},[el("small",{text:"F"+(j+1)}),document.createTextNode(fmt(v))])));
@@ -106,7 +110,7 @@ function vKilos(){
         el("label",{text:"Fecha"},[el("input",{id:"k-f",type:"date",max:hoy(),value:d.fecha,onchange:e=>{d.fecha=e.target.value||hoy();render();}})]),
         el("label",{text:"Relevo"},[el("div",{class:"seg"},TURNOS.map(t=>el("button",{type:"button","aria-pressed":String(d.turno===t),text:t,onclick:()=>{d.turno=t;render();}})))])]),
       ya.length?el("div",{class:"banner w",style:"margin-top:12px",text:"Este relevo ya tiene "+ya.length+" apunte(s): "+ya.map(r=>r.t==="G"?"granalla de cobre "+fmt(-r.kg)+" kg":fmt(r.fa)+" f de "+((lotes.find(l=>l.id===r.o)||{}).nombre||"?")+(typeof r.kg==="number"?" ("+fmt(r.kg)+" kg)":"")).join(" · ")+". Al registrar te pregunto si sumar o sustituir."}):null,
-      el("p",{class:"hint",style:"margin-top:10px",text:"Copia de la hoja del hornero los kilos de cada fardo, separados por espacios: «700 769 682». La app cuenta los fardos y suma los kilos."})])]),
+      el("p",{class:"hint",style:"margin-top:10px",text:"Copia de la hoja del hornero los kilos de cada fardo, separados por comas: «700,769,682» (o con espacios). La app cuenta los fardos y suma los kilos."})])]),
     cardRestos()].concat(cards).concat([
     el("div",{class:"card"},[el("div",{class:"hd"},[el("span",{class:"tagm",style:"background:var(--cobre)"}),el("h2",{text:"Granalla de cobre"})]),el("div",{class:"bd"},[el("div",{class:"row"},gIn)])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Resumen del relevo"}),resPill]),el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[resTabla,
