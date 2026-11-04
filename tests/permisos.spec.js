@@ -7,7 +7,7 @@ const FAKE = `(function(){window.__upd=[];const U=window.__USERS;const ME=window
   const run=q=>{if(q._t==='usuarios'){if(q._op==='update'){window.__upd.push({id:q._f.user_id,v:q._val});const u=U.find(x=>x.user_id===q._f.user_id);Object.assign(u,q._val);return{data:null,error:null};}
       if(q._one)return{data:U.find(x=>x.user_id===q._f.user_id)||null,error:null};return{data:U,error:null};}
     if(q._t==='docs')return{data:q._one?null:[],error:null,count:5};return{data:q._one?null:[],error:null};};
-  const mk=t=>{const q={_t:t,_f:{},_op:'select'};['select','in','order','limit','gte','lte','neq','is','range','filter','match','not','or'].forEach(m=>q[m]=()=>q);
+  const mk=t=>{const q={_t:t,_f:{},_op:'select'};['select','in','order','limit','gte','lte','neq','is','range','filter','match','not','or','like'].forEach(m=>q[m]=()=>q);
     q.eq=(k,v)=>{q._f[k]=v;return q;};q.update=v=>{q._op='update';q._val=v;return q;};q.insert=v=>{q._op='insert';q._val=v;return q;};q.upsert=v=>{q._op='upsert';q._val=v;return q;};q.delete=()=>{q._op='delete';return q;};
     q.maybeSingle=()=>{q._one=true;return q;};q.single=()=>{q._one=true;return q;};q.then=(a,b)=>Promise.resolve(run(q)).then(a,b);return q;};
   const ch={on(){return ch;},subscribe(){return ch;},unsubscribe(){}};
@@ -39,4 +39,19 @@ test('el administrador elige el acceso de cada usuario', async ({ page }) => {
   const up = await page.evaluate(() => window.__upd);
   expect(up[0]).toEqual({ id: 'marta', v: { activo: true, consulta: false, coladas: false, admin: false } });
   await expect(page.locator('select[aria-label="Acceso de Cristian"]')).toBeDisabled();
+});
+test('después de guardar sale «Deshacer» y busca lo último que has guardado', async ({ page }) => {
+  await prepara(page, 'cris');
+  await page.goto('file://' + path.join(ROOT, 'almacen.html')); await page.waitForTimeout(1500);
+  await page.mouse.click(5, 5);
+  await page.evaluate(async () => { const db = await window.claude.use('db'); await db.doc('prueba/x').set({ a: 1 }); });
+  await expect(page.locator('#undo-chip')).toBeVisible({ timeout: 3000 });
+  await page.locator('#undo-btn').click();
+  await expect(page.locator('.dlg', { hasText: 'Deshacer lo último' })).toContainText('No encuentro nada tuyo');
+  // sin un toque antes (guardado automático) no sale
+  await page.locator('.dlg button', { hasText: 'Cerrar' }).click();
+  await page.waitForTimeout(5200);
+  await page.evaluate(async () => { const db = await window.claude.use('db'); await db.doc('prueba/x').set({ a: 2 }); });
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#undo-chip')).toHaveCount(0);
 });

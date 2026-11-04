@@ -468,6 +468,11 @@ test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cu
   // tras guardar se abre el parte para compras
   await expect(page.locator('.dlg textarea')).toHaveValue(/PARTE DE ALUMINIO/);
   await expect(page.locator('.dlg textarea')).toHaveValue(/NAVE 1 · ALSI9[\s\S]*Queda en nave: 3 f[\s\S]*C25003: 3 f[\s\S]*Queda en externo/);
+  // enviar por WhatsApp: abre el chat con el parte escrito
+  await page.evaluate(() => { window.open = u => { window.__abierto = u; return null; }; });
+  await page.locator('.dlg .env-wa').click();
+  const wa = await page.evaluate(() => window.__abierto);
+  expect(wa).toMatch(/^https:\/\/wa\.me\/\?text=/); expect(decodeURIComponent(wa)).toContain('PARTE DE ALUMINIO');
   await page.locator('.dlg button', { hasText: 'Cerrar' }).click();
   // la próxima vez empieza en el relevo de hoy: lo ya apuntado sale como «ya apuntados»
   await expect(page.locator('.stk-t', { hasText: 'Recuento diario' }).first()).toContainText('Hecho');

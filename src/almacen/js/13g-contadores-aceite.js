@@ -26,6 +26,17 @@ async function guardaLect(rec,viejo){const y=rec.f.slice(0,4);rec.id=rec.id||uid
   if(db.itemsAdd){await db.itemsAdd("cont",y,[rec]);return;}
   const ref=db.doc("cont/"+y),sn=await ref.get();await ref.set({items:(sn.exists?(sn.data().items||[]):[]).concat([rec])});}
 
+/* lecturas raras antes de guardar: marca menos que antes, mucho más de lo normal o parece la de otro contador */
+function avisosLect(nave,fecha,vals){const L=lectDe(nave),ant=L.filter(r=>r.f<fecha).pop(),o=[];if(!ant)return o;
+  const lab=Math.max(1,laborables(ant.f,fecha));
+  CONT.forEach(([k,nom])=>{const x=vals[k];if(x==null||!isFinite(x))return;const pv=typeof ant.c[k]==="number"?ant.c[k]:null;if(pv==null)return;const d=Math.round((x-pv)*10)/10;
+    /* ¿se parece más a lo que marcaba otro contador de la nave? (p. ej. se apunta la del Térmico en el ISO 46) */
+    const otro=CONT.find(([k2])=>k2!==k&&typeof ant.c[k2]==="number"&&Math.abs(x-ant.c[k2])<Math.abs(x-pv)&&Math.abs(x-ant.c[k2])<=Math.max(50,Math.abs(ant.c[k2])*0.02));
+    if(otro){o.push(nom+": "+fmtN(x)+" se parece a la lectura del "+otro[1]+" ("+fmtN(ant.c[otro[0]])+"), no a la del "+nom+" ("+fmtN(pv)+"). ¿Lo has apuntado en la casilla de otro contador?");return;}
+    if(d<0){o.push(nom+": marca menos que la lectura anterior ("+fmtN(pv)+" el "+fmtF(ant.f)+"). ¿Error al leer o contador cambiado?");return;}
+    const T=tramos(nave,k).filter(t=>t.dif>=0).slice(-20).map(t=>t.lpd).sort((a,b)=>a-b),med=T.length?T[Math.floor(T.length/2)]:null;
+    if(med!=null&&T.length>=5&&d/lab>Math.max(med*3,med+20)&&d>10)o.push(nom+": "+fmtL(d)+(lab>1?" en "+lab+" días":"")+", más de 3 veces lo normal ("+fmtL(med)+"/día).");});
+  return o;}
 /* apuntar las lecturas de una nave (o corregir las de un día) */
 function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]||NAVES_CT[0]),v:{}};
   const box=el("div",{style:"display:grid;gap:10px"});
@@ -37,6 +48,7 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
     CONT.forEach(([k,nom])=>{const pv=ant&&typeof ant.c[k]==="number"?ant.c[k]:null;const out=el("div",{class:"sub",style:"min-height:18px"});
       const calc=()=>{const x=parseN(f.v[k]);out.textContent="";out.className="sub";if(!(isFinite(x)&&f.v[k]!==""&&f.v[k]!=null)||pv==null)return;const d=Math.round((x-pv)*10)/10,lab=Math.max(1,laborables(ant.f,f.f));
         const T=tramos(f.nave,k).filter(t=>t.dif>=0).slice(-20).map(t=>t.lpd).sort((a,b)=>a-b),med=T.length?T[Math.floor(T.length/2)]:null;
+        const av=avisosLect(f.nave,f.f,{[k]:x}).find(t=>/se parece a la lectura/.test(t));if(av){out.textContent=av.replace(/^[^:]+: /,"");out.className="sub neg";return;}
         if(d<0){out.textContent="Marca menos que antes ("+fmtN(pv)+"): ¿error al leer o contador cambiado?";out.className="sub neg";return;}
         out.textContent="= "+fmtL(d)+(lab>1?" en "+lab+" días ("+fmtL(d/lab)+"/día)":"")+(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10?" · mucho más de lo normal ("+fmtL(med)+"/día)":"");
         if(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10)out.className="sub neg";};
@@ -64,6 +76,10 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
   dlg("Lectura de contadores",[fld("Fecha",inp("ctF",f.f,v=>{f.f=v;f.cargada=false;f.v={};f.g={};f.gcarg=false;pinta();},{type:"date",max:hoy()})),box],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const c={};let n=0;for(const [k,nom] of CONT){const s=String(f.v[k]==null?"":f.v[k]).trim();if(!s)continue;const x=parseN(s);if(!isFinite(x)||x<0){toast("Lectura no válida en "+nom);return false;}c[k]=x;n++;}
       if(!n){toast("Escribe al menos una lectura");return false;}
+      {const AV=avisosLect(f.nave,f.f,c),firma=JSON.stringify([f.nave,f.f,c]);
+        if(AV.length&&f.avisado!==firma){f.avisado=firma;let b=document.getElementById("ct-avisos");if(!b){b=el("div",{id:"ct-avisos",class:"banner b"});box.prepend(b);}
+          b.textContent="";b.appendChild(el("b",{text:"Revisa antes de guardar:"}));AV.forEach(t=>b.appendChild(el("div",{text:"• "+t})));b.appendChild(el("div",{style:"margin-top:6px",text:"Si está bien, pulsa «Guardar» otra vez."}));
+          try{b.scrollIntoView({block:"nearest"});}catch(e){}return false;}}
       const grg={};for(const k of Object.keys(f.g||{})){const g=f.g[k],cap=cfgCot(k).cap,lee=v=>{const t=String(v==null?"":v).trim(),x=parseN(t);return t===""||!isFinite(x)||x<0||x>cap*1.2?null:x;};
         const ab=lee(g.ab);if(ab==null){toast("Pon cuánto tiene el GRG de abajo de "+nomCont(k)+" (en litros)");return false;}grg[k]={ab};
         if(g.m==="n"){const ar=lee(g.ar);if(ar==null){toast("Pon cuánto tiene el GRG de arriba de "+nomCont(k)+" (en litros)");return false;}grg[k].ar=ar;}}

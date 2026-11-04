@@ -137,12 +137,12 @@ async function leeDoc(col,id){const C=P+col,k="d:"+C+"/"+id,ap=d=>d?{data:OFF.ap
     const r=await sb.from("docs").select("data,updated_at").eq("col",C).eq("id",id).maybeSingle();if(r.error)throw r.error;const v=r.data?{data:r.data.data,u:r.data.updated_at}:null;OFF.guarda(k,v);OFF.red(true);return ap(v);}
   catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);let d=await OFF.lee(k);if(d===undefined){const L=await OFF.lee("c:"+C);const x=(L||[]).find(z=>z.id===id);d=x?{data:x.data}:undefined;}
     if(d===undefined&&!OFF.cola().some(o=>o.col===C&&o.id===id))throw e;return ap(d||null);}}
-const rpc=async(f,a)=>{noConsulta();const r=await sb.rpc(f,a);if(r.error)throw r.error;};
+const rpc=async(f,a)=>{noConsulta();const r=await sb.rpc(f,a);if(r.error)throw r.error;marcaGuardado();};
 /* apuntes (añadir, quitar o cambiar líneas): sin red se guardan en la cola y se envían al volver */
 const rpcQ=async(f,a)=>{noConsulta();try{if(!navigator.onLine)throw new TypeError("offline");await rpc(f,a);OFF.red(true);}
   catch(e){if(!OFF.esRed(e)){if(window.reportarError)reportarError(e,"guardar "+f+" "+a.p_col);throw e;}OFF.red(false);await OFF.encola({fn:f,args:a,col:a.p_col,id:a.p_id,desc:sinP(a.p_col)+" "+a.p_id});recargar([a.p_col]);}};
 const sinRed=()=>new Error("Sin conexión: esto se podrá guardar cuando vuelva la red. Los consumos y apuntes sí se guardan sin red.");
-const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();try{const r=await fn();if(r&&r.error)throw r.error;OFF.red(true);return r;}catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
+const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();try{const r=await fn();if(r&&r.error)throw r.error;OFF.red(true);marcaGuardado();return r;}catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
 OFF.ejecutor=op=>rpc(op.fn,op.args);OFF.alVaciar=cols=>recargar(cols);
 const db={
   /* en el Almacén cada apunte guarda quién lo ha hecho («por») */
@@ -168,6 +168,33 @@ const db={
     onSnapshot:(cb,er)=>{const C=P+col;const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();
       canal(col,p=>{if(!p){go();return;}const ev=p.eventType||p.type;if(ev!=="DELETE"&&p.new&&p.new.id===id&&p.new.data!==undefined&&!(p.errors&&p.errors.length)){const d=p.new.data;OFF.guarda("d:"+C+"/"+id,{data:d,u:p.new.updated_at||null});try{cb({exists:true,data:()=>OFF.aplicaDoc(C,id,d)});}catch(e){er&&er(e);}return;}if((p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };
+/* ---------- «Deshacer» rápido ----------
+   Justo después de guardar algo que has hecho tú (un toque o una tecla en los últimos segundos) sale abajo
+   «Guardado · Deshacer» unos segundos. Deshacer quita lo último que has guardado tú (lo mismo que el historial). */
+let _gesto=0,_tChip=null,_tFuera=null,_deshaciendo=false;
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{_gesto=Date.now();},true));
+function marcaGuardado(){if(_deshaciendo||!yo||yo.consulta||Date.now()-_gesto>5000)return;clearTimeout(_tChip);_tChip=setTimeout(chipDeshacer,700);}
+function chipDeshacer(){let c=document.getElementById("undo-chip");if(c)c.remove();clearTimeout(_tFuera);
+  c=h("div",{id:"undo-chip",role:"status",style:"position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9998;display:flex;align-items:center;gap:12px;background:#1d2a33;color:#fff;border-radius:999px;padding:8px 8px 8px 16px;box-shadow:0 4px 18px rgba(0,0,0,.28);font-size:14px;max-width:calc(100vw - 32px)"},[
+    h("span",{text:"Guardado"}),
+    h("button",{type:"button",id:"undo-btn",style:"appearance:none;border:0;background:#fff;color:#1b5a7a;font:inherit;font-weight:700;border-radius:999px;padding:6px 14px;cursor:pointer",text:"Deshacer",onclick:()=>{c.remove();deshacerUltimo();}}),
+    h("button",{type:"button","aria-label":"Cerrar",style:"appearance:none;border:0;background:transparent;color:#cfd8de;font:inherit;font-size:18px;padding:2px 8px;cursor:pointer",text:"×",onclick:()=>c.remove()})]);
+  document.body.appendChild(c);_tFuera=setTimeout(()=>c.remove(),10000);}
+async function deshacerUltimo(){
+  const box=h("div",{class:"dlg",role:"dialog","aria-label":"Deshacer lo último"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);
+  box.appendChild(h("h3",{text:"Deshacer lo último que has guardado"}));const cu=h("div",{},[h("p",{class:"hint",text:"Buscando…"})]);box.appendChild(cu);document.body.appendChild(ov);
+  let g=null;try{const gs=await cargaHist();g=gs.find(x=>x.by===(yo&&yo.user_id)&&Date.now()-Date.parse(x.at)<30*60e3)||null;}catch(e){cu.textContent="";cu.appendChild(h("p",{class:"err",text:"No se pudo cargar: "+(e.message||e)}));}
+  if(!g){if(!cu.querySelector(".err")){cu.textContent="";cu.appendChild(h("p",{class:"hint",text:"No encuentro nada tuyo guardado en la última media hora."}));}
+    box.appendChild(h("div",{class:"dlg-b"},[h("button",{class:"btn sec",type:"button",text:"Ver historial",onclick:()=>{ov.remove();panelHist();}}),h("button",{class:"btn",type:"button",text:"Cerrar",onclick:()=>ov.remove()})]));return;}
+  const L=[].concat(...g.cambios.map(c=>c.lineas));cu.textContent="";
+  cu.appendChild(h("p",{class:"hint",text:"Guardado "+fechaH(g.at)+". Se quita esto y lo demás se queda como está:"}));
+  cu.appendChild(h("div",{style:"font-size:14px;line-height:1.45;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:2px"},L.slice(0,8).map(t=>h("div",{text:t})).concat(L.length>8?[h("div",{class:"hint",text:"… y "+(L.length-8)+" más"})]:[])));
+  const ok=h("button",{class:"btn",type:"button",id:"undo-ok",text:"Deshacer",onclick:async()=>{ok.disabled=true;ok.textContent="Deshaciendo…";_deshaciendo=true;
+    try{const r=await deshacerGrupo(g);if(r){ov.remove();const t=document.createElement("div");t.id="toast";t.setAttribute("role","status");t.textContent="Deshecho";const o=document.getElementById("toast");if(o)o.remove();document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}else{ok.disabled=false;ok.textContent="Deshacer";}}
+    catch(e){alert("No se pudo deshacer: "+(e.message||e));ok.disabled=false;ok.textContent="Deshacer";}finally{_deshaciendo=false;}}});
+  box.appendChild(h("div",{class:"dlg-b"},[h("button",{class:"btn sec",type:"button",text:"Ver historial",onclick:()=>{ov.remove();panelHist();}}),h("button",{class:"btn sec",type:"button",text:"Cancelar",onclick:()=>ov.remove()}),ok]));}
+window.deshacerUltimo=()=>deshacerUltimo();
+
 /* ---------- historial de cambios y deshacer ---------- */
 const sinP=col=>P&&col.startsWith(P)?col.slice(P.length):col;
 const keyIt=it=>it&&typeof it==="object"?(it.id!=null?"id:"+it.id:it.i!=null?"i:"+it.i:JSON.stringify(it)):String(it);

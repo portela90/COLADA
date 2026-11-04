@@ -107,7 +107,7 @@ function vParte(B,ud,ahora){
     const copiarP=async()=>{const t=ta.value;try{await navigator.clipboard.writeText(t);toast("Parte copiado");cerrar();}
         catch(e){ta.removeAttribute("readonly");ta.select();try{document.execCommand("copy");toast("Parte copiado");cerrar();}catch(e2){toast("Selecciona el texto y cópialo");}}};
     const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Copiar parte"},[
-      el("h3",{text:"Parte del "+(ud?dmy(ud):"—")}),ch.node,ta,
+      el("h3",{text:"Parte del "+(ud?dmy(ud):"—")}),ch.node,ta,botonesEnviar(()=>ta.value,()=>"Parte de aluminio "+(ud?dmy(ud):"")),
       el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cerrar",onclick:cerrar}),el("button",{type:"button",class:"btn",text:"Copiar",onclick:copiarP})])])]);
     document.addEventListener("keydown",tec);document.body.appendChild(ov);};
   const dual=(fa,kg,fuerte)=>el("td",{class:"r num"},[

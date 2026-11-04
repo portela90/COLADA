@@ -498,6 +498,15 @@ test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y
   await expect(page.locator('.dlg')).toContainText('= 6 l');
   await page.fill('#ctter', String(ultimo.ter + 90));
   await expect(page.locator('.dlg')).toContainText('mucho más de lo normal');
+  // la del ISO 46 apuntada con lo que marca el Térmico: avisa en la casilla y al guardar
+  await page.fill('#cti46', String(ultimo.ter));
+  await expect(page.locator('.dlg')).toContainText('se parece a la lectura del Térmico');
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#ct-avisos')).toContainText('Revisa antes de guardar');
+  await expect(page.locator('#ct-avisos')).toContainText('más de 3 veces lo normal');
+  await page.fill('#cti46', ''); await page.waitForTimeout(100);
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#ct-avisos')).not.toContainText('Térmico (');
   await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
   const items = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items));
   expect(items[items.length - 1]).toMatchObject({ nave: 'Nave 1', c: { e220: ultimo.e220 + 6, ter: ultimo.ter + 90 } });
@@ -1469,5 +1478,28 @@ test('Recuentos y ABC: clases por gasto, recuento de la semana y pestaña Averí
   await page.locator('#bdRes button', { hasText: 'Abrir la ficha de la F25' }).click(); await page.waitForTimeout(400);
   await page.locator('.op-tabs button', { hasText: /^Averías/ }).click(); await page.waitForTimeout(200);
   await expect(page.locator('.op-body')).toContainText('Averías este año');
+  expect(err).toEqual([]);
+});
+
+test('Leer albarán gratis (OCR en el móvil): saca proveedor, nº, fecha y líneas; lo que no reconoce sale desmarcado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__OCR_MOCK = 'MEYUSA, S.A.\nALBARÁN Nº C-77   Fecha: 03/11/2026\nCant. Descripción Precio Importe\n12 GUANTE ANTICORTE T9 3,50 42,00\n2 ESPUMADERA INOX 300 8,00 16,00\n1 TORNILLERIA VARIOS 5,00 5,00\nTOTAL 63,00'; });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#bLeerAlbG')).toBeVisible();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('#mLeerAlbG').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1200);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('Leído sin IA');
+  await expect(d.locator('#laProv')).toHaveValue('pv1');
+  await expect(d.locator('#laAlb')).toHaveValue('C-77');
+  await expect(d.locator('#laF')).toHaveValue('2026-11-03');
+  await expect(d.locator('#laA0')).toHaveValue('c1'); await expect(d.locator('#laC0')).toHaveValue('12');
+  await expect(d.locator('#laA1')).toHaveValue('c5'); await expect(d.locator('#laC1')).toHaveValue('2');
+  await expect(d.locator('#laA2')).toHaveCount(0); // TORNILLERIA: desmarcada
+  await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(900);
+  const M = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(m => m.alb === 'C-77'));
+  expect(M.map(m => [m.art, m.cant]).sort()).toEqual([['c1', 12], ['c5', 2]]);
   expect(err).toEqual([]);
 });

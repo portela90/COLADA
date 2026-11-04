@@ -197,5 +197,19 @@ function ventanaParteCompras(){const ta=el("textarea",{readonly:"",style:"min-he
   const copiar=async()=>{const t=ta.value;try{await navigator.clipboard.writeText(t);toast("Parte copiado");cerrar();}
     catch(e){ta.removeAttribute("readonly");ta.select();try{document.execCommand("copy");toast("Parte copiado");cerrar();}catch(e2){toast("Selecciona el texto y cópialo");}}};
   const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Parte para compras"},[
-    el("h3",{text:"Parte para compras"}),ta,el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cerrar",onclick:cerrar}),el("button",{id:"rd-copiar",type:"button",class:"btn",text:"Copiar parte",onclick:copiar})])])]);
+    el("h3",{text:"Parte para compras"}),ta,botonesEnviar(()=>ta.value,()=>"Parte de aluminio "+dmy(hoy())),el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cerrar",onclick:cerrar}),el("button",{id:"rd-copiar",type:"button",class:"btn",text:"Copiar parte",onclick:copiar})])])]);
   document.addEventListener("keydown",tec);document.body.appendChild(ov);}
+/* ---------- enviar el parte con un toque ----------
+   WhatsApp abre el chat con el parte ya escrito (si se ha guardado el móvil del destinatario, directo a su chat);
+   Correo abre el correo con asunto y texto. «Para quién» se guarda en la configuración (cfg.envioParte). */
+function destParte(){return cfg.envioParte||{};}
+async function ponerDestParte(){const d=destParte();
+  const tel=await dialogo({titulo:"¿A quién se manda el parte?",texto:"Móvil para WhatsApp (con prefijo, p. ej. 34600111222). Déjalo vacío para elegir el chat cada vez.",input:true,teclado:"tel",valor:d.tel||"",ok:"Siguiente"});if(tel===null)return false;
+  const em=await dialogo({titulo:"¿A quién se manda el parte?",texto:"Correo del destinatario (puedes poner varios separados por comas). Déjalo vacío para elegirlo cada vez.",input:true,teclado:"email",valor:d.email||"",ok:"Guardar"});if(em===null)return false;
+  cfg.envioParte={tel:String(tel).replace(/[^\d]/g,""),email:String(em).trim()};try{await saveCfg();toast("Destinatario guardado");}catch(e){toast("No se pudo guardar");}return true;}
+function botonesEnviar(texto,asunto){
+  const wa=el("button",{type:"button",class:"btn sec env-wa",text:"WhatsApp",onclick:()=>{const t=texto(),d=destParte();window.open("https://wa.me/"+(d.tel||"")+"?text="+encodeURIComponent(t),"_blank","noopener");}});
+  const ml=el("button",{type:"button",class:"btn sec env-ml",text:"Correo",onclick:()=>{const t=texto(),d=destParte();location.href="mailto:"+encodeURIComponent(d.email||"").replace(/%2C/gi,",").replace(/%40/g,"@")+"?subject="+encodeURIComponent(asunto())+"&body="+encodeURIComponent(t);}});
+  const sh=navigator.share?el("button",{type:"button",class:"btn sec",text:"Compartir…",onclick:async()=>{try{await navigator.share({title:asunto(),text:texto()});}catch(e){}}}):null;
+  const dq=destParte(),para=el("button",{type:"button",class:"btn txt peq env-para",text:dq.tel||dq.email?"Para: "+[dq.tel?"+"+dq.tel:"",dq.email].filter(Boolean).join(" · ")+" (cambiar)":"Elegir a quién se manda",onclick:async()=>{if(await ponerDestParte()){const x=destParte();para.textContent=x.tel||x.email?"Para: "+[x.tel?"+"+x.tel:"",x.email].filter(Boolean).join(" · ")+" (cambiar)":"Elegir a quién se manda";}}});
+  return el("div",{class:"env-row"},[el("div",{class:"env-bt"},[wa,ml,sh].filter(Boolean)),para]);}

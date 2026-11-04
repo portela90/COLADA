@@ -15,7 +15,7 @@ function revisarAlbaran(D,blob){const recup=D.tipo==="recuperacion"||(D.lineas||
   const prov=cat.proveedores.find(p=>nqAlb(p.nom)===nqAlb(D.proveedor))||cat.proveedores.find(p=>D.proveedor&&(nqAlb(p.nom).includes(nqAlb(D.proveedor).split(" ")[0])||nqAlb(D.proveedor).includes(nqAlb(p.nom).split(" ")[0])));
   const M=cat.albMap||{};
   const diamDe=(n,esp)=>{const d="Ø "+String(n||"").replace(/\D/g,"")+(esp?" esp":"");return DIAM.includes(d)?d:null;};
-  const L=(D.lineas||[]).map((l,i)=>{const r={i,texto:l.texto||"",cant:l.cantidad!=null?String(l.cantidad).replace(".",","):"",ud:l.unidad||"",art:"",rec:recup,ok:true,desde:null};
+  const L=(D.lineas||[]).map((l,i)=>{const r={i,texto:l.texto||"",cant:l.cantidad!=null?String(l.cantidad).replace(".",","):"",ud:l.unidad||"",art:"",rec:recup,ok:l.ok!==false,desde:null};
     if(recup&&l.hasta){const h=diamDe(l.hasta,l.especial),a=h?pistArt(h):null;if(a)r.art=a.id;r.desde=diamDe(l.desde,l.especial);}
     if(!r.art){const k=nqAlb(l.texto);if(M[k]&&art(M[k]))r.art=M[k];else if(l.art&&art(l.art))r.art=l.art;}
     r.art0=r.art;return r;});
@@ -24,6 +24,7 @@ function revisarAlbaran(D,blob){const recup=D.tipo==="recuperacion"||(D.lineas||
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const ya=v.alb&&todosMov().filter(m=>m.alb&&nqAlb(m.alb)===nqAlb(v.alb));
     if(ya&&ya.length)box.appendChild(el("div",{class:"banner b",text:"Ojo: el albarán "+v.alb+" ya está apuntado ("+ya.length+(ya.length===1?" línea":" líneas")+" del "+fmtF(ya[0].f)+"). Revisa que no lo metas dos veces."}));
+    if(D.ocr)box.appendChild(el("div",{class:"banner w",text:"Leído sin IA: revisa sobre todo las cantidades. Las líneas que no ha reconocido salen desmarcadas; márcalas y elige el artículo si son de este albarán."}));
     if(D.confianza==="baja")box.appendChild(el("div",{class:"banner w",text:"La foto no se lee bien: revisa cada línea."}));
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:recup?"Albarán de recuperación de pistones: entran como recuperados, cada uno con el Ø al que lo han rebajado.":"Revisa que cada línea esté unida a su artículo. Lo que corrijas se recuerda para la próxima vez."}));
     box.appendChild(el("div",{class:"row"},[fld("Proveedor",sel("laProv",provOpts(),v.prov,x=>v.prov=x,"—")),fld("Nº albarán",inp("laAlb",v.alb,x=>{v.alb=x;},{autocomplete:"off"}))]));
