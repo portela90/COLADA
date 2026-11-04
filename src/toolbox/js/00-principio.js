@@ -132,6 +132,7 @@ async function pantallaOperario(){
   try{
     const [pend, meses, formMias, docMios] = await Promise.all([rpc('prl_pendientes',{p_tok:S.tok}), rpc('prl_meses',{p_tok:S.tok,p_anio:S.anio}), rpc('prl_form_mias',{p_tok:S.tok}).catch(()=>[]), rpc('prl_doc_mios',{p_tok:S.tok}).catch(()=>[])]);
     const firmados = meses.filter(m=>m.firmado_yo);
+    const TM = await rpc('prl_tallas_mias',{p_tok:S.tok}).catch(()=>null);
     let h='';
     if(pend.length){
       h += `<div class="h2">Para firmar</div>`;
@@ -156,7 +157,12 @@ async function pantallaOperario(){
     if(firmados.length){
       h += `<div class="h2">Ya firmados (${S.anio})</div><div class="card">` + firmados.map(m=>`<div class="li"><span class="dot ok"></span><span class="grow"><span class="nm">${MESES[m.mes-1]}</span><br><span class="small muted">${esc(m.tema||'')}</span></span><button class="btn ghost" data-a="${S.anio}" data-m="${m.mes}">Ver</button></div>`).join('') + `</div>`;
     }
-    $('#w').innerHTML = h+`<button class="btn sec" id="mistal" style="margin-top:14px;width:100%">Mis tallas de ropa y botas</button>`; $('#mistal').onclick=pantallaMisTallas;
+    /* aviso arriba: sin tallas puestas, o con cambios pendientes de revisar (así no depende de las notificaciones del móvil) */
+    let avisoT='';
+    if(TM){ if(TM.pend) avisoT='<div class="card" style="border:2px solid var(--blue)"><b>Tus cambios de tallas están pendientes de revisar</b><div class="small muted">Cristian los revisa. Mientras, tu ficha tiene las tallas anteriores.</div></div>';
+      else if(!Object.keys(TM.tallas||{}).length) avisoT='<div class="card" style="border:2px solid var(--blue)"><b>Pon tus tallas de ropa y botas</b><div class="small muted">Así Cristian puede pedir la ropa que necesitas.</div><button class="btn" id="tallasYa" style="margin-top:8px">Poner mis tallas</button></div>'; }
+    $('#w').innerHTML = avisoT + h + `<button class="btn sec" id="mistal" style="margin-top:14px;width:100%">Mis tallas de ropa y botas</button>`;
+    $('#mistal').onclick=pantallaMisTallas; if($('#tallasYa')) $('#tallasYa').onclick=pantallaMisTallas;
     document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>pantallaLeer(+b.dataset.a, +b.dataset.m));
     document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>pantallaFormLeer(b.dataset.f));
     document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>pantallaDocLeer(b.dataset.d));

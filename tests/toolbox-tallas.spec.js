@@ -5,7 +5,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const UUID = '11111111-1111-4111-8111-111111111111';
 
-async function montar(page, { yo, ruta, pend }) {
+async function montar(page, { yo, ruta, pend, tallas }) {
   const st = { llamadas: [] };
   page.on('pageerror', e => st.llamadas.push({ error: e.message }));
   await page.route(/^https?:/, async r => {
@@ -16,7 +16,7 @@ async function montar(page, { yo, ruta, pend }) {
       let d = [];
       switch (m[1]) {
         case 'yo': d = yo; break;
-        case 'prl_tallas_mias': d = { tallas: { camiseta_corta: 'M', pantalon: '42' }, pend: null, pend_en: null }; break;
+        case 'prl_tallas_mias': d = { tallas: tallas || { camiseta_corta: 'M', pantalon: '42' }, pend: null, pend_en: null }; break;
         case 'prl_tallas_pedir': d = { ok: true }; break;
         case 'prl_ficha': d = {
           trabajador: { id: UUID, nombre: 'Pepe Ruiz', activo: true, dni: '12345678Z', puesto: 'Operario', tallas: { camiseta_corta: 'M' }, tallas_pend: pend, tallas_pend_en: '2026-11-03T08:00:00Z' },
@@ -62,4 +62,11 @@ test('admin: acepta la propuesta de tallas desde la pestaña «Tallas y EPI»', 
   await expect.poll(() => st.llamadas.some(c => c.fn === 'prl_tallas_resolver')).toBeTruthy();
   const res = st.llamadas.find(c => c.fn === 'prl_tallas_resolver');
   expect(res.a).toMatchObject({ p_trab: UUID, p_aceptar: true });
+});
+
+test('trabajador sin tallas: ve el aviso en su pantalla de inicio', async ({ page }) => {
+  await montar(page, { yo: { id: 'w1', nombre: 'Pepe Ruiz', rol: 'operario' }, ruta: '', tallas: {} });
+  await expect(page.getByText('Pon tus tallas de ropa y botas')).toBeVisible();
+  await page.getByRole('button', { name: 'Poner mis tallas' }).click();
+  await expect(page.getByText('Tu ropa y botas')).toBeVisible();
 });
