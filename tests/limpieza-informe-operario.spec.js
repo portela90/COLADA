@@ -1,18 +1,19 @@
-// Limpieza: informe por operario (solo admin). Muestra el selector y, al descargar, pide los trabajos del periodo.
+// Limpieza: informe por operario (solo admin). Eliges operarios con casillas, un periodo y descargas el PDF.
 const { expect, test } = require('@playwright/test');
 const { abre, ADMIN } = require('./limp');
 const { R } = require('./mocks/limpieza');
 
-test('admin: el informe por operario pide los trabajos de la semana del operario elegido', async ({ page }) => {
+test('admin: el informe por operario pide los trabajos de la semana de los operarios marcados', async ({ page }) => {
   R.ots_rango = [];
   const { err, llamadas } = await abre(page, ADMIN, '?ir=resumen');
   const card = page.locator('#informeop');
   await expect(card).toBeVisible();
   await expect(card.getByRole('button', { name: 'Descargar PDF' })).toBeVisible();
-  // el selector tiene a los operarios (no al admin)
-  const opciones = await card.locator('select').first().locator('option').allTextContents();
-  expect(opciones.length).toBeGreaterThan(1);
-  await card.locator('select').first().selectOption({ index: 1 });
+  // hay casillas de operarios (no del admin) y se pueden marcar varias
+  const casillas = card.locator('input[type=checkbox]');
+  expect(await casillas.count()).toBeGreaterThan(2);
+  await casillas.nth(0).check();
+  await casillas.nth(1).check();
   await card.getByRole('button', { name: 'Descargar PDF' }).click();
   await page.waitForTimeout(800);
   const pedido = llamadas.filter(([fn]) => fn === 'ots_rango').pop();

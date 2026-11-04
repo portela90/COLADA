@@ -230,37 +230,42 @@ function rangoPeriodo(tipo,f,h){
   const [y,m]=f.split("-").map(Number), mm=String(m).padStart(2,"0");
   return [y+"-"+mm+"-01", y+"-"+mm+"-"+String(new Date(y,m,0).getDate()).padStart(2,"0")];
 }
+/* Configuración del informe guardada en este navegador (operarios, periodo y fin de semana; no las fechas) */
+function informeOpCfg(){ try{ const c=JSON.parse(localStorage.getItem("limp.informeOp")||"null"); return c&&typeof c==="object"?c:{}; }catch(e){ return {}; } }
+function informeOpGuarda(st){ try{ localStorage.setItem("limp.informeOp",JSON.stringify({tipo:st.tipo,finde:st.finde,ops:st.ops})); }catch(e){} }
 function bloqueInformeOperario(){
-  const st=S.opInf=S.opInf||{tipo:"semana",f:hoyISO(),h:hoyISO(),op:"",finde:true};
+  const g=informeOpCfg();
+  const st=S.opInf=S.opInf||{tipo:g.tipo||"semana",f:hoyISO(),h:hoyISO(),ops:Array.isArray(g.ops)?g.ops:[],finde:g.finde!==false};
   const box=el("div",{class:"bd"},el("div",{class:"empty",text:"Cargando…"}));
   const card=el("div",{class:"card",id:"informeop"},[el("div",{class:"hd"},el("h2",{text:"Informe por operario"})),box]);
   trabajadores().then(L=>{
     const ops=(L||[]).filter(w=>w.activo&&w.rol!=="admin").slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),"es"));
-    const etiqueta=(t)=>el("div",{class:"hint",style:"margin:14px 0 6px;font-weight:600;color:var(--ink,#1d2430)",text:t});
-    const selOp=el("select",{class:"inp",style:"width:100%;margin:0",onchange:e=>{st.op=e.target.value;}},[el("option",{value:"",text:"— Elige un operario —"})].concat(ops.map(w=>el("option",{value:w.id,text:w.nombre}))));
-    selOp.value=st.op||"";
+    const etiqueta=(t)=>el("div",{class:"hint",style:"margin:14px 0 6px;font-weight:600",text:t});
+    const marcas=ops.map(w=>{ const c=el("input",{type:"checkbox",style:"width:auto;margin:0",onchange:()=>{ st.ops=ops.filter((x,i)=>marcas[i].checked).map(x=>x.id); informeOpGuarda(st); }}); c.checked=st.ops.includes(w.id); return c; });
+    const lista=el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:6px 12px"},ops.map((w,i)=>el("label",{style:"display:flex;gap:8px;align-items:center"},[marcas[i],el("span",{text:w.nombre})])));
+    const todos=el("button",{class:"btn sec peq",type:"button",style:"margin:0 0 8px;width:auto;padding:6px 10px",text:"Marcar / quitar todos",onclick:()=>{ const todosOn=marcas.some(c=>!c.checked); marcas.forEach(c=>c.checked=todosOn); st.ops=todosOn?ops.map(w=>w.id):[]; informeOpGuarda(st); }});
     const chips=el("div",{style:"display:flex;flex-wrap:wrap;gap:6px"},[["dia","Día"],["semana","Semana"],["mes","Mes"],["rango","Entre dos fechas"]].map(([k,n])=>
-      el("button",{class:"btn "+(st.tipo===k?"":"sec")+" peq",type:"button",style:"margin:0;width:auto;padding:8px 12px",text:n,onclick:()=>{st.tipo=k;pinta();}})));
+      el("button",{class:"btn "+(st.tipo===k?"":"sec")+" peq",type:"button",style:"margin:0;width:auto;padding:8px 12px",text:n,onclick:()=>{ st.tipo=k; informeOpGuarda(st); pinta(); }})));
     const inF=el("input",{type:"date",class:"inp",style:"width:100%;margin:0",value:st.f,onchange:e=>{st.f=e.target.value;}});
     const inH=el("input",{type:"date",class:"inp",style:"width:100%;margin:0",value:st.h,onchange:e=>{st.h=e.target.value;}});
     const fechas=st.tipo==="rango"
       ? el("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:10px"},[el("div",null,[el("div",{class:"hint",text:"Desde"}),inF]),el("div",null,[el("div",{class:"hint",text:"Hasta"}),inH])])
       : el("div",null,[el("div",{class:"hint",text:st.tipo==="mes"?"Cualquier día del mes":st.tipo==="semana"?"Cualquier día de la semana":"Día"}),inF]);
-    const chkF=el("input",{type:"checkbox",style:"width:auto;margin:0",onchange:e=>{st.finde=e.target.checked;}});
+    const chkF=el("input",{type:"checkbox",style:"width:auto;margin:0",onchange:e=>{ st.finde=e.target.checked; informeOpGuarda(st); }});
     chkF.checked=!!st.finde;
     const bot=el("button",{class:"btn",type:"button",style:"width:100%;margin-top:18px",text:"Descargar PDF",onclick:async e=>{
-      const w=ops.find(x=>x.id===selOp.value);
-      if(!w){ toast("Elige un operario"); return; }
+      const sel=ops.filter(w=>st.ops.includes(w.id));
+      if(!sel.length){ toast("Marca al menos un operario"); return; }
       const f=inF.value, h=st.tipo==="rango"?inH.value:f;
       if(st.tipo==="rango"&&h<f){ toast("«Hasta» no puede ser anterior a «Desde»"); return; }
       st.f=f; st.h=h;
       const b=e.currentTarget; b.disabled=true;
-      try{ await pdfOperario(w,st.tipo,f,chkF.checked,h); }catch(er){ toast(er.message||"No se pudo hacer el PDF"); }
+      try{ await pdfOperarios(sel,st.tipo,f,chkF.checked,h); }catch(er){ toast(er.message||"No se pudo hacer el PDF"); }
       finally{ b.disabled=false; }
     }});
     box.textContent="";
-    box.appendChild(el("p",{class:"hint",style:"margin:0",text:"PDF con los trabajos de la persona (limpiezas, hornos y cambios), su tiempo estimado y los trabajos que no hizo."}));
-    box.appendChild(etiqueta("Operario")); box.appendChild(selOp);
+    box.appendChild(el("p",{class:"hint",style:"margin:0",text:"PDF con los trabajos de cada persona (limpiezas, hornos y cambios), su tiempo estimado por día y los trabajos que no hizo. Si marcas varios, cada uno sale en su página."}));
+    box.appendChild(etiqueta("Operarios")); box.appendChild(todos); box.appendChild(lista);
     box.appendChild(etiqueta("Periodo")); box.appendChild(chips);
     box.appendChild(el("div",{style:"margin-top:10px"},fechas));
     box.appendChild(el("label",{style:"display:flex;gap:8px;align-items:center;margin:14px 0 0"},[chkF,el("span",{text:"Incluir trabajos de fin de semana"})]));
@@ -268,28 +273,35 @@ function bloqueInformeOperario(){
   }).catch(er=>{ box.textContent=""; box.appendChild(el("div",{class:"aviso",text:er.message})); });
   return card;
 }
-async function pdfOperario(w,tipo,f,conFinde,h){
+async function pdfOperarios(ws,tipo,f,conFinde,h){
   const [desde,hasta]=rangoPeriodo(tipo,f,h);
   const O=await rpc("ots_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta});
   await libPDF();
-  /* suyos = los que lo marcó él o en los que está asignado (en un trabajo de equipo, quien lo cierra no siempre es quien lo hizo); salvo que se marque incluir fin de semana */
-  const mio=o=>o.hecho_por_n===w.nombre||(o.asignados||[]).includes(w.id);
-  const entreSemana=o=>conFinde||!esFindeOT(o);
-  const hechas=O.filter(o=>o.estado==="hecha"&&mio(o)&&entreSemana(o)).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
-  const noH=O.filter(o=>o.estado==="no_hecha"&&((o.nombres||[]).includes(w.nombre)||(o.asignados||[]).includes(w.id))&&entreSemana(o)).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
-  const tot=hechas.reduce((s,o)=>s+(o.minutos_est||0),0), sinEst=hechas.filter(o=>!o.minutos_est).length;
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"}); const M=14;
-  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.text("Informe por operario",M,16);
-  doc.setFontSize(12); doc.text(w.nombre,M,24);
-  doc.setFont("helvetica","normal"); doc.setFontSize(10);
-  doc.text(({dia:"Día",semana:"Semana",mes:"Mes",rango:"Periodo"})[tipo]+": "+fDMA(desde)+(desde!==hasta?" al "+fDMA(hasta):""),M,30);
-  doc.text("Trabajos hechos: "+hechas.length+"     Tiempo estimado: "+(durTxt(tot)||"0 min")+(sinEst?"     Sin tiempo estimado: "+sinEst:"")+"     No hechos: "+noH.length,M,36);
-  doc.autoTable({startY:42,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[31,78,121]},
-    head:[["Fecha","Trabajo","Lugar","Estimado","Hecho por","Checklist"]],
-    body:hechas.map(o=>[fDM(o.fecha),o.titulo||"",o.lugar||"",o.minutos_est?durTxt(o.minutos_est):"—",o.hecho_por_n||"—",o.resultado||"—"])});
-  if(noH.length){
-    doc.autoTable({startY:doc.lastAutoTable.finalY+8,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[179,38,30]},
-      head:[["Fecha","Trabajo no hecho","Nota"]], body:noH.map(o=>[fDM(o.fecha),o.titulo||"",o.nota||""])});
-  }
-  doc.save("informe-"+String(w.nombre).replace(/\s+/g,"-").toLowerCase()+"-"+tipo+"-"+desde+".pdf");
+  const periodo=({dia:"Día",semana:"Semana",mes:"Mes",rango:"Periodo"})[tipo]+": "+fDMA(desde)+(desde!==hasta?" al "+fDMA(hasta):"");
+  const entreSemana=o=>conFinde||!esFindeOT(o);
+  const porFecha=(a,b)=>String(a.fecha).localeCompare(String(b.fecha));
+  ws.forEach((w,i)=>{
+    if(i>0) doc.addPage();
+    const mio=o=>o.hecho_por_n===w.nombre||(o.asignados||[]).includes(w.id);
+    const hechas=O.filter(o=>o.estado==="hecha"&&mio(o)&&entreSemana(o)).sort(porFecha);
+    const noH=O.filter(o=>o.estado==="no_hecha"&&((o.nombres||[]).includes(w.nombre)||(o.asignados||[]).includes(w.id))&&entreSemana(o)).sort(porFecha);
+    const tot=hechas.reduce((s,o)=>s+(o.minutos_est||0),0), sinEst=hechas.filter(o=>!o.minutos_est).length;
+    doc.setTextColor(0); doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.text("Informe por operario",M,16);
+    doc.setFontSize(12); doc.text(w.nombre,M,24);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(periodo,M,30);
+    doc.text("Trabajos hechos: "+hechas.length+"     Tiempo estimado: "+(durTxt(tot)||"0 min")+(sinEst?"     Sin tiempo estimado: "+sinEst:"")+"     No hechos: "+noH.length,M,36);
+    const porDia={}; hechas.forEach(o=>{ const d=porDia[o.fecha]||(porDia[o.fecha]={n:0,m:0}); d.n++; d.m+=o.minutos_est||0; });
+    doc.autoTable({startY:42,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[31,78,121]},
+      head:[["Día","Trabajos","Tiempo estimado"]], body:Object.keys(porDia).sort().map(d=>[fDMA(d),String(porDia[d].n),durTxt(porDia[d].m)||"0 min"])});
+    doc.autoTable({startY:doc.lastAutoTable.finalY+8,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[31,78,121]},
+      head:[["Fecha","Trabajo","Lugar","Estimado","Hecho por","Checklist"]],
+      body:hechas.map(o=>[fDM(o.fecha),o.titulo||"",o.lugar||"",o.minutos_est?durTxt(o.minutos_est):"—",o.hecho_por_n||"—",o.resultado||"—"])});
+    if(noH.length){
+      doc.autoTable({startY:doc.lastAutoTable.finalY+8,margin:{left:M,right:M},styles:{fontSize:9},headStyles:{fillColor:[179,38,30]},
+        head:[["Fecha","Trabajo no hecho","Nota"]], body:noH.map(o=>[fDM(o.fecha),o.titulo||"",o.nota||""])});
+    }
+  });
+  const nombre=ws.length===1?"informe-"+String(ws[0].nombre).replace(/\s+/g,"-").toLowerCase():"informe-operarios";
+  doc.save(nombre+"-"+tipo+"-"+desde+".pdf");
 }
