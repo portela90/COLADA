@@ -501,7 +501,7 @@ test('Recuento diario: si bajan dos coladas, los pesos de cada una van a su cola
 });
 
 test('Recuento diario: de madrugada el relevo en marcha es la noche del día anterior', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-04T05:19:00'));
+  await page.clock.setFixedTime(new Date('2026-11-04T05:19:00+01:00'));
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
