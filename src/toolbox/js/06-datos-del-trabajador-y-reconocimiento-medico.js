@@ -1,5 +1,5 @@
 // ====== DATOS DEL TRABAJADOR Y RECONOCIMIENTO MÉDICO ======
-const TALLAS_N={camiseta:'Camiseta',pantalon:'Pantalón',chaqueta:'Chaqueta',calzado:'Calzado',guantes:'Guantes'};
+const TALLAS_N={camiseta_larga:'Camiseta manga larga',camiseta_corta:'Camiseta manga corta',pantalon:'Pantalón',chaqueta:'Chaqueta o polar',bota_agua:'Botas de agua',bota_seguridad:'Botas de seguridad con puntera reforzada'};
 /* Reconocimiento médico: OCULTO hasta que la empresa (DPO / prevención) lo autorice.
    Para volver a mostrarlo, poner RM_ACTIVO=true. Los datos que hubiera no se borran. */
 const RM_ACTIVO=false;

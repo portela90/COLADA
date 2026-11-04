@@ -28,9 +28,10 @@ async function pantallaFichas(){
       <span class="small muted">${t.epis?`${t.epis} entrega${t.epis>1?'s':''} de EPI · última ${fmtF(t.ult_epi)}`:'Sin entregas de EPI'}${t.dni?'':' · <span style="color:var(--warn)">sin DNI</span>'}</span></span>
       <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${t.sin_firmar?`<span class="chip blue">${t.sin_firmar} sin firmar</span>`:''}${!t.info?'<span class="chip warn">sin info. PRL</span>':''}${!t.formacion?'<span class="chip warn">sin formación</span>':''}${t.caducados?`<span class="chip bad">${t.caducados} curso caducado</span>`:''}${!RM_ACTIVO?'':!t.rm_resultado?'<span class="chip warn">sin reconoc. médico</span>':t.rm_proximo&&t.rm_proximo<hoyISO()?'<span class="chip bad">reconoc. médico caducado</span>':''}${t.por_caducar?`<span class="chip warn">${t.por_caducar} caduca pronto</span>`:''}</span></div>`).join('')+`</div>`;
   if($('#vb')) $('#vb').onclick=()=>{ VER_BAJAS=!VER_BAJAS; pantallaFichas(); };
+  enlazaTallasFichas();
   document.querySelectorAll('[data-t]').forEach(el=>el.onclick=()=>pantallaFicha(el.dataset.t));
 }
-async function pantallaFicha(id){
+async function pantallaFicha(id,tab){
   pararVoz();
   view(barra('Ficha del trabajador', `<button class="ib" id="bk">‹</button>`) + `<div class="wrap" id="w"><div class="empty"><span class="spin dk"></span></div></div>`);
   $('#bk').onclick=pantallaFichas;
@@ -39,7 +40,8 @@ async function pantallaFicha(id){
   const hist=[...F.docs.map(d=>({f:d.fecha,k:'d',id:d.id,t:DOC_INFO[d.tipo].t,ok:d.tiene_firma,sub:d.tipo==='epi'||d.tipo==='epi_col'?resumenEntregas([{...d,tiene_firma:true}]).map(r=>r.etq.replace(/ \(.*\)$/,'')).join(', '):''})),
     ...F.formaciones.map(f=>({f:f.fecha,k:'f',id:f.id,t:'Formación práctica en el puesto',ok:f.tiene_firma,sub:(f.items||[]).map(n=>F_ITEMS[n]).join(', ')})),
     ...F.toolbox.map(b=>({f:(b.firmado_en||'').slice(0,10),k:'t',t:`Toolbox ${MESES[b.mes-1]} ${b.anio}`,ok:true,sub:b.tema||''}))].sort((a,b)=>b.f.localeCompare(a.f));
-  $('#w').innerHTML=`<div class="card"><b style="font-size:19px">${esc(t.nombre)}</b>${t.activo?'':' <span class="chip">de baja</span>'}
+  if(tab==='tallas'){ pintaTallas(F,id); return; }
+  $('#w').innerHTML=tabsFicha(id,'ficha')+`<div class="card"><b style="font-size:19px">${esc(t.nombre)}</b>${t.activo?'':' <span class="chip">de baja</span>'}
       <div class="small muted" style="margin-top:4px">DNI: ${t.dni?esc(t.dni):'<span style="color:var(--warn)">sin poner</span>'} · ${esc(t.puesto||'')}</div>
       <div class="row" style="margin-top:12px"><button class="btn grow" id="exp">Expediente PDF</button><button class="btn sec grow" id="nepi">＋ Entrega de EPI</button></div></div>
     <div class="row" style="margin:20px 2px 8px"><div class="h2 grow" style="margin:0">Datos del trabajador</div><button class="btn ghost" id="edatos">Editar</button></div>
@@ -69,6 +71,7 @@ async function pantallaFicha(id){
   document.querySelectorAll('[data-curso]').forEach(el=>el.onclick=()=>pantallaCurso(t.id,t.nombre,F.certs.find(c=>c.id===el.dataset.curso)));
   document.querySelectorAll('[data-form]').forEach(el=>el.onclick=()=>pantallaFormDetalle(el.dataset.form));
   $('#exp').onclick=e=>expedientePDF(F, e.currentTarget);
+  enlazaTabs(id);
 }
 async function expedientePDF(F, btn){
   busy(btn,true);

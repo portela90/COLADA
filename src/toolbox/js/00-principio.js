@@ -112,10 +112,12 @@ async function inicio(){
     S.yo = await rpc('yo',{p_tok:S.tok});
   }catch(e){ if(S.tok){ view(barra('Toolbox HSE')+`<div class="wrap"><div class="card">${esc(e.message)}<br><br><button class="btn sec" onclick="inicio()">Reintentar</button></div></div>`); } return; }
   // Enlace directo a un mes (desde el aviso del móvil o el botón de la app de limpieza)
-  let a=null,m=null,f=null; try{ const q=new URLSearchParams(location.search); a=+q.get('a')||null; m=+q.get('m')||null; f=q.get('f'); S._d=q.get('d'); if(q.get('s')==='form') S.seccion='form'; history.replaceState(null,'',location.pathname); }catch(e){}
+  let a=null,m=null,f=null,fi=null,tl=null; try{ const q=new URLSearchParams(location.search); a=+q.get('a')||null; m=+q.get('m')||null; f=q.get('f'); fi=q.get('ficha'); tl=q.get('tallas'); S._d=q.get('d'); if(q.get('s')==='form') S.seccion='form'; history.replaceState(null,'',location.pathname); }catch(e){}
   const dq=new URLSearchParams(location.search).get('d')||S._d;
   if(dq && /^[0-9a-f-]{36}$/i.test(dq)){ if(S.yo.rol==='admin'){ S.seccion='docs'; return pantallaDocDetalle(dq); } if(S.yo.encargado) return pantallaEncDoc(dq); return pantallaDocLeer(dq); }
   if(f && /^[0-9a-f-]{36}$/i.test(f)){ if(S.yo.rol==='admin'){ S.seccion='form'; return pantallaFormDetalle(f); } return pantallaFormLeer(f); }
+  if(fi && /^[0-9a-f-]{36}$/i.test(fi) && S.yo.rol==='admin'){ S.seccion='docs'; return pantallaFicha(fi); }
+  if(tl && S.yo.rol!=='admin') return pantallaMisTallas();
   if(a&&m){ S.anio=a; return S.yo.rol==='admin' ? pantallaMes(m) : pantallaLeer(a,m); }
   if(S.yo.rol==='admin') return pantallaAnio();
   if(S.yo.encargado) return pantallaEncargado();
@@ -154,7 +156,7 @@ async function pantallaOperario(){
     if(firmados.length){
       h += `<div class="h2">Ya firmados (${S.anio})</div><div class="card">` + firmados.map(m=>`<div class="li"><span class="dot ok"></span><span class="grow"><span class="nm">${MESES[m.mes-1]}</span><br><span class="small muted">${esc(m.tema||'')}</span></span><button class="btn ghost" data-a="${S.anio}" data-m="${m.mes}">Ver</button></div>`).join('') + `</div>`;
     }
-    $('#w').innerHTML = h;
+    $('#w').innerHTML = h+`<button class="btn sec" id="mistal" style="margin-top:14px;width:100%">Mis tallas de ropa y botas</button>`; $('#mistal').onclick=pantallaMisTallas;
     document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>pantallaLeer(+b.dataset.a, +b.dataset.m));
     document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>pantallaFormLeer(b.dataset.f));
     document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>pantallaDocLeer(b.dataset.d));
