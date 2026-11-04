@@ -14,15 +14,18 @@ const nomLote=id=>(lotes.find(l=>l.id===id)||{}).nombre||"?";
 /* relevos desde el del último recuento hasta el de ahora */
 /* el relevo en marcha: de 0 a 6 h todavía es la noche del día anterior */
 function relevoAhora(){const d=new Date();if(d.getHours()<6){d.setDate(d.getDate()-1);return{f:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),u:"Noche"};}return{f:hoy(),u:turnoAhora()};}
-function relevosRD(){const RA=relevoAhora(),h=RA.f,ta=TURNOS.indexOf(RA.u),R=[];
-  const ult=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null;
+/* cada nave lleva su recuento: se cuenta primero una y luego la otra */
+const rdDe=n=>{const x=(cfg.rdiarioN||{})[n];return x&&x.f?x:(cfg.rdiario&&cfg.rdiario.f&&!cfg.rdiario.nave?cfg.rdiario:null);};
+const rdHoyN=n=>{const x=(cfg.rdiarioN||{})[n];return !!(x&&x.ts&&new Date(x.ts).toDateString()===new Date().toDateString());};
+function relevosRD(nave){const RA=relevoAhora(),h=RA.f,ta=TURNOS.indexOf(RA.u),R=[];
+  const ult=rdDe(nave);
   let f=ult?ult.f:fMas(h,-1),i0=ult?Math.max(0,TURNOS.indexOf(ult.u)):0;
   if(!ult){let k=0;while(relevosDia(f)===0&&k<10){f=fMas(f,-1);k++;}}
   for(let k=0;k<40&&f<=h;k++,f=fMas(f,1),i0=0){const n=relevosDia(f);
     for(let t=i0;t<n;t++){if(f===h&&t>ta)break;R.push({f,u:TURNOS[t]});}}
   /* los relevos ya apuntados no se vuelven a pedir: se empieza en el último que tiene consumo
      (puede estar a medias) y se siguen los que faltan */
-  const ms=todosMovs().filter(r=>r.t==="C"&&!r.h);let j=-1;
+  const ms=todosMovs().filter(r=>r.t==="C"&&!r.h&&(!nave||(lotes.find(l=>l.id===r.o)||{}).nave===nave));let j=-1;
   R.forEach((r,i)=>{if(ms.some(x=>x.f===r.f&&x.u===r.u))j=i;});
   return R.slice(Math.max(0,j)).slice(-RD_MAX);}
 /* lo escrito en un relevo: un número pequeño = fardos; números de cientos = kilos de cada fardo; uno muy grande = kilos totales */
@@ -35,8 +38,11 @@ function leerRD(t,media){t=String(t||"").trim();if(!t)return null;
   return{fa:nums.length,k:nums};}
 function vRecuentoDiario(){
   const d=draft.rd=draft.rd||{};if(!d.R)d.R={};if(!d.C)d.C={};if(!d.K)d.K={};
-  const {S}=bloques();const R=relevosRD(),h=hoy();
-  const lineas=LINEAS.filter(([n,m])=>fifoLista(n,m,S).length);
+  const {S}=bloques(),h=hoy();
+  const navesL=NAVES.filter(n=>LINEAS.some(([a,m])=>a===n&&fifoLista(a,m,S).length));
+  if(!navesL.includes(d.nave))d.nave=navesL.find(n=>!rdHoyN(n))||navesL[0]||NAVES[0];
+  const nave=d.nave,R=relevosRD(nave);
+  const lineas=LINEAS.filter(([n,m])=>n===nave&&fifoLista(n,m,S).length);
   const ms=todosMovs();
   const yaDe=(r,n,m)=>ms.filter(x=>x.t==="C"&&x.f===r.f&&x.u===r.u&&x.o&&(()=>{const l=lotes.find(y=>y.id===x.o);return l&&l.nave===n&&l.material===m;})());
   const vivos=[];
@@ -96,7 +102,7 @@ function vRecuentoDiario(){
         if(df>0)r.o=x.l.id;else r.d=x.l.id;aj.push(r);});});
     return{recs,aj};};
   const relLbl=(r,j)=>NOMDIA[fDate(r.f).getDay()]+" "+dmy(r.f)+" "+r.u.toLowerCase();
-  const relSub=(r,j)=>r.f===relevoAhora().f&&r.u===relevoAhora().u?"hasta ahora":j===0&&cfg.rdiario&&cfg.rdiario.f===r.f&&cfg.rdiario.u===r.u?"entera, de la hoja":"";
+  const relSub=(r,j)=>r.f===relevoAhora().f&&r.u===relevoAhora().u?"hasta ahora":j===0&&rdDe(nave)&&rdDe(nave).f===r.f&&rdDe(nave).u===r.u?"entera, de la hoja":"";
   const cards=lineas.map(([n,m])=>{const k=key(n,m),lista=fifoLista(n,m,S);d.R[k]=d.R[k]||{};
     const pill=el("span",{style:"margin-left:auto"}),res=el("div",{style:"display:flex;flex-direction:column;gap:6px"});
     const rels=R.map((r,j)=>{const ya=yaDe(r,n,m),yaFa=ya.reduce((a,x)=>a+(x.fa||0),0),sub=relSub(r,j),info=el("span",{class:"rd-ya"});
@@ -140,30 +146,35 @@ function vRecuentoDiario(){
         G.g.hidden=!vis;if(vis)alguno=true;});
       caja.hidden=!alguno;});
     return caja;}
-  const goBtn=el("button",{id:"rd-go",class:"btn",type:"button",text:"Guardar recuento del día"});
+  const goBtn=el("button",{id:"rd-go",class:"btn",type:"button",text:"Guardar recuento de "+nave});
   const refresca=()=>{const C=calc();vivos.forEach(f=>f(C));goBtn.disabled=C.err>0||!lineas.length;};
   goBtn.onclick=async e=>{const b=e.currentTarget,C=calc();if(C.err)return;const P=plan(C);
     const res=[];Object.values(C.out).forEach(o=>{const c=P.recs.filter(r=>{const l=lotes.find(y=>y.id===r.o);return l&&l.nave===o.n&&l.material===o.m;}),a=P.aj.filter(r=>{const l=lotes.find(y=>y.id===(r.o||r.d));return l&&l.nave===o.n&&l.material===o.m;});
       res.push(o.n+" · "+MAT[o.m].nom+": "+(c.length?c.reduce((s,r)=>s+r.fa,0)+" f de consumo":"sin consumo nuevo")+(a.length?" · ajustes: "+a.map(r=>(r.o?"−":"+")+r.fa+" f "+nomLote(r.o||r.d)).join(", "):""));});
     const txt=res.join("\n")+(C.avisos?"\n\nHay descuadre con las hojas. Se guarda lo que has contado como lo correcto.":"");
-    if(!(await confirmar(txt,{titulo:"Guardar recuento del día",ok:C.avisos?"Lo contado es lo correcto":"Guardar"})))return;
+    if(!(await confirmar(txt,{titulo:"Guardar recuento de "+nave,ok:C.avisos?"Lo contado es lo correcto":"Guardar"})))return;
     b.disabled=true;
     try{const todo=P.recs.concat(P.aj);if(todo.length)await addMovs(todo);
       const cont={};Object.values(C.out).forEach(o=>o.C.forEach(x=>{cont[x.l.id]=x.c;}));
-      cfg.rdiario={f:relevoAhora().f,u:relevoAhora().u,ts:Date.now(),hora:new Date().toTimeString().slice(0,5),c:cont};await saveCfg();
-      draft.rd={};toast("Recuento guardado"+(todo.length?": "+todo.length+" apunte"+(todo.length===1?"":"s"):""));render();setTimeout(()=>ventanaParteCompras(),60);}
+      const reg={f:relevoAhora().f,u:relevoAhora().u,ts:Date.now(),hora:new Date().toTimeString().slice(0,5),c:cont,nave};
+      cfg.rdiarioN=Object.assign({},cfg.rdiarioN||{},{[nave]:reg});cfg.rdiario=reg;await saveCfg();
+      lineas.forEach(([n,m])=>{const k=key(n,m);delete d.R[k];delete d.K[k];fifoLista(n,m,S).forEach(l=>{delete d.C[l.id];});});
+      const falta=navesL.find(n=>n!==nave&&!rdHoyN(n));
+      toast(nave+" guardada"+(todo.length?": "+todo.length+" apunte"+(todo.length===1?"":"s"):"")+(falta?". Ahora la "+falta:""));
+      if(falta)d.nave=falta;render();if(!falta)setTimeout(()=>ventanaParteCompras(),60);}
     catch(err){toast("No se pudo guardar");b.disabled=false;}};
-  const ult=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null;
-  const out=[el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Desde el último recuento"}),el("span",{class:"sub",style:"margin-left:auto",text:ult?"último: "+dmy(ult.f)+" "+(ult.hora||ult.u.toLowerCase()):"primera vez"})]),
+  const ult=rdDe(nave);
+  const selN=navesL.length>1?el("div",{class:"seg",role:"group","aria-label":"Nave"},navesL.map(n=>el("button",{type:"button","aria-pressed":String(n===nave),text:n+(rdHoyN(n)?" ✓":""),onclick:()=>{d.nave=n;render();}}))):null;
+  const out=[selN,el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Desde el último recuento · "+nave}),el("span",{class:"sub",style:"margin-left:auto",text:ult?"último: "+dmy(ult.f)+" "+(ult.hora||ult.u.toLowerCase()):"primera vez"})]),
     el("div",{class:"bd"},[el("p",{class:"hint",style:"margin:0",text:"En cada relevo escribe el total de fardos de la hoja (lo ya apuntado se resta solo) o los kilos de cada fardo separados por espacios: «700 769 682». Luego cuenta los fardos de cada colada en nave. Si has subido algo del externo, apunta antes el traslado."})])])]
     .concat(lineas.length?cards:[el("div",{class:"empty",text:"No hay coladas en nave."})],[el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},[goBtn,el("button",{type:"button",class:"btn sec",text:"Ver parte para compras",onclick:()=>ventanaParteCompras()})])]);
   refresca();
-  return out;}
+  return out.filter(Boolean);}
 /* ---------- parte para compras ---------- */
 function diaAnterior(f){let x=fMas(f,-1),k=0;while(relevosDia(x)===0&&k<10){x=fMas(x,-1);k++;}return x;}
-function textoParteCompras(){const {S}=bloques(),h=hoy(),fa=diaAnterior(h),ms=todosMovs(),ult=cfg.rdiario&&cfg.rdiario.ts&&new Date(cfg.rdiario.ts).toDateString()===new Date().toDateString()?cfg.rdiario:null;
+function textoParteCompras(){const {S}=bloques(),h=hoy(),fa=diaAnterior(h),ms=todosMovs();
   const d=fDate(h),L=["PARTE DE ALUMINIO · "+NOMDIAL[d.getDay()]+" "+h.split("-").reverse().join("/")];
-  if(ult&&ult.hora)L.push("(recuento de las "+ult.hora+")");
+  {const hs=NAVES.filter(rdHoyN).map(n=>n+" a las "+cfg.rdiarioN[n].hora);if(hs.length)L.push("(recuento: "+hs.join(", ")+")");}
   LINEAS.forEach(([n,m])=>{const lt=lotes.filter(l=>l.nave===n&&l.material===m);
     const cons=ms.filter(r=>r.t==="C"&&r.f===fa&&lt.some(l=>l.id===r.o));
     const nave=lt.filter(l=>l.donde!=="externo"&&S[l.id]&&S[l.id].fa>0).sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||"")),ext=lt.filter(l=>l.donde==="externo"&&S[l.id]&&S[l.id].fa>0).sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||""));

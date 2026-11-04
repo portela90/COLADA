@@ -510,3 +510,28 @@ test('Recuento diario: de madrugada el relevo en marcha es la noche del día ant
   expect(rels[rels.length - 1]).toContain('mar 03/11 noche');
   expect(rels.join('|')).not.toContain('mié');
 });
+
+test('Recuento diario: cada nave se guarda por separado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { await db.doc('lotes/l9').set({ nombre: 'C26009', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 7000, fardosInv: 10, entrada: '2026-09-20' }); }); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.stk-det .seg button[aria-pressed="true"]')).toHaveText('Nave 1');
+  await expect(page.locator('.card', { hasText: 'Nave 2 · AlSi9' })).toHaveCount(0);
+  await page.locator('[id="rdc-l3"]').fill('8');
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  await expect(page.locator('.dlg textarea')).toHaveCount(0);
+  await expect(page.locator('.stk-det .seg button[aria-pressed="true"]')).toHaveText('Nave 2');
+  await expect(page.locator('.stk-det .seg button', { hasText: 'Nave 1 ✓' })).toHaveCount(1);
+  await expect(page.locator('.stk-side .stk-t', { hasText: 'Recuento diario' })).toContainText('1 de 2');
+  await page.locator('[id="rdc-l9"]').fill('10');
+  await expect(page.locator('#rd-go')).toHaveText('Guardar recuento de Nave 2');
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  await expect(page.locator('.dlg textarea')).toHaveValue(/recuento: Nave 1 a las .*Nave 2 a las/);
+  const N = await page.evaluate(() => Object.keys(window.__D.cfg.app.rdiarioN));
+  expect(N.sort()).toEqual(['Nave 1', 'Nave 2']);
+  expect(err).toEqual([]);
+});

@@ -91,9 +91,9 @@ function vConsumo(){
   let H=[];try{H=huecos();}catch(e){}const nH=H.reduce((s,d)=>s+d.falta.length,0);
   const ult=todosMovs().filter(r=>r.t==="C"&&!r.h&&r.f&&r.u).sort((a,b)=>(a.f+TURNOS.indexOf(a.u)).localeCompare(b.f+TURNOS.indexOf(b.u))).pop();
   const RS=typeof coladasConResto==="function"?coladasConResto():[];
-  const rd=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null,rdHoy=rd&&rd.ts&&new Date(rd.ts).toDateString()===new Date().toDateString();
+  const rd=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null,SS=saldos(),nT=NAVES.filter(n=>LINEAS.some(([a,m])=>a===n&&fifoLista(a,m,SS).length)).length||1,nH2=NAVES.filter(n=>rdHoyN(n)).length,rdHoy=nH2>0;
   const tiles=[
-    {v:"rdiario",t:"Recuento diario",big:rdHoy?"Hecho":"",st:rdHoy?"ok":"na",pill:rdHoy?"Hoy":"",sub:(rd?"último: "+dmy(rd.f)+" "+(rd.hora||""):"fardos de las hojas + lo que cuentas")+" · parte para compras",nodes:()=>vRecuentoDiario()},
+    {v:"rdiario",t:"Recuento diario",big:rdHoy?(nH2>=nT?"Hecho":nH2+" de "+nT):"",st:rdHoy?(nH2>=nT?"ok":"warn"):"na",pill:rdHoy?(nH2>=nT?"Hoy":"Falta una nave"):"",sub:(rd?"último: "+dmy(rd.f)+" "+(rd.hora||""):"fardos de las hojas + lo que cuentas")+" · parte para compras",nodes:()=>vRecuentoDiario()},
     {v:"relevo",t:"Por relevo",sub:"Total de fardos de cada línea, reparto por FIFO"+(ult?" · último: "+dmy(ult.f)+" "+ult.u.toLowerCase():""),nodes:()=>{consModo="relevo";return vRelevo();}},
     {v:"kilos",t:"Por kilos",sub:"Los kilos de cada fardo, copiados de la hoja del hornero",nodes:()=>{consModo="kilos";return vKilos();}},
     {v:"suelto",t:"Apunte suelto",sub:"Una colada, un relevo",nodes:()=>{consModo="suelto";return vConsumo0().slice(1);}},
