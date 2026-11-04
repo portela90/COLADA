@@ -141,6 +141,8 @@ async function pantallaMisTallas(){
 }
 
 // ---------- Pedido de ropa: cuántas personas necesitan cada prenda y en qué talla (solo admin) ----------
+// Unidades que se piden por persona: camisetas y pantalón, 2; chaqueta y botas, 1
+const UDS_PEDIDO={camiseta_larga:2,camiseta_corta:2,pantalon:2,chaqueta:1,bota_agua:1,bota_seguridad:1};
 async function excelPedido(btn){
   busy(btn,true);
   try{
@@ -152,11 +154,11 @@ async function excelPedido(btn){
       const c=mapa[k+'|'+v]||(mapa[k+'|'+v]={k,v,n:0,nombres:[]}); c.n++; c.nombres.push(t.nombre); }); });
     const filas=Object.values(mapa)
       .sort((a,b)=>orden.indexOf(a.k)-orden.indexOf(b.k)||String(a.v).localeCompare(String(b.v),'es',{numeric:true}))
-      .map(c=>({Prenda:TALLAS_N[c.k],Talla:c.v,'Nº personas':c.n,Personas:c.nombres.join(', ')}));
+      .map(c=>({Prenda:TALLAS_N[c.k],Talla:c.v,'Uds. por persona':UDS_PEDIDO[c.k],'Nº personas':c.n,'Uds. a pedir':c.n*UDS_PEDIDO[c.k],Personas:c.nombres.join(', ')}));
     if(!filas.length){ toast('Aún no hay tallas registradas'); return; }
     await cargaXLSX();
     const wb=XLSX.utils.book_new(), ws=XLSX.utils.json_to_sheet(filas);
-    ws['!cols']=[{wch:40},{wch:12},{wch:14},{wch:70}];
+    ws['!cols']=[{wch:40},{wch:12},{wch:16},{wch:14},{wch:14},{wch:70}];
     XLSX.utils.book_append_sheet(wb,ws,'Pedido');
     XLSX.writeFile(wb,'pedido-ropa-'+hoyISO()+'.xlsx');
   }catch(e){ toast(e.message,true); }
