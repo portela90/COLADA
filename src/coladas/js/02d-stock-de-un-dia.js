@@ -24,7 +24,8 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
   const faNave=(SS,k,d)=>lotes.filter(l=>key(l.nave,l.material)===k&&dondeEn(l,d)!=="externo").reduce((a,l)=>a+Math.max(0,(SS[l.id]||{}).fa||0),0);
   const cards=lin.map(k=>{const [n,m]=k.split("|"),col=MAT[m].col;
     const L=lotes.filter(l=>key(l.nave,l.material)===k&&(S[l.id]||{}).fa>0).sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||"")||a.nombre.localeCompare(b.nombre,"es"));
-    const nave=L.filter(l=>dondeEn(l,f)!=="externo"),ext=L.filter(l=>dondeEn(l,f)==="externo");
+    const nave=fStk.ubi==="externo"?[]:L.filter(l=>dondeEn(l,f)!=="externo"),ext=fStk.ubi==="nave"?[]:L.filter(l=>dondeEn(l,f)==="externo");
+    if(fStk.ubi)L.splice(0,L.length,...nave.concat(ext));
     const sF=a=>a.reduce((s,l)=>s+S[l.id].fa,0),sK=a=>a.reduce((s,l)=>s+S[l.id].kg,0);
     const cons=ms.filter(r=>r.t==="C"&&!r.h&&r.f===f&&lineaDe(r.o)===k),cF=cons.reduce((a,r)=>a+(r.fa||0),0),cK=cons.reduce((a,r)=>a+Math.abs(kgAp(r,S)),0);
     const porT=TURNOS.map(u=>[u,cons.filter(r=>r.u===u).reduce((a,r)=>a+(r.fa||0),0)]).filter(x=>x[1]);
@@ -52,8 +53,8 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
       el("div",{class:"hd"},[el("span",{class:"tagm",style:"background:"+col}),el("h2",{text:n+" · "+MAT[m].nom}),el("span",{class:"sub num",style:"margin-left:auto",text:fmt(sF(L))+" f · "+fmt(sK(L))+" kg"})]),
       el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
         el("div",{class:"sd-kpis"},[
-          el("div",{},[el("small",{text:"En nave"}),el("b",{class:"num",text:fmt(sF(nave))+" f"}),el("span",{class:"num",text:fmt(sK(nave))+" kg"})]),
-          el("div",{},[el("small",{text:"En el externo"}),el("b",{class:"num",text:fmt(sF(ext))+" f"}),el("span",{class:"num",text:fmt(sK(ext))+" kg"})]),
+          fStk.ubi==="externo"?null:el("div",{},[el("small",{text:"En nave"}),el("b",{class:"num",text:fmt(sF(nave))+" f"}),el("span",{class:"num",text:fmt(sK(nave))+" kg"})]),
+          fStk.ubi==="nave"?null:el("div",{},[el("small",{text:"En el externo"}),el("b",{class:"num",text:fmt(sF(ext))+" f"}),el("span",{class:"num",text:fmt(sK(ext))+" kg"})]),
           el("div",{},[el("small",{text:"Consumido ese día"}),el("b",{class:"num",text:cF?"−"+fmt(cF)+" f":"—"}),el("span",{class:"num",text:cF?fmt(cK)+" kg"+(porT.length?" · "+porT.map(([u,v])=>u.toLowerCase()+" "+v).join(", "):""):""})]),
           el("div",{},[el("small",{text:"Entró ese día"}),el("b",{class:"num",text:ents.length?"+"+fmt(ents.reduce((a,r)=>a+(r.fa||0),0))+" f":"—"}),el("span",{text:ents.map(r=>nomLote(r.d)+(r.p?" ("+r.p+")":"")).join(", ")})])]),
         L.length?barra:el("div",{class:"empty",text:"No quedaba nada."}),
@@ -69,4 +70,4 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
 /* elegir nave y aleación sin salir de la ventana (es el mismo filtro que Stock, se queda guardado) */
 function filtroLineas(){const pon=(k,v)=>{fStk[k]=v;try{localStorage.setItem("colada.fstk",JSON.stringify(fStk));}catch(e){}render();};
   const g=(k,lab,ops)=>el("div",{class:"sd-fg"},[el("span",{class:"sub",text:lab}),el("div",{class:"seg",role:"group","aria-label":lab},ops.map(([v,t])=>el("button",{type:"button","aria-pressed":String((fStk[k]||"")===v),text:t,onclick:()=>pon(k,v)})))]);
-  return el("div",{class:"sd-filtro"},[g("nave","Nave",[["","Todas"]].concat(NAVES.map(n=>[n,n]))),g("mat","Aleación",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom])))]);}
+  return el("div",{class:"sd-filtro"},[g("nave","Nave",[["","Todas"]].concat(NAVES.map(n=>[n,n]))),g("mat","Aleación",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom]))),g("ubi","Dónde",[["","Todo"],["nave","En nave"],["externo","Externo"]])]);}

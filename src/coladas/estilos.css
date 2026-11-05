@@ -417,3 +417,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .sd-gb.on{opacity:1;outline:2px solid var(--acc);outline-offset:1px}
 .sd-gb:hover{opacity:.9}
 .sd-lnk{appearance:none;background:none;border:0;padding:0;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-align:left}
+.parte-t.solo-n .c-e,.parte-t.solo-n .c-t,.parte-t.solo-e .c-n,.parte-t.solo-e .c-t{display:none}

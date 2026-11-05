@@ -618,6 +618,12 @@ test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo c
   await page.locator('.sd-filtro button', { hasText: 'Nave 2' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' })).toHaveCount(0);
   await page.locator('.sd-filtro .seg[aria-label="Nave"] button', { hasText: 'Todas' }).click(); await page.waitForTimeout(300);
+  // quitar lo del externo
+  await page.locator('.sd-filtro .seg[aria-label="Dónde"] button', { hasText: 'En nave' }).click(); await page.waitForTimeout(300);
+  const c2 = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await expect(c2.locator('.sd-kpis')).not.toContainText('En el externo');
+  await expect(c2.locator('tr', { hasText: 'C25001' })).toHaveCount(0);
+  await page.locator('.sd-filtro .seg[aria-label="Dónde"] button', { hasText: 'Todo' }).click(); await page.waitForTimeout(300);
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

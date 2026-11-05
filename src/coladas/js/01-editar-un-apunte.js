@@ -124,22 +124,22 @@ function vParte(B,ud,ahora){
     (ahora&&ud&&ud<hoy()&&todosMovs().some(r=>!r.h&&r.f>ud&&(r.t==="C"||r.t==="A"||r.t==="E"||r.t==="T")))?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner",
       text:"Este parte es al cierre del "+dmy(ud)+". Con lo apuntado después, en nave hay ahora: "+LINEAS.filter(([n,m])=>(tab!=="stock"||pasaF(n,m))&&ahora[key(n,m)]&&(ahora[key(n,m)].faN||B[key(n,m)].faN)).map(([n,m])=>n+" "+MAT[m].nom+" "+fmt(ahora[key(n,m)].faN)+" f").join(" · ")+"."})]):null,
     (ud===hoy())?el("div",{class:"bd",style:"padding-bottom:0"},[el("div",{class:"banner w",text:"Hoy aún no ha terminado: el consumo y el stock son los apuntados hasta ahora."})]):null,
-    filasV.length?el("div",{class:"tw"},[el("table",{class:"parte-t"},[
-      el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{class:"r",text:"Consumido"}),el("th",{class:"r",text:"En nave"}),el("th",{class:"r",text:"En externo"}),el("th",{class:"r",text:"Total"}),el("th",{class:"r",text:"Días"})])]),
+    filasV.length?el("div",{class:"tw"},[el("table",{class:"parte-t"+(fStk.ubi==="nave"?" solo-n":fStk.ubi==="externo"?" solo-e":"")},[
+      el("thead",{},[el("tr",{},[el("th",{text:"Nave y aleación"}),el("th",{class:"r",text:"Consumido"}),el("th",{class:"r c-n",text:"En nave"}),el("th",{class:"r c-e",text:"En externo"}),el("th",{class:"r c-t",text:"Total"}),el("th",{class:"r",text:"Días"})])]),
       el("tbody",{},filasV.map(x=>el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:"+MAT[x.mat].col}),document.createTextNode(x.nave),
           el("div",{class:"sub",text:MAT[x.mat].nom})]),
         dual(x.cFa,x.cKg,true),
-        dual(x.faN,x.kgN),
-        dual(x.faE,x.kgE),
-        (()=>{const c=dual(x.fa,x.kg);c.appendChild(el("div",{class:"sub solo-movil",text:"nave "+fmt(x.faN)+" · ext. "+fmt(x.faE)}));return c;})(),
+        (()=>{const c=dual(x.faN,x.kgN);c.classList.add("c-n");return c;})(),
+        (()=>{const c=dual(x.faE,x.kgE);c.classList.add("c-e");return c;})(),
+        (()=>{const c=dual(x.fa,x.kg);c.classList.add("c-t");c.appendChild(el("div",{class:"sub solo-movil",text:"nave "+fmt(x.faN)+" · ext. "+fmt(x.faE)}));return c;})(),
         el("td",{class:"r num",text:x.dias!=null?String(x.dias):"—"})
       ])).concat(fStk.mat&&tab==="stock"?[]:[el("tr",{},[
         el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),
           gcNaves.length?el("div",{class:"sub",text:gcNaves.join(" · ")}):null]),
         el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:fmt(gc.tot)+" kg"})]),
-        el("td",{class:"r num sub",text:"—"}),el("td",{class:"r num sub",text:"—"}),
-        el("td",{class:"r num"},[el("div",{text:fmt(gk)+" kg"}),el("div",{class:"sub",text:"quedan"})]),
+        el("td",{class:"r num sub c-n",text:"—"}),el("td",{class:"r num sub c-e",text:"—"}),
+        el("td",{class:"r num c-t"},[el("div",{text:fmt(gk)+" kg"}),el("div",{class:"sub",text:"quedan"})]),
         el("td",{class:"r num sub",text:"—"})])]))
     ])]):el("div",{class:"empty",text:"Sin existencias."}),
     el("div",{class:"bd"},[el("p",{class:"hint",text:"Cada nave con su aleación por separado, sin mezclar. Arriba los fardos, debajo los kilos. Un camión son 37 fardos (25.000 kg). «Copiar parte» lo deja listo para pegarlo en un correo o en WhatsApp."})])
