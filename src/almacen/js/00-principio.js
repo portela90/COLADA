@@ -55,6 +55,10 @@ const almN=id=>{const a=cat.almacenes.find(x=>x.id===id);return a?a.nom:"—";};
 const maqN=id=>{const m=cat.maquinas.find(x=>x.id===id);return m?m.cod:"—";};
 /* destino de un consumo: una inyectora o una nave entera */
 const NAVES_C=["Nave 1A","Nave 1B","Nave 2"];
+/* relevo de un apunte (para cruzarlo en Coladas con quién estaba): el de ahora si es de hoy */
+const RELEVOS_A=["Mañana","Tarde","Noche"];
+const relevoAhoraA=()=>{const h=new Date().getHours();return h>=6&&h<14?"Mañana":h>=14&&h<22?"Tarde":"Noche";};
+function selRelevo(id,d){if(d.u==null)d.u=d.f===hoy()||!d.f?relevoAhoraA():"";return sel(id,RELEVOS_A.map(r=>[r,r]),d.u,x=>{d.u=x;},"—");}
 function paraOpts(){return[el("optgroup",{label:"Nave"},NAVES_C.map(n=>el("option",{value:"nave:"+n,text:n}))),el("optgroup",{label:"Inyectora"},maqOpts().map(([v,t])=>el("option",{value:v,text:t})))];}
 function ponPara(rec,v){if(!v)return;if(v.startsWith("nave:"))rec.nave=v.slice(5);else rec.maq=v;}
 const paraTxt=m=>m.maq?maqN(m.maq):(m.nave||"");

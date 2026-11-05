@@ -71,42 +71,75 @@ function vHorneros(){const h=hoy(),lun=hornSem||lunesH(h),S=semanaHorn(lun),H=ho
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Horneros"})]),el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:8px"},[lst,
       el("p",{class:"hint",style:"margin:0",text:"En cada relevo hay dos puestos: «Horno» (el que lo carga) y «Cuchara» (el de la cuchara de reparto); los dos giran igual. Toca un nombre para cambiarlo. Con × quitas a alguien de las listas sin borrar lo que ya hizo. En Consultas puedes preguntar «consumo por hornero», «quién no sigue el FIFO», «qué hornero apunta mal la hoja» o «averías por hornero» (añade «cuchara» para el de la cuchara de reparto, por ejemplo «averías por cuchara»)."})])])];}
 
-/* ---------- datos por hornero para Consultas ---------- */
-function statsHorneros(d0,d1,nave,rol){const S=saldos(),ms=movs().filter(r=>!r.h&&r.f&&r.f>=d0&&r.f<=d1),R={},P={};
+/* ---------- datos por hornero para Consultas ----------
+   Coladas: consumo, FIFO y lo que cuadra la hoja. Almacén (cruce): cambios de tolva y de pistón de las máquinas de la nave.
+   Un apunte del Almacén va a su relevo si lo lleva (campo «Relevo») o si se apuntó ese mismo día (por la hora);
+   si no, cuenta para todos los del día en esa nave (se dice como «aprox.»). Todo se compara por cada 10 relevos trabajados. */
+const turnoDeHora=h=>h>=6&&h<14?"Mañana":h>=14&&h<22?"Tarde":"Noche";
+function relevoDeAp(r){if(r&&TURNOS.includes(r.u))return r.u;if(r&&r.ts&&r.f){const d=new Date(+r.ts);if(ymd(d)===r.f)return turnoDeHora(d.getHours());}return null;}
+function statsHorneros(d0,d1,nave,rol,A){const S=saldos(),ms=movs().filter(r=>!r.h&&r.f&&r.f>=d0&&r.f<=d1),R={},P={};
   const lin=id=>{const l=lotes.find(x=>x.id===id);return l?l.nave:null;};
-  const add=(id,k,v)=>{const p=P[id]=P[id]||{id,rel:0,relC:0,mqC:0,fa:0,kg:0,mq:0,fuera:0,desc:0,descFa:0,recs:0,aver:0};p[k]+=v;};
+  const add=(id,k,v)=>{const p=P[id]=P[id]||{id,rel:0,relC:0,mqC:0,fa:0,kg:0,mq:0,fuera:0,desc:0,descFa:0,tol:0,tolA:0,pis:0,pisA:0,rot:0};p[k]+=v;};
   for(let f=d0;f<=d1;f=diaSig(f))TURNOS.slice(0,relevosDia(f)).forEach(u=>NAVES.forEach(n=>{if(nave&&n!==nave)return;const ids=quienEn(f,n,u,rol);if(!ids.length)return;
     const C=ms.filter(r=>r.t==="C"&&r.f===f&&r.u===u&&lin(r.o)===n),fa=C.reduce((a,r)=>a+(r.fa||0),0),kg=C.reduce((a,r)=>a+Math.abs(kgAp(r,S)),0);
     let mq=0;try{if(primerEvMaq())mq=cuentaMaq(estadoMaq(f,u),n).on;}catch(e){}
     const fuera=C.some(r=>/fuera de fifo/i.test(r.n||""));
     ids.forEach(id=>{add(id,"rel",1);if(fa>0){add(id,"relC",1);add(id,"mqC",mq);}add(id,"fa",fa);add(id,"kg",kg);add(id,"mq",mq);if(fuera)add(id,"fuera",1);});R[f+"|"+u+"|"+n]=ids;}));
-  /* recuentos con descuadre: el ajuste lleva los relevos que cubría */
   ms.filter(r=>r.t==="A"&&Array.isArray(r.rel)&&/^Recuento diario/.test(r.n||"")).forEach(r=>{const n=lin(r.o||r.d);if(!n||(nave&&n!==nave))return;
     const ids=new Set();r.rel.forEach(x=>(R[x+"|"+n]||quienEn(x.split("|")[0],n,x.split("|")[1],rol)).forEach(i=>ids.add(i)));ids.forEach(id=>{add(id,"desc",1);add(id,"descFa",r.fa||0);});});
+  /* cruce con el Almacén */
+  if(A){const tolv=new Set(((A.cat&&A.cat.articulos)||[]).filter(a=>a.fam==="horno"&&(/tolva/i.test(a.desc||"")||/tolva/i.test(a.grupo||""))).map(a=>a.id));
+    const reparte=(ev,k,kA,cant)=>{if(!ev.f||ev.f<d0||ev.f>d1)return;const n=A.naveDe(ev.maq);if(!n||(nave&&n!==nave))return;const u=relevoDeAp(ev);
+      if(u){quienEn(ev.f,n,u,rol).forEach(id=>{if(P[id])add(id,k,cant);});return;}
+      const ids=new Set();TURNOS.slice(0,Math.max(1,relevosDia(ev.f))).forEach(uu=>quienEn(ev.f,n,uu,rol).forEach(i=>ids.add(i)));ids.forEach(id=>{if(P[id])add(id,kA,cant);});};
+    (A.mov||[]).filter(m=>m.tipo==="salida"&&tolv.has(m.art)).forEach(m=>reparte(m,"tol","tolA",+m.cant||1));
+    (A.pist||[]).forEach(x=>{reparte(x,"pis","pisA",+x.cant||1);if(/rotur|agarrot/i.test(x.motivo||""))reparte(x,"rot","rot",+x.cant||1);});}
   return Object.values(P).filter(p=>p.rel>0);}
-function pintaHorn(E,H){const {frase,nota,ent,card,tabla}=H;const per=E.per;
+const r10=(v,rel)=>rel?Math.round(v/rel*100)/10:0;
+const fmt1=v=>(Math.round(v*10)/10).toLocaleString("es-ES");
+function hornQ(q){const H=hornCfg();return H.lista.filter(x=>{const w=nqC?nqC(x.n):x.n.toLowerCase();return w&&new RegExp("\\b"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b").test(q);});}
+function pintaHorn(E,H){const {frase,nota,ent,card,tabla}=H;const per=E.per,rol=E.rol||"carga",nomRol=rol==="cuchara"?"cuchara de reparto":"carga del horno";
   if(!hornCfg().lista.length){ent("horneros");frase("Todavía no hay horneros apuntados. Ponlos en Consumo › Horneros (una semana basta: las siguientes salen por la rotación).");return;}
-  const L=statsHorneros(per.d,per.h,E.nave,E.rol);ent(E.rol==="cuchara"?"cuchara de reparto":"horneros (carga del horno)",[per.t,E.nave]);
-  if(!L.length){frase("No hay relevos con horneros apuntados en "+per.t+".");return;}
-  const fpr=p=>p.relC?p.fa/p.relC:0,fpm=p=>p.mqC?p.fa/p.mqC:0,LC=L.filter(p=>p.relC),med=LC.length?LC.reduce((a,p)=>a+fpr(p),0)/LC.length:0;
-  const met=E.met;
-  if(met==="fifo"){const o=L.slice().sort((a,b)=>b.fuera/b.rel-a.fuera/a.rel);const t=o.filter(p=>p.fuera>0);
-    frase(t.length?"Fuera de FIFO en "+per.t+": "+t.slice(0,3).map(p=>nomHorn(p.id)+" "+p.fuera+" de "+p.rel+" relevos").join(" · ")+".":"En "+per.t+" ningún relevo con horneros apuntados se ha salido del FIFO.");
-    card("FIFO por hornero",[tabla(["Hornero","Relevos","Fuera de FIFO","%"],o.map(p=>[nomHorn(p.id),String(p.rel),String(p.fuera),Math.round(p.fuera/p.rel*100)+" %"]),[1,2,3])]);
-    nota("Cuenta los relevos en los que se gastó de una colada que no era la más antigua (lo marca el recuento diario o el consumo por relevo).");return;}
-  if(met==="hoja"){const o=L.slice().sort((a,b)=>b.descFa-a.descFa);const t=o.filter(p=>p.desc>0);
-    frase(t.length?"Descuadres entre la hoja y el recuento en "+per.t+": "+t.slice(0,3).map(p=>nomHorn(p.id)+" "+p.desc+" vez/veces ("+p.descFa+" f)").join(" · ")+".":"En "+per.t+" los recuentos han cuadrado con las hojas de todos los horneros apuntados.");
-    card("La hoja frente al recuento",[tabla(["Hornero","Relevos","Recuentos con descuadre","Fardos de diferencia"],o.map(p=>[nomHorn(p.id),String(p.rel),String(p.desc),String(p.descFa)]),[1,2,3])]);
-    nota("Cuando el recuento diario no cuadra con las hojas, la diferencia se reparte entre los horneros de los relevos de ese recuento (no se sabe de cuál de ellos es).");return;}
-  if(met==="aver"){frase("Buscando las averías de Almacén…");
-    almDatos().then(D=>{if(!D){frase("No puedo leer los datos de Almacén desde aquí.");return;}
-      const A=(D.pist||[]).filter(x=>x.f>=per.d&&x.f<=per.h);const C={};
-      A.forEach(x=>{const n=D.naveDe(x.maq);if(!n||(E.nave&&n!==E.nave))return;const ids=new Set();TURNOS.forEach(u=>quienEn(x.f,n,u,E.rol).forEach(i=>ids.add(i)));ids.forEach(id=>{C[id]=(C[id]||0)+(+x.cant||1);});});
-      const o=L.map(p=>({p,a:C[p.id]||0})).sort((a,b)=>b.a-a.a);
-      frase("Cambios de pistón en su nave los días que trabajaron ("+per.t+"): "+o.filter(x=>x.a).slice(0,3).map(x=>nomHorn(x.p.id)+" "+x.a).join(" · ")+(o.some(x=>x.a)?".":"ninguno."));
-      card("Averías por hornero",[tabla(["Hornero","Relevos","Cambios de pistón ese día en su nave"],o.map(x=>[nomHorn(x.p.id),String(x.p.rel),String(x.a)]),[1,2])]);
-      nota("Las averías de Almacén se apuntan por día, no por relevo: cuentan para todos los horneros que trabajaron ese día en esa nave. Sirve para ver tendencias, no para culpar a nadie de una en concreto.");}).catch(()=>frase("No he podido leer las averías de Almacén."));return;}
-  const o=L.slice().sort((a,b)=>(fpm(b)||fpr(b))-(fpm(a)||fpr(a)));
-  frase("Consumo por hornero en "+per.t+": "+o.slice(0,3).map(p=>nomHorn(p.id)+" "+(Math.round(fpr(p)*10)/10).toLocaleString("es-ES")+" f por relevo"+(p.mqC?" ("+(Math.round(fpm(p)*100)/100).toLocaleString("es-ES")+" por máquina)":"")).join(" · ")+". Media "+(Math.round(med*10)/10).toLocaleString("es-ES")+" f por relevo.");
-  card("Consumo por hornero",[tabla(["Hornero","Relevos (con consumo)","Fardos","Kilos","Fardos por relevo","Por máquina en marcha"],o.map(p=>[nomHorn(p.id),p.rel+" ("+p.relC+")",fmt(p.fa),fmt(p.kg),(Math.round(fpr(p)*10)/10).toLocaleString("es-ES"),p.mqC?(Math.round(fpm(p)*100)/100).toLocaleString("es-ES"):"—"]),[1,2,3,4,5])]);
-  nota("Para comparar de verdad mira «por máquina en marcha»: quien tiene más máquinas funcionando gasta más sin que sea culpa suya. Por relevo cuenta solo los relevos con consumo apuntado. Si en un relevo hay dos horneros, el consumo cuenta para los dos.");}
+  const conAlm=["tolvas","pist","aver","ficha","todo"].includes(E.met);
+  const pinta=A=>{const L=statsHorneros(per.d,per.h,E.nave,rol,A);
+    if(!L.length){frase("No hay relevos con "+(rol==="cuchara"?"la cuchara":"horneros")+" apuntados en "+per.t+".");return;}
+    const fpr=p=>p.relC?p.fa/p.relC:0,fpm=p=>p.mqC?p.fa/p.mqC:0,LC=L.filter(p=>p.relC),med=LC.length?LC.reduce((a,p)=>a+fpr(p),0)/LC.length:0;
+    const medR=k=>{const T=L.reduce((a,p)=>a+p[k],0),Rr=L.reduce((a,p)=>a+p.rel,0);return r10(T,Rr);};
+    const met=E.met;
+    if(met==="ficha"){const yo=L.find(p=>p.id===E.quien);ent((rol==="cuchara"?"cuchara: ":"horno: ")+nomHorn(E.quien),[per.t,E.nave]);
+      if(!yo){frase(nomHorn(E.quien)+" no tiene relevos apuntados "+(rol==="cuchara"?"con la cuchara ":"")+"en "+per.t+".");return;}
+      const fila=(t,v,m,u)=>[t,v,m,u];
+      frase(nomHorn(E.quien)+" ("+nomRol+") en "+per.t+": "+yo.rel+" relevos · "+fmt1(fpr(yo))+" f por relevo (media "+fmt1(med)+") · fuera de FIFO "+yo.fuera+" · descuadres de hoja "+yo.desc+(A?" · "+fmt1(r10(yo.tol+yo.tolA,yo.rel))+" tolvas y "+fmt1(r10(yo.pis+yo.pisA,yo.rel))+" pistones por cada 10 relevos":"")+".");
+      card("Frente a la media",[tabla(["Dato",nomHorn(E.quien),"Media"],[
+        ["Fardos por relevo",fmt1(fpr(yo)),fmt1(med)],["Por máquina en marcha",yo.mqC?fmt1(fpm(yo)):"—","—"],
+        ["Fuera de FIFO (por 10 relevos)",fmt1(r10(yo.fuera,yo.rel)),fmt1(medR("fuera"))],["Descuadres de la hoja (por 10 relevos)",fmt1(r10(yo.desc,yo.rel)),fmt1(medR("desc"))]].concat(A?[
+        ["Cambios de tolva (por 10 relevos)",fmt1(r10(yo.tol+yo.tolA,yo.rel)),fmt1((medR("tol")+medR("tolA")))],["Cambios de pistón (por 10 relevos)",fmt1(r10(yo.pis+yo.pisA,yo.rel)),fmt1((medR("pis")+medR("pisA")))],
+        ["Pistones rotos o agarrotados (por 10 relevos)",fmt1(r10(yo.rot,yo.rel)),fmt1(medR("rot"))]]:[]),[1,2])]);
+      nota("Comparado siempre por cada 10 relevos trabajados, para que no salga peor quien ha trabajado más.");return;}
+    if(met==="fifo"){const o=L.slice().sort((a,b)=>b.fuera/b.rel-a.fuera/a.rel);const t=o.filter(p=>p.fuera>0);ent("FIFO · "+nomRol,[per.t,E.nave]);
+      frase(t.length?"Quien menos sigue el FIFO en "+per.t+": "+t.slice(0,3).map(p=>nomHorn(p.id)+" "+p.fuera+" de "+p.rel+" relevos").join(" · ")+".":"En "+per.t+" ningún relevo con horneros apuntados se ha salido del FIFO.");
+      card("FIFO por persona",[tabla(["Persona","Relevos","Fuera de FIFO","%"],o.map(p=>[nomHorn(p.id),String(p.rel),String(p.fuera),Math.round(p.fuera/p.rel*100)+" %"]),[1,2,3])]);
+      nota("Cuenta los relevos en los que se gastó de una colada que no era la más antigua (lo marca el recuento diario o el consumo por relevo).");return;}
+    if(met==="hoja"){const o=L.slice().sort((a,b)=>b.descFa-a.descFa);const t=o.filter(p=>p.desc>0);ent("la hoja frente al recuento · "+nomRol,[per.t,E.nave]);
+      frase(t.length?"Quien más descuadra la hoja en "+per.t+": "+t.slice(0,3).map(p=>nomHorn(p.id)+" "+p.desc+(p.desc===1?" vez":" veces")+" ("+p.descFa+" f)").join(" · ")+".":"En "+per.t+" los recuentos han cuadrado con las hojas de todos.");
+      card("La hoja frente al recuento",[tabla(["Persona","Relevos","Recuentos con descuadre","Fardos de diferencia"],o.map(p=>[nomHorn(p.id),String(p.rel),String(p.desc),String(p.descFa)]),[1,2,3])]);
+      nota("Cuando el recuento diario no cuadra con las hojas, la diferencia se reparte entre los de los relevos de ese recuento (no se sabe de cuál de ellos es).");return;}
+    if(met==="tolvas"||met==="pist"||met==="aver"){const k=met==="tolvas"?"tol":met==="pist"?"pis":"rot",kA=met==="tolvas"?"tolA":met==="pist"?"pisA":null;
+      const v=p=>p[k]+(kA?p[kA]:0),o=L.slice().sort((a,b)=>r10(v(b),b.rel)-r10(v(a),a.rel)),T=L.reduce((a,p)=>a+v(p),0),Rr=L.reduce((a,p)=>a+p.rel,0),mR=r10(T,Rr);
+      const que=met==="tolvas"?"cambios de tolva":met==="pist"?"cambios de pistón":"pistones rotos o agarrotados";ent(que+" · "+nomRol,[per.t,E.nave]);
+      if(!o.some(p=>v(p)>0)){frase("En "+per.t+" no hay "+que+" en los relevos con "+(rol==="cuchara"?"cuchara":"horneros")+" apuntados.");return;}
+      const top=o[0],x=mR?r10(v(top),top.rel)/mR:0;
+      frase("Por cada 10 relevos ("+nomRol+", "+per.t+"): "+o.slice(0,4).map(p=>nomHorn(p.id)+" "+fmt1(r10(v(p),p.rel))).join(" · ")+". Media "+fmt1(mR)+"."+(x>=1.5&&top.rel>=5?" Con "+nomHorn(top.id)+" salen "+fmt1(x)+" veces más que la media.":""));
+      card(que.charAt(0).toUpperCase()+que.slice(1)+" por persona",[tabla(["Persona","Relevos","Seguros (su relevo)"].concat(kA?["Del día (aprox.)"]:[]).concat(["Por cada 10 relevos"]),o.map(p=>[nomHorn(p.id),String(p.rel),String(p[k])].concat(kA?[String(p[kA])]:[]).concat([fmt1(r10(v(p),p.rel))])),kA?[1,2,3,4]:[1,2,3])]);
+      nota("Sale del Almacén: los "+que+" de las máquinas de la nave. «Seguros» = el apunte lleva su relevo (campo Relevo, o se apuntó ese mismo día); «del día» = no se sabe el relevo y cuenta para todos los que trabajaron ese día. Para que sea fiable, pon el relevo al apuntarlos en el Almacén. Sirve para ver tendencias, no para culpar a nadie de un caso concreto.");return;}
+    if(met==="todo"){ent("resumen por persona · "+nomRol,[per.t,E.nave]);
+      frase("Resumen por persona ("+nomRol+", "+per.t+"). Todo por cada 10 relevos salvo el consumo, que es por relevo.");
+      card("Por persona",[tabla(["Persona","Relevos","F por relevo","Fuera de FIFO","Descuadres","Tolvas","Pistones"],L.slice().sort((a,b)=>b.rel-a.rel).map(p=>[nomHorn(p.id),String(p.rel),fmt1(fpr(p)),fmt1(r10(p.fuera,p.rel)),fmt1(r10(p.desc,p.rel)),A?fmt1(r10(p.tol+p.tolA,p.rel)):"—",A?fmt1(r10(p.pis+p.pisA,p.rel)):"—"]).concat([["Media","",fmt1(med),fmt1(medR("fuera")),fmt1(medR("desc")),A?fmt1(medR("tol")+medR("tolA")):"—",A?fmt1(medR("pis")+medR("pisA")):"—"]]),[1,2,3,4,5,6])]);
+      nota("Pregunta por una persona («cómo trabaja Juan») para verla frente a la media.");return;}
+    const o=L.slice().sort((a,b)=>(fpm(b)||fpr(b))-(fpm(a)||fpr(a)));ent("consumo · "+nomRol,[per.t,E.nave]);
+    frase("Quien más aluminio gasta en "+per.t+": "+o.slice(0,3).map(p=>nomHorn(p.id)+" "+fmt1(fpr(p))+" f por relevo"+(p.mqC?" ("+(Math.round(fpm(p)*100)/100).toLocaleString("es-ES")+" por máquina)":"")).join(" · ")+". Media "+fmt1(med)+" f por relevo.");
+    card("Consumo por persona",[tabla(["Persona","Relevos (con consumo)","Fardos","Kilos","Fardos por relevo","Por máquina en marcha"],o.map(p=>[nomHorn(p.id),p.rel+" ("+p.relC+")",fmt(p.fa),fmt(p.kg),fmt1(fpr(p)),p.mqC?(Math.round(fpm(p)*100)/100).toLocaleString("es-ES"):"—"]),[1,2,3,4,5])]);
+    nota("Para comparar de verdad mira «por máquina en marcha»: quien tiene más máquinas funcionando gasta más sin que sea culpa suya. Por relevo cuenta solo los relevos con consumo apuntado. Si en un relevo hay dos personas, el consumo cuenta para las dos.");};
+  if(!conAlm){pinta(null);return;}
+  const espera=frase("Cruzando con el Almacén…");
+  almDatos().then(A=>{if(espera)espera.remove();pinta(A);}).catch(()=>{if(espera)espera.remove();pinta(null);nota("No he podido leer el Almacén: salen solo los datos de Coladas.");});}

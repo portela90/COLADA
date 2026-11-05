@@ -2,11 +2,13 @@
    Los cruces (pistones y ejes por tonelada, resumen del mes) leen los datos del Almacén de la misma base de datos. */
 function intencionC2(q){const o={q,nave:/\bnave\s*(1|uno)\b/.test(q)&&/\bnave\s*(2|dos)\b|\by (la )?(2|dos)\b/.test(q)?null:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bcargador(es)?\b/.test(q))return M("cargador");
-  /* por hornero: consumo, FIFO, lo que cuadra la hoja y averías */
-  if(/\bhorner[oa]s?\b|\bcuchara\b/.test(q)||(/\bquien(es)?\b/.test(q)&&/\b(fifo|apunta\w*|hoja|descuadr\w*|gasta\w*|consum\w*|averi\w*|rotur\w*)\b/.test(q)&&!/\b(proveedor|camion\w*|colada)\b/.test(q))){
+  /* por hornero (o el de la cuchara): consumo, FIFO, hoja, y cruzado con el Almacén tolvas y pistones */
+  {const quien=typeof hornQ==="function"?hornQ(q):[];
+   const temas=/\b(fifo|apunta\w*|hoja|descuadr\w*|gasta\w*|consum\w*|aluminio|fardos|averi\w*|rotur\w*|rompe\w*|piston\w*|tolvas?|trabaja\w*|resumen|ranking|compara\w*)\b/;
+   if(/\bhorner[oa]s?\b|\bcuchara\b|\brepart\w*\b/.test(q)||(/\bquien(es)?\b|\bcon quien\b/.test(q)&&temas.test(q)&&!/\b(proveedor|camion\w*|colada)\b/.test(q))||(quien.length&&(temas.test(q)||/\b(como|datos|ficha)\b/.test(q)))){
     const per=periodoC(q)||{d:ymd(new Date(Date.now()-30*864e5)),h:hoy(),t:"los últimos 30 días"};
-    const met=/\bfifo\b|orden/.test(q)?"fifo":/\b(apunta\w*|hoja|descuadr\w*|bien|mal)\b/.test(q)?"hoja":/\b(averi\w*|incidenc\w*|rotur\w*|piston\w*|eje)\b/.test(q)?"aver":"cons";
-    return M("horn",{per,met,rol:/\bcuchara\b/.test(q)?"cuchara":"carga"});}
+    const met=quien.length&&!/\b(tolvas?|piston\w*|fifo|hoja|descuadr\w*)\b/.test(q)?"ficha":/\btolvas?\b/.test(q)?"tolvas":/\b(rotur\w*|rompe\w*|agarrot\w*|averi\w*)\b/.test(q)?"aver":/\bpiston\w*\b/.test(q)?"pist":/\bfifo\b|\borden\b/.test(q)?"fifo":/\b(apunta\w*|hoja|descuadr\w*)\b/.test(q)?"hoja":/\b(resumen|ranking|todo|todos)\b/.test(q)?"todo":"cons";
+    return M("horn",{per,met,rol:/\b(cuchara|repart\w*)\b/.test(q)?"cuchara":"carga",quien:quien.length?quien[0].id:null});}}
   /* «cuántos kilos tengo que pedir para diciembre»: lo que falta para llegar a final de ese mes */
   if(/\b(cuant\w*|que)\b/.test(q)&&!/\bcuando\b/.test(q)&&/\b(tengo|hay|tenemos|debo|debemos)( que| de)? (pedir|comprar|traer)\b|\b(necesito|necesitamos)\b|\b(hace|haria) falta\b/.test(q)&&!/\bpiston\w*\b/.test(q)){const F=periodoFut(q);return M("pedirkg",{per:F.todo||!/\bmes\b|\bsemana\b|\bmanana\b/.test(q)&&!MES_C.some(x=>q.includes(x))?periodoFut("mes que viene"):F});}
   /* «cuántas cargas tenemos en el externo»: lo que hay allí, no lo que ha entrado */
