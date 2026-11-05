@@ -23,6 +23,7 @@ function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};con
   /* «valor de 2 tubos de westofen 21 y 3 krown 18», «cuánto valen 4 resistencias RST-900» */
   {const V=intencionValor(q,o);if(V){if(V.mas)return M("mas",V);if(V.modo==="presupuesto")return M("presupuesto",{valor:V.valor,qn:V.qn});return M("valorq",V);}}
   {const A=intencionAv(q);if(A)return M("averias",{av:A});}
+  {const Z=typeof intencionAhorro==="function"?intencionAhorro(q):null;if(Z)return M("ahorro",{ah:Z});}
   {const X=intencionMas(q,o);if(X)return M("mas",X);}
   if(/\btolvas?\b/.test(q)&&!/\bque (tengo|hay|tenemos) que pedir\b/.test(q))return M("tolvas");
   if(/\bpiston\w*\b/.test(q)&&/\b(compras?|comprad\w*|comprando|comprar|entrad[oa]s?|han entrado|nuevos? (y|o|frente a|contra) recuperad\w*|recuperad\w* (y|o|frente a|contra) nuevos?|gast\w* en (comprar|compras))\b/.test(q)&&!/\bque (tengo|hay|tenemos) que\b|\bpara (el mes|la semana|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(q))return M("comprapist");
@@ -201,6 +202,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     if(per.d<MOT_VACIO_DESDE)nota("Hasta el "+fmtF(sumaDias(MOT_VACIO_DESDE,-1))+" el motivo venía puesto solo si nadie lo cambiaba («Desgaste» en pistones, «Rotura» en barras y tornillos), así que de antes no se puede saber quién no lo elegía. Desde entonces empieza vacío y aquí sale quien no lo pone.");return;}
   if(I.modo==="valorq"){pintaValor(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
   if(I.modo==="mas"){pintaMas(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
+  if(I.modo==="ahorro"){pintaAhorro(I,P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="averias"){pintaAveriasQ(Object.assign({maq:I.maq},I.av),P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);
     frase((tot?"En el taller hay "+D.filter(g=>g.taller).map(g=>g.taller+" "+g.a.desc.toLowerCase()+(g.taller===1?"":"s")).join(" y ")+".":"No hay ninguna tolva en el taller.")+" "+cap(per.t)+" se han reparado "+D.reduce((s,g)=>s+g.rep,0)+" ("+eur(D.reduce((s,g)=>s+g.gasto,0))+") y se han cambiado "+D.reduce((s,g)=>s+g.cambios,0)+" en las máquinas.");

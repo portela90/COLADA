@@ -1503,3 +1503,23 @@ test('Leer albarán gratis (OCR en el móvil): saca proveedor, nº, fecha y lín
   expect(M.map(m => [m.art, m.cant]).sort()).toEqual([['c1', 12], ['c5', 2]]);
   expect(err).toEqual([]);
 });
+
+test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y total', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    v.cat.app.ejeRecup = [{ id: 'r1', f: '2026-10-21', maq: 'F22', mods: ['3.2.B'], motivo: 'PISTÓN AGARROTADO' }, { id: 'r2', f: '2026-10-25', maq: 'F25', mods: ['2.8.J'] }, { id: 'r0', f: '2026-09-10', maq: 'F25', mods: ['2.8.J'] }];
+    v.cat.app.articulos.find(a => a.id === 'pist-70').precioRec = '60';
+    v.mov[k].items.push({ id: 'pr1', f: '2026-10-20', ts: 9, alm: 'gen', art: 'pist-70', cant: 4, tipo: 'entrada', rec: true }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  let r = await resp('¿Cuánto hemos ahorrado este en ejes?');
+  expect(r).toMatch(/Este mes habéis ahorrado 440 € en ejes: 2 ejes recuperados en planta/);
+  expect(r).toContain('F22');
+  r = await resp('ahorro en pistones este mes');
+  expect(r).toMatch(/ahorrado 480 € en pistones: 4 pistones recuperados/);
+  r = await resp('cuánto hemos ahorrado este año');
+  expect(r).toMatch(/ahorrado 1\.?140 € en total: 660 € en ejes/);
+  expect(err).toEqual([]);
+});
