@@ -587,3 +587,28 @@ test('Calendario de camiones: stock de cada día, camiones del color del proveed
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo consumido y lo que entró', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { await db.doc('mov/2026-10').set({ items: [
+    { i: 'm0', t: 'C', f: '2026-10-13', u: 'Mañana', o: 'l3', fa: 2 },
+    { i: 'm1', t: 'C', f: '2026-10-20', u: 'Mañana', o: 'l3', fa: 3 }, { i: 'm2', t: 'C', f: '2026-10-20', u: 'Tarde', o: 'l3', fa: 1 }] }); });
+  await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Stock de un día' }).first().click(); await page.waitForTimeout(400);
+  await page.fill('#sd-f', '2026-10-20'); await page.locator('#sd-f').dispatchEvent('change'); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await expect(page.locator('.sd-tit')).toContainText('martes 20/10/2026');
+  await expect(card.locator('.sd-kpis')).toContainText('−4 f');
+  await expect(card.locator('.sd-kpis')).toContainText('mañana 3, tarde 1');
+  await expect(card.locator('tr', { hasText: 'C25003' })).toContainText('4');
+  // el día antes tenía 4 fardos más
+  await page.locator('button[aria-label="Día anterior"]').click(); await page.waitForTimeout(400);
+  await expect(page.locator('.sd-tit')).toContainText('19/10/2026');
+  await expect(card.locator('tr', { hasText: 'C25003' }).locator('td').nth(2)).toHaveText('8');
+  // tocar una barra de la gráfica va a ese día
+  await card.locator('.sd-gb').last().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.sd-tit')).toContainText('19/10/2026');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

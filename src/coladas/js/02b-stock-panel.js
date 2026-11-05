@@ -23,6 +23,8 @@ function stockPanel(c){const {B,P,ud,g,parte,alertaN,hint,gk,gm,gst}=c;
   /* parte del día */
   {let f=0;try{LINEAS.forEach(([n,m])=>{const x=P[key(n,m)];if(x)f+=(x.cUdFa||0);});}catch(e){}
    tiles.push({v:"parte",st:"na",t:"Parte del día",big:ud?dmy(ud):"—",u:"",sub:f?fmt(f)+" fardos consumidos":"para copiar y enviar",fn:()=>irVistaStk("parte")});}
+  /* cómo estaba el stock un día cualquiera */
+  tiles.push({v:"dia",st:"na",t:"Stock de un día",big:"",u:"",sub:"qué coladas y cuántos fardos había cualquier día",fn:()=>{sdF="";irVistaStk("dia");}});
   /* previsión */
   {let sub="consumo y camiones del mes";try{const nd=vPrevision();const s=nd&&nd.querySelector(".hd .sub");if(s)sub=s.textContent;}catch(e){}
    tiles.push({v:"prev",st:"na",t:"Previsión de gasto",big:"",u:"",sub,fn:()=>irVistaStk("prev")});}
@@ -34,7 +36,7 @@ function stockPanel(c){const {B,P,ud,g,parte,alertaN,hint,gk,gm,gst}=c;
     el("div",{class:"stk-t-hd"},[x.dot?el("span",{class:"dot",style:"background:"+x.dot}):null,el("span",{class:"stk-t-t",text:x.t}),x.pill&&!compact?el("span",{class:"pill "+(x.st==="na"?"na":x.st),text:x.pill}):null]),
     x.big!==""?el("div",{class:"stk-t-big"},[el("b",{class:"num",text:x.big}),x.u?el("span",{text:" "+x.u}):null]):null,
     el("div",{class:"stk-t-sub",text:x.sub})]);
-  const VISTAS={stock:"Stock",maq:"Máquinas",huecos:"Falta por apuntar",parte:"Parte del día",prev:"Previsión de gasto",min:"Mínimos"};
+  const VISTAS={stock:"Stock",maq:"Máquinas",huecos:"Falta por apuntar",parte:"Parte del día",dia:"Stock de un día",prev:"Previsión de gasto",min:"Mínimos"};
   if(!stkVista||!VISTAS[stkVista]){
     return [avisoCierre(),el("div",{class:"stk-grid"},tiles.map(x=>tile(x,false))),alertaN,
       el("p",{class:"hint",text:"Pulsa un mosaico para abrir su ventana."})].filter(Boolean);}
@@ -43,6 +45,7 @@ function stockPanel(c){const {B,P,ud,g,parte,alertaN,hint,gk,gm,gst}=c;
   else if(stkVista==="maq"){maqAbierto=true;det=[vMaquinas()];}
   else if(stkVista==="huecos")det=[vHuecos()||el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),el("div",{class:"empty",text:"Todos los relevos de las dos últimas semanas tienen consumo apuntado."})])];
   else if(stkVista==="parte")det=[parte];
+  else if(stkVista==="dia")det=vStockDia();
   else if(stkVista==="prev")det=[vPrevision()];
   else if(stkVista==="min")det=[vMin()];
   /* en la lista lateral, un mosaico por ventana (las líneas de stock juntas en uno solo no: se ven todas) */
