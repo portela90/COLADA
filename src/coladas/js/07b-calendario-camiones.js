@@ -5,6 +5,15 @@
    Usa los mismos datos que «Calendario de entradas» (cfg.plan[mes].entradas) y la misma proyección. */
 /* «pincel»: se toca un proveedor de arriba y luego los camiones, y cada uno toma ese proveedor (un toque por camión) */
 let pincelProv=null;
+/* proveedores que solo pueden descargar en una nave (cfg.provNave = {proveedor: "Nave 2"}); GRUPAL ART solo en Nave 2 */
+const PROV_NAVE0={"GRUPAL ART":"Nave 2"};
+function naveProv(p){if(!p)return"";const P=Object.assign({},PROV_NAVE0,cfg.provNave||{}),k=Object.keys(P).find(x=>x.toUpperCase()===String(p).toUpperCase());return k?P[k]||"":"";}
+function permiteNave(p,k){const n=naveProv(p);return !n||!k||k.split("|")[0]===n;}
+const msgNave=p=>"Descarga no permitida. Los camiones de "+p+" solo pueden descargar en "+naveProv(p)+". Asígnalo a "+naveProv(p)+" o elige otro proveedor.";
+function avisoNave(p){const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}});
+  ov.appendChild(el("div",{class:"dlg",role:"alertdialog","aria-modal":"true"},[el("h3",{text:"Descarga no permitida"}),
+    el("p",{text:"Los camiones de "+p+" solo pueden descargar en "+naveProv(p)+"."}),el("p",{class:"hint",text:"Asígnalo a "+naveProv(p)+" o elige otro proveedor."}),
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn",id:"nave-ok",text:"Entendido",onclick:()=>ov.remove()})])]));document.body.appendChild(ov);}
 /* colores de la fábrica: azul BEFESA, rojo GRUPAL ART, verde IDALSA y negro Estrella; los demás, de esta lista */
 const PROV_FAB=[[/befesa/i,"#1F5FBF"],[/grupal/i,"#C62828"],[/idalsa/i,"#2E7D32"],[/estrella/i,"#111111"]];
 const PROV_COL=["#9A6B14","#6B4FA0","#2A7F86","#A6497C","#5D6B78"];
@@ -14,6 +23,7 @@ const mesDeF=f=>f.slice(0,7);
 async function guardarEntradas(mes,lista){const c=Object.assign({},cfg.plan||{});c[mes]=Object.assign({camiones:[],consumo:{},entradas:[]},c[mes]||{},{entradas:lista});cfg.plan=c;await saveCfg();}
 /* mover una entrada (de día, de línea o de proveedor); si cambia de mes pasa al plan de ese mes */
 async function moverEntrada(m,ents,idx,cambio){const x=ents[idx],nx=Object.assign({},x,cambio);
+  if(nx.o!=="B"&&nx.p&&!permiteNave(nx.p,nx.k)){avisoNave(nx.p);return false;}
   if(nx.o==="B"&&cambio.k&&x.k&&cambio.k.split("|")[0]!==x.k.split("|")[0]){toast("Lo del externo ya está facturado a su nave: no se puede pasar a la otra");return false;}
   const m2=mesDeF(nx.f);
   if(m2===m){const L=ents.slice();L[idx]=nx;await guardarEntradas(m,L.sort((a,b)=>(a.f||"").localeCompare(b.f||"")));}
@@ -25,6 +35,7 @@ function dlgCamion(m,ents,idx,provs,nuevo){const x=nuevo||ents[idx],f={f:x.f,k:x
   const lin=LINEAS.filter(([n])=>!esB||!x.k||n===x.k.split("|")[0]).map(([n,mm])=>{const k=key(n,mm);const o=el("option",{value:k,text:etiqLinea(k)});if(f.k===k)o.selected=true;return o;});
   const err=el("div");
   const guardar=async()=>{const fa=parseInt(f.fa,10);if(!f.f||!(fa>0)){err.className="banner b";err.textContent="Pon el día y los fardos.";return;}
+    if(!esB&&f.p&&!permiteNave(f.p,f.k)){err.className="banner b";err.textContent=msgNave(f.p);return;}
     try{if(nuevo){const L=ents.concat([{f:f.f,k:f.k,fa,o:"C",p:f.p||undefined}]);if(mesDeF(f.f)===m)await guardarEntradas(m,L.sort((a,b)=>(a.f||"").localeCompare(b.f||"")));else{const P2=((cfg.plan||{})[mesDeF(f.f)]||{}).entradas||[];await guardarEntradas(mesDeF(f.f),P2.concat([{f:f.f,k:f.k,fa,o:"C",p:f.p||undefined}]));}toast("Camión añadido el "+dmy(f.f));}
       else{const c={f:f.f,k:f.k,fa};if(!esB)c.p=f.p||undefined;if(!(await moverEntrada(m,ents,idx,c)))return;toast("Camión movido: "+diaSem(f.f)+" "+dmy(f.f)+" · "+etiqLinea(f.k));}
       cerrar();render();}catch(e){toast("No se pudo guardar");}};
@@ -33,7 +44,7 @@ function dlgCamion(m,ents,idx,provs,nuevo){const x=nuevo||ents[idx],f={f:x.f,k:x
     el("label",{text:"Día"},[el("input",{id:"cm-f",type:"date",value:f.f,onchange:e=>{f.f=e.target.value;}})]),
     el("label",{text:"Entra en"},[el("select",{id:"cm-k",onchange:e=>{f.k=e.target.value;}},(esB?[]:[(()=>{const o=el("option",{value:"",text:"Por decidir"});if(!f.k)o.selected=true;return o;})()]).concat(lin))]),
     esB?el("p",{class:"hint",text:"Lo del externo ya está facturado a su nave: solo se puede cambiar de día."}):
-      el("label",{text:"Proveedor"},[el("select",{id:"cm-p",onchange:e=>{f.p=e.target.value;}},[el("option",{value:"",text:"—"})].concat(provs.map(p=>{const o=el("option",{value:p,text:p});if(f.p===p)o.selected=true;return o;})))]),
+      el("label",{text:"Proveedor"},[el("select",{id:"cm-p",onchange:e=>{f.p=e.target.value;}},[el("option",{value:"",text:"—"})].concat(provs.filter(p=>!nuevo||permiteNave(p,f.k)||f.p===p).map(p=>{const o=el("option",{value:p,text:p+(naveProv(p)?" (solo "+naveProv(p)+")":"")});if(f.p===p)o.selected=true;return o;})))]),
     el("label",{text:"Fardos"},[el("input",{id:"cm-fa",class:"num",type:"text",inputmode:"numeric",value:f.fa,oninput:e=>{f.fa=e.target.value;}})]),
     err,
     el("div",{class:"dlg-b",style:"flex-wrap:wrap"},[
@@ -53,13 +64,14 @@ function calCamionesCard(o){const {m,ents,cons,SIp,B,cams}=o,h=hoy();
   const mins=k=>((cfg.minimos||{})[k]||{}).fardosNave||0;
   let arrastra=null;
   const chip=(x,i)=>{const esB=x.o==="B",c=esB?"var(--warn)":colProv(x.p,provs);
-    const b=el("button",{type:"button",class:"cc-chip"+(x.rec?" rec":"")+(esB?" b":""),style:"--cc:"+c,draggable:x.rec?null:"true",
+    const mal=!esB&&!x.rec&&x.p&&!permiteNave(x.p,x.k);
+    const b=el("button",{type:"button",class:"cc-chip"+(x.rec?" rec":"")+(esB?" b":"")+(mal?" mal":""),style:"--cc:"+c,draggable:x.rec?null:"true",
       title:(esB?"Traída del externo":"Camión"+(x.p?" de "+x.p:""))+" · "+fmt(x.fa)+" f"+(x.rec?" · ya ha llegado":" · toca para moverlo"),
       onclick:async e=>{e.stopPropagation();if(x.rec){toast("Este camión ya ha llegado");return;}
         if(pincelProv&&!esB){if(x.p===pincelProv)return;try{await moverEntrada(m,ents,i,{p:pincelProv});toast(dmy(x.f)+": camión de "+pincelProv);render();}catch(er){toast("No se pudo guardar");}return;}
         dlgCamion(m,ents,i,provs);},
       ondragstart:e=>{arrastra=i;try{e.dataTransfer.setData("text/plain",String(i));e.dataTransfer.effectAllowed="move";}catch(er){}}},
-      [document.createTextNode((x.rec?"✓ ":"+")+fmt(x.fa)),esB?el("small",{text:" B"}):null]);return b;};
+      [document.createTextNode((mal?"⚠ ":x.rec?"✓ ":"+")+fmt(x.fa)),esB?el("small",{text:" B"}):null]);return b;};
   const soltar=(d,k)=>async e=>{e.preventDefault();e.currentTarget.classList.remove("over");const i=arrastra!=null?arrastra:parseInt(e.dataTransfer.getData("text/plain"),10);arrastra=null;if(!(i>=0))return;
     const x=ents[i];if(!x||(x.f===d&&x.k===k))return;try{if(await moverEntrada(m,ents,i,{f:d,k}))toast("Camión movido: "+diaSem(d)+" "+dmy(d)+" · "+etiqLinea(k));render();}catch(er){toast("No se pudo guardar");}};
   const celdas=[];for(let i=0;i<w0;i++)celdas.push(el("div",{class:"cc-d vacio"+(i>=5?" finde":"")}));
@@ -80,6 +92,8 @@ function calCamionesCard(o){const {m,ents,cons,SIp,B,cams}=o,h=hoy();
   const totC=cams.reduce((a,c)=>a+(c.n||0),0),colocados=ents.filter(x=>x.o!=="B").length;
   return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Calendario de camiones"}),el("span",{class:"sub",style:"margin-left:auto",text:colocados+" de "+totC+" camiones colocados"})]),
     el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
+      (()=>{const M=ents.filter(x=>x.o!=="B"&&!x.rec&&x.p&&!permiteNave(x.p,x.k));if(!M.length)return null;const ps=[...new Set(M.map(x=>x.p))];
+        return el("div",{class:"banner b",text:M.length+(M.length===1?" camión de ":" camiones de ")+ps.join(", ")+(M.length===1?" está asignado":" están asignados")+" a una nave en la que no puede descargar ("+ps.map(p=>p+" solo descarga en "+naveProv(p)).join("; ")+"). Revísalo: "+M.map(x=>diaSem(x.f)+" "+dmy(x.f)+" · "+x.k.split("|")[0]).join(", ")+"."});})(),
       pincelProv?el("div",{class:"banner w cc-pincel"},[el("span",{text:"Poniendo «"+pincelProv+"»: toca cada camión que sea de "+pincelProv+"."}),el("button",{type:"button",class:"btn peq",text:"Terminar",onclick:()=>{pincelProv=null;render();}})]):
         provs.length?el("p",{class:"hint",style:"margin:0",text:"Para poner el proveedor rápido: toca un proveedor de aquí abajo y luego toca sus camiones en el calendario."}):null,
       res.length?el("div",{class:"cc-provs"},res):el("p",{class:"hint",style:"margin:0",text:"Mete los camiones contratados del mes (ventana «Camiones contratados») y colócalos aquí."}),

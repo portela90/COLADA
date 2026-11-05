@@ -655,3 +655,33 @@ test('Recuento diario: «Ha subido del externo» y «Ha llegado un camión» sin
   expect(P.rec).toBeTruthy();
   expect(err).toEqual([]);
 });
+
+test('Proveedor que solo descarga en una nave: GRUPAL ART solo en Nave 2 (aviso y no deja moverlo a Nave 1)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-05T10:00:00+01:00'));
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const app = Object.assign({}, __D.cfg.app); app.proveedores = ['BEFESA', 'GRUPAL ART'];
+    app.plan = { '2026-11': { camiones: [{ p: 'BEFESA', m: 'L-2630', n: 2 }, { p: 'GRUPAL ART', m: 'L-2630', n: 2 }], consumo: { 'Nave 1|L-2630': 2 },
+      entradas: [{ f: '2026-11-09', k: 'Nave 1|L-2630', fa: 37, o: 'C', p: 'GRUPAL ART' }, { f: '2026-11-10', k: 'Nave 2|L-2630', fa: 37, o: 'C', p: 'GRUPAL ART' }] } };
+    await db.doc('cfg/app').set(app); }); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Plan').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Calendario de camiones' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Calendario de camiones' });
+  await expect(card.locator('.banner.b')).toContainText('GRUPAL ART solo descarga en Nave 2');
+  await expect(card.locator('.cc-chip.mal')).toHaveCount(1);
+  // intentar pasar el de Nave 2 a Nave 1: no deja y avisa
+  const d10 = card.locator('.cc-d', { has: page.locator('.cc-dn', { hasText: /^10$/ }) });
+  await d10.locator('.cc-chip').click(); await page.locator('#cm-k').selectOption('Nave 1|L-2630'); await page.locator('#cm-ok').click();
+  await expect(page.locator('.dlg')).toContainText('solo pueden descargar en Nave 2');
+  await page.locator('.dlg button', { hasText: 'Cancelar' }).click();
+  let E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(E.find(x => x.f === '2026-11-10').k).toBe('Nave 2|L-2630');
+  // corregir el mal puesto: a Nave 2
+  await card.locator('.cc-chip.mal').click(); await page.locator('#cm-k').selectOption('Nave 2|L-2630'); await page.locator('#cm-ok').click(); await page.waitForTimeout(400);
+  await expect(page.locator('.cc-chip.mal')).toHaveCount(0);
+  // en Camiones contratados sale «Solo Nave 2»
+  await page.locator('.stk-t', { hasText: 'Camiones contratados' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('select[aria-label="Dónde descarga GRUPAL ART"]')).toHaveValue('Nave 2');
+  expect(err).toEqual([]);
+});

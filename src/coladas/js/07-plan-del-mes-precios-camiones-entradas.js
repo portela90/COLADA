@@ -139,6 +139,9 @@ function vPlan0(){
     el("td",{},[el("input",{class:"num",type:"text",min:"0",step:"1",inputmode:"numeric",style:"font-size:15px;padding:7px 9px",value:c.n||0,
       onchange:async e=>{const v=parseInt(e.target.value,10);const nc=cams.slice();nc[idx]=Object.assign({},c,{n:isNaN(v)?0:v});
         try{await setPlan({camiones:nc});}catch(err){toast("No se pudo guardar");}}})]),
+    el("td",{},[el("select",{"aria-label":"Dónde descarga "+(c.p||""),style:"font-size:14px;padding:6px 8px",onchange:async e=>{const P=Object.assign({},PROV_NAVE0,cfg.provNave||{});P[c.p]=e.target.value;cfg.provNave=P;
+        try{await saveCfg();toast(e.target.value?c.p+": solo descarga en "+e.target.value:c.p+": descarga en cualquier nave");render();}catch(err){toast("No se pudo guardar");}}},
+      [["","Cualquier nave"]].concat(NAVES.map(n=>[n,"Solo "+n])).map(([v,t])=>{const o=el("option",{value:v,text:t});if(naveProv(c.p)===v)o.selected=true;return o;}))]),
     el("td",{class:"r num",text:fmt((c.n||0)*KG_CAM/1000)+" Ton"}),
     el("td",{class:"r num",text:eur((c.n||0)*(KG_CAM/1000)*precioDe(m,c.p,c.m).v)}),
     el("td",{class:"r"},[el("button",{class:"btn sec",type:"button",style:"font-size:13px;padding:5px 10px",text:"Quitar",onclick:async()=>{
@@ -166,11 +169,11 @@ function vPlan0(){
   /* El material del almacén externo ya está facturado a su nave: un BP sólo
      puede entrar en esa nave. Los camiones del proveedor sí se pueden desviar. */
   const lineasBP=LINEAS.filter(([n,mm])=>B[key(n,mm)].faE>0).map(([n,mm])=>key(n,mm));
-  const opcDestino=(o,actual)=>{
+  const opcDestino=(o,actual,p)=>{
     if(o==="B"){const ks=lineasBP.slice();if(actual&&ks.indexOf(actual)<0)ks.push(actual);
       return ks.map(k=>{const op=el("option",{value:k,text:etiqLinea(k)});if(actual===k)op.selected=true;return op;});}
     return [el("option",{value:"",text:"Por decidir"})].concat(LINEAS.map(([n,mm])=>{const k=key(n,mm);
-      const op=el("option",{value:k,text:etiqLinea(k)});if(actual===k)op.selected=true;return op;}));};
+      const no=p&&!permiteNave(p,k);const op=el("option",{value:k,text:etiqLinea(k)+(no?" (no permitido para "+p+")":""),disabled:no&&actual!==k?"disabled":null});if(actual===k)op.selected=true;return op;}));};
   const addEnt=el("form",{onsubmit:async e=>{e.preventDefault();
     const fa=parseInt(ne.fa,10);if(!ne.f||!(fa>0))return;
     try{await setPlan({entradas:ents.concat([{f:ne.f,k:ne.k||"",fa:fa,o:ne.o}])});
@@ -196,9 +199,10 @@ function vPlan0(){
   const filasE=ents.map((x,idx)=>el("tr",{},[
     el("td",{class:"num",text:dmy(x.f)}),
     el("td",{},[el("select",{style:"font-size:14px;padding:6px 8px",onchange:async e=>{
+        if(x.o!=="B"&&x.p&&!permiteNave(x.p,e.target.value)){e.target.value=x.k||"";avisoNave(x.p);return;}
         const ne2=ents.slice();ne2[idx]=Object.assign({},x,{k:e.target.value});
         try{await setPlan({entradas:ne2});toast(e.target.value?"Movida a "+etiqLinea(e.target.value):"Queda sin asignar");}catch(err){toast("No se pudo guardar");}}},
-      opcDestino(x.o,x.k)),
+      opcDestino(x.o,x.k,x.o!=="B"?x.p:null)),
       x.o==="B"?el("div",{class:"sub",text:"fijo: ya facturado a esa nave"}):null]),
     el("td",{},[x.o==="B"?el("span",{class:"pill warn",text:"BP externo"}):el("span",{class:"pill "+(x.extra?"bad":"ok"),text:x.extra?"Camión extra":"Camión"}),x.p?el("div",{class:"sub",text:x.p}):null]),
     el("td",{class:"r"},x.rec?[el("span",{class:"num",text:"+"+fmt(x.fa)})]:[
@@ -263,7 +267,7 @@ function vPlan0(){
     el("div",{class:"card"},[
       el("div",{class:"hd"},[el("h2",{text:"Camiones contratados"}),el("span",{class:"num",style:"margin-left:auto",text:totCam+" camiones · "+fmt(totCam*KG_CAM/1000)+" Ton · "+eur(totEur)})]),
       cams.length?el("div",{class:"tw"},[el("table",{},[
-        el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"Camiones"}),el("th",{class:"r",text:"Toneladas"}),el("th",{class:"r",text:"Importe"}),el("th",{})])]),
+        el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"Camiones"}),el("th",{text:"Descarga en"}),el("th",{class:"r",text:"Toneladas"}),el("th",{class:"r",text:"Importe"}),el("th",{})])]),
         el("tbody",{},filasC)])]):el("div",{class:"empty",text:"Todavía no has metido el plan de este mes."}),
       el("div",{class:"bd"},[addCam])
     ]),

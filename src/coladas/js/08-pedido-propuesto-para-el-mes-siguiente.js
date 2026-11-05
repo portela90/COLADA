@@ -108,7 +108,7 @@ function planificar(m,cons,B,desdeCero){
         const cand=ks.map(k=>({k,lo:bajo(k)})).filter(x=>x.lo<minimo(x.k)&&usado(d,x.k.split("|")[1])<MAXDIA[x.k.split("|")[1]]).sort((a,b)=>(a.lo-minimo(a.k))-(b.lo-minimo(b.k)));
         if(!cand.length)break;
         const k=cand[0].k,mt=k.split("|")[1],q=quedan[mt]||{};
-        const prov=Object.keys(q).filter(p=>q[p]>0).sort((a,b)=>q[b]-q[a])[0];
+        const prov=Object.keys(q).filter(p=>q[p]>0&&permiteNave(p,k)).sort((a,b)=>q[b]-q[a])[0];
         let e;
         if(prov){q[prov]--;e={f:d,k,o:"C",p:prov,fa:Math.round(mediaCamion(mt,prov).fa)};}
         else if((ext[k]||[]).length){const c=ext[k].shift();e={f:d,k,o:"B",fa:Math.round(c.fa),col:c.l.nombre};}

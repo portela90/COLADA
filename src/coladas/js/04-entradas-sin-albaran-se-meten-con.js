@@ -55,7 +55,8 @@ function vEntrada(){
     const pr=precioDe(mesDe(d.fecha),d.prov,d.mat),k=numES(d.kg||"");
     if(!pr.v)return"Sin precio para "+d.prov+" "+MAT[d.mat].nom+" en "+nomMes(mesDe(d.fecha))+". Mételo en la pestaña Precios.";
     return"Precio "+d.prov+" "+MAT[d.mat].nom+": "+eurKg(pr.v)+" €/kg"+(pr.m!==mesDe(d.fecha)?" (de "+nomMes(pr.m)+")":"")+(k>0?" · importe "+eur(k/1000*pr.v):"");};
-  const form=el("form",{onsubmit:async e=>{e.preventDefault();if(!valida())return;const est=kgEst(),nk=est||numES(d.kg||""),nf=numES(d.fardos||"");const b=$("e-go");b.disabled=true;
+  const form=el("form",{onsubmit:async e=>{e.preventDefault();if(!valida())return;
+    if(d.prov&&d.nave&&!permiteNave(d.prov,d.nave+"|")&&!(await confirmar("Atención: "+d.prov+" solo descarga en "+naveProv(d.prov)+".\n\n¿Seguro que esta colada ha entrado en "+d.nave+"?",{titulo:"Descarga no permitida",ok:"Sí, ha entrado en "+d.nave})))return;const est=kgEst(),nk=est||numES(d.kg||""),nf=numES(d.fardos||"");const b=$("e-go");b.disabled=true;
     try{
       let ft=null;
       if(d.foto){b.textContent="Subiendo la foto…";

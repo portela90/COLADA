@@ -425,3 +425,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .rd-ext-b[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft)}
 .rd-ext-b:hover{border-color:var(--acc)}
 .cc-chip{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.cc-chip.mal{outline:2px solid var(--bad);outline-offset:1px}
