@@ -426,3 +426,15 @@ button.cc-prov:hover{border-color:var(--cc)}
 .rd-ext-b:hover{border-color:var(--acc)}
 .cc-chip{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
 .cc-chip.mal{outline:2px solid var(--bad);outline-offset:1px}
+/* horneros */
+.hn-sem{font-size:16px}
+.hn-t td{vertical-align:top}
+.hn-cel{appearance:none;font:inherit;color:inherit;width:100%;min-height:44px;text-align:left;background:var(--surf2);border:1px dashed var(--line);border-radius:8px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;cursor:pointer}
+.hn-cel:hover{border-color:var(--acc)}
+.hn-n{display:inline-flex;align-items:center;gap:4px;background:var(--acc-soft);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:13.5px;font-weight:600}
+.hn-n.baja{opacity:.5;text-decoration:line-through}
+.hn-x{appearance:none;border:0;background:none;color:var(--mut);font:inherit;font-size:15px;cursor:pointer;padding:0 2px}
+.hn-todos{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hn-lst{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
+.hn-chk{font-size:15px}
+.rd-quien{color:var(--acc)}

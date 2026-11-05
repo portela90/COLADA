@@ -2,6 +2,11 @@
    Los cruces (pistones y ejes por tonelada, resumen del mes) leen los datos del Almacén de la misma base de datos. */
 function intencionC2(q){const o={q,nave:/\bnave\s*(1|uno)\b/.test(q)&&/\bnave\s*(2|dos)\b|\by (la )?(2|dos)\b/.test(q)?null:naveQ(q),mat:matQ(q),prov:provQ(q),modo2:true};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bcargador(es)?\b/.test(q))return M("cargador");
+  /* por hornero: consumo, FIFO, lo que cuadra la hoja y averías */
+  if(/\bhorner[oa]s?\b/.test(q)||(/\bquien(es)?\b/.test(q)&&/\b(fifo|apunta\w*|hoja|descuadr\w*|gasta\w*|consum\w*|averi\w*|rotur\w*)\b/.test(q)&&!/\b(proveedor|camion\w*|colada)\b/.test(q))){
+    const per=periodoC(q)||{d:ymd(new Date(Date.now()-30*864e5)),h:hoy(),t:"los últimos 30 días"};
+    const met=/\bfifo\b|orden/.test(q)?"fifo":/\b(apunta\w*|hoja|descuadr\w*|bien|mal)\b/.test(q)?"hoja":/\b(averi\w*|incidenc\w*|rotur\w*|piston\w*|eje)\b/.test(q)?"aver":"cons";
+    return M("horn",{per,met});}
   /* «cuántos kilos tengo que pedir para diciembre»: lo que falta para llegar a final de ese mes */
   if(/\b(cuant\w*|que)\b/.test(q)&&!/\bcuando\b/.test(q)&&/\b(tengo|hay|tenemos|debo|debemos)( que| de)? (pedir|comprar|traer)\b|\b(necesito|necesitamos)\b|\b(hace|haria) falta\b/.test(q)&&!/\bpiston\w*\b/.test(q)){const F=periodoFut(q);return M("pedirkg",{per:F.todo||!/\bmes\b|\bsemana\b|\bmanana\b/.test(q)&&!MES_C.some(x=>q.includes(x))?periodoFut("mes que viene"):F});}
   /* «cuántas cargas tenemos en el externo»: lo que hay allí, no lo que ha entrado */
@@ -148,6 +153,7 @@ function pintaIntC2(E,res,pon){const h=hoy(),S=saldos();
     card(null,[el("div",{class:"bq-lst"},L.map(x=>it(x.p,x.n+(x.n===1?" ajuste":" ajustes")+" · "+[...x.col].slice(0,6).join(", ")+(x.col.size>6?"…":""),(x.kg>0?"+":"")+fmt(x.kg)+" kg",(x.fa>0?"+":"")+fmt(x.fa)+" fardos")))]);
     nota("Los kilos de cada colada salen de su albarán, así que la única forma de ver si un proveedor manda de menos es al contar: aquí salen los ajustes de los recuentos (negativo = faltaba). Para el peso de los fardos pregunta «cuánto pesa de media un fardo».");return;}
 
+  if(E.modo==="horn"){pintaHorn(E,{frase,nota,ent,card,tabla});return;}
   if(E.modo==="kgmaq"){if(!primerEvMaq()){frase("Hace falta el estado de las máquinas (Stock › Máquinas) para repartir el consumo entre las que estaban en marcha.");return;}
     const d30=ymd(new Date(Date.now()-30*864e5)),C=movs().filter(r=>r.t==="C"&&r.f&&r.f>=d30&&r.f<h&&r.u),R={};
     C.forEach(r=>{const l=lotes.find(x=>x.id===r.o);if(!l)return;const k=r.f+"|"+r.u+"|"+l.nave+"|"+l.material;R[k]=(R[k]||0)+Math.abs(kgAp(r,S));});

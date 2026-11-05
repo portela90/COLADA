@@ -90,6 +90,8 @@ function vRecuentoDiario(){
       const orden=o.C.map(x=>x.l.id);
       o.rel.forEach(rr=>{let rem=rr.nuevo,kk=rr.kNuevo.slice();if(!rem)return;const tomar=(id,q,lst,kgT,tot)=>{const pk=(lst||kk).splice(0,q);
           const r={i:uid("m"),t:"C",f:rr.r.f,u:rr.r.u,o:id,fa:q,n:"Recuento diario"};
+          /* fuera de FIFO: se gasta de esta colada quedando fardos de una más antigua */
+          const iO=orden.indexOf(id);if(iO>0&&orden.slice(0,iO).some(j=>(S[j].fa-(asig[j]||0))>0))r.n+=" · Fuera de FIFO";
           if(pk.length===q&&q){r.pk=pk;r.kg=Math.round(pk.reduce((a,b)=>a+b,0)*100)/100;}
           else if(kgT!=null?kgT:rr.kgT){r.kg=Math.round((kgT!=null?kgT:rr.kgT)*q/(tot||rr.nuevo));r.n+=" · kilos totales del relevo";}
           recs.push(r);asig[id]=(asig[id]||0)+q;cap[id]=Math.max(0,(cap[id]||0)-q);rem-=q;};
@@ -98,7 +100,7 @@ function vRecuentoDiario(){
         for(const id of orden){if(rem<=0)break;const libre=(S[id].fa-(asig[id]||0));const q=Math.min(rem,Math.max(0,libre));if(q>0)tomar(id,q);}
         if(rem>0&&orden.length)tomar(orden[orden.length-1],rem);});
       o.C.forEach(x=>{const queda=x.s-(asig[x.l.id]||0),df=queda-x.c;if(!df)return;const rx=S[x.l.id].rx||S[x.l.id].ratio||0;
-        const r={i:uid("m"),t:"A",f:relevoAhora().f,u:relevoAhora().u,fa:Math.abs(df),kg:Math.round(Math.abs(df)*rx),n:"Recuento diario: "+(df>0?"faltan ":"sobran ")+Math.abs(df)+" f frente a las hojas"};
+        const r={i:uid("m"),t:"A",f:relevoAhora().f,u:relevoAhora().u,fa:Math.abs(df),kg:Math.round(Math.abs(df)*rx),n:"Recuento diario: "+(df>0?"faltan ":"sobran ")+Math.abs(df)+" f frente a las hojas",rel:R.map(z=>z.f+"|"+z.u)};
         if(df>0)r.o=x.l.id;else r.d=x.l.id;aj.push(r);});});
     return{recs,aj};};
   const relLbl=(r,j)=>NOMDIA[fDate(r.f).getDay()]+" "+dmy(r.f)+" "+r.u.toLowerCase();
@@ -109,7 +111,8 @@ function vRecuentoDiario(){
     const rels=R.map((r,j)=>{const ya=yaDe(r,n,m),yaFa=ya.reduce((a,x)=>a+(x.fa||0),0),sub=relSub(r,j),info=el("span",{class:"rd-ya"});
       vivos.push(C=>{const o=C.out[k].rel[j];info.textContent=o.por&&!o.err?"por colada: "+o.porFa+" f":o.p&&!o.err&&o.p.k.length?o.p.fa+" f · "+fmt(o.p.k.reduce((a,b)=>a+b,0))+" kg":o.p&&o.p.kgT?"≈ "+o.p.fa+" f":yaFa?"ya apuntados "+yaFa+" f":"";
         info.className="rd-ya"+(o.err?" mal":"");});
-      return el("label",{class:"rd-rel"},[el("span",{class:"rd-rl"},[document.createTextNode(relLbl(r,j)),sub?el("small",{text:" ("+sub+")"}):null]),
+      const quien=quienEn(r.f,n,r.u).map(nomHorn).join(", ");
+      return el("label",{class:"rd-rel"},[el("span",{class:"rd-rl"},[document.createTextNode(relLbl(r,j)),sub?el("small",{text:" ("+sub+")"}):null,quien?el("small",{class:"rd-quien",text:" · "+quien}):null]),
         el("input",{id:"rdr-"+k+"-"+j,class:"num",type:"text",inputmode:"decimal",autocomplete:"off",spellcheck:"false",placeholder:yaFa?String(yaFa):"0",value:d.R[k][j]||"",
           "aria-label":"Fardos "+relLbl(r,j)+" "+n+" "+MAT[m].nom,oninput:e=>{d.R[k][j]=e.target.value;refresca();}}),info]);});
     const filas=lista.map(l=>{const fifo=el("button",{type:"button",class:"rd-fifo num",title:"Poner este número en «Contados»"}),inp=el("input",{id:"rdc-"+l.id,class:"num",type:"text",inputmode:"numeric",autocomplete:"off",value:d.C[l.id]==null?"":d.C[l.id],

@@ -685,3 +685,35 @@ test('Proveedor que solo descarga en una nave: GRUPAL ART solo en Nave 2 (aviso 
   await expect(page.locator('select[aria-label="Dónde descarga GRUPAL ART"]')).toHaveValue('Nave 2');
   expect(err).toEqual([]);
 });
+
+test('Horneros: semana con rotación, cambio de un día y consultas por hornero', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => {
+    const app = Object.assign({}, __D.cfg.app); app.horn = { lista: [{ id: 'h1', n: 'Juan' }, { id: 'h2', n: 'Pedro' }, { id: 'h3', n: 'Luis' }, { id: 'h4', n: 'Ana' }], sem: {}, dia: {} }; await db.doc('cfg/app').set(app);
+    await db.doc('mov/2026-10').set({ items: [{ i: 'c1', t: 'C', f: '2026-10-27', u: 'Mañana', o: 'l3', fa: 3, n: 'Recuento diario · Fuera de FIFO' }, { i: 'c2', t: 'C', f: '2026-10-27', u: 'Tarde', o: 'l3', fa: 1 }] }); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Horneros' }).first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.hn-sem')).toContainText('Semana del 26/10');
+  const pon = async (cel, nombre) => { await page.locator(`button[aria-label="Quién está ${cel}"]`).click(); await page.locator('.dlg .hn-chk', { hasText: nombre }).locator('input').check(); await page.locator('#hn-ok').click(); await page.waitForTimeout(300); };
+  await pon('Nave 1 Mañana', 'Juan'); await pon('Nave 1 Tarde', 'Pedro'); await pon('Nave 1 Noche', 'Luis');
+  // la semana siguiente sale sola por la rotación: el de mañana pasa a noche
+  await page.locator('button[aria-label="Semana siguiente"]').click(); await page.waitForTimeout(300);
+  await expect(page.locator('button[aria-label="Quién está Nave 1 Noche"]')).toContainText('Juan');
+  await expect(page.locator('button[aria-label="Quién está Nave 1 Mañana"]')).toContainText('Pedro');
+  await expect(page.locator('button[aria-label="Quién está Nave 1 Tarde"]')).toContainText('Luis');
+  // baja de un día: Ana sustituye a Pedro el martes 3/11 por la mañana
+  await page.locator('button', { hasText: '+ Baja o sustitución' }).click();
+  await page.fill('#hn-f', '2026-11-03'); await page.locator('#hn-sig').click();
+  await page.locator('.dlg .hn-chk', { hasText: 'Pedro' }).locator('input').uncheck(); await page.locator('.dlg .hn-chk', { hasText: 'Ana' }).locator('input').check(); await page.locator('#hn-ok').click(); await page.waitForTimeout(300);
+  await expect(page.locator('.card', { hasText: 'Cambios de un día' })).toContainText('Ana (en vez de Pedro)');
+  // consultas
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(500); return (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); };
+  let r = await resp('consumo por hornero este mes');
+  expect(r).toMatch(/Juan 3 f por relevo/); expect(r).toMatch(/Consumo por hornero/);
+  r = await resp('quién no sigue el fifo este mes');
+  expect(r).toMatch(/Fuera de FIFO en este mes: Juan 1 de/);
+  expect(err).toEqual([]);
+});

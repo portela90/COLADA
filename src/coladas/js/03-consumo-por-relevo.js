@@ -99,6 +99,8 @@ function vConsumo(){
     {v:"suelto",t:"Apunte suelto",sub:"Una colada, un relevo",nodes:()=>{consModo="suelto";return vConsumo0().slice(1);}},
     {v:"huecos",t:"Falta por apuntar",big:String(nH),u:nH===1?"relevo":"relevos",st:nH?"bad":"ok",pill:nH?"Revisar":"OK",sub:nH?"sin consumo apuntado":"todo apuntado",
       nodes:()=>[vHuecos()||el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),el("div",{class:"empty",text:"Todos los relevos de las dos últimas semanas tienen consumo apuntado."})])]}];
+  {const H=hornCfg(),ids=TURNOS.map(u=>NAVES.map(n=>quienEn(hoy(),n,u).length)).flat().filter(Boolean).length;
+   tiles.push({v:"horn",t:"Horneros",big:H.lista.length?String(H.lista.length):"",u:H.lista.length?"horneros":"",st:H.lista.length&&!ids?"warn":"na",sub:H.lista.length?(ids?"quién está en cada relevo esta semana":"falta poner los de esta semana"):"quién está en cada relevo (para Consultas)",nodes:()=>vHorneros()});}
   if(RS.length)tiles.push({v:"restos",t:"Diferencias de peso",big:String(RS.length),u:RS.length===1?"colada":"coladas",st:"warn",sub:"acabadas con kilos de más o de menos",nodes:()=>[cardRestos()]});
   return panelGen("consumo",tiles);
 }
