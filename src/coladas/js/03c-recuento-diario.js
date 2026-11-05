@@ -137,7 +137,7 @@ function vRecuentoDiario(){
           el("div",{class:"rd-cb"},[el("div",{class:"rd-sec",text:"2 · Fardos que cuentas ahora en nave"}),
             el("div",{class:"rd-col hdr"},[el("span",{text:"Colada"}),el("span",{text:"Por FIFO"}),el("span",{text:"Contados"}),el("span",{text:"Gasto"})])].concat(filas,[
             el("div",{class:"rd-tot"},[el("span",{text:"Gastado según el recuento"}),totB])]))]),
-        varias(k,lista,n,m),res])]);});
+        accionesRD(n,m,S),varias(k,lista,n,m),res])]);});
   /* si han bajado dos o más coladas, los pesos de cada una en cada relevo (opcional) */
   function varias(k,lista,n,m){d.K[k]=d.K[k]||{};
     const caja=el("div",{class:"rd-var"});caja.hidden=true;
@@ -229,3 +229,39 @@ function botonesEnviar(texto,asunto){
   const sh=navigator.share?el("button",{type:"button",class:"btn sec",text:"Compartir…",onclick:async()=>{try{await navigator.share({title:asunto(),text:texto()});}catch(e){}}}):null;
   const dq=destParte(),para=el("button",{type:"button",class:"btn txt peq env-para",text:dq.tel||dq.email?"Para: "+[dq.tel?"+"+dq.tel:"",dq.email].filter(Boolean).join(" · ")+" (cambiar)":"Elegir a quién se manda",onclick:async()=>{if(await ponerDestParte()){const x=destParte();para.textContent=x.tel||x.email?"Para: "+[x.tel?"+"+x.tel:"",x.email].filter(Boolean).join(" · ")+" (cambiar)":"Elegir a quién se manda";}}});
   return el("div",{class:"env-row"},[el("div",{class:"env-bt"},[wa,ml,sh].filter(Boolean)),para]);}
+
+/* ---------- desde el recuento: lo que ha subido del externo y los camiones que han llegado ----------
+   Sin salir del recuento. Del externo solo salen las coladas de esa misma nave y aleación (ya están facturadas a su nave).
+   Un camión del proveedor es una colada nueva: se abre la entrada ya rellena con el camión del calendario y al guardar se vuelve aquí. */
+function accionesRD(n,m,S){const k=key(n,m),h=hoy();
+  const ext=lotes.filter(l=>l.nave===n&&l.material===m&&l.donde==="externo"&&S[l.id]&&S[l.id].fa>0).sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||""));
+  const cam=pendientesPlan().filter(x=>x.k===k&&x.f<=fMas(h,1));
+  const bs=[];
+  if(ext.length)bs.push(el("button",{type:"button",class:"btn sec peq",text:"Ha subido del externo ("+ext.length+")",onclick:()=>subidaRD(n,m,ext,S)}));
+  bs.push(el("button",{type:"button",class:"btn sec peq",text:"Ha llegado un camión"+(cam.length?" ("+cam.length+" previsto"+(cam.length===1?"":"s")+")":""),onclick:()=>camionRD(n,m,cam)}));
+  return el("div",{class:"rd-acc"},[el("span",{class:"sub",text:"¿Hay fardos que no salen en la lista?"})].concat(bs));}
+function subidaRD(n,m,ext,S){const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}}),cerrar=()=>ov.remove();
+  const st={id:ext[0].id,modo:"entera",n:""};const cuerpo=el("div",{style:"display:flex;flex-direction:column;gap:10px"});
+  const pinta=()=>{cuerpo.textContent="";const l=lotes.find(x=>x.id===st.id),b=S[st.id];
+    cuerpo.appendChild(el("div",{class:"rd-ext"},ext.map((x,i)=>el("button",{type:"button",class:"rd-ext-b","aria-pressed":String(st.id===x.id),onclick:()=>{st.id=x.id;pinta();}},[
+      el("b",{text:x.nombre}),el("span",{class:"num sub",text:fmt(S[x.id].fa)+" f · "+fmt(S[x.id].kg)+" kg"+(i===0?" · la más antigua":"")})]))));
+    cuerpo.appendChild(el("div",{class:"seg",role:"group","aria-label":"Cuánto ha subido"},[["entera","Entera ("+fmt(b.fa)+" f)"],["parte","Solo una parte"]].map(([v,t])=>el("button",{type:"button","aria-pressed":String(st.modo===v),text:t,onclick:()=>{st.modo=v;pinta();}}))));
+    if(st.modo==="parte")cuerpo.appendChild(el("label",{text:"Fardos que han subido"},[el("input",{id:"rd-sub-n",class:"num",type:"text",inputmode:"numeric",value:st.n,oninput:e=>{st.n=e.target.value;}})]));
+    if(ext[0].id!==st.id)cuerpo.appendChild(el("div",{class:"banner w",text:"Por FIFO tocaría subir antes "+ext[0].nombre+"."}));};
+  pinta();
+  const ok=el("button",{type:"button",class:"btn",id:"rd-sub-ok",text:"Apuntar subida",onclick:async()=>{const l=lotes.find(x=>x.id===st.id),b=S[st.id],nf=st.modo==="entera"?b.fa:parseInt(st.n,10);
+    if(!(nf>0)){toast("Pon cuántos fardos han subido");return;}if(nf>b.fa){toast("En el externo solo hay "+fmt(b.fa)+" fardos");return;}
+    ok.disabled=true;try{await subirExterno(l,b,nf);toast(fmt(nf)+" f de "+l.nombre+" subidos a "+n+": ya salen en el recuento");cerrar();render();}catch(e){toast("No se pudo guardar");ok.disabled=false;}}});
+  ov.appendChild(el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Ha subido del externo"},[el("h3",{text:"Ha subido del externo · "+n+" · "+MAT[m].nom}),
+    el("p",{class:"hint",text:"Solo salen las coladas del externo de esta nave y aleación."}),cuerpo,el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),ok])]));
+  document.body.appendChild(ov);}
+function camionRD(n,m,cam){const ir=x=>{if(x)llegaCamion(x);else{draft.ent={fecha:hoy(),nave:n,mat:m,donde:"nave"};tab="entrada";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();}
+    draft.ent.volver="rdiario";render();};
+  if(!cam.length){ir(null);return;}
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}}),cerrar=()=>ov.remove();
+  ov.appendChild(el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Ha llegado un camión"},[el("h3",{text:"¿Qué camión ha llegado? · "+n+" · "+MAT[m].nom}),
+    el("div",{class:"rd-ext"},cam.map(x=>el("button",{type:"button",class:"rd-ext-b",onclick:()=>{cerrar();ir(x);}},[el("b",{text:(x.p||"Proveedor sin poner")+" · "+fmt(x.fa)+" f"}),
+      el("span",{class:"sub",text:"previsto el "+diaSem(x.f)+" "+dmy(x.f)+(x.f<hoy()?" · con retraso":"")})])).concat([el("button",{type:"button",class:"rd-ext-b",onclick:()=>{cerrar();ir(null);}},[el("b",{text:"Otro camión"}),el("span",{class:"sub",text:"no estaba en el calendario"})])])),
+    el("p",{class:"hint",text:"Se abre la entrada ya rellena: pon el número de colada y los kilos del albarán (o léelo con la cámara). Al guardar vuelves al recuento."}),
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar})])]));
+  document.body.appendChild(ov);}

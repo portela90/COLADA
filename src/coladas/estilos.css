@@ -418,3 +418,9 @@ button.cc-prov:hover{border-color:var(--cc)}
 .sd-gb:hover{opacity:.9}
 .sd-lnk{appearance:none;background:none;border:0;padding:0;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-align:left}
 .parte-t.solo-n .c-e,.parte-t.solo-n .c-t,.parte-t.solo-e .c-n,.parte-t.solo-e .c-t{display:none}
+.rd-acc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px dashed var(--line2);padding-top:10px}
+.rd-acc .sub{flex:1 1 200px}
+.rd-ext{display:flex;flex-direction:column;gap:6px}
+.rd-ext-b{appearance:none;font:inherit;color:inherit;text-align:left;background:var(--surf2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;cursor:pointer}
+.rd-ext-b[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft)}
+.rd-ext-b:hover{border-color:var(--acc)}

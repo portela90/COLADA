@@ -627,3 +627,31 @@ test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo c
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Recuento diario: «Ha subido del externo» y «Ha llegado un camión» sin salir del recuento', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const app = Object.assign({}, __D.cfg.app); app.proveedores = ['BEFESA'];
+    app.plan = { '2026-10': { camiones: [{ p: 'BEFESA', m: 'L-2630', n: 2 }], consumo: {}, entradas: [{ f: '2026-10-30', k: 'Nave 1|L-2630', fa: 37, o: 'C', p: 'BEFESA' }] } };
+    await db.doc('cfg/app').set(app); }); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await expect(page.locator('[id="rdc-l1"]')).toHaveCount(0);
+  await card.locator('button', { hasText: 'Ha subido del externo (2)' }).click();
+  await page.locator('.dlg .seg button', { hasText: 'Solo una parte' }).click();
+  await page.fill('#rd-sub-n', '10'); await page.locator('#rd-sub-ok').click(); await page.waitForTimeout(700);
+  await expect(page.locator('[id="rdc-l3"]')).toBeVisible();
+  const T = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'T'));
+  expect(T.length).toBeGreaterThan(0);
+  // camión previsto con retraso: se abre la entrada rellena y al guardar se vuelve al recuento
+  await page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first().locator('button', { hasText: 'Ha llegado un camión (1 previsto)' }).click();
+  await page.locator('.dlg .rd-ext-b', { hasText: 'BEFESA · 37 f' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#e-volver')).toBeVisible();
+  await page.fill('#e-col', 'C26100'); await page.fill('#e-alb', 'ALB-9'); await page.fill('#e-kg', '25000'); await page.waitForTimeout(200);
+  await page.click('#e-go'); await page.waitForTimeout(900);
+  await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first()).toContainText('C26100');
+  const P = await page.evaluate(() => window.__D.cfg.app.plan['2026-10'].entradas[0]);
+  expect(P.rec).toBeTruthy();
+  expect(err).toEqual([]);
+});

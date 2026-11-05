@@ -73,6 +73,7 @@ function vEntrada(){
         const k=key(d.nave,d.mat),dist=f=>Math.abs((new Date(f)-new Date(d.fecha))/864e5);
         const c=pendientesPlan().filter(x=>(x.k===k||!x.k)&&dist(x.f)<=4).sort((a,b)=>(a.k===k?0:1)-(b.k===k?0:1)||dist(a.f)-dist(b.f))[0];
         if(c){try{await marcarPlan(c,{l:id,f:d.fecha,k});toast("Entrada registrada · camión previsto del "+dmy(c.f)+" marcado como recibido");}catch(e){}}}
+      if(d.volver==="rdiario"){draft.ent={};tab="consumo";PANV.consumo="rdiario";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();toast("Entrada registrada: ya sale en el recuento");return;}
       draft.ent={nave:d.nave,mat:d.mat,donde:d.donde,fecha:d.fecha,prov:d.prov};render();/* el formulario queda limpio (también los datos leídos) */
     }catch(err){toast("No se pudo guardar");b.disabled=false;b.textContent="Registrar entrada";}}},[
     el("label",{class:"chk-sa"},[el("input",{type:"checkbox",checked:d.sinAlb?"":null,onchange:e=>{d.sinAlb=e.target.checked;render();}}),
@@ -102,6 +103,8 @@ function vEntrada(){
   ]);
   setTimeout(vivo,0);
   return [
+    d.volver==="rdiario"?el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1 1 200px",text:"Vienes del recuento diario: al registrar la entrada vuelves allí con la colada nueva para contarla."}),
+      el("button",{type:"button",class:"btn sec peq",id:"e-volver",text:"Volver al recuento",onclick:()=>{draft.ent={};tab="consumo";PANV.consumo="rdiario";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();}})]):null,
     cardSinAlb(),
     (()=>{const pend=pendientesPlan().filter(x=>x.f<=diaSig(diaSig(hoy())));
       if(d.plan){return el("div",{class:"banner w",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[
