@@ -5,8 +5,11 @@
    Usa los mismos datos que «Calendario de entradas» (cfg.plan[mes].entradas) y la misma proyección. */
 /* «pincel»: se toca un proveedor de arriba y luego los camiones, y cada uno toma ese proveedor (un toque por camión) */
 let pincelProv=null;
-const PROV_COL=["#2D6FA8","#1F7A4D","#B03A3A","#9A6B14","#6B4FA0","#2A7F86","#A6497C"];
-function colProv(p,provs){if(!p)return"var(--mut)";const i=provs.indexOf(p);return PROV_COL[(i<0?provs.length:i)%PROV_COL.length];}
+/* colores de la fábrica: azul BEFESA, rojo GRUPAL ART, verde IDALSA y negro Estrella; los demás, de esta lista */
+const PROV_FAB=[[/befesa/i,"#1F5FBF"],[/grupal/i,"#C62828"],[/idalsa/i,"#2E7D32"],[/estrella/i,"#111111"]];
+const PROV_COL=["#9A6B14","#6B4FA0","#2A7F86","#A6497C","#5D6B78"];
+function colProv(p,provs){if(!p)return"var(--mut)";const f=PROV_FAB.find(([re])=>re.test(p));if(f)return f[1];
+  const otros=provs.filter(x=>!PROV_FAB.some(([re])=>re.test(x))),i=otros.indexOf(p);return PROV_COL[(i<0?otros.length:i)%PROV_COL.length];}
 const mesDeF=f=>f.slice(0,7);
 async function guardarEntradas(mes,lista){const c=Object.assign({},cfg.plan||{});c[mes]=Object.assign({camiones:[],consumo:{},entradas:[]},c[mes]||{},{entradas:lista});cfg.plan=c;await saveCfg();}
 /* mover una entrada (de día, de línea o de proveedor); si cambia de mes pasa al plan de ese mes */

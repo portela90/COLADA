@@ -424,3 +424,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .rd-ext-b{appearance:none;font:inherit;color:inherit;text-align:left;background:var(--surf2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;cursor:pointer}
 .rd-ext-b[aria-pressed="true"]{border-color:var(--acc);background:var(--acc-soft)}
 .rd-ext-b:hover{border-color:var(--acc)}
+.cc-chip{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
