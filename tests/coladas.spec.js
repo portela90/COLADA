@@ -540,3 +540,42 @@ test('Recuento diario: cada nave se guarda por separado', async ({ page }) => {
   expect(N.sort()).toEqual(['Nave 1', 'Nave 2']);
   expect(err).toEqual([]);
 });
+
+test('Calendario de camiones: stock de cada día, camiones del color del proveedor y se mueven de día y de nave', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-05T10:00:00+01:00'));
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const app = Object.assign({}, __D.cfg.app); app.proveedores = ['Bepesa', 'Estrella'];
+    app.plan = { '2026-11': { camiones: [{ p: 'Bepesa', m: 'L-2630', n: 11 }, { p: 'Estrella', m: 'L-2630', n: 3 }], consumo: { 'Nave 1|L-2630': 2 },
+      entradas: [{ f: '2026-11-09', k: 'Nave 1|L-2630', fa: 37, o: 'C', p: 'Bepesa' }, { f: '2026-11-10', k: 'Nave 1|L-2630', fa: 37, o: 'C', p: 'Estrella' }] } };
+    await db.doc('cfg/app').set(app); }); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Plan').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Calendario de camiones' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Calendario de camiones' });
+  await expect(card).toContainText('Bepesa');
+  await expect(card).toContainText('1 de 11 camiones');
+  await expect(card.locator('.cc-chip')).toHaveCount(2);
+  // stock del lunes 9 al empezar: 8 f hoy − 2 f/día jueves y viernes (sin noche) ≈ 5
+  const l9 = card.locator('.cc-d', { has: page.locator('.cc-dn', { hasText: /^9$/ }) }).locator('.cc-l').first();
+  await expect(l9.locator('.cc-v')).toHaveText('5');
+  // mover el camión de Bepesa al jueves 12 y a la Nave 2
+  await l9.locator('.cc-chip').click();
+  await page.fill('#cm-f', '2026-11-12'); await page.locator('#cm-k').selectOption('Nave 2|L-2630');
+  await page.locator('#cm-ok').click(); await page.waitForTimeout(500);
+  let E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(E.find(x => x.p === 'Bepesa')).toMatchObject({ f: '2026-11-12', k: 'Nave 2|L-2630', fa: 37 });
+  // arrastrar el de Estrella al lunes 16
+  const chipE = page.locator('.cc-chip').filter({ hasText: '+37' }).nth(0);
+  const d16 = page.locator('.cc-d', { has: page.locator('.cc-dn', { hasText: /^16$/ }) }).locator('.cc-l[data-k="Nave 1|L-2630"]');
+  await chipE.dragTo(d16); await page.waitForTimeout(500);
+  E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(E.find(x => x.p === 'Estrella')).toMatchObject({ f: '2026-11-16', k: 'Nave 1|L-2630' });
+  // tocar un hueco añade un camión
+  await page.locator('.cc-d', { has: page.locator('.cc-dn', { hasText: /^18$/ }) }).locator('.cc-l[data-k="Nave 1|L-2630"]').click();
+  await page.locator('#cm-p').selectOption('Bepesa'); await page.locator('#cm-ok').click(); await page.waitForTimeout(500);
+  E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(E.filter(x => x.f === '2026-11-18')).toHaveLength(1);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

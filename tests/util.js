@@ -24,9 +24,9 @@ function original(nombre) { return 'file://' + path.join(ROOT, nombre); }
 
 /* Recoge errores de la página y corta todo acceso a internet. */
 const ECHARTS = path.join(__dirname, 'node_modules/echarts/dist/echarts.min.js');
-/* Los datos de prueba se crean alrededor de «hoy» (ayer, hace 3 días, este mes…). Los primeros y últimos días del mes
-   esos datos caen en otro mes y las pruebas fallan sin que la app tenga nada mal: los días 1 a 4 se fija la fecha del navegador al último día del mes anterior. */
-function fechaPruebas() { const h = new Date(); if (h.getDate() > 4) return null; return new Date(h.getFullYear(), h.getMonth(), 0, 12, 0, 0); }
+/* Los datos de prueba tienen fechas de octubre de 2026 (y otras alrededor de «hoy»). Para que las pruebas den lo mismo
+   cualquier día, el navegador siempre está a 31/10/2026 a mediodía (las pruebas que necesitan otra fecha la fijan ellas). */
+function fechaPruebas() { return new Date(2026, 9, 31, 12, 0, 0); }
 async function vigila(page, alInternet) {
   const errores = [];
   const fp = fechaPruebas(); if (fp) await page.clock.setFixedTime(fp);

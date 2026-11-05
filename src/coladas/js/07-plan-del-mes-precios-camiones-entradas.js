@@ -248,6 +248,7 @@ function vPlan0(){
 
   return [
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Plan del mes"}),el("div",{style:"margin-left:auto;min-width:175px"},[selMes])])]),
+    calCamionesCard({m,ents,cons,SIp,B,cams}),
     calendarioCard(m),
     el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1",text:"Los precios del aluminio por proveedor se meten en la pestaña Precios."}),
       el("button",{type:"button",class:"btn sec peq",text:"Ir a Precios",onclick:()=>{tab="precios";precMes=m;try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();}})]),

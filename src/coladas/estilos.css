@@ -355,3 +355,28 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .rd-bar{position:sticky;bottom:0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
 .rd-bar-t{flex:1 1 220px;font-size:14px;color:var(--ink2)}
 @media (max-width:520px){.rd-bar{padding:8px;gap:8px;border-radius:10px}.rd-bar-t{flex:1 1 100%;font-size:12.5px}.rd-bar .btn{flex:1 1 0;padding:10px 8px;font-size:14px}}
+/* calendario de camiones */
+.cc-provs{display:flex;flex-wrap:wrap;gap:8px}
+.cc-prov{display:flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13.5px}
+.cc-prov .num{color:var(--ink2)}
+.cc-dot{width:10px;height:10px;border-radius:50%;background:var(--cc);flex:none}
+.cc-tw{overflow-x:auto}
+.cc{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,minmax(0,.6fr));gap:4px;min-width:680px}
+.cc-h{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--mut);text-align:center;padding:2px 0}
+.cc-d{border:1px solid var(--line);border-radius:8px;background:var(--surf);padding:4px;display:flex;flex-direction:column;gap:3px;min-height:74px;min-width:0}
+.cc-d.vacio{border:0;background:none;min-height:0;padding:0}
+.cc-d.libre{background:repeating-linear-gradient(135deg,var(--surf2) 0 6px,var(--bg) 6px 12px)}
+.cc-d.pasado{opacity:.6}
+.cc-d.hoy{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.cc-dn{font-size:11px;font-weight:600;color:var(--ink2)}
+.cc-l{display:flex;flex-wrap:wrap;align-items:center;gap:3px;border-left:3px solid var(--lc);padding:2px 0 2px 4px;border-radius:3px;cursor:pointer;min-height:24px}
+.cc-l:hover{background:var(--surf2)}
+.cc-l.over{background:var(--acc-soft);outline:1px dashed var(--acc)}
+.cc-n{font-size:10px;color:var(--mut);min-width:20px}
+.cc-v{font-size:13px}
+.cc-v.bajo{color:var(--warn)}.cc-v.neg{color:var(--bad)}
+.cc-chip{appearance:none;font:inherit;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:#fff;background:var(--cc);border:0;border-radius:6px;padding:2px 6px;cursor:grab;line-height:1.3}
+.cc-chip.b{color:var(--ink);background:var(--warn-bg);outline:1px solid var(--warn)}
+.cc-chip.rec{background:var(--surf2);color:var(--mut);outline:1px solid var(--line);cursor:default}
+.cc-chip small{font-size:10px}
+@media (max-width:640px){.cc{grid-template-columns:repeat(5,minmax(0,1fr));min-width:0}.cc .finde{display:none}.cc-n{min-width:16px}.cc-d{padding:3px}}
