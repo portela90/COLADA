@@ -576,6 +576,14 @@ test('Calendario de camiones: stock de cada día, camiones del color del proveed
   await page.locator('#cm-p').selectOption('Bepesa'); await page.locator('#cm-ok').click(); await page.waitForTimeout(500);
   E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
   expect(E.filter(x => x.f === '2026-11-18')).toHaveLength(1);
+  // pincel: tocar Estrella y luego el camión del 18 lo pone de Estrella
+  await page.locator('button.cc-prov', { hasText: 'Estrella' }).click();
+  await expect(page.locator('.cc-pincel')).toContainText('Poniendo «Estrella»');
+  await page.locator('.cc-d', { has: page.locator('.cc-dn', { hasText: /^18$/ }) }).locator('.cc-chip').click(); await page.waitForTimeout(400);
+  E = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(E.find(x => x.f === '2026-11-18').p).toBe('Estrella');
+  await page.locator('.cc-pincel button', { hasText: 'Terminar' }).click();
+  await expect(page.locator('.cc-pincel')).toHaveCount(0);
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

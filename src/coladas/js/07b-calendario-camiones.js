@@ -3,6 +3,8 @@
    («+37», del color de su proveedor; «B» = traída del almacén externo). Se toca un camión para moverlo de día,
    de nave o de proveedor, o se arrastra a otro día o a otra nave en el ordenador. Tocar un hueco añade un camión.
    Usa los mismos datos que «Calendario de entradas» (cfg.plan[mes].entradas) y la misma proyección. */
+/* «pincel»: se toca un proveedor de arriba y luego los camiones, y cada uno toma ese proveedor (un toque por camión) */
+let pincelProv=null;
 const PROV_COL=["#2D6FA8","#1F7A4D","#B03A3A","#9A6B14","#6B4FA0","#2A7F86","#A6497C"];
 function colProv(p,provs){if(!p)return"var(--mut)";const i=provs.indexOf(p);return PROV_COL[(i<0?provs.length:i)%PROV_COL.length];}
 const mesDeF=f=>f.slice(0,7);
@@ -50,7 +52,9 @@ function calCamionesCard(o){const {m,ents,cons,SIp,B,cams}=o,h=hoy();
   const chip=(x,i)=>{const esB=x.o==="B",c=esB?"var(--warn)":colProv(x.p,provs);
     const b=el("button",{type:"button",class:"cc-chip"+(x.rec?" rec":"")+(esB?" b":""),style:"--cc:"+c,draggable:x.rec?null:"true",
       title:(esB?"Traída del externo":"Camión"+(x.p?" de "+x.p:""))+" · "+fmt(x.fa)+" f"+(x.rec?" · ya ha llegado":" · toca para moverlo"),
-      onclick:e=>{e.stopPropagation();if(x.rec){toast("Este camión ya ha llegado");return;}dlgCamion(m,ents,i,provs);},
+      onclick:async e=>{e.stopPropagation();if(x.rec){toast("Este camión ya ha llegado");return;}
+        if(pincelProv&&!esB){if(x.p===pincelProv)return;try{await moverEntrada(m,ents,i,{p:pincelProv});toast(dmy(x.f)+": camión de "+pincelProv);render();}catch(er){toast("No se pudo guardar");}return;}
+        dlgCamion(m,ents,i,provs);},
       ondragstart:e=>{arrastra=i;try{e.dataTransfer.setData("text/plain",String(i));e.dataTransfer.effectAllowed="move";}catch(er){}}},
       [document.createTextNode((x.rec?"✓ ":"+")+fmt(x.fa)),esB?el("small",{text:" B"}):null]);return b;};
   const soltar=(d,k)=>async e=>{e.preventDefault();e.currentTarget.classList.remove("over");const i=arrastra!=null?arrastra:parseInt(e.dataTransfer.getData("text/plain"),10);arrastra=null;if(!(i>=0))return;
@@ -66,13 +70,15 @@ function calCamionesCard(o){const {m,ents,cons,SIp,B,cams}=o,h=hoy();
     celdas.push(el("div",{class:"cc-d"+(fin?" finde":"")+(rel===0?" libre":"")+(d===h?" hoy":"")+(pas?" pasado":"")},[el("div",{class:"cc-dn",text:String(+d.slice(8))+(rel===2?" · sin N":rel===1?" · 1 rel.":"")})].concat(rel===0&&!ents.some(x=>x.f===d)?[]:filas)));});
   /* resumen por proveedor: contratados, colocados y lo que falta por colocar */
   const res=provs.map(p=>{const n=cams.filter(c=>c.p===p).reduce((a,c)=>a+(c.n||0),0),col=ents.filter(x=>x.o!=="B"&&x.p===p).length,lleg=ents.filter(x=>x.o!=="B"&&x.p===p&&x.rec).length;
-    return el("div",{class:"cc-prov",style:"--cc:"+colProv(p,provs)},[el("span",{class:"cc-dot"}),el("b",{text:p}),el("span",{class:"num",text:(n?col+" de "+n:col+"")+((n||col)===1?" camión":" camiones")+(n?" · "+fmt(n*KG_CAM)+" kg":"")+(lleg?" · "+lleg+" llegados":"")})]);});
+    return el("button",{type:"button",class:"cc-prov"+(pincelProv===p?" on":""),"aria-pressed":String(pincelProv===p),style:"--cc:"+colProv(p,provs),title:"Toca y luego toca los camiones de "+p,onclick:()=>{pincelProv=pincelProv===p?null:p;render();}},[el("span",{class:"cc-dot"}),el("b",{text:p}),el("span",{class:"num",text:(n?col+" de "+n:col+"")+((n||col)===1?" camión":" camiones")+(n?" · "+fmt(n*KG_CAM)+" kg":"")+(lleg?" · "+lleg+" llegados":"")})]);});
   const sinP=ents.filter(x=>x.o!=="B"&&!x.p).length,bp=ents.filter(x=>x.o==="B").length;
   if(sinP)res.push(el("div",{class:"cc-prov",style:"--cc:var(--mut)"},[el("span",{class:"cc-dot"}),el("b",{text:"Sin proveedor"}),el("span",{class:"num",text:sinP+" camiones"})]));
   if(bp)res.push(el("div",{class:"cc-prov",style:"--cc:var(--warn)"},[el("span",{class:"cc-dot"}),el("b",{text:"B · del externo"}),el("span",{class:"num",text:bp+(bp===1?" traída":" traídas")})]));
   const totC=cams.reduce((a,c)=>a+(c.n||0),0),colocados=ents.filter(x=>x.o!=="B").length;
   return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Calendario de camiones"}),el("span",{class:"sub",style:"margin-left:auto",text:colocados+" de "+totC+" camiones colocados"})]),
     el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
+      pincelProv?el("div",{class:"banner w cc-pincel"},[el("span",{text:"Poniendo «"+pincelProv+"»: toca cada camión que sea de "+pincelProv+"."}),el("button",{type:"button",class:"btn peq",text:"Terminar",onclick:()=>{pincelProv=null;render();}})]):
+        provs.length?el("p",{class:"hint",style:"margin:0",text:"Para poner el proveedor rápido: toca un proveedor de aquí abajo y luego toca sus camiones en el calendario."}):null,
       res.length?el("div",{class:"cc-provs"},res):el("p",{class:"hint",style:"margin:0",text:"Mete los camiones contratados del mes (ventana «Camiones contratados») y colócalos aquí."}),
       el("div",{class:"tw cc-tw"},[el("div",{class:"cc"},["L","M","X","J","V","S","D"].map((t,i)=>el("div",{class:"cc-h"+(i>=5?" finde":""),text:t})).concat(celdas))]),
       el("p",{class:"hint",style:"margin:0",text:"Cada día: los fardos que habrá en fábrica de cada nave al empezar (en rojo si se acaba, en amarillo bajo el mínimo) y los camiones que llegan, del color de su proveedor. Toca un camión para cambiarlo de día, de nave o de proveedor, o arrástralo en el ordenador. Toca un hueco para añadir uno."})])]);}

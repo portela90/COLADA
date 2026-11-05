@@ -380,3 +380,7 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .cc-chip.rec{background:var(--surf2);color:var(--mut);outline:1px solid var(--line);cursor:default}
 .cc-chip small{font-size:10px}
 @media (max-width:640px){.cc{grid-template-columns:repeat(5,minmax(0,1fr));min-width:0}.cc .finde{display:none}.cc-n{min-width:16px}.cc-d{padding:3px}}
+button.cc-prov{appearance:none;font:inherit;font-size:13.5px;color:inherit;cursor:pointer}
+button.cc-prov:hover{border-color:var(--cc)}
+.cc-prov.on{background:var(--cc);border-color:var(--cc);color:#fff}.cc-prov.on .num{color:#fff}.cc-prov.on .cc-dot{background:#fff}
+.cc-pincel{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.cc-pincel span{flex:1 1 200px}
