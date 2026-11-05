@@ -609,6 +609,15 @@ test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo c
   // tocar una barra de la gráfica va a ese día
   await card.locator('.sd-gb').last().click(); await page.waitForTimeout(300);
   await expect(page.locator('.sd-tit')).toContainText('19/10/2026');
+  // la leyenda lleva el nombre entero y al tocar una colada se resalta en la barra y en la tabla
+  await card.locator('.sd-li', { hasText: 'C25003' }).click();
+  await expect(card.locator('.sd-seg.sel')).toHaveCount(1);
+  await expect(card.locator('tr.sd-tr.sel')).toContainText('C25003');
+  await expect(card.locator('.sd-info')).toContainText('C25003 · 8 f');
+  // filtro de nave sin salir de la ventana
+  await page.locator('.sd-filtro button', { hasText: 'Nave 2' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' })).toHaveCount(0);
+  await page.locator('.sd-filtro .seg[aria-label="Nave"] button', { hasText: 'Todas' }).click(); await page.waitForTimeout(300);
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

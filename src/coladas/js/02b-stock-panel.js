@@ -44,7 +44,7 @@ function stockPanel(c){const {B,P,ud,g,parte,alertaN,hint,gk,gm,gst}=c;
   if(stkVista==="stock")det=[filtroStock(B),g,alertaN,coladasStock(),hint];
   else if(stkVista==="maq"){maqAbierto=true;det=[vMaquinas()];}
   else if(stkVista==="huecos")det=[vHuecos()||el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),el("div",{class:"empty",text:"Todos los relevos de las dos últimas semanas tienen consumo apuntado."})])];
-  else if(stkVista==="parte")det=[parte];
+  else if(stkVista==="parte")det=[el("div",{class:"card"},[el("div",{class:"bd"},[filtroLineas()])]),parte];
   else if(stkVista==="dia")det=vStockDia();
   else if(stkVista==="prev")det=[vPrevision()];
   else if(stkVista==="min")det=[vMin()];

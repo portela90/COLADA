@@ -396,10 +396,21 @@ button.cc-prov:hover{border-color:var(--cc)}
 .sd-kpis span{font-size:12.5px;color:var(--ink2);overflow-wrap:anywhere}
 @media (max-width:640px){.sd-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .sd-bar{display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
-.sd-seg{background:var(--c);display:flex;align-items:center;justify-content:center;min-width:2px;border-right:2px solid var(--surf);color:#fff;font-size:12px;font-weight:600;overflow:hidden;white-space:nowrap}
-.sd-seg.alt{filter:brightness(.86)}
-.sd-seg.ext{background:repeating-linear-gradient(135deg,var(--c) 0 6px,var(--surf2) 6px 10px);color:var(--ink)}
-.sd-seg.ext span{background:var(--surf);padding:0 4px;border-radius:4px}
+.sd-seg{appearance:none;padding:0;margin:0;border:0;border-right:2px solid var(--surf);background:var(--c);min-width:3px;cursor:pointer;transition:opacity .15s}
+.sd-seg.ext,.sd-sw.ext{background:repeating-linear-gradient(135deg,var(--c) 0 6px,var(--surf2) 6px 10px)}
+.sd-consel .sd-seg:not(.sel){opacity:.3}
+.sd-seg.sel{outline:3px solid var(--acc);outline-offset:-3px}
+.sd-ley{display:flex;flex-wrap:wrap;gap:6px}
+.sd-li{appearance:none;font:inherit;font-size:13px;color:var(--ink);background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;max-width:100%}
+.sd-li b{font-weight:600;overflow-wrap:anywhere}
+.sd-li .num{color:var(--ink2)}
+.sd-li.sel{background:var(--acc-soft);border-color:var(--acc)}
+.sd-consel .sd-li:not(.sel){opacity:.55}
+.sd-sw{width:14px;height:14px;border-radius:4px;background:var(--c);flex:none;border:1px solid var(--line)}
+.sd-info{min-height:18px;font-size:14px;font-weight:600;color:var(--acc)}
+.sd-tr{cursor:pointer}.sd-tr.sel td{background:var(--acc-soft)}
+.sd-filtro{display:flex;gap:12px;flex-wrap:wrap}
+.sd-fg{display:flex;flex-direction:column;gap:4px;flex:1 1 240px}
 .sd-graf{display:flex;align-items:flex-end;gap:2px;height:70px}
 .sd-gb{appearance:none;border:0;padding:0;flex:1 1 0;min-width:4px;height:var(--h);background:var(--c);opacity:.55;border-radius:3px 3px 0 0;cursor:pointer}
 .sd-gb.libre{opacity:.25}
