@@ -708,6 +708,10 @@ test('Horneros: semana con rotación, cambio de un día y consultas por hornero'
   await page.fill('#hn-f', '2026-11-03'); await page.locator('#hn-sig').click();
   await page.locator('.dlg .hn-chk', { hasText: 'Pedro' }).locator('input').uncheck(); await page.locator('.dlg .hn-chk', { hasText: 'Ana' }).locator('input').check(); await page.locator('#hn-ok').click(); await page.waitForTimeout(300);
   await expect(page.locator('.card', { hasText: 'Cambios de un día' })).toContainText('Ana (en vez de Pedro)');
+  // cambiar el nombre de un hornero: se cambia en todas las semanas
+  await page.locator('button[aria-label="Cambiar el nombre de Luis"]').click();
+  await page.locator('.dlg input').fill('Luis M.'); await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('button[aria-label="Quién está Nave 1 Tarde"]')).toContainText('Luis M.');
   // consultas
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
   const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(500); return (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); };

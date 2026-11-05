@@ -55,13 +55,15 @@ function vHorneros(){const h=hoy(),lun=hornSem||lunesH(h),S=semanaHorn(lun),H=ho
         elegirHorn(diaSem(st.f)+" "+dmy(st.f)+" · "+st.n+" · "+st.u,quienEn(st.f,st.n,st.u),v=>guardaHorn({dia:Object.assign({},hornCfg().dia,{[st.f+"|"+st.n+"|"+st.u]:v})}));}})])]));
     document.body.appendChild(ov);};
   /* lista de horneros */
-  const lst=el("div",{class:"hn-todos"},H.lista.map(x=>el("span",{class:"hn-n"+(x.baja?" baja":"")},[document.createTextNode(x.n),
+  const renombrar=async x=>{const n=await dialogo({titulo:"Cambiar el nombre",texto:"Se cambia en todas las semanas y en las consultas (lo que hizo sigue siendo suyo).",input:true,teclado:"text",valor:x.n,ok:"Guardar"});
+    if(n==null||!String(n).trim()||String(n).trim()===x.n)return;const L=H.lista.map(z=>z.id===x.id?Object.assign({},z,{n:String(n).trim()}):z);try{await guardaHorn({lista:L});toast("Nombre cambiado");render();}catch(e){toast("No se pudo guardar");}};
+  const lst=el("div",{class:"hn-todos"},H.lista.map(x=>el("span",{class:"hn-n"+(x.baja?" baja":"")},[el("button",{type:"button",class:"hn-ed","aria-label":"Cambiar el nombre de "+x.n,title:"Toca para cambiar el nombre",text:x.n+" ✎",onclick:()=>renombrar(x)}),
     el("button",{type:"button",class:"hn-x","aria-label":(x.baja?"Volver a poner a ":"Quitar a ")+x.n,text:x.baja?"↺":"×",onclick:async()=>{const L=H.lista.map(z=>z.id===x.id?Object.assign({},z,{baja:!z.baja}):z);try{await guardaHorn({lista:L});render();}catch(e){toast("No se pudo");}}})])).concat([
     el("button",{type:"button",class:"btn sec peq",text:"+ Hornero",onclick:async()=>{if(await nuevoHornero())render();}})]));
   return[el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[cab,origen,tabla])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Cambios de un día"}),el("button",{type:"button",class:"btn sec peq",style:"margin-left:auto",text:"+ Baja o sustitución",onclick:dCambio})]),el("div",{class:"bd"},[listaC])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Horneros"})]),el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:8px"},[lst,
-      el("p",{class:"hint",style:"margin:0",text:"Con × quitas a alguien de las listas sin borrar lo que ya hizo. En Consultas puedes preguntar «consumo por hornero», «quién no sigue el FIFO», «qué hornero apunta mal la hoja» o «averías por hornero»."})])])];}
+      el("p",{class:"hint",style:"margin:0",text:"Toca un nombre para cambiarlo. Con × quitas a alguien de las listas sin borrar lo que ya hizo. En Consultas puedes preguntar «consumo por hornero», «quién no sigue el FIFO», «qué hornero apunta mal la hoja» o «averías por hornero»."})])])];}
 
 /* ---------- datos por hornero para Consultas ---------- */
 function statsHorneros(d0,d1,nave){const S=saldos(),ms=movs().filter(r=>!r.h&&r.f&&r.f>=d0&&r.f<=d1),R={},P={};
