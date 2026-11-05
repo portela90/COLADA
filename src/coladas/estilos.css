@@ -439,3 +439,5 @@ button.cc-prov:hover{border-color:var(--cc)}
 .hn-chk{font-size:15px}
 .rd-quien{color:var(--acc)}
 .hn-ed{appearance:none;border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0}
+.hn-pues{display:flex;flex-direction:column;gap:6px}
+.hn-rol{flex:0 0 100%;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}

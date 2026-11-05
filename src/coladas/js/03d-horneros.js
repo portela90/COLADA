@@ -2,7 +2,10 @@
    Quién estaba en cada relevo de cada nave, para cruzarlo en Consultas con el consumo, el FIFO, lo que cuadra la hoja
    y las averías. Se pone una semana y las siguientes salen solas por la rotación: el de mañana pasa a noche,
    el de noche a tarde y el de tarde a mañana. Las bajas y sustituciones se ponen como cambio de un día.
-   cfg.horn = {lista:[{id,n,baja}], sem:{"lunes":{"Nave 1|Mañana":[id]}}, dia:{"fecha|Nave 1|Mañana":[id]}} */
+   Dos puestos por relevo: el que carga el horno (clave «Nave 1|Mañana») y el de la cuchara de reparto («Nave 1|Mañana|cuchara»).
+   cfg.horn = {lista:[{id,n,baja}], sem:{"lunes":{"Nave 1|Mañana":[id],"Nave 1|Mañana|cuchara":[id]}}, dia:{"fecha|Nave 1|Mañana[|cuchara]":[id]}} */
+const PUESTOS=[["carga","Horno"],["cuchara","Cuchara"]];
+const rk=(n,u,rol)=>n+"|"+u+(rol==="cuchara"?"|cuchara":"");
 const ROT_SIG={"Mañana":"Noche","Noche":"Tarde","Tarde":"Mañana"},ROT_ANT={"Noche":"Mañana","Tarde":"Noche","Mañana":"Tarde"};
 let hornSem="";
 const hornCfg=()=>{const h=cfg.horn||{};return{lista:h.lista||[],sem:h.sem||{},dia:h.dia||{}};};
@@ -12,9 +15,11 @@ const nomHorn=id=>{const x=hornCfg().lista.find(z=>z.id===id);return x?x.n:"?";}
 /* quién está en una semana: la guardada o, si no, la última guardada antes girada tantas semanas como haga falta */
 function semanaHorn(lun){const H=hornCfg();if(H.sem[lun])return{g:H.sem[lun],de:lun,rot:0};
   const prev=Object.keys(H.sem).filter(x=>x<lun).sort().pop();if(!prev)return{g:{},de:null,rot:0};
-  let g=H.sem[prev],k=0;for(let w=prev;w<lun;w=semMas(w,1)){const n={};Object.keys(g).forEach(c=>{const[nv,u]=c.split("|");n[nv+"|"+ROT_SIG[u]]=g[c];});g=n;k++;}
+  let g=H.sem[prev],k=0;for(let w=prev;w<lun;w=semMas(w,1)){const n={};Object.keys(g).forEach(c=>{const p=c.split("|");p[1]=ROT_SIG[p[1]];n[p.join("|")]=g[c];});g=n;k++;}
   return{g,de:prev,rot:k};}
-function quienEn(f,nave,u){const H=hornCfg(),d=H.dia[f+"|"+nave+"|"+u];if(d)return d;return(semanaHorn(lunesH(f)).g[nave+"|"+u])||[];}
+function quienEn(f,nave,u,rol){const H=hornCfg(),k=rk(nave,u,rol),d=H.dia[f+"|"+k];if(d)return d;return(semanaHorn(lunesH(f)).g[k])||[];}
+const quienTodos=(f,n,u)=>[...new Set(PUESTOS.flatMap(([r])=>quienEn(f,n,u,r)))];
+const quienTxt=(f,n,u)=>PUESTOS.map(([r,t])=>{const x=quienEn(f,n,u,r);return x.length?t.toLowerCase()+" "+x.map(nomHorn).join(", "):"";}).filter(Boolean).join(" · ");
 async function guardaHorn(patch){cfg.horn=Object.assign({},hornCfg(),patch);await saveCfg();}
 async function nuevoHornero(){const n=await dialogo({titulo:"Nuevo hornero",texto:"Nombre como lo quieres ver (por ejemplo «Juan P.» o su número).",input:true,teclado:"text",ok:"Añadir"});
   if(!n||!String(n).trim())return null;const H=hornCfg(),x={id:uid("h"),n:String(n).trim()};await guardaHorn({lista:H.lista.concat([x])});return x.id;}
@@ -38,21 +43,22 @@ function vHorneros(){const h=hoy(),lun=hornSem||lunesH(h),S=semanaHorn(lun),H=ho
     el("div",{class:"banner w",text:"Pon quién está en cada relevo esta semana. Las semanas siguientes saldrán solas por la rotación."});
   const guardaCelda=(c,ids)=>{const g=Object.assign({},S.g);g[c]=ids;const sem=Object.assign({},H.sem,{[lun]:g});return guardaHorn({sem});};
   const tabla=el("div",{class:"tw"},[el("table",{class:"hn-t"},[el("thead",{},[el("tr",{},[el("th",{text:"Relevo"})].concat(NAVES.map(n=>el("th",{text:n}))))]),
-    el("tbody",{},TURNOS.map(u=>el("tr",{},[el("td",{},[el("b",{text:u})])].concat(NAVES.map(n=>{const c=n+"|"+u,ids=S.g[c]||[];
-      return el("td",{},[el("button",{type:"button",class:"hn-cel","aria-label":"Quién está "+n+" "+u,onclick:()=>elegirHorn(n+" · "+u+" · semana del "+dmy(lun),ids,v=>guardaCelda(c,v))},
-        ids.length?ids.map(id=>el("span",{class:"hn-n",text:nomHorn(id)})):[el("span",{class:"sub",text:"Elegir…"})])]);})))))])]);
+    el("tbody",{},TURNOS.map(u=>el("tr",{},[el("td",{},[el("b",{text:u})])].concat(NAVES.map(n=>el("td",{},[el("div",{class:"hn-pues"},PUESTOS.map(([rol,t])=>{const c=rk(n,u,rol),ids=S.g[c]||[];
+      return el("button",{type:"button",class:"hn-cel","aria-label":(rol==="cuchara"?"Cuchara ":"Quién está ")+n+" "+u,onclick:()=>elegirHorn((rol==="cuchara"?"Cuchara de reparto":"Carga el horno")+" · "+n+" · "+u+" · semana del "+dmy(lun),ids,v=>guardaCelda(c,v))},
+        [el("small",{class:"hn-rol",text:t})].concat(ids.length?ids.map(id=>el("span",{class:"hn-n",text:nomHorn(id)})):[el("span",{class:"sub",text:"Elegir…"})]));}))]))))))])]);
   /* cambios de un día */
   const cambios=Object.keys(H.dia).filter(k=>{const f=k.split("|")[0];return f>=lun&&f<=fin;}).sort();
-  const listaC=cambios.length?el("div",{class:"bq-lst"},cambios.map(k=>{const[f,n,u]=k.split("|");return el("div",{class:"bq-it",style:"cursor:default"},[el("div",{class:"bq-p"},[el("b",{text:diaSem(f)+" "+dmy(f)+" · "+n+" · "+u}),
-    el("span",{class:"sub",text:H.dia[k].map(nomHorn).join(", ")+" (en vez de "+((S.g[n+"|"+u]||[]).map(nomHorn).join(", ")||"nadie")+")"})]),
+  const listaC=cambios.length?el("div",{class:"bq-lst"},cambios.map(k=>{const[f,n,u,r]=k.split("|");return el("div",{class:"bq-it",style:"cursor:default"},[el("div",{class:"bq-p"},[el("b",{text:diaSem(f)+" "+dmy(f)+" · "+n+" · "+u+" · "+(r==="cuchara"?"cuchara":"horno")}),
+    el("span",{class:"sub",text:H.dia[k].map(nomHorn).join(", ")+" (en vez de "+((S.g[rk(n,u,r)]||[]).map(nomHorn).join(", ")||"nadie")+")"})]),
     el("button",{type:"button",class:"btn sec peq",text:"Quitar",onclick:async()=>{const d=Object.assign({},H.dia);delete d[k];try{await guardaHorn({dia:d});render();}catch(e){toast("No se pudo");}}})]);})):el("p",{class:"hint",style:"margin:0",text:"Sin cambios esta semana."});
-  const dCambio=()=>{const st={f:h>=lun&&h<=fin?h:lun,n:NAVES[0],u:TURNOS[0]};const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}}),cerrar=()=>ov.remove();
+  const dCambio=()=>{const st={f:h>=lun&&h<=fin?h:lun,n:NAVES[0],u:TURNOS[0],r:"carga"};const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}}),cerrar=()=>ov.remove();
     ov.appendChild(el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Cambio de un día"},[el("h3",{text:"Cambio de un día (baja o sustitución)"}),
       el("label",{text:"Día"},[el("input",{id:"hn-f",type:"date",value:st.f,onchange:e=>{st.f=e.target.value;}})]),
       el("label",{text:"Nave"},[el("div",{class:"seg"},NAVES.map(n=>el("button",{type:"button","aria-pressed":String(st.n===n),text:n,onclick:e=>{st.n=n;[...e.target.parentNode.children].forEach(b=>b.setAttribute("aria-pressed",String(b===e.target)));}})))]),
       el("label",{text:"Relevo"},[el("div",{class:"seg"},TURNOS.map(u=>el("button",{type:"button","aria-pressed":String(st.u===u),text:u,onclick:e=>{st.u=u;[...e.target.parentNode.children].forEach(b=>b.setAttribute("aria-pressed",String(b===e.target)));}})))]),
+      el("label",{text:"Puesto"},[el("div",{class:"seg"},[["carga","Carga el horno"],["cuchara","Cuchara de reparto"]].map(([r,t])=>el("button",{type:"button","aria-pressed":String(st.r===r),text:t,onclick:e=>{st.r=r;[...e.target.parentNode.children].forEach(b=>b.setAttribute("aria-pressed",String(b===e.target)));}})))]),
       el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),el("button",{type:"button",class:"btn",id:"hn-sig",text:"Elegir quién estuvo",onclick:()=>{cerrar();
-        elegirHorn(diaSem(st.f)+" "+dmy(st.f)+" · "+st.n+" · "+st.u,quienEn(st.f,st.n,st.u),v=>guardaHorn({dia:Object.assign({},hornCfg().dia,{[st.f+"|"+st.n+"|"+st.u]:v})}));}})])]));
+        elegirHorn(diaSem(st.f)+" "+dmy(st.f)+" · "+st.n+" · "+st.u+" · "+(st.r==="cuchara"?"cuchara":"horno"),quienEn(st.f,st.n,st.u,st.r),v=>guardaHorn({dia:Object.assign({},hornCfg().dia,{[st.f+"|"+rk(st.n,st.u,st.r)]:v})}));}})])]));
     document.body.appendChild(ov);};
   /* lista de horneros */
   const renombrar=async x=>{const n=await dialogo({titulo:"Cambiar el nombre",texto:"Se cambia en todas las semanas y en las consultas (lo que hizo sigue siendo suyo).",input:true,teclado:"text",valor:x.n,ok:"Guardar"});
@@ -63,24 +69,24 @@ function vHorneros(){const h=hoy(),lun=hornSem||lunesH(h),S=semanaHorn(lun),H=ho
   return[el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[cab,origen,tabla])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Cambios de un día"}),el("button",{type:"button",class:"btn sec peq",style:"margin-left:auto",text:"+ Baja o sustitución",onclick:dCambio})]),el("div",{class:"bd"},[listaC])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Horneros"})]),el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:8px"},[lst,
-      el("p",{class:"hint",style:"margin:0",text:"Toca un nombre para cambiarlo. Con × quitas a alguien de las listas sin borrar lo que ya hizo. En Consultas puedes preguntar «consumo por hornero», «quién no sigue el FIFO», «qué hornero apunta mal la hoja» o «averías por hornero»."})])])];}
+      el("p",{class:"hint",style:"margin:0",text:"En cada relevo hay dos puestos: «Horno» (el que lo carga) y «Cuchara» (el de la cuchara de reparto); los dos giran igual. Toca un nombre para cambiarlo. Con × quitas a alguien de las listas sin borrar lo que ya hizo. En Consultas puedes preguntar «consumo por hornero», «quién no sigue el FIFO», «qué hornero apunta mal la hoja» o «averías por hornero» (añade «cuchara» para el de la cuchara de reparto, por ejemplo «averías por cuchara»)."})])])];}
 
 /* ---------- datos por hornero para Consultas ---------- */
-function statsHorneros(d0,d1,nave){const S=saldos(),ms=movs().filter(r=>!r.h&&r.f&&r.f>=d0&&r.f<=d1),R={},P={};
+function statsHorneros(d0,d1,nave,rol){const S=saldos(),ms=movs().filter(r=>!r.h&&r.f&&r.f>=d0&&r.f<=d1),R={},P={};
   const lin=id=>{const l=lotes.find(x=>x.id===id);return l?l.nave:null;};
   const add=(id,k,v)=>{const p=P[id]=P[id]||{id,rel:0,relC:0,mqC:0,fa:0,kg:0,mq:0,fuera:0,desc:0,descFa:0,recs:0,aver:0};p[k]+=v;};
-  for(let f=d0;f<=d1;f=diaSig(f))TURNOS.slice(0,relevosDia(f)).forEach(u=>NAVES.forEach(n=>{if(nave&&n!==nave)return;const ids=quienEn(f,n,u);if(!ids.length)return;
+  for(let f=d0;f<=d1;f=diaSig(f))TURNOS.slice(0,relevosDia(f)).forEach(u=>NAVES.forEach(n=>{if(nave&&n!==nave)return;const ids=quienEn(f,n,u,rol);if(!ids.length)return;
     const C=ms.filter(r=>r.t==="C"&&r.f===f&&r.u===u&&lin(r.o)===n),fa=C.reduce((a,r)=>a+(r.fa||0),0),kg=C.reduce((a,r)=>a+Math.abs(kgAp(r,S)),0);
     let mq=0;try{if(primerEvMaq())mq=cuentaMaq(estadoMaq(f,u),n).on;}catch(e){}
     const fuera=C.some(r=>/fuera de fifo/i.test(r.n||""));
     ids.forEach(id=>{add(id,"rel",1);if(fa>0){add(id,"relC",1);add(id,"mqC",mq);}add(id,"fa",fa);add(id,"kg",kg);add(id,"mq",mq);if(fuera)add(id,"fuera",1);});R[f+"|"+u+"|"+n]=ids;}));
   /* recuentos con descuadre: el ajuste lleva los relevos que cubría */
   ms.filter(r=>r.t==="A"&&Array.isArray(r.rel)&&/^Recuento diario/.test(r.n||"")).forEach(r=>{const n=lin(r.o||r.d);if(!n||(nave&&n!==nave))return;
-    const ids=new Set();r.rel.forEach(x=>(R[x+"|"+n]||quienEn(x.split("|")[0],n,x.split("|")[1])).forEach(i=>ids.add(i)));ids.forEach(id=>{add(id,"desc",1);add(id,"descFa",r.fa||0);});});
+    const ids=new Set();r.rel.forEach(x=>(R[x+"|"+n]||quienEn(x.split("|")[0],n,x.split("|")[1],rol)).forEach(i=>ids.add(i)));ids.forEach(id=>{add(id,"desc",1);add(id,"descFa",r.fa||0);});});
   return Object.values(P).filter(p=>p.rel>0);}
 function pintaHorn(E,H){const {frase,nota,ent,card,tabla}=H;const per=E.per;
   if(!hornCfg().lista.length){ent("horneros");frase("Todavía no hay horneros apuntados. Ponlos en Consumo › Horneros (una semana basta: las siguientes salen por la rotación).");return;}
-  const L=statsHorneros(per.d,per.h,E.nave);ent("horneros",[per.t,E.nave]);
+  const L=statsHorneros(per.d,per.h,E.nave,E.rol);ent(E.rol==="cuchara"?"cuchara de reparto":"horneros (carga del horno)",[per.t,E.nave]);
   if(!L.length){frase("No hay relevos con horneros apuntados en "+per.t+".");return;}
   const fpr=p=>p.relC?p.fa/p.relC:0,fpm=p=>p.mqC?p.fa/p.mqC:0,LC=L.filter(p=>p.relC),med=LC.length?LC.reduce((a,p)=>a+fpr(p),0)/LC.length:0;
   const met=E.met;
@@ -95,7 +101,7 @@ function pintaHorn(E,H){const {frase,nota,ent,card,tabla}=H;const per=E.per;
   if(met==="aver"){frase("Buscando las averías de Almacén…");
     almDatos().then(D=>{if(!D){frase("No puedo leer los datos de Almacén desde aquí.");return;}
       const A=(D.pist||[]).filter(x=>x.f>=per.d&&x.f<=per.h);const C={};
-      A.forEach(x=>{const n=D.naveDe(x.maq);if(!n||(E.nave&&n!==E.nave))return;const ids=new Set();TURNOS.forEach(u=>quienEn(x.f,n,u).forEach(i=>ids.add(i)));ids.forEach(id=>{C[id]=(C[id]||0)+(+x.cant||1);});});
+      A.forEach(x=>{const n=D.naveDe(x.maq);if(!n||(E.nave&&n!==E.nave))return;const ids=new Set();TURNOS.forEach(u=>quienEn(x.f,n,u,E.rol).forEach(i=>ids.add(i)));ids.forEach(id=>{C[id]=(C[id]||0)+(+x.cant||1);});});
       const o=L.map(p=>({p,a:C[p.id]||0})).sort((a,b)=>b.a-a.a);
       frase("Cambios de pistón en su nave los días que trabajaron ("+per.t+"): "+o.filter(x=>x.a).slice(0,3).map(x=>nomHorn(x.p.id)+" "+x.a).join(" · ")+(o.some(x=>x.a)?".":"ninguno."));
       card("Averías por hornero",[tabla(["Hornero","Relevos","Cambios de pistón ese día en su nave"],o.map(x=>[nomHorn(x.p.id),String(x.p.rel),String(x.a)]),[1,2])]);
