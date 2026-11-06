@@ -1578,3 +1578,16 @@ test('Albaranes: lo aprendido de cada proveedor (CIF, nº, fecha, cantidad y pun
   await lee('KENCI SLU 03.11.2026\nNº DE DOCUMENTO 8100839805 02.11.2026\n10 CIMCLEAN PC 240-200 4152437 600.000 L 0.000 L 600.000 L\nN.I.F. ES/B-01337864', 'tK', '8100839805', null, 'tCim', '600');
   expect(err).toEqual([]);
 });
+
+test('Qué hacer hoy: un aviso informativo se puede ocultar y volver a ver', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  const n0 = await page.locator('.av-ocultar').count();
+  if (n0) {
+    await page.locator('.av-ocultar').first().click(); await page.waitForTimeout(300);
+    await expect(page.locator('.av-ocultar')).toHaveCount(n0 - 1);
+    await page.getByRole('button', { name: /aviso(s)? oculto/ }).click(); await page.waitForTimeout(300);
+    await expect(page.locator('.av-ocultar')).toHaveCount(n0);
+  }
+  expect(err).toEqual([]);
+});

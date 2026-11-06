@@ -154,9 +154,14 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
-  v.appendChild(el("section",{class:"card"+(tareas.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
-    tareas.length?el("div",{class:"lst"},tareas.map(t=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(t.niv==="info"?"":t.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),
-      el("button",{type:"button",class:"btn peq"+(t.niv==="info"?" sec":""),text:t.btn,onclick:t.fn}),t.extra?el("div",{style:"flex-basis:100%;min-width:0"},t.extra):null]))):el("div",{class:"empty",text:"Todo en orden. No hay nada urgente."})]));
+  /* los avisos informativos se pueden ocultar (✕) en este dispositivo; vuelven solos si cambian (p. ej. otro número) */
+  let ocu=[];try{ocu=JSON.parse(localStorage.getItem("alm.avOcultos")||"[]");}catch(e){}
+  const vis=tareas.filter(t=>!(t.niv==="info"&&ocu.includes(t.txt))),nOc=tareas.length-vis.length;
+  const ocultar=t=>{try{const L=ocu.filter(x=>tareas.some(y=>y.txt===x)).concat([t.txt]);localStorage.setItem("alm.avOcultos",JSON.stringify(L));}catch(e){}toast("Aviso ocultado");render(true);};
+  v.appendChild(el("section",{class:"card"+(vis.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
+    vis.length?el("div",{class:"lst"},vis.map(t=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(t.niv==="info"?"":t.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),
+      el("button",{type:"button",class:"btn peq"+(t.niv==="info"?" sec":""),text:t.btn,onclick:t.fn}),t.niv==="info"?el("button",{type:"button",class:"btn txt peq av-ocultar","aria-label":"Ocultar este aviso",title:"Ocultar este aviso",text:"✕",onclick:()=>ocultar(t)}):null,t.extra?el("div",{style:"flex-basis:100%;min-width:0"},t.extra):null]))):el("div",{class:"empty",text:"Todo en orden. No hay nada urgente."}),
+    nOc?el("div",{class:"bd",style:"padding-top:4px"},el("button",{type:"button",class:"btn txt peq",text:"Ver "+(nOc===1?"1 aviso oculto":nOc+" avisos ocultos"),onclick:()=>{try{localStorage.removeItem("alm.avOcultos");}catch(e){}render(true);}})):null]));
   /* --- cifras clave --- */
   const mes=hy.slice(0,7),mesAnt=sumaDias(mes+"-01",-1).slice(0,7),dmes=+hy.slice(8,10);
   const ps=todosPist(),pMes=ps.filter(p=>p.f.startsWith(mes)).reduce((t,p)=>t+(+p.cant||1),0),pAnt=ps.filter(p=>p.f.startsWith(mesAnt)).reduce((t,p)=>t+(+p.cant||1),0);
