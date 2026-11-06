@@ -238,9 +238,12 @@ const diaDe=ts=>{const d=new Date(ts);d.setMinutes(d.getMinutes()-d.getTimezoneO
 /* OT hecha con material del almacén (cambio de bidón, Pistonwax…): se puede corregir la nave y los kilos */
 function habAlmOT(o){const h=(HAB||[]).find(x=>x.id===o.habitual_id);return !!(o.pide_alm||o.alm_cant_real!=null||(h&&h.alm_art));}
 function puedoCorregirAlm(o){return o.estado==="hecha"&&habAlmOT(o)&&(esAdm()||(S.yo&&S.yo.encargado)||(S.yo&&o.hecho_por===S.yo.id));}
-function corregirAlm(o,re){const h=(HAB||[]).find(x=>x.id===o.habitual_id);let nave=/^Nave [12]$/.test(o.nave||"")?o.nave:"";
+/* reponer material (Pistonwax): se elige el punto de la nave (N1A, N1B o N2); el resto, Nave 1 o Nave 2 */
+const NAVES_PUNTO=["Nave 1A","Nave 1B","Nave 2"];
+const esRepone=o=>{const h=(HAB||[]).find(x=>x.id===o.habitual_id);return !!(o.pide_alm||(h&&h.alm_art&&h.alm_cant==null));};
+function corregirAlm(o,re){const h=(HAB||[]).find(x=>x.id===o.habitual_id);const NV=esRepone(o)?NAVES_PUNTO:["Nave 1","Nave 2"];let nave=NV.includes(o.nave||"")?o.nave:"";
   let kg=String(o.alm_cant_real!=null?o.alm_cant_real:(h&&h.alm_cant)||"");
-  const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";["Nave 1","Nave 2"].forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
+  const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";NV.forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
   dlg("Corregir nave y kilos",el("div",null,[el("p",{class:"hint",text:o.titulo}),fld("¿En qué nave?",nb),fld("Kilos",inp(kg,v=>kg=v,{inputmode:"decimal"}))]),
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"ok",fn:async()=>{const n=parseFloat(String(kg).replace(",","."));if(!nave){toast("Elige la nave");return false;}if(!(n>0)){toast("Pon los kilos");return false;}
       const r=await rpc("ot_consumo_editar",{p_tok:S.tok,p_ot:o.id,p_nave:nave,p_cant:n});toast("Corregido"+(r&&r.almacen?". "+r.almacen:""));re();}}]);}
@@ -314,9 +317,9 @@ function puntoTrab(p,ck){const it=el("div",{class:"it"});const tit=p.ayuda||p.ti
   if(p.tipo==="txt"){const i=el("input",{type:"text",placeholder:"(opcional)",value:ck[p.texto]||""});i.oninput=()=>{if(i.value.trim())ck[p.texto]=i.value;else delete ck[p.texto];};it.append(tit,i);return it;}
   it.append(tit,segOK(ck[p.texto],v=>ck[p.texto]=v));return it;}
 /* tareas fijas que reponen material del almacén (p. ej. Pistonwax): antes de terminar, nave y cantidad */
-function pedirNaveCant(o,seguir){let nave=o.nave&&/^Nave [12]$/.test(o.nave)?o.nave:"",kg="";
-  const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";["Nave 1","Nave 2"].forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
-  dlg("¿Cuánto repones?",el("div",null,[el("p",{class:"hint",text:"Pistonwax dúo 15: sale del Almacén general."}),fld("¿En qué nave?",nb),
+function pedirNaveCant(o,seguir){let nave=NAVES_PUNTO.includes(o.nave||"")?o.nave:"",kg="";
+  const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";NAVES_PUNTO.forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
+  dlg("¿Cuánto repones?",el("div",null,[el("p",{class:"hint",text:"Pistonwax dúo 15: sale del Almacén general. El bidón que había en ese punto se da por gastado."}),fld("¿En qué punto?",nb),
     fld("Kilos que repones",inp(o.alm_cant_real||"",v=>kg=v,{inputmode:"decimal",placeholder:"ej. 15"}))]),
     [{t:"Cancelar",cls:"sec"},{t:"Continuar",cls:"ok",fn:async()=>{const n=parseFloat(String(kg).replace(",","."));if(!nave){toast("Elige la nave");return false;}if(!(n>0)){toast("Pon cuántos kilos repones");return false;}
       await rpc("ot_consumo_fijar",{p_tok:S.tok,p_ot:o.id,p_nave:nave,p_cant:n});o.nave=nave;o.alm_cant_real=n;seguir();}}]);}
