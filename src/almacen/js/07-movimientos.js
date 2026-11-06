@@ -265,6 +265,7 @@ function vPist(v){const d=draft.p;
   form.addEventListener("submit",e=>{e.preventDefault();guardarPist();});
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Cambio de pistón"})),el("div",{class:"bd"},form)]));
   ["#pAcc","#pStockCard"].forEach(q=>{const sc=v.querySelector(q);if(sc)v.appendChild(sc);});
+  if(typeof cardPistSAP==="function")v.appendChild(cardPistSAP(()=>render(true)));
   v.appendChild(cardUsados());
   const all=todosPist(),hy=hoy();
   /* análisis por inyectora, últimos 3 meses */
@@ -300,7 +301,7 @@ function vPist(v){const d=draft.p;
       el("tbody",{},ult.map(p=>el("tr",{},[el("td",{class:"num",text:fmtF(p.f)}),el("td",{text:maqN(p.maq)}),el("td",{text:p.diam+((+p.cant||1)>1?" ×"+p.cant:"")}),
         el("td",{},[el("div",{text:cap(p.motivo)}),(p.dest||p.nota)?el("div",{class:"sub",text:[p.dest?cap(p.dest):null,p.nota].filter(Boolean).join(" · ")}):null]),
         el("td",{text:p.resp||"—"}),
-        el("td",{},el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)+(p.movId?". El pistón vuelve al stock.":"."),"Borrar",async()=>{await delPist(p);toast("Cambio borrado");})}))])))]))]));}
+        el("td",{},el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)+(p.movId?". El pistón vuelve al stock.":".")+(typeof avisoSAPBorrar==="function"?avisoSAPBorrar(p):""),"Borrar",async()=>{await delPist(p);toast("Cambio borrado");})}))])))]))]));}
 function responsables(){const s=new Set();(cat.operarios||[]).forEach(o=>{if(o.nom&&o.num)s.add(o.num+" "+o.nom);else if(o.nom)s.add(o.nom);else if(o.num)s.add(String(o.num));});todosPist().forEach(p=>{if(p.resp)s.add(String(p.resp));});return Array.from(s).sort();}
 function ultimoPist(maq){const ps=todosPist().filter(p=>p.maq===maq);return ps[ps.length-1];}
 async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar en esta vista");return;}

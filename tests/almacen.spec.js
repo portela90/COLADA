@@ -1523,3 +1523,27 @@ test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y to
   expect(r).toMatch(/ahorrado 1\.?140 € en total: 660 € en ejes/);
   expect(err).toEqual([]);
 });
+
+test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
+  await page.selectOption('#pMaq', maq);
+  await page.selectOption('#pDiam', await page.locator('#pDiam option').nth(2).getAttribute('value'));
+  await page.selectOption('#pDest', await page.locator('#pDest option').nth(1).getAttribute('value'));
+  await page.selectOption('#pMot', 'DESGASTE');
+  await page.locator('#pBtn').click(); await page.waitForTimeout(500);
+  const card = page.locator('#pSapCard');
+  await card.getByRole('button', { name: 'Hoy', exact: true }).click(); await page.waitForTimeout(300);
+  await expect(card).toContainText('Pendiente');
+  await card.locator('#pSapTodos').click();
+  await page.locator('.dlg').last().getByRole('button', { name: 'Marcar' }).click(); await page.waitForTimeout(500);
+  const marcados = await page.evaluate(() => Object.values(window.__D.pist || {}).flatMap(d => d.items || []).filter(p => p.sap && p.sap.f).length);
+  expect(marcados).toBeGreaterThan(0);
+  await expect(page.locator('#pSapCard')).toContainText('No queda nada pendiente de meter en SAP');
+  await page.locator('#pSapCard').getByRole('button', { name: 'Ya en SAP' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#pSapCard')).toContainText('En SAP');
+  expect(err).toEqual([]);
+});
