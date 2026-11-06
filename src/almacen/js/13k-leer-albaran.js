@@ -7,7 +7,8 @@ async function leerAlbaranAlm(file){if(!file)return;const espera=dlg("Leyendo el
   try{const bl=await comprimir(file);let datos;
     if(window.__ALB_MOCK)datos=window.__ALB_MOCK;
     else{const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]);fr.onerror=rej;fr.readAsDataURL(bl);});
-      const r=await llamarFn("leer-albaran-almacen",{image:b64,mime:bl.type||"image/jpeg",proveedores:cat.proveedores.map(p=>p.nom),articulos:artsActivos().filter(a=>a.fam!=="eje").map(a=>({id:a.id,t:nomArtC(a)+(a.cod?" ["+a.cod+"]":"")})),hoy:hoy()});
+      const r=await llamarFn("leer-albaran-almacen",{image:b64,mime:bl.type||"image/jpeg",proveedores:cat.proveedores.map(p=>p.nom),articulos:artsActivos().filter(a=>a.fam!=="eje").map(a=>({id:a.id,t:nomArtC(a)+" · en "+a.ud+(a.peso?" (envase de "+a.peso+" "+a.ud+")":"")+[a.cod,a.codProv,a.refProv].filter(Boolean).map(c=>" ["+c+"]").join("")})),hoy:hoy(),
+        pistas:cat.proveedores.filter(p=>p.albPista).map(p=>p.nom+(p.cif?" (CIF "+p.cif+")":"")+": "+p.albPista)});
       datos=(r&&r.datos)||{};}
     cerrarDlgs();revisarAlbaran(datos,bl);}
   catch(e){cerrarDlgs();toast("No se pudo leer el albarán: "+(e.message||e));}}

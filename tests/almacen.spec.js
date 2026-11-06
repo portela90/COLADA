@@ -1547,3 +1547,34 @@ test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page })
   await expect(page.locator('#pSapCard')).toContainText('En SAP');
   expect(err).toEqual([]);
 });
+
+test('Albaranes: lo aprendido de cada proveedor (CIF, nº, fecha, cantidad y punto decimal)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let v; Object.defineProperty(window, '__D', { configurable: true, get() { return v; }, set(x) {
+    const c = x && x.cat && x.cat.app; if (c) {
+      c.articulos.push({ id: 'tIns', desc: 'Insural 800', cod: 'F09021330', fam: 'consumible', ud: 'kg', almPpal: 'gen', alms: ['gen'] },
+        { id: 'tBon', desc: 'Jabon Bonderite', codProv: '175023', fam: 'consumible', ud: 'kg', almPpal: 'gen', alms: ['gen'] },
+        { id: 'tCim', desc: 'Jabon Cimclean PC240', codProv: '4152437', fam: 'consumible', ud: 'l', almPpal: 'gen', alms: ['gen'] });
+      c.proveedores.push({ id: 'tS', nom: 'SERBIZURZA (Serbitzuak Izurza, S.L.)', cif: 'B48689533', albLee: { num: 'alb[aá]r[aá]n\\s*n[º°o]?\\.?\\s*(\\d{2}\\s?\\d{6})', fecha: 'Fecha\\s*Alb[aá]r[aá]n\\s*:?\\s*(\\d{1,2})[/.\\-](\\d{1,2})[/.\\-](\\d{2,4})', cant: 'decimal' } },
+        { id: 'tH', nom: 'HENKEL (Henkel Ibérica, S.A.)', cif: 'A08046799', albLee: { num: 'CARTA\\s*DE\\s*PORTE\\W{0,8}(\\d{9})', fecha: 'Fecha\\s*Entrega\\s*:?\\s*(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})', cant: 'decimal' } },
+        { id: 'tK', nom: 'KENNAMETAL (KENCI, S.L.U.)', cif: 'B01337864', albLee: { num: 'DOCUMENTO\\W{0,12}(\\d{10})', dec: 'punto', cant: 'decimal' } }); }
+    v = x; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+  const lee = async (txt, prov, alb, f, a, c) => {
+    await page.evaluate(t => { window.__OCR_MOCK = t; }, txt);
+    await page.locator('#mLeerAlbG').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1000);
+    const d = page.locator('.dlg').last();
+    await expect(d.locator('#laProv')).toHaveValue(prov);
+    await expect(d.locator('#laAlb')).toHaveValue(alb);
+    if (f) await expect(d.locator('#laF')).toHaveValue(f);
+    await expect(d.locator('#laA0')).toHaveValue(a); await expect(d.locator('#laC0')).toHaveValue(c);
+    await d.getByRole('button', { name: 'Cancelar' }).click(); await page.waitForTimeout(200);
+  };
+  await lee('SERBITZUAK IZURZA, S.L.\nCIF: B48689533\nalbarán nº.\n01 260831\nFecha Albarán: 06/11/2026\nF09021330 INSURAL 800 (L10KG) 2704 1 10,00 13,3468 21 133,47\nbase imp. 266,94', 'tS', '01 260831', '2026-11-06', 'tIns', '10');
+  await lee('Henkel ALBARÁN – CARTA DE PORTE 970452490\nNumero de Transporte : C016136288\nFecha plan. 04.11.2026 Fecha Entrega : 05.11.2026\n10 BONDERITE C-AK 5129-28 CT1000 175023 1.000,000 KG 1 SHU E163923124\nN.I.F. ESA08046799', 'tH', '970452490', '2026-11-05', 'tBon', '1000');
+  await lee('KENCI SLU 03.11.2026\nNº DE DOCUMENTO 8100839805 02.11.2026\n10 CIMCLEAN PC 240-200 4152437 600.000 L 0.000 L 600.000 L\nN.I.F. ES/B-01337864', 'tK', '8100839805', null, 'tCim', '600');
+  expect(err).toEqual([]);
+});

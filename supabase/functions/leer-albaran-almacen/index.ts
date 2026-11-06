@@ -10,7 +10,7 @@ const CORS = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
 type Art = { id: string; t: string };
-const PROMPT = (provs: string[], arts: Art[], hoy: string) => `Eres un asistente que lee albaranes de entrada del almacén de consumibles de la fundición MAPRI (Inyectametal, Abadiano): pistones, barras expulsoras, tornillos, recambios de horno, tolvas, aceites, taladrinas, jabones, desmoldeantes y consumibles.
+const PROMPT = (provs: string[], arts: Art[], hoy: string, pistas: string[] = []) => `Eres un asistente que lee albaranes de entrada del almacén de consumibles de la fundición MAPRI (Inyectametal, Abadiano): pistones, barras expulsoras, tornillos, recambios de horno, tolvas, aceites, taladrinas, jabones, desmoldeantes y consumibles.
 Lee la foto y devuelve SOLO un JSON (sin texto alrededor) con este formato:
 {
  "proveedor": string|null,      // el que emite el albarán; si coincide con uno de estos, escríbelo igual: ${provs.join(", ")}
@@ -31,7 +31,7 @@ Lee la foto y devuelve SOLO un JSON (sin texto alrededor) con este formato:
 }
 Catálogo (id = descripción):
 ${arts.map(a => a.id + " = " + a.t).join("\n")}
-Los números en España usan punto para miles y coma para decimales: '1.250,00' = 1250; '7,00' = 7. Hoy es ${hoy}. Si algo no se lee, pon null; no inventes.`;
+${pistas.length ? "Lo que ya sabemos de los albaranes de cada proveedor (úsalo para encontrar el nº de albarán, la fecha y la cantidad, y para elegir el artículo):\n" + pistas.map(p => "- " + p).join("\n") + "\n" : ""}Devuelve la cantidad en la unidad del artículo del catálogo (la que pone «en …»): si el albarán viene en otra (p. ej. litros y el artículo en bidones), conviértela y dilo en notas.\nLos números en España usan punto para miles y coma para decimales: '1.250,00' = 1250; '7,00' = 7. Hoy es ${hoy}. Si algo no se lee, pon null; no inventes.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -42,9 +42,10 @@ Deno.serve(async (req) => {
     if (ok.error || ok.data !== true) return json({ error: "Sin acceso" }, 403);
     const key = Deno.env.get("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "Falta la clave ANTHROPIC_API_KEY en Supabase (Edge Functions → Secrets)." }, 500);
-    const { image, mime, proveedores, articulos, hoy } = await req.json();
+    const { image, mime, proveedores, articulos, hoy, pistas } = await req.json();
+    const pis: string[] = (Array.isArray(pistas) ? pistas : []).slice(0, 60).map((x: unknown) => String(x).slice(0, 700));
     if (!image) return json({ error: "Falta la foto" }, 400);
-    const arts: Art[] = (Array.isArray(articulos) ? articulos : []).slice(0, 600).map((a: Art) => ({ id: String(a.id).slice(0, 60), t: String(a.t).slice(0, 120) }));
+    const arts: Art[] = (Array.isArray(articulos) ? articulos : []).slice(0, 600).map((a: Art) => ({ id: String(a.id).slice(0, 60), t: String(a.t).slice(0, 200) }));
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
@@ -53,7 +54,7 @@ Deno.serve(async (req) => {
         max_tokens: 2500,
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mime || "image/jpeg", data: image } },
-          { type: "text", text: PROMPT((proveedores || []).slice(0, 100), arts, hoy || new Date().toISOString().slice(0, 10)) },
+          { type: "text", text: PROMPT((proveedores || []).slice(0, 100), arts, hoy || new Date().toISOString().slice(0, 10), pis) },
         ] }],
       }),
     });

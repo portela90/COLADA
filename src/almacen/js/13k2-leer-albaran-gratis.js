@@ -24,11 +24,20 @@ const numOCR=t=>{t=String(t).trim();if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t))t=t.
 function interpretarOCR(texto){const T=String(texto||"").replace(/\r/g,""),lineas=T.split("\n").map(s=>s.replace(/\s+/g," ").trim()).filter(Boolean),nT=" "+nqAlb(T)+" ";
   const D={proveedor:"",albaran:"",fecha:"",lineas:[],confianza:"media",ocr:true};
   /* proveedor: el de la lista cuyo nombre aparece en el albarán (la palabra más larga del nombre basta) */
-  {let mejor=null,pt=0;(cat.proveedores||[]).forEach(p=>{const ws=nqAlb(p.nom).split(" ").filter(w=>w.length>=4);if(!ws.length)return;const n=ws.filter(w=>nT.includes(" "+w+" ")).length;const sc=n/ws.length+(nT.includes(" "+nqAlb(p.nom)+" ")?1:0);if(n&&sc>pt){pt=sc;mejor=p;}});if(mejor)D.proveedor=mejor.nom;}
+  /* primero por el CIF (lo más seguro), luego por el nombre */
+  let PV=null;{const TC=T.toUpperCase().replace(/[^A-Z0-9]/g,"");const cifN=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/^ES(?=[A-Z]\d)/,"");
+    PV=(cat.proveedores||[]).find(p=>{const c=cifN(p.cif);return c.length>=8&&TC.includes(c);})||null;
+    if(!PV){let pt=0;(cat.proveedores||[]).forEach(p=>{const ws=nqAlb(p.nom).split(" ").filter(w=>w.length>=4);if(!ws.length)return;const n=ws.filter(w=>nT.includes(" "+w+" ")).length;const sc=n/ws.length+(nT.includes(" "+nqAlb(p.nom)+" ")?1:0);if(n&&sc>pt){pt=sc;PV=p;}});}
+    if(PV)D.proveedor=PV.nom;}
+  /* lo aprendido de los albaranes de ese proveedor (cat.proveedores[].albLee): dónde va el nº, si usa punto decimal, qué número es la cantidad */
+  const LEE=(PV&&PV.albLee)||{};
+  const numP=x=>LEE.dec==="punto"&&/^\d+\.\d{3}$/.test(x)?Number(x):numOCR(x);
   /* nº de albarán */
-  {const m=T.match(/alb[aá]r[aá]n[^\n\d]{0,25}?([A-Z]{0,4}[\-\/]?\d[\dA-Z\-\/]{1,})/i)||T.match(/(?:n[º°o]\.?\s*(?:de\s*)?(?:documento|doc\.?|delivery|nota)|delivery\s*note)[^\n\d]{0,10}([A-Z]{0,4}[\-\/]?\d[\dA-Z\-\/]{2,})/i);if(m)D.albaran=m[1].replace(/[\/\-]$/,"");}
+  if(LEE.num)try{const m=T.replace(/\n/g," ").match(new RegExp(LEE.num,"i"));if(m&&m[1])D.albaran=m[1].replace(/\s+/g," ").trim();}catch(e){}
+  if(!D.albaran){const m=T.match(/alb[aá]r[aá]n[^\n\d]{0,25}?([A-Z]{0,4}[\-\/]?\d[\dA-Z\-\/]{1,})/i)||T.match(/(?:n[º°o]\.?\s*(?:de\s*)?(?:documento|doc\.?|delivery|nota)|delivery\s*note)[^\n\d]{0,10}([A-Z]{0,4}[\-\/]?\d[\dA-Z\-\/]{2,})/i);if(m)D.albaran=m[1].replace(/[\/\-]$/,"");}
+  if(LEE.fecha)try{const m=T.replace(/\n/g," ").match(new RegExp(LEE.fecha,"i"));if(m){let[d,mo,y]=[+m[1],+m[2],+m[3]];if(y<100)y+=2000;if(d>=1&&d<=31&&mo>=1&&mo<=12)D.fechaP=y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0");}}catch(e){}
   /* fecha: la primera dd/mm/aa(aa) que tenga sentido */
-  {const re=/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g;let m;while((m=re.exec(T))){let [_,d,mo,y]=m;d=+d;mo=+mo;y=+y;if(y<100)y+=2000;if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2020&&y<=2099){D.fecha=y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0");break;}}}
+  if(D.fechaP){D.fecha=D.fechaP;delete D.fechaP;}else{const re=/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g;let m;while((m=re.exec(T))){let [_,d,mo,y]=m;d=+d;mo=+mo;y=+y;if(y<100)y+=2000;if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2020&&y<=2099){D.fecha=y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0");break;}}}
   const recup=/recup/i.test(T);if(recup)D.tipo="recuperacion";
   const M=cat.albMap||{},arts=artsActivos().filter(a=>a.fam!=="eje");
   const codigos=arts.map(a=>({a,cs:[a.cod,a.refProv,a.codProv].filter(Boolean).map(c=>nqAlb(c)).filter(c=>c.length>=3)}));
@@ -47,7 +56,12 @@ function interpretarOCR(texto){const T=String(texto||"").replace(/\r/g,""),linea
     /* cantidad: el primer número (sin contar el código), mejor si va al principio de la línea; los precios con € o con 2 decimales tras otro número se saltan */
     let resto=L;if(cod){const re=new RegExp(cod.split(" ").map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("[\\s\\-./]*"),"i");resto=resto.replace(re," ");}
     const nums=(resto.match(/(?:^|\s)(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)(?=\s|$|[a-z]{1,3}\b)/gi)||[]).map(x=>x.trim());
-    let cant=null;for(const x of nums){const v=numOCR(x);if(!(v>0)||v>100000)continue;if(/[.,]\d{2}$/.test(x)&&nums.length>1&&cant!=null)continue;cant=v;break;}
+    /* los números que son parte del nombre o del código del artículo (Insural 800, PC 240-200) no son la cantidad */
+    const aA=art?arts.find(a=>a.id===art):null,noC=new Set(aA?(nqAlb(nomArtC(aA))+" "+[aA.cod,aA.refProv,aA.codProv].filter(Boolean).map(nqAlb).join(" ")).split(" ").filter(w=>/^\d+$/.test(w)):[]);
+    const numsC=nums.filter(x=>!noC.has(x));
+    let cant=null;
+    if(LEE.cant==="decimal"){const x=numsC.find(x=>/[.,]\d+$/.test(x)&&numP(x)>0&&numP(x)<=100000);if(x!=null)cant=numP(x);}
+    if(cant==null)for(const x of numsC){const v=numP(x);if(!(v>0)||v>100000)continue;if(/[.,]\d{2}$/.test(x)&&numsC.length>1&&cant!=null)continue;cant=v;break;}
     if(!art&&cant==null)return;
     let desde=null,hasta=null;if(recup){const r=L.match(/(\d{2,3})\D{1,12}?\ba\s*[øo0]?\s*(\d{2,3})\b/i);if(r){desde=r[1];hasta=r[2];}}
     const clave=(art||"")+"|"+k;if(vistos.has(clave))return;vistos.add(clave);
