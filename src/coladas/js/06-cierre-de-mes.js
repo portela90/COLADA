@@ -12,7 +12,7 @@ function informeMes(m){
   const d1=m+"-01",dn=finDeMes(m),d0=diaAntes(d1);
   const Si=conCorte(d0,saldos),Sf=conCorte(dn,saldos);
   const vacio=()=>({fa:0,kg:0,faN:0,kgN:0,faE:0,kgE:0});
-  const R={};NAVES.forEach(n=>Object.keys(MAT).forEach(mt=>{R[key(n,mt)]={nave:n,mat:mt,ini:vacio(),fin:vacio(),ent:{fa:0,kg:0},con:{fa:0,kg:0},aju:{fa:0,kg:0},conPrev:{fa:0,kg:0},entPrev:{fa:0,kg:0}};}));
+  const R={};NAVES.forEach(n=>Object.keys(MAT).forEach(mt=>{R[key(n,mt)]={nave:n,mat:mt,ini:vacio(),fin:vacio(),ent:{fa:0,kg:0},con:{fa:0,kg:0},aju:{fa:0,kg:0},ajuM:{},conPrev:{fa:0,kg:0},entPrev:{fa:0,kg:0}};}));
   const suma=(o,S,f)=>lotes.forEach(l=>{const s=S[l.id],x=R[key(l.nave,l.material)];if(!s||!x)return;if(!s.fa&&!kgVis(s))return;/* colada gastada: solo quedan restos de redondeo */const t=x[o],dn2=dondeEn(l,f);
     t.fa+=s.fa;t.kg+=s.kg;if(dn2==="externo"){t.faE+=s.fa;t.kgE+=s.kg;}else{t.faN+=s.fa;t.kgN+=s.kg;}});
   suma("ini",Si,d0);suma("fin",Sf,dn);
@@ -26,7 +26,7 @@ function informeMes(m){
       entradas.push({r,l:{nave:r.nv,material:r.ml,nombre:r.n||"",donde:"nave",proveedor:r.p||"",albaran:r.a||""},kg,fa,h:true});}
     else if(r.t==="C"&&!r.h){x.con.fa+=fa;x.con.kg+=kg;}
     else if(r.t==="C"&&r.h){x.conPrev.fa+=fa;x.conPrev.kg+=kg;}
-    else if(r.t==="A"&&!r.h){const sg=r.d?1:-1;x.aju.fa+=sg*fa;x.aju.kg+=sg*kg;}});
+    else if(r.t==="A"&&!r.h){const sg=r.d?1:-1;x.aju.fa+=sg*fa;x.aju.kg+=sg*kg;const mk=r.mot||"sin";x.ajuM[mk]=(x.ajuM[mk]||0)+sg*kg;}});
   /* arranque de la app dentro del mes: el inicial es el inventario físico de ese día */
   const prim=todosMovs().filter(r=>!r.h&&r.f).map(r=>r.f).sort()[0]||null;
   const arranque=prim&&prim>d1&&prim<=dn?prim:null;
@@ -340,7 +340,7 @@ function vCierre(){
       el("label",{text:"Mes"},[sel]),
       (cfg.cierres||{})[cierreMes]&&cfg.cierres[cierreMes].enviado?el("p",{class:"hint",text:"Enviado por correo el "+dmyA((cfg.cierres[cierreMes].enviado||"").slice(0,10))+(cfg.cierres[cierreMes].a?" a "+cfg.cierres[cierreMes].a:"")+"."}):null,
       el("p",{class:"hint",text:(I.completo?periodo(I)+" ":I.arranque?"La app arrancó el "+dmyA(I.arranque)+" con inventario físico: ese es el inicial. ":"")+"Entradas "+fmt(tE)+" kg · Consumo "+fmt(tC)+" kg · Stock final "+fmt(tF)+" kg."+(cierreMes===act?" El mes aún no ha terminado: el final es el de hoy.":"")}),
-      typeof bloqueAntesCierre==="function"?bloqueAntesCierre(I):null,tabla,typeof bloqueFabrica==="function"?bloqueFabrica(I):null,tablaPrev,valor,cobre,
+      typeof bloqueAntesCierre==="function"?bloqueAntesCierre(I):null,tabla,typeof bloqueArrastre==="function"?bloqueArrastre(I):null,typeof bloqueFabrica==="function"?bloqueFabrica(I):null,tablaPrev,valor,cobre,
       incluirChips("cierre",opsCierre(I),null,"Qué incluir al copiar, descargar o enviar (se recuerda):").node,
       el("div",{class:"seg"},[
         el("button",{type:"button",class:"btn",text:"Informe de cierre (Excel)",onclick:e=>bajar(e,()=>excelCierre(I),"cierre-colada-"+cierreMes+".xlsx","Informe descargado")}),

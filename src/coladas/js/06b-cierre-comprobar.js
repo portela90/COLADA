@@ -88,3 +88,27 @@ function bloqueFabrica(I){const m=I.m,F=((cfg.fab||{})[m])||{},ed={};const filas
     el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
       el("p",{class:"hint",style:"margin:0",text:"Escribe los kilos del cierre que hacéis en la fábrica. La app dice en qué línea está la diferencia y por qué puede ser. Deja en blanco lo que no tengas."}),
       tabla,el("div",{class:"seg"},[el("button",{type:"button",class:"btn",text:"Comparar",onclick:guardar})]),res])]);}
+
+/* ---------- cuadre al estilo de la fábrica ----------
+   La fábrica calcula el consumo como inicio + entradas − recuento final. Si su final del mes anterior está
+   guardado (cfg.fab[mes anterior].fin), este mes se parte de ahí: con las mismas entradas y el mismo recuento
+   final, el consumo sale igual por pura cuenta. La app lo desglosa: lo apuntado en las hojas, los ajustes de
+   recuento (por motivo) y la diferencia de arranque (lo que la app tenía de más o de menos al empezar). */
+const AJ_MOT={con:"Las hojas apuntaron mal el consumo",colada:"Se apuntó en otra colada",ent:"Error en una entrada",nose:"No se sabe",sin:"Sin motivo"};
+const mesPrevDe=m=>{const y=+m.slice(0,4),mo=+m.slice(5,7)-1;return mo?y+"-"+String(mo).padStart(2,"0"):(y-1)+"-12";};
+function cuadreFab(I){const P=((cfg.fab||{})[mesPrevDe(I.m)])||{};
+  return I.filas.map(x=>{const f=P[key(x.nave,x.mat)];if(!f||f.fin==null)return null;
+    const ini=f.fin,arr=x.ini.kg-ini,con=(x.conTot||x.con).kg,fab=ini+x.ent.kg-x.fin.kg;
+    return{x,ini,arr,con,aju:x.aju.kg,fab,ajuM:x.ajuM||{}};}).filter(Boolean);}
+function bloqueArrastre(I){const L=cuadreFab(I);if(!L.length)return null;const mp=mesPrevDe(I.m),nm=typeof nomMes==="function"?nomMes(mp):mp;
+  const fila=(t,v,cls)=>el("div",{style:"display:flex;justify-content:space-between;gap:10px"},[el("span",{class:cls||"",text:t}),el("b",{class:"num",text:(v>0?"":v<0?"−":"")+fmt(Math.abs(Math.round(v)))+" kg"})]);
+  return el("div",{class:"card",style:"margin:0"},[
+    el("div",{class:"hd"},[el("h2",{text:"Consumo como lo calcula la fábrica"})]),
+    el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
+      el("p",{class:"hint",style:"margin:0",text:"Se parte del final de la fábrica de "+nm+". Inicio de la fábrica + entradas − lo que queda contado a fin de mes = consumo. Si la fábrica cuenta lo mismo el último día, su consumo te tiene que salir igual que este."}),
+      ...L.map(c=>el("div",{class:"banner",style:"margin:0;display:flex;flex-direction:column;gap:4px"},[
+        el("b",{text:c.x.nave+" · "+MAT[c.x.mat].nom+": "+fmt(Math.round(c.fab))+" kg de consumo"}),
+        el("div",{class:"sub",text:"Inicio fábrica "+fmt(c.ini)+" + entradas "+fmt(Math.round(c.x.ent.kg))+" − final "+fmt(Math.round(c.x.fin.kg))+(I.dn>=hoy()?" (el de hoy: el mes no ha terminado)":"")}),
+        fila("Apuntado en las hojas",c.con),
+        ...Object.keys(c.ajuM).filter(k=>Math.round(c.ajuM[k])).map(k=>fila("Ajustes de recuento · "+(AJ_MOT[k]||k),-c.ajuM[k],"sub")),
+        Math.round(c.arr)?fila("Diferencia de arranque (la app empezó con "+fmt(Math.abs(Math.round(c.arr)))+" kg "+(c.arr>0?"más":"menos")+")",-c.arr,"sub"):null]))])]);}

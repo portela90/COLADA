@@ -456,13 +456,15 @@ test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cu
   await expect(card).toContainText('Cuadra: 4 fardos');
   await page.locator('[id="rdc-l3"]').fill('3'); // uno más gastado de lo que dicen las hojas
   await expect(card).toContainText('en las hojas falta 1 fardo');
+  await expect(card.locator('.rd-mot')).toBeVisible();
+  await expect(card.locator('.rd-mot select')).toHaveValue('con');
   await page.locator('#rd-go').click(); await page.waitForTimeout(300);
   await page.locator('.dlg button', { hasText: 'Lo contado es lo correcto' }).click(); await page.waitForTimeout(700);
   const ms = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => /Recuento diario/.test(r.n || '')));
   const C = ms.filter(r => r.t === 'C'), A = ms.filter(r => r.t === 'A');
   expect(C.reduce((s, r) => s + r.fa, 0)).toBe(4);
   expect(C.find(r => r.pk)).toMatchObject({ fa: 2, pk: [700, 710], kg: 1410, o: 'l3' });
-  expect(A).toHaveLength(1); expect(A[0]).toMatchObject({ o: 'l3', fa: 1 });
+  expect(A).toHaveLength(1); expect(A[0]).toMatchObject({ o: 'l3', fa: 1, mot: 'con' });
   const S = await page.evaluate(() => window.__D.cfg.app.rdiario);
   expect(S.c.l3).toBe(3);
   // tras guardar se abre el parte para compras
@@ -733,5 +735,23 @@ test('Horneros: semana con rotación, cambio de un día y consultas por hornero'
   expect(r).toMatch(/cuchara de reparto, este mes\): Ana 2/);
   r = await resp('cómo trabaja Juan este mes');
   expect(r).toMatch(/Juan \(carga del horno\) en este mes: \d+ relevos/); expect(r).toContain('Cambios de tolva (por 10 relevos)');
+  expect(err).toEqual([]);
+});
+
+test('Cierre de mes: consumo como lo calcula la fábrica, partiendo del final de la fábrica del mes anterior', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let v; Object.defineProperty(window, '__D', { configurable: true, get() { return v; }, set(x) {
+    if (x && x.cfg && x.cfg.app) x.cfg.app.fab = { '2026-09': { 'Nave 1|L-2630': { ini: 1, ent: 0, con: 0, fin: 5000 } } }; v = x; } }); });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
+  const c = page.locator('.card', { hasText: 'Consumo como lo calcula la fábrica' }).last();
+  await expect(c).toContainText('Inicio fábrica 5000');
+  await expect(c).toContainText('Apuntado en las hojas');
+  // la cuenta: inicio fábrica + entradas − final = consumo
+  const t = await c.locator('.banner').first().innerText();
+  const n = s => parseInt(String(s).replace(/\./g, ''), 10);
+  const m = t.match(/Inicio fábrica ([\d.]+) \+ entradas ([\d.]+) − final ([\d.]+)/), tot = t.match(/: (-?[\d.]+) kg de consumo/);
+  expect(n(m[1]) + n(m[2]) - n(m[3])).toBe(n(tot[1]));
   expect(err).toEqual([]);
 });

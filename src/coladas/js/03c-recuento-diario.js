@@ -37,7 +37,7 @@ function leerRD(t,media){t=String(t||"").trim();if(!t)return null;
   if(nums.some(n=>n<100))return{error:"Mezcla de fardos y kilos: escribe o el número de fardos o los kilos de cada fardo."};
   return{fa:nums.length,k:nums};}
 function vRecuentoDiario(){
-  const d=draft.rd=draft.rd||{};if(!d.R)d.R={};if(!d.C)d.C={};if(!d.K)d.K={};
+  const d=draft.rd=draft.rd||{};if(!d.R)d.R={};if(!d.C)d.C={};if(!d.K)d.K={};if(!d.M)d.M={};
   const {S}=bloques(),h=hoy();
   const navesL=NAVES.filter(n=>LINEAS.some(([a,m])=>a===n&&fifoLista(a,m,S).length));
   if(!navesL.includes(d.nave))d.nave=navesL.find(n=>!rdHoyN(n))||navesL[0]||NAVES[0];
@@ -85,6 +85,8 @@ function vRecuentoDiario(){
     return{out,err,avisos,algo};};
   /* reparto: los fardos nuevos de cada relevo, por orden, a las coladas que han bajado (más antigua primero);
      si las hojas dicen más, lo que sobra va por FIFO; luego cada colada se deja en lo contado con un ajuste */
+  /* motivo de los ajustes de una línea: si sobra en una colada y falta en otra, se apuntó en otra colada; si no, las hojas apuntaron mal el consumo */
+  const motAuto=A=>A.some(r=>r.o)&&A.some(r=>r.d)?"colada":"con";
   const plan=C=>{const recs=[],aj=[];
     Object.values(C.out).forEach(o=>{const cap={};o.C.forEach(x=>{cap[x.l.id]=Math.max(0,x.gas||0);});const asig={};
       const orden=o.C.map(x=>x.l.id);
@@ -101,7 +103,8 @@ function vRecuentoDiario(){
         if(rem>0&&orden.length)tomar(orden[orden.length-1],rem);});
       o.C.forEach(x=>{const queda=x.s-(asig[x.l.id]||0),df=queda-x.c;if(!df)return;const rx=S[x.l.id].rx||S[x.l.id].ratio||0;
         const r={i:uid("m"),t:"A",f:relevoAhora().f,u:relevoAhora().u,fa:Math.abs(df),kg:Math.round(Math.abs(df)*rx),n:"Recuento diario: "+(df>0?"faltan ":"sobran ")+Math.abs(df)+" f frente a las hojas",rel:R.map(z=>z.f+"|"+z.u)};
-        if(df>0)r.o=x.l.id;else r.d=x.l.id;aj.push(r);});});
+        if(df>0)r.o=x.l.id;else r.d=x.l.id;aj.push(r);});
+      {const mia=aj.filter(r=>o.C.some(x=>x.l.id===(r.o||r.d)));const mk=d.M[key(o.n,o.m)]||motAuto(mia);mia.forEach(r=>{r.mot=mk;});}});
     return{recs,aj};};
   const relLbl=(r,j)=>NOMDIA[fDate(r.f).getDay()]+" "+dmy(r.f)+" "+r.u.toLowerCase();
   const relSub=(r,j)=>r.f===relevoAhora().f&&r.u===relevoAhora().u?"hasta ahora":j===0&&rdDe(nave)&&rdDe(nave).f===r.f&&rdDe(nave).u===r.u?"entera, de la hoja":"";
@@ -140,7 +143,13 @@ function vRecuentoDiario(){
           el("div",{class:"rd-cb"},[el("div",{class:"rd-sec",text:"2 · Fardos que cuentas ahora en nave"}),
             el("div",{class:"rd-col hdr"},[el("span",{text:"Colada"}),el("span",{text:"Por FIFO"}),el("span",{text:"Contados"}),el("span",{text:"Gasto"})])].concat(filas,[
             el("div",{class:"rd-tot"},[el("span",{text:"Gastado según el recuento"}),totB])]))]),
-        accionesRD(n,m,S),varias(k,lista,n,m),res])]);});
+        accionesRD(n,m,S),varias(k,lista,n,m),res,motivoRD(k)])]);});
+  /* ¿por qué no cuadra? Se guarda con cada ajuste (r.mot) y el cierre de mes los separa */
+  function motivoRD(k){const sl=el("select",{id:"rdm-"+k.replace(/[^A-Za-z0-9]/g,""),"aria-label":"Motivo del ajuste",onchange:e=>{d.M[k]=e.target.value;}},
+      [["con","Las hojas apuntaron mal el consumo (cuenta como consumo)"],["colada","Se apuntó en otra colada (el total no cambia)"],["ent","Error en una entrada (camión)"],["nose","No se sabe"]].map(([v,t])=>el("option",{value:v,text:t})));
+    const w=el("label",{class:"rd-mot",style:"display:flex;flex-direction:column;gap:4px"},[el("span",{class:"rd-sec",text:"¿Por qué no cuadra?"}),sl]);w.hidden=true;
+    vivos.push(C=>{const o=C.out[k];const A=C.P?C.P.aj.filter(r=>o.C.some(x=>x.l.id===(r.o||r.d))):[];w.hidden=!A.length;if(A.length)sl.value=d.M[k]||motAuto(A);});
+    return w;}
   /* si han bajado dos o más coladas, los pesos de cada una en cada relevo (opcional) */
   function varias(k,lista,n,m){d.K[k]=d.K[k]||{};
     const caja=el("div",{class:"rd-var"});caja.hidden=true;
@@ -164,7 +173,7 @@ function vRecuentoDiario(){
     return caja;}
   const goBtn=el("button",{id:"rd-go",class:"btn",type:"button",text:"Guardar recuento de "+nave});
   const barTxt=el("span",{class:"rd-bar-t"});
-  const refresca=()=>{const C=calc();vivos.forEach(f=>f(C));goBtn.disabled=C.err>0||!lineas.length;
+  const refresca=()=>{const C=calc();try{C.P=C.err?null:plan(C);}catch(e){C.P=null;}vivos.forEach(f=>f(C));goBtn.disabled=C.err>0||!lineas.length;
     const O=Object.values(C.out),nOk=O.filter(o=>o.msg.some(z=>z[0]==="ok")&&!o.msg.some(z=>z[0]==="b"||z[0]==="w")).length,nW=O.filter(o=>o.msg.some(z=>z[0]==="w")).length,nB=O.filter(o=>o.msg.some(z=>z[0]==="b")).length,nV=O.filter(o=>o.C.some(x=>x.vacio)).length;
     barTxt.textContent=nave+" · "+O.length+(O.length===1?" línea":" líneas")+(nOk?" · "+nOk+" cuadra"+(nOk===1?"":"n"):"")+(nW?" · "+nW+" con descuadre":"")+(nB?" · "+nB+" para revisar":"")+(nV?" · "+nV+" sin contar":"");};
   goBtn.onclick=async e=>{const b=e.currentTarget,C=calc();if(C.err)return;const P=plan(C);
