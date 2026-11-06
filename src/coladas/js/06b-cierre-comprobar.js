@@ -38,11 +38,16 @@ function checksCierre(I){const out=[],h=hoy(),acabado=I.dn<h;
    out.push({id:"resto",ok:!RS.length,t:RS.length?RS.length+(RS.length===1?" colada acabada con diferencia de peso":" coladas acabadas con diferencia de peso"):"Ninguna colada acabada con kilos sueltos",
      det:RS.length?"Sus fardos pesados no suman lo mismo que el albarán. Apunta el ajuste para dejarlas a cero; si no, el cierre no cuadra.":null,
      chips:RS.map(x=>({t:x.l.nombre+" · "+(x.kg>0?"sobran ":"faltan ")+fmt(Math.abs(x.kg))+" kg",fn:()=>ajustarResto(x)}))});}
+  /* entradas con el peso de báscula distinto del albarán */
+  {const BD=difBascula(I.d1,I.dn);
+   out.push({id:"bas",ok:!BD.length,t:BD.length?BD.length+(BD.length===1?" entrada con la báscula distinta del albarán":" entradas con la báscula distinta del albarán"):"Báscula y albaranes coinciden"+(I.entradas.some(x=>!x.h&&typeof x.r.kb==="number")?"":" (no hay pesadas apuntadas)"),
+     det:BD.length?"La fábrica cuenta los kilos del albarán. Si la báscula da menos, puede faltar material: reclámalo o apúntalo.":null,
+     chips:BD.map(x=>({t:(x.l.nombre||"?")+" · "+dmy(x.r.f)+" · albarán "+fmt(x.r.kg)+" / báscula "+fmt(x.r.kb)+" ("+(x.d>0?"+":"−")+fmt(Math.abs(x.d))+")",fn:()=>{try{editarApunte(x.r);}catch(e){}}}))});}
   /* 4 · recuento de cierre */
   const RC=recuentoCierre(I),falta=RC.filter(x=>!x.hecho),[va,vb]=ventanaCierre(I);
   out.push({id:"rc",ok:!falta.length,pend:!acabado&&h<va,t:falta.length?(!acabado&&h<va?"Recuento de cierre: hazlo el "+dmy(I.dn)+" (o hasta el "+dmy(vb)+")":"Falta el recuento de cierre en "+falta.map(x=>x.nave+(x.donde==="externo"?" externo":" nave")).join(", ")):"Recuento de cierre hecho en todo",
     det:"Contar todas las coladas el último día del mes (nave y almacén externo). Ese número es el final de este mes y el inicio del siguiente, para la app y para la fábrica.",
-    chips:RC.map(x=>({t:x.nave+" · "+(x.donde==="externo"?"externo":"nave")+(x.hecho?" ✓ "+dmy(x.hecho)+(x.parcial?" ("+x.parcial+")":""):" · contar"),ok:!!x.hecho,fn:()=>abrirRecuento(x.nave,x.donde)}))});
+    chips:(falta.length&&h>=va?[{t:"▶ Empezar el recuento de cierre guiado",fn:()=>recuentoGuiado(I)}]:[]).concat(RC.map(x=>({t:x.nave+" · "+(x.donde==="externo"?"externo":"nave")+(x.hecho?" ✓ "+dmy(x.hecho)+(x.parcial?" ("+x.parcial+")":""):" · contar"),ok:!!x.hecho,fn:()=>abrirRecuento(x.nave,x.donde)})))});
   return out;}
 function bloqueAntesCierre(I){const C=checksCierre(I),mal=C.filter(c=>!c.ok&&!c.pend).length;
   return el("div",{class:"card",style:"margin:0"},[
@@ -112,3 +117,73 @@ function bloqueArrastre(I){const L=cuadreFab(I);if(!L.length)return null;const m
         fila("Apuntado en las hojas",c.con),
         ...Object.keys(c.ajuM).filter(k=>Math.round(c.ajuM[k])).map(k=>fila("Ajustes de recuento · "+(AJ_MOT[k]||k),-c.ajuM[k],"sub")),
         Math.round(c.arr)?fila("Diferencia de arranque (la app empezó con "+fmt(Math.abs(Math.round(c.arr)))+" kg "+(c.arr>0?"más":"menos")+")",-c.arr,"sub"):null]))])]);}
+
+/* ---------- báscula: diferencias con el albarán (más de 50 kg y del 0,5 %) ---------- */
+function difBascula(d1,dn){return todosMovs().filter(r=>r.t==="E"&&!r.h&&typeof r.kb==="number"&&typeof r.kg==="number"&&r.f>=d1&&r.f<=dn).map(r=>({r,l:lotes.find(x=>x.id===r.d)||{},d:r.kb-r.kg}))
+  .filter(x=>Math.abs(x.d)>Math.max(50,x.r.kg*0.005)).sort((a,b)=>a.r.f.localeCompare(b.r.f));}
+
+/* ---------- recuento de cierre guiado: nave 1, nave 2 y el externo, uno detrás de otro ---------- */
+function pasosCierre(I){const ord={"nave":0,"externo":1};return recuentoCierre(I).slice().sort((a,b)=>ord[a.donde]-ord[b.donde]||a.nave.localeCompare(b.nave));}
+function recuentoGuiado(I){const P=pasosCierre(I),pend=P.filter(x=>!x.hecho);
+  if(!pend.length){toast("El recuento de cierre ya está hecho en todos los sitios");return;}
+  const sig=()=>{const I2=informeMes(I.m),Q=pasosCierre(I2).filter(x=>!x.hecho);render();
+    if(!Q.length){toast("Recuento de cierre completo: ya puedes cerrar el mes");return;}
+    const x=Q[0],n=P.length-Q.length+1;setTimeout(()=>abrirRecuento(x.nave,x.donde,{paso:n+" de "+P.length,sig}),300);};
+  const x=pend[0];abrirRecuento(x.nave,x.donde,{paso:(P.length-pend.length+1)+" de "+P.length,sig});}
+
+/* ---------- candado del mes ---------- */
+function bloqueCandado(I){const act=mesDe(hoy()),C=(cfg.candado||{})[I.m];
+  if(I.m>=act&&!C)return null;
+  const RC=pasosCierre(I),falta=RC.filter(x=>!x.hecho);
+  const cerrar=async()=>{let ok=true;
+    if(falta.length)ok=await confirmar("Falta el recuento de cierre en "+falta.map(x=>x.nave+(x.donde==="externo"?" externo":" nave")).join(", ")+". Sin él, el final de "+nomMes(I.m)+" puede no coincidir con el de la fábrica.\n\n¿Cerrar igualmente?",{titulo:"Cerrar "+nomMes(I.m),ok:"Cerrar igualmente"});
+    else ok=await confirmar("Cuando "+nomMes(I.m)+" esté cerrado no se podrá apuntar, cambiar ni borrar nada con fecha de ese mes. Las correcciones se apuntan con fecha de hoy. Se puede reabrir si hace falta.",{titulo:"Cerrar "+nomMes(I.m),ok:"Cerrar el mes"});
+    if(!ok)return;cfg.candado=Object.assign({},cfg.candado,{[I.m]:{ts:new Date().toISOString(),por:(window.yoNombre&&window.yoNombre())||""}});
+    try{await saveCfg();toast(Mayus(nomMes(I.m))+" cerrado");render();}catch(e){toast("No se pudo guardar");}};
+  const abrir=async()=>{if(!(await confirmar("Al reabrir "+nomMes(I.m)+" se podrán cambiar sus apuntes, y el cierre que pasaste a la fábrica puede dejar de coincidir. Hazlo solo para corregir un error, y vuelve a cerrarlo después.",{titulo:"Reabrir "+nomMes(I.m),ok:"Reabrir"})))return;
+    const c=Object.assign({},cfg.candado);delete c[I.m];cfg.candado=c;try{await saveCfg();toast(Mayus(nomMes(I.m))+" reabierto");render();}catch(e){toast("No se pudo guardar");}};
+  return el("div",{class:"banner"+(C?" ok":""),style:"margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[
+    el("span",{style:"flex:1;min-width:200px"},C?[el("b",{text:"🔒 "+Mayus(nomMes(I.m))+" cerrado"}),document.createTextNode(" el "+dmyA(C.ts.slice(0,10))+(C.por?" por "+C.por:"")+". No se puede apuntar ni cambiar nada con fecha de este mes.")]
+      :[el("b",{text:"Mes sin cerrar. "}),document.createTextNode(falta.length?"Antes de cerrarlo, haz el recuento de cierre ("+falta.length+" de "+RC.length+" sitios sin contar).":"El recuento de cierre está hecho: ya lo puedes cerrar.")]),
+    C?el("button",{type:"button",class:"btn sec peq",text:"Reabrir",onclick:abrir}):el("button",{type:"button",class:"btn peq",id:"c-candado",text:"Cerrar el mes",onclick:cerrar})]);}
+
+/* ---------- repaso de la semana: lo que conviene arreglar antes de que llegue el cierre ---------- */
+let repSem=0;
+function lunesDe(f){const d=fDate(f),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return ymd(d);}
+function vRepaso(){if(typeof huecos!=="function")return null;
+  const h=hoy(),l0=lunesDe(h),d1=ymd((()=>{const d=fDate(l0);d.setDate(d.getDate()-7*repSem);return d;})()),d7=ymd((()=>{const d=fDate(d1);d.setDate(d.getDate()+6);return d;})()),dn=d7<h?d7:h;
+  const it=[];
+  let H=[];try{H=huecos(d1,dn);}catch(e){}const nH=H.reduce((a,d)=>a+d.falta.length,0);
+  it.push({ok:!nH,t:nH?nH+(nH===1?" relevo sin consumo apuntado":" relevos sin consumo apuntado"):"Todos los relevos tienen consumo",chips:H.flatMap(d=>d.falta.map(x=>({t:(x.g?"Granalla "+x.n.replace("Nave ","N"):x.n)+" · "+diaSem(x.f)+" "+dmy(x.f)+" · "+x.t.toLowerCase(),fn:()=>pulsarHueco(x)})))});
+  const AJ=todosMovs().filter(r=>r.t==="A"&&!r.h&&r.f>=d1&&r.f<=dn),sinM=AJ.filter(r=>!r.mot);
+  it.push({ok:!sinM.length,t:sinM.length?sinM.length+(sinM.length===1?" ajuste sin motivo":" ajustes sin motivo"):(AJ.length?"Todos los ajustes tienen motivo":"Sin ajustes esta semana"),
+    det:sinM.length?"Toca uno para decir por qué no cuadraba: así el cierre separa el consumo mal apuntado de los fardos cambiados de colada.":null,
+    chips:sinM.map(r=>{const l=lotes.find(x=>x.id===(r.o||r.d))||{};return{t:(l.nombre||"?")+" · "+dmy(r.f)+" · "+(r.d?"+":"−")+fmt(r.fa||0)+" f",fn:()=>motivoAjuste(r)};})});
+  /* en qué línea se abre diferencia: ajustes frente al consumo apuntado */
+  const L={};todosMovs().filter(r=>!r.h&&r.f>=d1&&r.f<=dn&&(r.t==="C"||r.t==="A")).forEach(r=>{const l=lotes.find(x=>x.id===(r.o||r.d));if(!l)return;const k=key(l.nave,l.material),x=L[k]=L[k]||{n:l.nave,m:l.material,c:0,a:0,fifo:0};
+    const kg=Math.abs(typeof r.kg==="number"?r.kg:(r.fa||0)*((saldos()[l.id]||{}).ratio||0));if(r.t==="C"){x.c+=kg;if(/Fuera de FIFO/.test(r.n||""))x.fifo++;}else x.a+=r.d?kg:-kg;});
+  const Ls=Object.values(L),malL=Ls.filter(x=>x.c&&Math.abs(x.a)/x.c>0.02);
+  it.push({ok:!malL.length,t:malL.length?"Se abre diferencia en "+malL.map(x=>x.n+" "+MAT[x.m].nom).join(", "):"Ninguna línea se desvía más del 2 %",
+    det:Ls.map(x=>x.n+" "+MAT[x.m].nom+": consumo "+fmt(Math.round(x.c))+" kg · ajustes "+(x.a>0?"+":x.a<0?"−":"")+fmt(Math.abs(Math.round(x.a)))+" kg"+(x.c?" ("+(Math.round(Math.abs(x.a)/x.c*1000)/10).toString().replace(".",",")+" %)":"")+(x.fifo?" · "+x.fifo+" fuera de FIFO":"")).join(" · ")||null});
+  {const RS=typeof coladasConResto==="function"?coladasConResto():[];it.push({ok:!RS.length,t:RS.length?RS.length+(RS.length===1?" colada acabada con kilos sueltos":" coladas acabadas con kilos sueltos"):"Ninguna colada acabada con kilos sueltos",
+    chips:RS.map(x=>({t:x.l.nombre+" · "+(x.kg>0?"sobran ":"faltan ")+fmt(Math.abs(x.kg))+" kg",fn:()=>ajustarResto(x)}))});}
+  {const SA=(typeof sinAlbaran==="function"?sinAlbaran():[]).filter(x=>x.r.f>=d1&&x.r.f<=dn),BD=difBascula(d1,dn);
+   it.push({ok:!SA.length&&!BD.length,t:SA.length||BD.length?[SA.length?SA.length+" sin albarán":null,BD.length?BD.length+" con la báscula distinta del albarán":null].filter(Boolean).join(" · ")+" en las entradas":"Entradas con albarán y sin diferencias de báscula",
+     chips:SA.map(({r,l})=>({t:(l.nombre||"?")+" · "+dmy(r.f)+" · sin albarán",fn:()=>completarAlb(r,l)})).concat(BD.map(x=>({t:(x.l.nombre||"?")+" · báscula "+(x.d>0?"+":"−")+fmt(Math.abs(x.d))+" kg",fn:()=>{try{editarApunte(x.r);}catch(e){}}})))});}
+  const mal=it.filter(x=>!x.ok).length;
+  return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Repaso de la semana"}),el("span",{class:"der pill "+(mal?"warn":"ok"),text:mal?mal+" por revisar":"✓ Todo en orden"})]),
+    el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
+      el("div",{class:"seg"},[["0","Esta semana"],["1","La pasada"]].map(([v,t])=>el("button",{type:"button","aria-pressed":String(String(repSem)===v),text:t,onclick:()=>{repSem=+v;render();}}))),
+      el("p",{class:"hint",style:"margin:0",text:"Del "+dmyA(d1)+" al "+dmyA(dn)+". Dos minutos cada lunes: lo que se arregla en la semana no llega descuadrado al cierre."}),
+      ...it.map(c=>el("div",{class:"chk-cierre"},[el("div",{style:"display:flex;gap:8px;align-items:flex-start"},[el("span",{class:"pill "+(c.ok?"ok":"warn"),style:"flex:none",text:c.ok?"✓":"!"}),
+        el("div",{style:"min-width:0"},[el("b",{text:c.t}),c.det?el("div",{class:"sub",text:c.det}):null])]),
+        c.chips&&c.chips.length?el("div",{class:"hueco-chips",style:"margin:6px 0 0 34px"},c.chips.slice(0,12).map(x=>el("button",{type:"button",class:"chip",text:x.t,onclick:x.fn})).concat(c.chips.length>12?[el("span",{class:"sub",style:"align-self:center",text:"y "+(c.chips.length-12)+" más"})]:[])):null]))])]);}
+/* poner el motivo a un ajuste ya guardado */
+function motivoAjuste(r){const l=lotes.find(x=>x.id===(r.o||r.d))||{};let v=r.mot||"con";
+  const sl=el("select",{id:"aj-mot","aria-label":"Motivo",onchange:e=>{v=e.target.value;}},Object.keys(AJ_MOT).filter(k=>k!=="sin").map(k=>{const o=el("option",{value:k,text:AJ_MOT[k]});if(k===v)o.selected=true;return o;}));
+  const cerrar=()=>ov.remove();
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Motivo del ajuste"},[
+    el("h3",{text:"¿Por qué no cuadraba?"}),el("p",{class:"sub",text:(l.nombre||"?")+" · "+(l.nave||"")+" · "+dmy(r.f)+" · "+(r.d?"sobraban ":"faltaban ")+fmt(r.fa||0)+" f"}),el("label",{text:"Motivo"},[sl]),
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),el("button",{type:"button",class:"btn",text:"Guardar",onclick:async e=>{e.currentTarget.disabled=true;
+      try{await guardarMov(r,Object.assign({},r,{mot:v}));cerrar();toast("Motivo guardado");render();}catch(x){e.currentTarget.disabled=false;if(!x.candado)toast("No se pudo guardar");}}})])])]);
+  document.body.appendChild(ov);}

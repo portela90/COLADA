@@ -4,7 +4,7 @@ function editarApunte(r){
   if(!r||r.h||r.t==="T")return;
   const S=saldos(),l=lotes.find(x=>x.id===(r.o||r.d));
   const T={C:"consumo",E:"entrada",A:"ajuste",G:"granalla de cobre"};
-  const v={f:r.f||hoy(),u:r.u||TURNOS[0],lote:r.o||r.d||"",fa:typeof r.fa==="number"?String(Math.abs(r.fa)):"",kg:typeof r.kg==="number"?String(Math.abs(r.kg)).replace(".",","):"",a:r.a||(l&&r.t==="E"?l.albaran:"")||"",nv:r.nv||NAVES[0]};
+  const v={f:r.f||hoy(),u:r.u||TURNOS[0],lote:r.o||r.d||"",fa:typeof r.fa==="number"?String(Math.abs(r.fa)):"",kg:typeof r.kg==="number"?String(Math.abs(r.kg)).replace(".",","):"",a:r.a||(l&&r.t==="E"?l.albaran:"")||"",nv:r.nv||NAVES[0],kb:typeof r.kb==="number"?String(r.kb).replace(".",","):""};
   const campos=[];
   const inp=(lab,key,o)=>el("label",{text:lab},[el("input",Object.assign({class:"num",type:"text",value:v[key],oninput:e=>{v[key]=e.target.value;}},o||{}))]);
   campos.push(el("label",{text:"Fecha"},[el("input",{type:"date",max:hoy(),value:v.f,onchange:e=>{v.f=e.target.value;}})]));
@@ -20,6 +20,7 @@ function editarApunte(r){
   if(r.t!=="G")campos.push(inp("Fardos","fa",{inputmode:"numeric"}));
   if(r.t==="C")campos.push(inp("Kilos (opcional, en blanco se calculan)","kg",{inputmode:"decimal"}));
   if(r.t==="E"||r.t==="G")campos.push(inp("Kilos","kg",{inputmode:"decimal"}));
+  if(r.t==="E")campos.push(inp("Kilos de báscula (si se ha pesado)","kb",{inputmode:"decimal",placeholder:"opcional"}));
   if(r.t==="E")campos.push(el("label",{text:"Nº albarán"},[el("input",{type:"text",value:v.a,oninput:e=>{v.a=e.target.value;}})]));
   /* foto del albarán: se puede adjuntar o cambiar después */
   if(r.t==="E"){const st=el("p",{class:"hint",text:r.ft?"Ya tiene foto. Si eliges otra, la cambia.":"Sin foto. Puedes hacerla ahora con la cámara o elegirla de la galería."});
@@ -40,7 +41,7 @@ function editarApunte(r){
       if(v.kg.trim()===""||(v.lote!==r.o&&v.kg===kgOrig))delete n.kg;else n.kg=kg;
       if(r.pk&&(n.fa!==r.fa||n.kg!==r.kg||n.o!==r.o))delete n.pk;}
     if(r.t==="G"){n.kg=r.kg<0?-kg:kg;if(!r.aj){n.u=v.u;if(r.kg<0)n.nv=v.nv;}}
-    if(r.t==="E"){n.fa=fa;n.kg=kg;if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
+    if(r.t==="E"){n.fa=fa;n.kg=kg;{const kb=numES(v.kb||"");if(String(v.kb||"").trim()&&!(kb>0)){err.textContent="Los kilos de báscula no son un número válido.";err.hidden=false;return;}if(kb>0)n.kb=kb;else delete n.kb;}if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
     if(r.t==="A"){n.fa=fa;const b=S[r.o||r.d];n.kg=Math.round(fa*((b&&b.ratio)||0));}
     n.ed=hoy();
     const b=e.currentTarget;b.disabled=true;

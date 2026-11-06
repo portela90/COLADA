@@ -650,9 +650,11 @@ test('Recuento diario: «Ha subido del externo» y «Ha llegado un camión» sin
   await page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first().locator('button', { hasText: 'Ha llegado un camión (1 previsto)' }).click();
   await page.locator('.dlg .rd-ext-b', { hasText: 'BEFESA · 37 f' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#e-volver')).toBeVisible();
-  await page.fill('#e-col', 'C26100'); await page.fill('#e-alb', 'ALB-9'); await page.fill('#e-kg', '25000'); await page.waitForTimeout(200);
+  await page.fill('#e-col', 'C26100'); await page.fill('#e-alb', 'ALB-9'); await page.fill('#e-kg', '25000'); await page.fill('#e-kb', '24800'); await page.waitForTimeout(200);
   await page.click('#e-go'); await page.waitForTimeout(900);
   await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first()).toContainText('C26100');
+  const E = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(r => r.t === 'E' && r.a === 'ALB-9'));
+  expect(E).toMatchObject({ kg: 25000, kb: 24800 });
   const P = await page.evaluate(() => window.__D.cfg.app.plan['2026-10'].entradas[0]);
   expect(P.rec).toBeTruthy();
   expect(err).toEqual([]);
@@ -753,5 +755,57 @@ test('Cierre de mes: consumo como lo calcula la fábrica, partiendo del final de
   const n = s => parseInt(String(s).replace(/\./g, ''), 10);
   const m = t.match(/Inicio fábrica ([\d.]+) \+ entradas ([\d.]+) − final ([\d.]+)/), tot = t.match(/: (-?[\d.]+) kg de consumo/);
   expect(n(m[1]) + n(m[2]) - n(m[3])).toBe(n(tot[1]));
+  expect(err).toEqual([]);
+});
+
+test('Cierre: con el mes cerrado (candado) no se puede apuntar nada de ese mes; se reabre; repaso de la semana', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let v; Object.defineProperty(window, '__D', { configurable: true, get() { return v; }, set(x) {
+    if (x && x.cfg && x.cfg.app) x.cfg.app.candado = { '2026-10': { ts: '2026-10-31T10:00:00Z', por: 'Prueba' } }; v = x; } }); });
+  await page.goto(url); await page.waitForTimeout(900);
+  const n0 = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).length);
+  // recuento diario de hoy (octubre, cerrado): no deja guardar y lo explica
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const k = 'Nave 1|L-2630';
+  const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
+  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ya0 + 1));
+  for (const b of await page.locator('.rd-fifo').all()) await b.click();
+  await expect(page.locator('#rd-go')).toBeEnabled({ timeout: 3000 });
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await page.locator('.dlg button', { hasText: /^(Guardar|Lo contado es lo correcto)$/ }).last().click({ timeout: 3000 }); await page.waitForTimeout(600);
+  await expect(page.locator('#toast')).toContainText('está cerrado');
+  expect(await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).length)).toBe(n0);
+  // en el cierre sale cerrado y se puede reabrir
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
+  await expect(page.locator('.banner', { hasText: 'Octubre 2026 cerrado' })).toBeVisible();
+  await page.locator('.banner', { hasText: 'Octubre 2026 cerrado' }).getByRole('button', { name: 'Reabrir' }).click();
+  await page.locator('.dlg button', { hasText: 'Reabrir' }).last().click(); await page.waitForTimeout(500);
+  expect(await page.evaluate(() => (window.__D.cfg.app.candado || {})['2026-10'])).toBeFalsy();
+  // repaso de la semana
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Repaso de la semana' }).first().click(); await page.waitForTimeout(400);
+  const rep = page.locator('.card', { hasText: 'Repaso de la semana' }).last();
+  await expect(rep).toContainText('relevo');
+  await expect(rep).toContainText('Del ');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Cierre: recuento de cierre guiado, un sitio detrás de otro', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
+  await page.locator('.chip', { hasText: 'Empezar el recuento de cierre guiado' }).click(); await page.waitForTimeout(400);
+  const ov = page.locator('.rc-ov');
+  await expect(ov).toContainText(/Recuento de cierre · paso 1 de \d/);
+  const filas = ov.locator('tbody tr'), k = await filas.count();
+  const n = s => parseInt(String(s).replace(/[^0-9-]/g, ''), 10) || 0;
+  for (let i = 0; i < k; i++) { const app = await filas.nth(i).locator('td').nth(1).textContent(); await filas.nth(i).locator('input').fill(String(n(app))); }
+  await ov.locator('button', { hasText: 'Guardar recuento (todo cuadra)' }).click(); await page.waitForTimeout(1200);
+  await expect(page.locator('.rc-ov')).toContainText(/paso 2 de \d/);
   expect(err).toEqual([]);
 });

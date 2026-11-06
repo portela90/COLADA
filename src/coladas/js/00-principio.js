@@ -29,7 +29,7 @@ const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const key=(n,m)=>n+"|"+m;
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const dmy=f=>f?f.slice(8,10)+"/"+f.slice(5,7):"—";
-function toast(m){const o=$("toast");if(o)o.remove();const t=el("div",{id:"toast",text:m});document.body.appendChild(t);setTimeout(()=>t.parentNode&&t.remove(),2600);}
+function toast(m){const ck=window.__candadoMsg;if(ck&&Date.now()-ck.t<4000&&/^No se pudo/.test(String(m)))m=ck.msg;const o=$("toast");if(o)o.remove();const t=el("div",{id:"toast",text:m});document.body.appendChild(t);setTimeout(()=>t.parentNode&&t.remove(),2600);}
 let CORTE=null;
 function movs(){const o=[];for(const m in meses)for(const r of(meses[m]||[]))if(!CORTE||!r.f||r.f<=CORTE)o.push(r);return o;}
 function conCorte(f,fn){const o=CORTE;CORTE=f;try{return fn();}finally{CORTE=o;}}
@@ -169,18 +169,24 @@ async function itemsPut(col,id,item){if(db.itemsPut)return db.itemsPut(col,id,it
   const ref=db.doc(col+"/"+id),sn=await ref.get();await ref.set({items:((sn.exists&&sn.data().items)||[]).map(r=>r.i===item.i?item:r)});}
 async function itemsDel(col,id,i){if(db.itemsDel)return db.itemsDel(col,id,i);
   const ref=db.doc(col+"/"+id),sn=await ref.get();if(!sn.exists)return;await ref.set({items:((sn.data().items)||[]).filter(r=>r.i!==i)});}
-async function addMov(rec){await itemsAdd("mov",mesDe(rec.f),[rec]);}
+/* ---------- candado: un mes cerrado no se toca (cfg.candado[mes] = {ts,por}) ----------
+   Ni apuntes nuevos con fecha de ese mes, ni cambiar ni borrar los que hay. La corrección se apunta con fecha de hoy. */
+const mesCerrado=m=>!!(cfg&&cfg.candado&&cfg.candado[m]);
+function chkCandado(fs){const c=[...new Set(fs.filter(Boolean).map(mesDe))].filter(mesCerrado);if(!c.length)return;
+  const nm=typeof nomMes==="function"?nomMes(c[0]):c[0];const msg=nm.charAt(0).toUpperCase()+nm.slice(1)+" está cerrado: no se puede apuntar, cambiar ni borrar nada con fecha de ese mes. Apunta la corrección con fecha de hoy.";
+  window.__candadoMsg={t:Date.now(),msg};toast(msg);const e=new Error(msg);e.candado=true;throw e;}
+async function addMov(rec){chkCandado([rec.f]);await itemsAdd("mov",mesDe(rec.f),[rec]);}
 /* varios apuntes de golpe: una sola escritura por mes */
-async function addMovs(recs){const g={};recs.forEach(r=>{const m=mesDe(r.f);(g[m]=g[m]||[]).push(r);});
+async function addMovs(recs){chkCandado(recs.map(r=>r.f));const g={};recs.forEach(r=>{const m=mesDe(r.f);(g[m]=g[m]||[]).push(r);});
   for(const m in g)await itemsAdd("mov",m,g[m]);}
 /* guardar un apunte editado (mismo id). Si cambia de mes, primero se escribe
    en el mes nuevo y luego se quita del viejo, para no perderlo nunca. */
-async function guardarMov(orig,nuevo){
+async function guardarMov(orig,nuevo){chkCandado([orig.f,nuevo.f]);
   const mO=mesDe(orig.f),mN=mesDe(nuevo.f);
   if(mO===mN)await itemsPut("mov",mO,nuevo);
   else{await addMov(nuevo);await delMov(orig.i,orig.f);}
 }
-async function delMov(id,f){await itemsDel("mov",mesDe(f),id);}
+async function delMov(id,f){chkCandado([f]);await itemsDel("mov",mesDe(f),id);}
 /* Borrar un apunte de consumo o entrada con aviso claro. Si es la entrada que
    creó la colada y no tiene nada más, también se quita la colada vacía. */
 /* Ventanas propias: la página publicada bloquea confirm() y prompt() del

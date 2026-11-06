@@ -3,7 +3,8 @@
    y se apuntan de golpe los ajustes de las que no cuadran. Las casillas en
    blanco no se tocan. */
 let rcNave="Nave 1",rcDonde="nave";
-function abrirRecuento(nv,dn){if(typeof nv==="string")rcNave=nv;if(typeof dn==="string")rcDonde=dn;
+/* guia (opcional): {paso:"2 de 4",sig:fn} → el recuento de cierre guiado; al guardar se pasa al siguiente sitio */
+function abrirRecuento(nv,dn,guia){if(typeof nv==="string")rcNave=nv;if(typeof dn==="string")rcDonde=dn;
   const prev=document.querySelector(".rc-ov");if(prev)prev.remove();
   const body=el("div",{class:"ficha-body"}),cont={};let gCont="";
   const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};
@@ -35,7 +36,7 @@ function abrirRecuento(nv,dn){if(typeof nv==="string")rcNave=nv;if(typeof dn==="
       if(gCont!==""){const g=numES(gCont);if(g>=0){const gk2=granallaKg(),d=Math.round((g-gk2)*1000)/1000;
         if(d){recs.push({i:uid("m"),t:"G",aj:true,f:hoy(),kg:d,n:"Recuento físico: "+g.toLocaleString("es-ES")+" kg (la app tenía "+(Math.round(gk2*100)/100).toLocaleString("es-ES")+")"});txt.push("Granalla de cobre: "+(d>0?"+":"−")+Math.abs(d).toLocaleString("es-ES")+" kg");}}}
       const nCont=ls.filter(l=>{const v=cont[l.id];return v!=null&&v!==""&&String(parseInt(v,10))===String(v).trim();}).length;
-      const marca=async()=>{cfg.recuentos=(cfg.recuentos||[]).concat([{f:hoy(),nave:rcNave,donde:rcDonde,n:nCont,de:ls.length,dif:recs.length}]).slice(-200);try{await saveCfg();}catch(e){}};
+      const marca=async()=>{cfg.recuentos=(cfg.recuentos||[]).concat([{f:hoy(),nave:rcNave,donde:rcDonde,n:nCont,de:ls.length,dif:recs.length}]).slice(-200);try{await saveCfg();}catch(e){}if(guia&&guia.sig&&nCont>=ls.length){setTimeout(()=>{cerrar();guia.sig();},500);}};
       if(!recs.length){if(!nCont)return;await marca();toast("Recuento guardado: todo cuadra");Object.keys(cont).forEach(k=>delete cont[k]);gCont="";pinta();return;}
       if(!(await confirmar(rcNave+" · "+(rcDonde==="nave"?"en nave":"almacén externo")+" · "+dmy(hoy())+"\n\n"+txt.join("\n"),{titulo:"Apuntar "+recs.length+" ajuste"+(recs.length===1?"":"s"),ok:"Apuntar"})))return;
       go.disabled=true;
@@ -43,6 +44,7 @@ function abrirRecuento(nv,dn){if(typeof nv==="string")rcNave=nv;if(typeof dn==="
         Object.keys(cont).forEach(k=>delete cont[k]);gCont="";pinta();}
       catch(e){go.disabled=false;toast("No se pudo guardar");}};
     body.appendChild(el("div",{class:"wrap"},[
+      guia?el("div",{class:"banner",style:"margin:0 0 10px",text:"Recuento de cierre · paso "+guia.paso+": cuenta todas las coladas de "+rcNave+" "+(rcDonde==="nave"?"en la nave":"en el almacén externo")+". Cuando estén todas y guardes, pasas al siguiente sitio."}):null,
       el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
         seg(NAVES.map(n=>[n,n]),rcNave,v=>{rcNave=v;Object.keys(cont).forEach(k=>delete cont[k]);pinta();}),
         seg([["nave","En la nave"],["externo","Almacén externo"]],rcDonde,v=>{rcDonde=v;Object.keys(cont).forEach(k=>delete cont[k]);pinta();})])]),

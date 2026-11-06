@@ -66,7 +66,7 @@ function vEntrada(){
       await db.doc("lotes/"+id).set({nombre:col,material:d.mat,nave:d.nave,donde:d.donde,kgInv:0,fardosInv:0,
         albaran:(d.alb||"").trim(),proveedor:d.prov||"",entrada:d.fecha,obs:(d.obs||"").trim(),sinAlb:d.sinAlb?true:null});
       const rec={i:uid("m"),t:"E",f:d.fecha,d:id,kg:nk,fa:nf};if(d.sinAlb)rec.sa=1;if(est)rec.ke=1;
-      if(d.prov)rec.p=d.prov;if((d.alb||"").trim())rec.a=(d.alb||"").trim();if((d.obs||"").trim())rec.n=(d.obs||"").trim();
+      {const kb=numES(d.kb||"");if(kb>0)rec.kb=kb;}if(d.prov)rec.p=d.prov;if((d.alb||"").trim())rec.a=(d.alb||"").trim();if((d.obs||"").trim())rec.n=(d.obs||"").trim();
       if(ft)rec.ft=ft;
       await addMov(rec);toast("Entrada registrada"+(d.sinAlb?" sin albarán":"")+(ft?" con foto":"")+": "+fmt(nk)+" kg"+(est?" estimados":""));
       if(d.plan){try{await marcarPlan(d.plan,{l:id,f:d.fecha,k:key(d.nave,d.mat)});toast("Entrada registrada y camión del plan marcado como recibido");}catch(e){toast("Entrada registrada, pero no se pudo marcar el camión del plan");}}
@@ -86,6 +86,7 @@ function vEntrada(){
     el("label",{text:"Dónde se descarga"},[el("div",{class:"seg"},[["nave","En la nave"],["externo","Almacén externo"]].map(([v,t])=>el("button",{type:"button","aria-pressed":String(d.donde===v),text:t,onclick:()=>{d.donde=v;render();}})))]),
     el("div",{class:"row"},[
       el("label",{text:d.sinAlb?"Kilos (si los sabes)":"Kilos"},[el("input",{id:"e-kg",class:"num",type:"text",inputmode:"decimal",min:"0",step:"any",value:d.kg||"",oninput:e=>{d.kg=e.target.value;vivo();}})]),
+      el("label",{text:"Kilos de báscula (si se ha pesado)"},[el("input",{id:"e-kb",class:"num",type:"text",inputmode:"decimal",value:d.kb||"",placeholder:"opcional",oninput:e=>{d.kb=e.target.value;}})]),
       el("label",{text:"Fardos"},[el("input",{id:"e-fa",class:"num",type:"text",inputmode:"numeric",min:"0",step:"1",value:d.fardos||"",oninput:e=>{d.fardos=e.target.value;vivo();}})]),
       el("label",{text:d.sinAlb?"Día que llegó":"Fecha albarán"},[el("input",{id:"e-f",type:"date",value:d.fecha,onchange:e=>{d.fecha=e.target.value;render();}})])
     ]),
