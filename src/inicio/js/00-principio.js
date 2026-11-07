@@ -65,6 +65,7 @@ function personalizar(){const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.targe
       el("button",{class:"btn",type:"button",text:"Guardar",onclick:async()=>{PREF=P;await guardaPref();ov.remove();pinta0();}})])]);
   ov.appendChild(box);document.body.appendChild(ov);}
 function campanaIni(){if(!window.campana)return;const a=A||{},c=C||{},L=[],AL="almacen.html?t=",SC=!!(window.SOLO_CONSULTA||window.SIN_COLADAS);
+  try{if(MT&&window.MisTrabajos){const V=MisTrabajos.vencidos();if(V.length)L.push({niv:"warn",t:V.length+(V.length===1?" trabajo tuyo para hoy o vencido":" trabajos tuyos para hoy o vencidos"),d:V.slice(0,2).map(x=>x.titulo).join(" · "),fn:()=>MisTrabajos.abrir()});}}catch(e){}
   if(a.bajoMin)L.push({niv:"bad",t:a.bajoMin+(a.bajoMin===1?" artículo bajo mínimo":" artículos bajo mínimo"),d:"Almacén",href:AL+"stock"});
   if(a.pedir&&a.pedir>(a.bajoMin||0))L.push({niv:"warn",t:(a.pedir-(a.bajoMin||0))+" para pedir",d:"Almacén · por debajo del punto de pedido",href:AL+"stock"});
   if(a.bajar)L.push({niv:"warn",t:"Bajar "+a.bajar+(a.bajar===1?" artículo":" artículos")+" a planta",d:"Almacén",href:AL+"repo"});
@@ -78,6 +79,8 @@ function pinta(){pinta0=pinta;GR=[];const v=$("view");v.textContent="";campanaIn
   const hr=new Date().getHours();v.appendChild(el("p",{class:"ini-hola",text:(hr<14?"Buenos días":hr<21?"Buenas tardes":"Buenas noches")}));
   v.appendChild(el("div",{class:"ini-subf"},[el("p",{class:"ini-sub",text:new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})+" · pulsa un mosaico para ir directo"}),
     el("button",{type:"button",class:"btn sec ini-persb",text:"Personalizar",onclick:personalizar})]));
+  /* mis trabajos: tablero privado (solo el administrador; la base de datos solo le deja ver los suyos) */
+  if(window.MisTrabajos&&window.yoAdmin&&window.yoAdmin()){if(!MT)MT=MisTrabajos.resumen();v.appendChild(MT);}
   const a=A||{},c=C||{};const fa=hace(a.ts),fc=hace(c.ts);
   const SC=!!(window.SOLO_CONSULTA||window.SIN_COLADAS);
   if(!A||(!C&&!SC))v.appendChild(el("div",{class:"ini-aviso",text:"Algunos números salen cuando alguien abre "+[!A?"Almacén":null,!C?"Coladas":null].filter(Boolean).join(" y ")+" por primera vez después de este cambio."}));
@@ -116,6 +119,7 @@ function pinta(){pinta0=pinta;GR=[];const v=$("view");v.textContent="";campanaIn
   apG(v,grupo("Otras apps",null,[tile({t:"Limpieza",s:"CIE · trabajos, hornos y horas",n:"Abrir",u:"limpieza.html",niv:"app"}),tE]));
 }
 /* actividad reciente: la tarjeta se hace una vez y se vuelve a poner en cada repintado (se refresca sola) */
+let MT=null;
 let ACT=null;function actIni(v){if(!window.Actividad)return;if(!ACT)ACT=Actividad.caja({ver:10});v.appendChild(ACT);}
 async function arranca(){try{db=await claude.use("db");}catch(e){db=null;}
   try{await cargaPref();}catch(e){}

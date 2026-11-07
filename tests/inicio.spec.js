@@ -81,3 +81,64 @@ test('Actividad reciente: lo último de Coladas y Almacén en palabras, juntando
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+test('Mis trabajos: tablero privado (solo el administrador), añadir, mover de columna y cambiar', async ({ page }) => {
+  const url = montar('inicio.html', 'inicio.html');
+  await page.addInitScript(() => {
+    window.yoAdmin = () => true; window.yoId = () => 'u-cris';
+    const T = window.__mt = [{ id: 't1', titulo: 'Probar las aprobaciones con Bea', col: 'pend', prio: 1, orden: 1, limite: '2026-10-30', app: 'Almacén' },
+      { id: 't2', titulo: 'Kanban de averías', col: 'marcha', prio: 0, orden: 2 }, { id: 't3', titulo: 'Campana', col: 'hecho', prio: 0, orden: 3, hecho_en: '2026-10-29T10:00:00Z' }];
+    let n = 10;
+    const tabla = () => { const st = { op: 'select' }; const o = {
+      select: () => { if (st.op === 'insert') st.ret = true; return o; }, order: () => o,
+      eq: (k, v) => { st.eq = v; return o; },
+      update: p => { st.op = 'update'; st.p = p; return o; }, insert: p => { st.op = 'insert'; st.p = p; return o; }, delete: () => { st.op = 'delete'; return o; },
+      then: (ok, ko) => { let data = null;
+        if (st.op === 'select') data = T.slice();
+        if (st.op === 'update') { Object.assign(T.find(x => x.id === st.eq), st.p); }
+        if (st.op === 'insert') { const x = Object.assign({ id: 'n' + (n++), prio: 0, nota: null, app: null, limite: null }, st.p); T.push(x); data = [x]; }
+        if (st.op === 'delete') { const i = T.findIndex(x => x.id === st.eq); T.splice(i, 1); }
+        return Promise.resolve({ data, error: null }).then(ok, ko); } }; return o; };
+    Object.defineProperty(window, 'sbColada', { configurable: true, get: () => ({ from: t => t === 'mis_tareas' ? tabla() : tabla(), rpc: async () => ({ data: [] }) }), set: () => {} });
+  });
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  const r = page.locator('.card.mt-res');
+  await expect(r).toContainText('solo lo ves tú');
+  await expect(r.locator('.mt-cif').first()).toContainText('1Pendiente');
+  await expect(r.locator('.mt-cif.mal')).toContainText('1para hoy o vencidos');
+  await r.locator('button', { hasText: 'Abrir el tablero' }).click(); await page.waitForTimeout(300);
+  const tb = page.locator('.mt-ov');
+  await expect(tb.locator('.mt-col')).toHaveCount(4);
+  await expect(tb.locator('.mt-col[data-c="pend"] .mt-c')).toContainText('Probar las aprobaciones con Bea');
+  await expect(tb.locator('.mt-col[data-c="pend"] .mt-c')).toContainText('Vencido 30/10');
+  /* añadir en Pendiente */
+  await tb.locator('.mt-col[data-c="pend"] .mt-in').fill('Enlace para compartir informes'); await tb.locator('.mt-col[data-c="pend"] .mt-in').press('Enter'); await page.waitForTimeout(300);
+  await expect(tb.locator('.mt-col[data-c="pend"] .mt-c')).toHaveCount(2);
+  /* pasar a En marcha con › */
+  await tb.locator('.mt-c', { hasText: 'Enlace para compartir' }).locator('button[aria-label="Pasar a En marcha"]').click(); await page.waitForTimeout(300);
+  await expect(tb.locator('.mt-col[data-c="marcha"] .mt-c')).toHaveCount(2);
+  expect(await page.evaluate(() => window.__mt.find(x => x.titulo === 'Enlace para compartir informes').col)).toBe('marcha');
+  /* arrastrar Kanban de averías a Hecho (en el ordenador) */
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(200);
+  await tb.locator('.mt-c', { hasText: 'Kanban de averías' }).dragTo(tb.locator('.mt-col[data-c="hecho"]')); await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__mt.find(x => x.id === 't2').col)).toBe('hecho');
+  /* cambiar uno */
+  await tb.locator('.mt-c', { hasText: 'Probar las aprobaciones' }).locator('.mt-t').click(); await page.waitForTimeout(200);
+  await page.locator('#mtN').fill('Con una salida de 400 €'); await page.locator('#mtP').selectOption('2'); await page.locator('#mtL').fill('2026-11-15');
+  await page.locator('.rgx-pieb button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__mt.find(x => x.id === 't1'))).toMatchObject({ nota: 'Con una salida de 400 €', prio: 2, limite: '2026-11-15' });
+  await expect(tb.locator('.mt-c.urg')).toContainText('Urgente');
+  expect(await desbordes(page)).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200); expect(await desbordes(page)).toEqual([]);
+  if (process.env.CAPT) { await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForTimeout(200); await page.screenshot({ path: process.env.CAPT + '/mt.png' }); }
+  await page.locator('.mt-top button', { hasText: 'Cerrar' }).click();
+  if (process.env.CAPT) { await page.waitForTimeout(300); await page.screenshot({ path: process.env.CAPT + '/ini.png' }); }
+  await expect(page.locator('.card.mt-res .mt-cif').nth(1)).toContainText('1En marcha');
+  expect(err).toEqual([]);
+});
+test('Mis trabajos: no sale a quien no es el administrador', async ({ page }) => {
+  const url = montar('inicio.html', 'inicio.html');
+  await page.addInitScript(() => { window.yoAdmin = () => false; });
+  await page.goto(url); await page.waitForTimeout(700);
+  await expect(page.locator('.card.mt-res')).toHaveCount(0);
+});
