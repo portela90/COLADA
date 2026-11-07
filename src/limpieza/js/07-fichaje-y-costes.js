@@ -71,16 +71,51 @@ function cardCostes(){let per="mes";const box=el("div",null,el("div",{class:"emp
     box.appendChild(el("div",{style:"padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"},[
       el("div",{class:"seg sel"},[["mes","Este mes"],["ant","Mes pasado"],["90","90 días"]].map(([k,t])=>el("button",{"aria-pressed":String(per===k),text:t,onclick:()=>{per=k;carga();}}))),
       el("span",{style:"flex:1"}),el("span",{class:"meta",text:ch?"Mano de obra a "+eur(ch)+"/hora":"Sin precio de la hora"}),
+      el("button",{class:"btn sec peq",text:"Productos de limpieza",onclick:()=>formProductosL(carga)}),el("button",{class:"btn sec peq",text:"Gasto de cada trabajo",onclick:()=>formRecetas(carga)}),
       el("button",{class:"btn sec peq",text:ch?"Cambiar €/hora":"Poner €/hora",onclick:()=>{let v=ch?String(ch):"";dlg("Coste de la hora",el("div",null,[fld("€ por hora de trabajo (con todo incluido)",inp(v,x=>{v=x;},{inputmode:"decimal"})),
         el("p",{class:"hint",text:"Se multiplica por los minutos de cada trabajo y por las personas que lo hacen. Déjalo vacío para no contar la mano de obra."})]),
         [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{await rpc("limp_coste_hora",{p_tok:S.tok,p_v:parseFloat(String(v).replace(",","."))||null});carga();}}]);}})]));
+    if(!R.hay_productos)box.appendChild(el("div",{class:"banner",style:"margin:0 14px 10px",text:"Todavía no hay productos de limpieza. Pulsa «Productos de limpieza» para poner los que compráis (desengrasante, absorbente…) con su precio, y luego «Gasto de cada trabajo»."}));
+    else if(!R.hay_hora)box.appendChild(el("p",{class:"hint",style:"padding:0 14px",text:"Consejo: en «Gasto de cada trabajo» pon también el gasto por hora, para que los trabajos sin gasto propio no salgan con productos a 0."}));
     if(!F.length){box.appendChild(el("div",{class:"empty",text:"No hay trabajos hechos en este periodo."}));return;}
     const T=F.reduce((s,x)=>({n:s.n+x.n,min:s.min+x.min,mo:s.mo+(x.eur_mo||0),pr:s.pr+x.eur_prod,tot:s.tot+x.total}),{n:0,min:0,mo:0,pr:0,tot:0});
-    box.appendChild(el("div",{class:"tw"},el("table",{class:"tabla"},[el("thead",null,el("tr",null,["Máquina o zona","Trabajos","Tiempo","Mano de obra","Productos","Total"].map(t=>el("th",{text:t})))),
+    box.appendChild(el("div",{class:"tw"},el("table",{class:"tabla"},[el("thead",null,el("tr",null,["Máquina o zona","Trabajos","Tiempo","Mano de obra","Productos de limpieza","Total"].map(t=>el("th",{text:t})))),
       el("tbody",null,F.slice(0,60).map(x=>el("tr",null,[el("td",{text:x.nombre+(x.clave!==x.nombre?" ("+x.clave+")":"")}),el("td",{text:String(x.n)+(x.n_est?" ("+x.n_est+" sin hora)":"")}),el("td",{text:hmin(x.min)}),
-        el("td",{text:eur(x.eur_mo)}),el("td",{text:eur(x.eur_prod)+(x.sin_precio?" *":"")}),el("td",{text:eur(x.total)})]))
+        el("td",{text:eur(x.eur_mo)}),el("td",{text:eur(x.eur_prod)+(x.n_receta&&x.n_receta<x.n?" ("+x.n_receta+" con gasto propio)":"")}),el("td",{text:eur(x.total)})]))
         .concat([el("tr",null,[el("td",{text:"Total"}),el("td",{text:String(T.n)}),el("td",{text:hmin(T.min)}),el("td",{text:ch?eur(T.mo):"—"}),el("td",{text:eur(T.pr)}),el("td",{text:eur(T.tot)})])]))])));
-    box.appendChild(el("p",{class:"hint",style:"padding:0 14px 12px",text:"Tiempo: de «Empezar» a «Terminar» quitando las pausas, por cada persona del trabajo (si no se empezó, el estimado). * algún producto sin precio en el almacén."}));};
+    box.appendChild(el("p",{class:"hint",style:"padding:0 14px 12px",text:"Tiempo: de «Empezar» a «Terminar» quitando las pausas, por cada persona del trabajo (si no se empezó, el estimado). Productos de limpieza: lo que gasta cada trabajo o máquina; si no tiene, el gasto por hora. No cuenta lo que se repone o se cambia (Pistonwax, aceites, taladrinas, recambios de horno): eso es material de la empresa."}));};
   carga();return card;}
 {const _vR=vResumen;vResumen=async function(v){await _vR(v);try{v.appendChild(cardCostes());}catch(e){}};
  const _vE=vEquipo;vEquipo=async function(v){await _vE(v);try{v.appendChild(cardJornada());}catch(e){}};}
+
+/* lista de productos de limpieza con su precio (se compran aparte, no están en Almacén) */
+async function formProductosL(re){let O;try{O=await rpc("limp_costes_opciones",{p_tok:S.tok});}catch(e){toast(e.message);return;}
+  const L=(O.productos||[]).map(p=>Object.assign({},p));const box=el("div",{style:"display:grid;gap:8px"});
+  const pinta=()=>{box.textContent="";L.forEach(p=>box.appendChild(el("div",{class:"prod-l"+(p.activo===false?" off":"")},[
+      inp(p.nombre,v=>{p.nombre=v;p.mod=true;},{placeholder:"Producto (p. ej. Desengrasante)","aria-label":"Producto"}),
+      inp(p.ud,v=>{p.ud=v;p.mod=true;},{placeholder:"l, kg, ud…","aria-label":"Unidad",style:"max-width:80px"}),
+      inp(p.precio==null?"":String(p.precio).replace(".",","),v=>{p.precio=parseFloat(String(v).replace(",","."))||0;p.mod=true;},{inputmode:"decimal",placeholder:"€","aria-label":"Precio por unidad",style:"max-width:90px"}),
+      p.id?el("button",{class:"btn txt peq",text:p.activo===false?"Volver a usar":"Dejar de usar",onclick:()=>{p.activo=p.activo===false;p.mod=true;pinta();}}):el("span")])));
+    box.appendChild(el("button",{class:"btn sec peq",style:"justify-self:start",text:"＋ Otro producto",onclick:()=>{L.push({id:null,nombre:"",ud:"l",precio:0,activo:true,mod:true});pinta();}}));};
+  if(!L.length)L.push({id:null,nombre:"Desengrasante",ud:"l",precio:0,activo:true,mod:true});pinta();
+  dlg("Productos de limpieza",el("div",null,[el("p",{class:"hint",text:"Los que compráis para limpiar, con el precio por unidad (por litro, por kilo, por unidad…)."}),box]),
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{for(const p of L.filter(x=>x.mod&&(x.nombre||"").trim()))await rpc("limp_producto_guardar",{p_tok:S.tok,p_id:p.id,p_nombre:p.nombre,p_ud:p.ud,p_precio:p.precio,p_activo:p.activo!==false});toast("Productos guardados");re&&re();}}]);}
+/* lo que gasta normalmente cada trabajo o máquina, y el gasto por hora para el resto */
+async function formRecetas(re){let O;try{O=await rpc("limp_costes_opciones",{p_tok:S.tok});}catch(e){toast(e.message);return;}
+  const P=(O.productos||[]).filter(p=>p.activo!==false);if(!P.length){toast("Primero pon los productos de limpieza");return formProductosL(re);}
+  const AMB=[["hora","Gasto por hora (trabajos sin gasto propio)",[]],["elemento","Una máquina u horno",O.elementos||[]],["habitual","Un trabajo habitual",O.habituales||[]],["fija","Una tarea fija",O.fijas||[]]];
+  const st={amb:"hora",ref:""};const box=el("div",{style:"display:grid;gap:10px"});
+  const items=()=>(O.receta||[]).filter(r=>r.ambito===st.amb&&(st.amb==="hora"?!r.ref:r.ref===st.ref)).map(r=>({producto:r.producto,cant:r.cant}));
+  let cur=items();
+  const pinta=()=>{box.textContent="";const A=AMB.find(a=>a[0]===st.amb);
+    const sA=el("select",null,AMB.map(([k,t])=>el("option",{value:k,text:t})));sA.value=st.amb;sA.onchange=()=>{st.amb=sA.value;st.ref="";cur=items();pinta();};box.appendChild(fld("¿Para qué?",sA));
+    if(st.amb!=="hora"){const conG=new Set((O.receta||[]).filter(r=>r.ambito===st.amb).map(r=>r.ref));
+      const sR=el("select",null,[el("option",{value:"",text:"Elige…"})].concat(A[2].map(x=>el("option",{value:x.id,text:(conG.has(x.id)?"● ":"")+x.nombre}))));sR.value=st.ref;sR.onchange=()=>{st.ref=sR.value;cur=items();pinta();};box.appendChild(fld("Cuál (● ya tiene gasto puesto)",sR));
+      if(!st.ref)return;}
+    box.appendChild(el("p",{class:"hint",style:"margin:0",text:st.amb==="hora"?"Lo que se gasta por cada hora de limpieza. Se usa en los trabajos que no tienen su propio gasto.":"Lo que se gasta normalmente cada vez que se hace."}));
+    cur.forEach((it,i)=>{const sP=el("select",null,P.map(p=>el("option",{value:p.id,text:p.nombre+" ("+p.ud+")"})));sP.value=it.producto;sP.onchange=()=>{it.producto=sP.value;};
+      box.appendChild(el("div",{class:"prod-l"},[sP,inp(String(it.cant).replace(".",","),v=>{it.cant=parseFloat(String(v).replace(",","."))||0;},{inputmode:"decimal","aria-label":"Cantidad",style:"max-width:90px"}),el("button",{class:"btn txt peq",text:"Quitar",onclick:()=>{cur.splice(i,1);pinta();}})]));});
+    box.appendChild(el("button",{class:"btn sec peq",style:"justify-self:start",text:"＋ Producto",onclick:()=>{cur.push({producto:P[0].id,cant:1});pinta();}}));};
+  pinta();
+  dlg("Gasto de cada trabajo",box,[{t:"Cerrar",cls:"sec"},{t:"Guardar",fn:async()=>{if(st.amb!=="hora"&&!st.ref)throw new Error("Elige cuál");
+    await rpc("limp_receta_guardar",{p_tok:S.tok,p_ambito:st.amb,p_ref:st.amb==="hora"?null:st.ref,p_items:cur.filter(x=>x.cant>0)});toast("Guardado");re&&re();}}]);}

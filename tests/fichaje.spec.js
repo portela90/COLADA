@@ -22,14 +22,19 @@ test('operario: ficha la entrada arriba del Día y ve sus fichajes', async ({ pa
 });
 test('jefe: registro de jornada en Equipo (con correcciones marcadas) y coste de cada trabajo en Resumen', async ({ page }) => {
   R.fichaje_hoy = Object.assign({}, F0, { activo: false }); R.fichajes_mes = MES;
-  R.limp_costes = { coste_hora: 18, filas: [{ clave: 'F25', nombre: 'Inyectora F25', n: 12, min: 600, n_est: 1, eur_mo: 180, eur_prod: 42.5, sin_precio: false, total: 222.5 }] };
+  R.limp_costes = { coste_hora: 18, hay_productos: true, hay_hora: true, filas: [{ clave: 'F25', nombre: 'Inyectora F25', n: 12, min: 600, n_est: 1, n_receta: 4, eur_mo: 180, eur_prod: 42.5, total: 222.5 }] };
+  R.limp_costes_opciones = { productos: [{ id: 'p1', nombre: 'Desengrasante', ud: 'l', precio: 3.2, activo: true }], receta: [], elementos: [{ id: 'e1', nombre: 'F25 · Inyectora F25' }], habituales: [], fijas: [], coste_hora: 18 };
   await page.setViewportSize({ width: 1280, height: 900 });
-  const { err } = await abre(page, ADMIN);
+  const { err, llamadas } = await abre(page, ADMIN);
   await page.evaluate(() => [...document.querySelectorAll('#nav button')].find(b => b.textContent.includes('Equipo')).click()); await page.waitForTimeout(1200);
   const j = page.locator('.card', { hasText: 'Registro de jornada' }); await expect(j).toContainText('Abdoul kader Maiga'); await expect(j).toContainText('Apagar fichaje');
   await j.locator('summary').first().click(); await expect(j).toContainText('14:10*'); await expect(j).toContainText('1 anulado');
   await page.evaluate(() => [...document.querySelectorAll('#nav button')].find(b => b.textContent.includes('Resumen')).click()); await page.waitForTimeout(1500);
-  const k = page.locator('.card', { hasText: 'Coste de cada trabajo' }); await expect(k).toContainText('Inyectora F25'); await expect(k).toContainText('222,5 €'); await expect(k).toContainText('18 €/hora');
+  const k = page.locator('.card', { hasText: 'Coste de cada trabajo' }); await expect(k).toContainText('Inyectora F25'); await expect(k).toContainText('222,5 €'); await expect(k).toContainText('18 €/hora'); await expect(k).toContainText('Productos de limpieza'); await expect(k).toContainText('4 con gasto propio');
+  await k.locator('button', { hasText: 'Gasto de cada trabajo' }).click(); await page.waitForTimeout(400);
+  const d = page.locator('.dlg', { hasText: 'Gasto de cada trabajo' }); await d.locator('button', { hasText: '＋ Producto' }).click();
+  await d.locator('.prod-l input').fill('0,2'); await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
+  const g = llamadas.find(x => x[0] === 'limp_receta_guardar')[1]; expect(g.p_ambito).toBe('hora'); expect(g.p_items).toEqual([{ producto: 'p1', cant: 0.2 }]);
   expect(err).toEqual([]);
-  delete R.fichaje_hoy; delete R.fichajes_mes; delete R.limp_costes;
+  delete R.fichaje_hoy; delete R.fichajes_mes; delete R.limp_costes; delete R.limp_costes_opciones;
 });

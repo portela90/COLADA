@@ -145,3 +145,4 @@ input::placeholder,textarea::placeholder{color:var(--mut);opacity:1}
 .fich-trab summary{cursor:pointer;padding:2px 0}
 .fich-trab .tw{margin-top:8px}
 .card .seg.sel button{white-space:nowrap}
+.prod-l{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.prod-l input,.prod-l select{flex:1 1 140px;min-width:0}.prod-l.off input{opacity:.5}
