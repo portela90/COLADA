@@ -810,25 +810,24 @@ test('Cierre: recuento de cierre guiado, un sitio detrás de otro', async ({ pag
   expect(err).toEqual([]);
 });
 
-test('Consultas: pestañas por meses llevan todo a ese mes (movimientos, detalle y cierre)', async ({ page }) => {
+test('Consultas: al tocar un mes se abre su ficha completa (camiones, consumo, ajustes, coladas) y Todo vuelve al panel', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
-  const tabs = page.locator('.meses-tabs .mes-tab');
-  await expect(tabs.first()).toHaveText('Todo');
-  await page.locator('.mes-tab', { hasText: 'Octubre 2026' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.meses-tabs .mes-tab').first()).toHaveText('Todo');
+  await page.locator('.mes-tab', { hasText: 'Octubre 2026' }).click(); await page.waitForTimeout(500);
   await expect(page.locator('.mes-tab', { hasText: 'Octubre 2026' })).toHaveAttribute('aria-selected', 'true');
-  await page.locator('.stk-t', { hasText: 'Movimientos' }).first().click(); await page.waitForTimeout(400);
-  await expect(page.locator('#f-d')).toHaveValue('2026-10-01');
-  await expect(page.locator('#f-h')).toHaveValue('2026-10-31');
-  await expect(page.locator('.meses-tabs')).toBeVisible(); // sigue arriba con la ventana abierta
-  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
-  await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(400);
-  await expect(page.locator('#c-m')).toHaveValue('2026-10');
-  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
-  await page.locator('.mes-tab', { hasText: 'Todo' }).click(); await page.waitForTimeout(300);
-  await page.locator('.stk-t', { hasText: 'Movimientos' }).first().click(); await page.waitForTimeout(300);
-  await expect(page.locator('#f-d')).toHaveValue('');
+  const f = page.locator('.mes-aud');
+  await expect(f).toContainText('Resumen de octubre 2026');
+  await expect(f).toContainText('Camiones que entraron');
+  await expect(f).toContainText('Consumo por día y relevo');
+  await expect(f).toContainText('Ajustes de recuento');
+  await expect(f).toContainText('Coladas al final del mes');
+  await expect(f.locator('table').first()).toContainText('Nave 1');
+  await expect(page.locator('#mes-xlsx')).toBeVisible();
   expect(await desbordes(page)).toEqual([]);
+  await page.locator('.mes-tab', { hasText: 'Todo' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.mes-aud')).toHaveCount(0);
+  await expect(page.locator('.stk-t', { hasText: 'Cierre de mes' }).first()).toBeVisible();
   expect(err).toEqual([]);
 });
