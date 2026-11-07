@@ -240,3 +240,12 @@ body>header .campana~.who{order:0}
   #app>header .chips2 .chip2{white-space:nowrap}
   #app>header .lupa span{display:none}
 }
+
+/* ===================== Botón «Excel» encima de cada tabla ===================== */
+.xl-bar{display:flex;justify-content:flex-end;margin:0 0 6px}
+.xl-b{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surf);color:var(--sd,var(--acc));font:600 13px Inter,system-ui,sans-serif;
+  padding:5px 10px;border-radius:8px;cursor:pointer;min-height:32px}
+.xl-b:hover{background:var(--ss,var(--surf2));border-color:var(--sc,var(--acc))}
+.xl-b:disabled{opacity:.6;cursor:wait}
+.card>.xl-bar,.card .bd>.xl-bar{padding:0 14px}
+.card>.bd>.xl-bar,.card .bd .xl-bar{padding:0}
