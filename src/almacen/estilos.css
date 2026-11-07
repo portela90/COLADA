@@ -304,3 +304,15 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .pre-ed-i input{width:110px;text-align:right}
 .pre-ed{padding:8px 0;border-bottom:1px solid var(--line2)}
 .pre-ed:last-child{border-bottom:0}
+/* notas y archivos en las fichas */
+.fn-form{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--surf2)}
+.fn-form textarea{width:100%;min-height:72px;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink);resize:vertical}
+.fn-acc{display:flex;gap:10px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.fn-acc .btn{margin:0}
+.fn-adj{display:flex;gap:10px;flex-wrap:wrap}
+.fn-lst{display:flex;flex-direction:column;gap:0}
+.fn-it{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--line2)}
+.fn-it:first-child{border-top:0}
+.fn-hd{display:flex;align-items:center;gap:10px}
+.fn-av{width:30px;height:30px;border-radius:50%;background:var(--sc,var(--acc));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.fn-tx{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.45}

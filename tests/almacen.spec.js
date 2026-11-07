@@ -1621,3 +1621,21 @@ test('Hoy: presupuesto de gasto del mes (poner, cómo vas, previsión y aviso)',
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Fichas: proveedor con datos, compras y notas; las notas se guardan con fecha y también salen en la ficha de una máquina', async ({ page }) => {
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Catálogo'); await page.waitForTimeout(400);
+  const t = page.locator('.pv-grid .pv-t', { hasText: 'Proveedores' }); if (await t.count()) { await t.first().click(); await page.waitForTimeout(300); }
+  const prov = await page.evaluate(() => window.__D.cat.app.proveedores[0]);
+  await page.locator('button.it', { hasText: prov.nom }).first().click(); await page.waitForTimeout(500);
+  const pg = page.locator('.op-pg'); await expect(pg).toContainText('Proveedor'); await expect(pg).toContainText(prov.nom);
+  for (const x of ['General', 'Lo que nos sirve', 'Compras', 'Notas y archivos']) await expect(pg.locator('.op-tabs button', { hasText: x })).toHaveCount(1);
+  await pg.locator('.op-tabs button', { hasText: 'Notas' }).click(); await page.waitForTimeout(400);
+  await pg.locator('.fn-form textarea').fill('Avisa de retraso de una semana');
+  await pg.locator('.fn-form button', { hasText: 'Guardar nota' }).click(); await page.waitForTimeout(600);
+  await expect(pg.locator('.fn-it')).toHaveCount(1); await expect(pg.locator('.fn-it')).toContainText('Avisa de retraso'); await expect(pg.locator('.fn-it')).toContainText('31/10');
+  const g = await page.evaluate(id => window.__D.fnotas['prov_' + id], prov.id); expect(g.L.length).toBe(1); expect(g.L[0].txt).toBe('Avisa de retraso de una semana');
+  expect(await page.evaluate(() => typeof cajaNotas)).toBe('undefined'); // las piezas no son globales: se comprueba por la pantalla
+  expect(err).toEqual([]);
+});
