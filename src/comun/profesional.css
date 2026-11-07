@@ -1,24 +1,55 @@
-/* ===== Estilo profesional común (Coladas, Almacén, Inicio, Limpieza, Calendario, Encargado) =====
-   Va el último: esquinas casi rectas, pestañas con subrayado en lugar de píldoras, sin mayúsculas forzadas,
-   etiquetas de estado sobrias. Solo cambia el aspecto; no toca cómo funciona nada. */
-:root{--r:6px}
-.card,.dlg,.ficha-ov .card{border-radius:6px}
-.card{box-shadow:none}
-.btn,.btn.peq,button.btn{border-radius:4px}
-input,select,textarea{border-radius:4px}
-.pill{border-radius:3px;letter-spacing:0;text-transform:none;font-weight:600}
-.chip{border-radius:4px;text-transform:none;letter-spacing:0}
-/* selector de opciones: botones unidos en una barra */
-.seg{gap:0!important}
-.seg>button{border-radius:0!important;margin:0 0 0 -1px!important;box-shadow:none}
-.seg>button:first-child{border-radius:4px 0 0 4px!important;margin-left:0!important}
-.seg>button:last-child{border-radius:0 4px 4px 0!important}
-.seg>button:only-child{border-radius:4px!important}
-.seg>button[aria-pressed="true"]{position:relative;z-index:1}
-/* mosaicos del panel: menos redondeo y sin sombra */
-.stk-t{border-radius:6px;box-shadow:none}
-.stk-t-t{text-transform:none;letter-spacing:0}
-/* ordenador: la fila de ventanas del panel como pestañas con subrayado */
+/* ===== Estilo común tipo programa de gestión (Coladas, Almacén, Inicio, Limpieza, Calendario, Encargado) =====
+   Va el último. Solo cambia el aspecto, no toca cómo funciona nada:
+   - colores claros y limpios, azul para lo normal; rojo y naranja solo para avisos
+   - en el ordenador, menú lateral azul marino oscuro con el apartado elegido en azul
+   - tarjetas blancas con borde fino y esquinas suaves, cifras grandes
+   - selectores de opciones como interruptor (fondo gris y la opción elegida en blanco)
+   El modo oscuro se queda con sus colores (las reglas oscuras de cada app mandan sobre estas). */
+
+/* ---------- colores (modo claro) ---------- */
+:root{--bg:#F4F6FA;--surf:#FFFFFF;--surf2:#F7F9FC;--line:#E3E8F0;--line2:#EDF1F6;--ink:#111827;--ink2:#4B5563;--mut:#6B7280;
+  --acc:#2563EB;--acc2:#2563EB;--accb:#2563EB;--acc-ink:#FFFFFF;--acc-soft:#EAF1FE;--btnb:#D5DCE6;
+  --ok:#047857;--ok-bg:#E7F6EF;--okbg:#E7F6EF;--warn:#B45309;--warn-bg:#FEF3C7;--warnbg:#FEF3C7;--bad:#B91C1C;--bad-bg:#FDECEC;--badbg:#FDECEC;
+  --info:#2563EB;--info-bg:#EAF1FE;--infobg:#EAF1FE;
+  --shadow:0 1px 2px rgba(17,26,46,.05);--sh:0 1px 2px rgba(17,26,46,.05);--r:12px;
+  --nav-bg:#111A2E;--nav-ink:#C7D0E0;--nav-mut:#6B7790;--nav-hov:#1E2A44}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif!important}
+.num,input.num,select.num,.rc-dif{font-family:inherit!important;font-variant-numeric:tabular-nums}
+
+/* ---------- cabecera ---------- */
+#app>header,body>header{background:var(--surf)!important;color:var(--ink)!important;box-shadow:none!important;border-bottom:1px solid var(--line)!important}
+#app>header h1,body>header h1{font-weight:700;letter-spacing:-.01em}
+body>header a{color:var(--acc)}
+
+/* ---------- tarjetas, ventanas y mosaicos ---------- */
+.card,.dlg,.ficha-ov .card{border-radius:12px;border-color:var(--line)}
+.card{box-shadow:var(--shadow)}
+.card>.hd h2,.card .hd h2{font-weight:600;letter-spacing:0}
+.stk-t{border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--line);border-left-width:1px;padding:16px 18px;gap:8px;transition:border-color .12s,box-shadow .12s}
+.stk-t:hover{border-color:#C9D4E3;box-shadow:0 4px 14px rgba(17,26,46,.07)}
+.stk-t-t{text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink2)}
+/* el mosaico con aviso conserva su marca de color a la izquierda */
+.stk-t.s-bad,.stk-t.s-warn{border-left-width:4px}
+.stk-t:not(.mini) .stk-t-big b{font-size:28px;font-weight:700;letter-spacing:-.01em}
+.banner{border-radius:10px}
+
+/* ---------- botones, campos y etiquetas ---------- */
+.btn,.btn.peq,button.btn{border-radius:8px;font-weight:600}
+input,select,textarea{border-radius:8px}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(37,99,235,.25);outline-offset:0;border-color:var(--acc)}
+.pill{border-radius:6px;letter-spacing:0;text-transform:none;font-weight:600}
+.chip{border-radius:8px;text-transform:none;letter-spacing:0}
+
+/* ---------- selector de opciones: interruptor gris con la opción elegida en blanco ---------- */
+.seg{gap:4px!important;background:#EEF2F7;padding:4px;border-radius:10px}
+.seg>button{border:0!important;border-radius:7px!important;margin:0!important;background:transparent!important;color:var(--mut)!important;box-shadow:none!important;font-weight:500}
+.seg>button:hover{color:var(--ink)!important}
+.seg>button[aria-pressed="true"],.seg>button[aria-selected="true"]{background:#FFFFFF!important;color:var(--ink)!important;font-weight:600;box-shadow:0 1px 3px rgba(17,26,46,.12)!important}
+/* las barras de botones de acción (no de elegir) siguen siendo botones normales */
+.seg>button.btn{background:var(--acc)!important;color:var(--acc-ink)!important}
+.seg:has(>button.btn:only-child){background:none;padding:0}
+
+/* ---------- pestañas: subrayado azul ---------- */
 @media (min-width:900px){
   .stk-side{gap:0 2px!important;border-bottom:1px solid var(--line);padding-bottom:0;margin-bottom:6px;align-items:flex-end!important}
   .stk-side .stk-t.mini{background:none!important;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;box-shadow:none!important;padding:9px 12px!important;margin-bottom:-1px}
@@ -29,8 +60,35 @@ input,select,textarea{border-radius:4px}
   .stk-side .stk-t.mini .dot{display:none}
   .stk-side .stk-volver{padding:9px 12px 9px 0!important}
 }
-/* pestañas de meses */
 .meses-tabs{gap:0!important;border-bottom:1px solid var(--line);padding:0!important;margin-bottom:8px}
 .mes-tab{background:none!important;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;padding:9px 14px!important;color:var(--mut)!important;font-weight:500!important;margin-bottom:-1px}
 .mes-tab:hover{color:var(--ink)!important}
 .mes-tab[aria-selected="true"]{border-bottom-color:var(--acc)!important;color:var(--acc)!important;font-weight:600!important}
+
+/* ---------- móvil y tablet: barra de abajo blanca con el apartado elegido en azul ---------- */
+nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(--acc)}
+
+/* ---------- ordenador: menú lateral azul marino ---------- */
+@media (min-width:1200px){
+  /* Coladas y Almacén: el menú ocupa todo el alto y la cabecera va a su derecha */
+  #app:has(>nav#tabs){grid-template-rows:auto minmax(0,1fr)}
+  #app>nav#tabs{grid-row:1/-1!important;grid-column:1;background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;gap:3px!important}
+  #app>nav#tabs::before{content:"MAPRI";display:flex;align-items:center;gap:10px;min-height:60px;padding:0 8px;margin-bottom:8px;color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em;
+    border-bottom:1px solid rgba(255,255,255,.08)}
+  #app>header{grid-column:2!important;grid-row:1}
+  #app>nav#tabs button{color:var(--nav-ink)!important;border-radius:8px!important;box-shadow:none!important;font-weight:500}
+  #app>nav#tabs button:hover{background:var(--nav-hov)!important;color:#fff!important}
+  #app>nav#tabs button[aria-selected="true"]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
+  /* Limpieza: el menú del jefe, de arriba abajo, con la cabecera a su derecha */
+  #nav{background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;z-index:21!important;gap:3px!important}
+  #nav::before{content:"CIE";display:flex;align-items:center;min-height:52px;padding:0 8px;margin-bottom:8px;color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em;
+    border-bottom:1px solid rgba(255,255,255,.08);flex:none}
+  body:has(#nav:not([hidden]))>header{padding-left:244px!important}
+  #nav button{color:var(--nav-ink)!important;background:none;box-shadow:none!important;font-weight:500}
+  #nav button:hover{background:var(--nav-hov)!important;color:#fff!important}
+  #nav button[aria-selected=true]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
+}
+
+/* Inicio: cifras de los mosaicos en negrita */
+.ini-t{border-radius:12px}
+.ini-t .tn{font-weight:700!important;font-size:32px!important;letter-spacing:-.01em}
