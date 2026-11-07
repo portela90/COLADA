@@ -145,11 +145,20 @@ function render(){
     if(s0!=null){try{n.setSelectionRange(s0,s1);}catch(e){}}}}
 }
 /* números clave para la página Inicio (inicio.html): se guardan solo si cambian, como mucho cada 20 s */
+/* periodos para comparar: este mes hasta hoy, el mes pasado hasta el mismo día y los últimos 6 meses */
+function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
+  const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
+  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
 let _kpiT=null,_kpiU="";
 function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{const R=bloques();const nv={};
   Object.values(R.B).forEach(b=>{const x=nv[b.nave]=nv[b.nave]||{kg:0,fa:0,kgN:0,kgE:0,cUd:0};x.kg+=b.kg;x.fa+=b.fa;x.kgN+=b.kgN;x.kgE+=b.kgE;x.cUd+=b.cUd;});
   Object.values(nv).forEach(x=>{for(const k in x)x[k]=Math.round(x[k]);});
   const k={sinAlb:sinAlbaran().length,naves:nv,kg:Object.values(nv).reduce((t,x)=>t+x.kg,0),fa:Object.values(nv).reduce((t,x)=>t+x.fa,0),ud:R.ud||null};
+  /* consumo y entradas: este mes hasta hoy, el mes pasado hasta el mismo día y los últimos 6 meses */
+  try{const PC=perCmp(hoy()),S=saldos(),M=todosMovs().filter(r=>!r.h&&(r.t==="C"||r.t==="E")),
+      sK=(t,d,h2)=>Math.round(M.filter(r=>r.t===t&&r.f>=d&&r.f<=h2).reduce((s,r)=>s+Math.abs(kgAp(r,S)||0),0));
+    Object.assign(k,{conMes:sK("C",PC.d1,PC.h),conAnt:sK("C",PC.a1,PC.ah),conSerie:PC.meses.map(m=>sK("C",m+"-01",m+"-31")),
+      entMes:sK("E",PC.d1,PC.h),entAnt:sK("E",PC.a1,PC.ah),entSerie:PC.meses.map(m=>sK("E",m+"-01",m+"-31"))});}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function pinta(){
   const v=$("view");v.textContent="";v.classList.toggle("estrecha",tab==="consumo"||tab==="entrada"||tab==="precios");

@@ -12,6 +12,8 @@ function tileGen(x,compact,activo,onclick){
   return el("button",{type:"button",class:"stk-t s-"+(x.st||"na")+(compact?" mini":"")+(activo?" on":""),onclick,"aria-label":x.t},[
     el("div",{class:"stk-t-hd"},[x.dot?el("span",{class:"dot",style:"background:"+x.dot}):null,el("span",{class:"stk-t-t",text:x.t}),x.pill&&!compact?el("span",{class:"pill "+(x.st==="na"?"na":x.st),text:x.pill}):null]),
     x.big?el("div",{class:"stk-t-big"},[el("b",{class:"num",text:x.big}),x.u?el("span",{text:" "+x.u}):null]):null,
+    x.cmp&&!compact?el("div",{class:"stk-t-cmp",title:x.cmp.title||null},[el("b",{text:x.cmp.txt}),el("span",{text:" "+(x.cmp.sub||"")})]):null,
+    x.spark&&!compact?x.spark:null,
     x.sub?el("div",{class:"stk-t-sub",text:x.sub}):null]);}
 /* tiles: [{v,t,sub,big,u,st,pill,dot,nodes:()=>[...]}] · arriba: nodos fijos que van siempre encima */
 function panelGen(sec,tiles,arriba){const cur=PANV[sec],T=tiles.find(x=>x.v===cur);arriba=(arriba||[]).filter(Boolean);

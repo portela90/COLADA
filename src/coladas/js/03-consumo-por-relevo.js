@@ -92,7 +92,7 @@ function vConsumo(){
   const ult=todosMovs().filter(r=>r.t==="C"&&!r.h&&r.f&&r.u).sort((a,b)=>(a.f+TURNOS.indexOf(a.u)).localeCompare(b.f+TURNOS.indexOf(b.u))).pop();
   const RS=typeof coladasConResto==="function"?coladasConResto():[];
   const rd=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null,SS=saldos(),nT=NAVES.filter(n=>LINEAS.some(([a,m])=>a===n&&fifoLista(a,m,SS).length)).length||1,nH2=NAVES.filter(n=>rdHoyN(n)).length,rdHoy=nH2>0;
-  const tiles=[
+  const tiles=[tileConsumoMes(),
     {v:"rdiario",t:"Recuento diario",big:rdHoy?(nH2>=nT?"Hecho":nH2+" de "+nT):"",st:rdHoy?(nH2>=nT?"ok":"warn"):"na",pill:rdHoy?(nH2>=nT?"Hoy":"Falta una nave"):"",sub:(rd?"último: "+dmy(rd.f)+" "+(rd.hora||""):"fardos de las hojas + lo que cuentas")+" · parte para compras",nodes:()=>vRecuentoDiario()},
     {v:"relevo",t:"Por relevo",sub:"Total de fardos de cada línea, reparto por FIFO"+(ult?" · último: "+dmy(ult.f)+" "+ult.u.toLowerCase():""),nodes:()=>{consModo="relevo";return vRelevo();}},
     {v:"kilos",t:"Por kilos",sub:"Los kilos de cada fardo, copiados de la hoja del hornero",nodes:()=>{consModo="kilos";return vKilos();}},
@@ -102,7 +102,7 @@ function vConsumo(){
   {const H=hornCfg(),ids=TURNOS.map(u=>NAVES.map(n=>quienEn(hoy(),n,u).length)).flat().filter(Boolean).length;
    tiles.push({v:"horn",t:"Horneros",big:H.lista.length?String(H.lista.length):"",u:H.lista.length?"horneros":"",st:H.lista.length&&!ids?"warn":"na",sub:H.lista.length?(ids?"quién está en cada relevo esta semana":"falta poner los de esta semana"):"quién está en cada relevo (para Consultas)",nodes:()=>vHorneros()});}
   if(RS.length)tiles.push({v:"restos",t:"Diferencias de peso",big:String(RS.length),u:RS.length===1?"colada":"coladas",st:"warn",sub:"acabadas con kilos de más o de menos",nodes:()=>[cardRestos()]});
-  return panelGen("consumo",tiles);
+  return panelGen("consumo",tiles.filter(Boolean));
 }
 function vConsumo0(){
   if(consModo==="relevo")return [modoConsumo()].concat(vRelevo());

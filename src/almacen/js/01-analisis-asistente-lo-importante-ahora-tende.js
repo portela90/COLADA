@@ -87,6 +87,10 @@ async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite de
   await downloads.save({filename:(p.titulo||"Consulta").replace(/[\\/:*?"<>|«»]/g,"").slice(0,60)+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}catch(e){toast("No se pudo crear el Excel");}btn.disabled=false;}
 
 /* números clave para la página Inicio (inicio.html): se guardan solo si cambian, como mucho cada 20 s */
+/* periodos para comparar: este mes hasta hoy, el mes pasado hasta el mismo día y los últimos 6 meses */
+function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
+  const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
+  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
 let _kpiT=null,_kpiU="";
 function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{
   let bajar=0,uds=0;lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org){bajar++;uds+=f.falta;}}));
@@ -96,6 +100,11 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
   const mes=hoy().slice(0,7),pm=todosPist().filter(p=>p.f.startsWith(mes)).reduce((t,p)=>t+(+p.cant||1),0);
   const E=puEstado();const k={bajar,uds,pedir:bad+warn,bajoMin:bad,pedidos:ped,ejesTot:ejes.filter(e=>e.estado!=="baja").length,prep:ejes.filter(e=>e.estado==="preparado").length,ejesPlanta:pl,ejesTaller:tall,cuarentena:ejePend().length,
     pistMes:pm,usadosZona:E?E.tot.Z:null,urgeRecup:E?puUrge(E).length:0,iny:(cat.maquinas||[]).length};
+  /* comparativa con el mes pasado (hasta el mismo día) y los últimos 6 meses, para las flechas y gráficas de Inicio */
+  try{const PC=perCmp(hoy()),sP=(d,h2)=>todosPist().filter(p=>p.f>=d&&p.f<=h2).reduce((t,p)=>t+(+p.cant||1),0);
+    k.pistAnt=sP(PC.a1,PC.ah);k.pistSerie=PC.meses.map(m=>sP(m+"-01",m+"-31"));}catch(e){}
+  try{const PC=perCmp(hoy()),EV=evTodo(),sE=(d,h2)=>Math.round(EV.filter(e=>e.f>=d&&e.f<=h2).reduce((t,e)=>t+(e.eur||0),0));
+    k.gastoMes=sE(PC.d1,PC.h);try{const PD=presuDatos();if(PD.hay)k.presuMes=Math.round(PD.tot.p);}catch(e){}k.gastoAnt=sE(PC.a1,PC.ah);k.gastoSerie=PC.meses.map(m=>sE(m+"-01",m+"-31"));}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
@@ -153,6 +162,7 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   try{const pc=invPorComprobar();if(pc.length)T("warn",pc.length+(pc.length===1?" acción para comprobar si ha funcionado":" acciones para comprobar si han funcionado"),pc.slice(0,4).map(c=>c.t+" ("+c.accion+")").join(", "),"Comprobar",()=>fichaConclusion(pc[0]),pc.length>1?el("div",{class:"chips",style:"margin-top:4px"},pc.slice(1,6).map(c=>el("button",{type:"button",class:"chip",text:c.t,onclick:()=>fichaConclusion(c)}))):null);}catch(e){}
   try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
+  presuAvisos().forEach(x=>T(x.niv,x.txt,x.det,"Ver",()=>{PANA[tab]="Presupuesto del mes";render(true);}));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
   /* los avisos informativos se pueden ocultar (✕) en este dispositivo; vuelven solos si cambian (p. ej. otro número) */
   let ocu=[];try{ocu=JSON.parse(localStorage.getItem("alm.avOcultos")||"[]");}catch(e){}
@@ -178,6 +188,8 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
     kpi("Artículos en rojo",String(crit.length),pedir.length+" para pedir · "+artsActivos().length+" en total",crit.length?"bad":"",ir("stock")),
     kpi("Coste taller "+MESES[+mes.slice(5,7)-1],sinPr?"—":eur(C.coste),sinPr?"Pon los precios de reparación":C.recib.length+" reparados"+(C.ahorro?" · ahorro "+eur(C.ahorro):""),"",ir("ejes",()=>{draft.icOpen=true;render(true);})),
     kpi("En taller (a pagar)",sinPr?"—":eur(C.costeTaller),C.taller.length+" ejes","",ir("ejes",()=>{draft.icOpen=true;render(true);}))]));
+  /* --- presupuesto de gasto del mes --- */
+  {const cp=cardPresupuesto();if(cp)v.appendChild(cp);}
   /* --- pistones: cuántos días cubre el stock --- */
   const pis=artsActivos().filter(a=>a.fam==="piston").sort((a,b)=>DIAM.indexOf(a.diam)-DIAM.indexOf(b.diam));
   if(pis.length){const filas=pis.map(a=>{const s=S.art[a.id],r=s?s.rate:0,st=stockDe(a.id);const d=r>0?Math.floor(st/r):null;return{a,st,r,d};});

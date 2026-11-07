@@ -1593,3 +1593,31 @@ test('Qué hacer hoy: un aviso informativo se puede ocultar y volver a ver', asy
   }
   expect(err).toEqual([]);
 });
+
+test('Hoy: presupuesto de gasto del mes (poner, cómo vas, previsión y aviso)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  const abre = async () => { const t = page.locator('.pv-grid .pv-t', { hasText: 'Presupuesto del mes' }); if (await t.count()) { await t.first().click(); await page.waitForTimeout(400); } };
+  await expect(page.locator('.pv-grid .pv-t', { hasText: 'Presupuesto del mes' })).toHaveCount(1);
+  await abre();
+  const c = page.locator('#presu');
+  await expect(c).toContainText('Pon cuánto quieres gastar');
+  await c.locator('button', { hasText: 'Poner presupuesto' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg');
+  await expect(d).toContainText('Presupuesto de gasto al mes');
+  const n = await d.locator('input').count(); expect(n).toBeGreaterThan(0);
+  const fam = (await d.locator('.pre-ed b').first().innerText()).trim();
+  await d.locator('input').first().fill('1');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(600);
+  const guardado = await page.evaluate(() => window.__D.cat.app.presu);
+  expect(guardado).toEqual({ [fam]: 1 });
+  await abre();
+  await expect(c).toContainText('Total'); await expect(c).toContainText(fam);
+  await expect(c.locator('.pre-b').first()).toBeVisible();
+  expect(await c.innerText()).not.toMatch(/undefined|NaN/);
+  /* con 1 € al mes seguro que se ha pasado (si hay gasto): sale el aviso en «Qué hacer hoy» */
+  const gasto = await c.locator('.pre-tot .num').innerText();
+  if (!/^0 €/.test(gasto)) { await expect(c).toContainText('Ya te has pasado'); await expect(page.locator('.card', { hasText: 'Qué hacer hoy' })).toContainText('Presupuesto superado'); }
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

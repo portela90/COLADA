@@ -899,3 +899,21 @@ test('Trazabilidad: qué colada se usaba un día y nave; certificado en la ficha
   await expect(page.locator('#cert-in')).toHaveCount(1);
   expect(err).toEqual([]);
 });
+
+test('Consumo: mosaico «Consumo del mes» con comparativa frente al mes pasado y 6 meses', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(400);
+  const t = page.locator('.stk-grid .stk-t', { hasText: 'Consumo del mes' });
+  await expect(t).toHaveCount(1);
+  await expect(t.locator('.stk-t-cmp')).toContainText(/vs\. mes pasado|sin consumo el mes pasado/);
+  await expect(t.locator('.stk-t-cmp')).toHaveAttribute('title', /1–30 de sep/);
+  await expect(t.locator('.tspark rect')).toHaveCount(6);
+  await t.click(); await page.waitForTimeout(300);
+  const c = page.locator('#cons-mes');
+  await expect(c).toContainText('1–31 oct'); await expect(c).toContainText('1–30 sep'); await expect(c).toContainText('Total');
+  await expect(c).toContainText('Últimos 6 meses'); await expect(c).toContainText('oct (en curso)');
+  expect(await c.innerText()).not.toMatch(/undefined|NaN/);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});

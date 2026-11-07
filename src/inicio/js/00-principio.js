@@ -23,7 +23,23 @@ function verErrores(){const L=ERRS||[],nv=L.filter(e=>!e.visto).length;
 function tile(o){const t=el("a",{class:"ini-t "+(o.niv||""),href:o.u},[el("span",{class:"tt",text:o.t}),o.s?el("span",{class:"ts",text:o.s}):null,
   el("span",{class:"tv"},[el("span",{class:"tn",text:o.n}),o.un?el("span",{class:"tu",text:o.un}):null]),
   o.bar?el("span",{class:"tbar"},o.bar.map(([v,c])=>el("i",{style:"width:"+v+"%;background:"+c}))):null,
+  o.cmp?cmpEl(o.cmp):null,o.spark?spark(o.spark):null,
   el("span",{class:"tf",text:o.f||"\u00a0"})]);return t;}
+/* flecha frente al mes pasado (hasta el mismo día): {a: ahora, b: antes, malo: "sube" si subir es malo} */
+const MESC=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function cmpEl(c){if(c.a==null||c.b==null)return null;const ma=MESC[(new Date().getMonth()+11)%12],dd=new Date().getDate();
+  if(!c.b)return el("span",{class:"tcmp",text:c.a?"el mes pasado a día "+dd+" no había nada":"igual que el mes pasado"});
+  const p=Math.round((c.a-c.b)/c.b*100),sube=p>0,niv=!p||!c.malo?"":(sube===(c.malo==="sube")?"mal":"bien");
+  return el("span",{class:"tcmp "+niv,title:"Comparado con el mes pasado hasta el mismo día (1–"+dd+" de "+ma+")"},[el("b",{text:(p>0?"▲ ":p<0?"▼ ":"= ")+(p?Math.abs(p)+" %":"igual")}),
+    " vs. mes pasado"]);}
+/* gráfica pequeña de los últimos 6 meses (el último, el mes en curso, va más claro) */
+function spark(v){if(!v||v.length<2||!v.some(x=>x>0))return null;const W=120,H=28,mx=Math.max(...v)||1,bw=W/v.length;
+  const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("class","tspark");svg.setAttribute("aria-hidden","true");svg.setAttribute("preserveAspectRatio","none");
+  v.forEach((x,i)=>{const r=document.createElementNS(ns,"rect"),h=Math.max(2,x/mx*(H-2));r.setAttribute("x",i*bw+2);r.setAttribute("width",bw-4);r.setAttribute("y",H-h);r.setAttribute("height",h);r.setAttribute("rx",2);
+    if(i===v.length-1)r.setAttribute("class","act");svg.appendChild(r);});
+  const MS=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"],m0=new Date().getMonth();
+  const w=el("span",{class:"tspk"},[svg,el("span",{class:"tspk-m"},v.map((_,i)=>el("i",{text:MS[(m0-(v.length-1-i)+120)%12]})))]);return w;}
+const fEur=n=>n==null?"–":Math.round(n).toLocaleString("es-ES")+" €";
 function grupo(t,sub,tiles){return el("section",{class:"ini-grp"},[el("h2",null,[t,sub?el("small",{text:sub}):null]),el("div",{class:"ini-tiles"},tiles)]);}
 function pinta(){const v=$("view");v.textContent="";
   const hr=new Date().getHours();v.appendChild(el("p",{class:"ini-hola",text:(hr<14?"Buenos días":hr<21?"Buenas tardes":"Buenas noches")}));
@@ -42,7 +58,8 @@ function pinta(){const v=$("view");v.textContent="";
       bar:a.ejesTot?[[a.ejesPlanta/a.ejesTot*100,"var(--ok)"],[(a.ejesTaller||0)/a.ejesTot*100,"var(--warn)"],[(a.cuarentena||0)/a.ejesTot*100,"var(--bad)"]]:null,
       f:fN(a.ejesTaller)+" en taller · "+fN(a.cuarentena)+" en cuarentena"+(a.prep?" · "+a.prep+" sin enviar":"")}),
     tile({t:"Cuarentena",s:"Ejes rotos o agarrotados",n:fN(a.cuarentena),un:a.cuarentena===1?"eje":"ejes",niv:a.cuarentena?"bad":"ok",u:AL+"ejes"}),
-    tile({t:"Pistones",s:"Cambios este mes",n:fN(a.pistMes),un:"cambios",u:AL+"pist"}),
+    tile({t:"Pistones",s:"Cambios este mes",n:fN(a.pistMes),un:"cambios",u:AL+"pist",cmp:a.pistAnt!=null?{a:a.pistMes,b:a.pistAnt,malo:"sube"}:null,spark:a.pistSerie}),
+    a.gastoMes!=null?tile({t:"Gasto del mes",s:"Consumibles, pistones y ejes",n:fN(a.gastoMes),un:"€",u:AL+"consultas",cmp:{a:a.gastoMes,b:a.gastoAnt,malo:"sube"},spark:a.gastoSerie,niv:a.presuMes&&a.gastoMes>a.presuMes?"bad":"",f:a.presuMes?Math.round(a.gastoMes/a.presuMes*100)+" % del presupuesto ("+fN(a.presuMes)+" €)":"sin presupuesto puesto"}):null,
     tile({t:"Pistones usados",s:"En la zona de retirada",n:fN(a.usadosZona),un:"pistones",niv:a.urgeRecup?"warn":"",u:AL+"pist",f:a.urgeRecup?a.urgeRecup+" medida"+(a.urgeRecup===1?"":"s")+" conviene recuperar":"nada urgente que recuperar"}),
     tile({t:"Inyectoras",s:"Plano, material y moldes",n:fN(a.iny),un:"máquinas",u:AL+"iny"}),
     tile({t:"Análisis",s:"Pregúntale a la app y tendencias",n:"Abrir",u:AL+"consultas",niv:"app"})]));
@@ -53,6 +70,8 @@ function pinta(){const v=$("view");v.textContent="";
     tile({t:"Stock de aluminio",s:"Total en todas las naves",n:fKg(c.kg),un:uKg(c.kg)+(c.fa!=null?" · "+fN(c.fa)+" fardos":""),u:"index.html?t=stock"})]
     .concat(nv.map(k=>{const x=N[k];const tot=x.kg||0;return tile({t:k,s:"Stock en la nave",n:fKg(tot),un:uKg(tot)+" · "+fN(x.fa)+" fardos",u:"index.html?t=stock",
       bar:tot>0?[[x.kgN/tot*100,"var(--acc)"],[x.kgE/tot*100,"var(--mut)"]]:null,f:fKg(x.kgN)+" "+uKg(x.kgN)+" en nave · "+fKg(x.kgE)+" "+uKg(x.kgE)+" fuera"});}))
+    .concat(c.conMes!=null?[tile({t:"Consumo del mes",s:"Aluminio gastado",n:fKg(c.conMes),un:uKg(c.conMes),u:"index.html?t=consumo",cmp:{a:c.conMes,b:c.conAnt},spark:c.conSerie}),
+      tile({t:"Entradas del mes",s:"Aluminio recibido",n:fKg(c.entMes),un:uKg(c.entMes),u:"index.html?t=entrada",cmp:{a:c.entMes,b:c.entAnt},spark:c.entSerie})]:[])
     .concat([tile({t:"Apuntar consumo",s:"Fardos gastados hoy",n:"Abrir",u:"index.html?t=consumo",niv:"app"}),
       tile({t:"Entrada de material",s:"Albaranes de aluminio",n:c.sinAlb?fN(c.sinAlb):"Abrir",un:c.sinAlb?"sin albarán":null,niv:c.sinAlb?"warn":"app",u:"index.html?t=entrada",f:c.sinAlb?"pendientes de completar":null})])));
   /* --- Otras apps --- */
