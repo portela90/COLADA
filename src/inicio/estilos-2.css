@@ -38,3 +38,13 @@
 .ini-t .tspark rect.act{opacity:1}
 .ini-t .tspk-m{display:flex;justify-content:space-around;font-size:10px;color:var(--mut)}
 .ini-t .tspk-m i{font-style:normal}
+/* Inicio a tu gusto */
+.ini-subf{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}
+.ini-subf .ini-sub{margin:0}
+.ini-persb{font-size:13px!important;padding:6px 12px!important;min-height:34px}
+.ini-pers{display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto}
+.ini-pers h4{margin:10px 0 4px;font-size:14px;color:var(--mut)}
+.ini-pf{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line2)}
+.ini-pf label{flex:1;display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}
+.ini-pf.off label span{color:var(--mut);text-decoration:line-through}
+.ini-pf .btn{min-width:38px;padding:6px!important;min-height:34px}

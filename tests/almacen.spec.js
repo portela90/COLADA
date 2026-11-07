@@ -1698,3 +1698,41 @@ test('Notas con aviso: «Avisar a @Beatriz» le deja el aviso en su campana y pi
   const r = await page.evaluate(() => window.__rpc); expect(r[0][0]).toBe('alm_mencionar'); expect(r[0][1].p_para).toEqual(['u-bea']); expect(r[0][1].p_url).toContain('ficha=prov_');
   expect(err).toEqual([]);
 });
+
+test('Reglas automáticas: crear «un pistón dura poco», ver lo que salta y que salga en Qué hacer hoy', async ({ page }) => {
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Reglas automáticas'); await page.waitForTimeout(400);
+  await expect(page.locator('.pg-h')).toHaveText('Reglas automáticas');
+  await page.locator('button', { hasText: '+ Nueva regla' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg'); await expect(d.locator('.rg-t')).toHaveCount(6);
+  await d.locator('.rg-t', { hasText: 'Máquina sin cambiar pistón' }).click();
+  await d.locator('#rgN').fill('1'); await expect(d).toContainText('Quedará así: «Si una máquina lleva más de 1 días sin cambiar pistón»');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(600);
+  const g = await page.evaluate(() => window.__D.cat.app.reglas); expect(g.length).toBe(1); expect(g[0].tipo).toBe('sinCambio');
+  await expect(page.locator('.card', { hasText: 'Tus reglas' })).toContainText('salta ahora');
+  await expect(page.locator('.card', { hasText: 'Lo que salta ahora' })).toContainText('sin cambiar pistón');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Hoy')).click()); await page.waitForTimeout(500);
+  await expect(page.locator('.card', { hasText: 'Qué hacer hoy' }).first()).toContainText('sin cambiar pistón');
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});
+
+test('Etiquetas y vistas guardadas: poner «Urgente» en un artículo, filtrar por ella y guardar la vista', async ({ page }) => {
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  const stock = () => page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Stock')).click());
+  await stock(); await page.waitForTimeout(400);
+  const a0 = await page.evaluate(() => window.__D.cat.app.articulos[0]);
+  await page.locator('#lstStock .it', { hasText: a0.desc }).first().click(); await page.waitForTimeout(500);
+  const pg = page.locator('.op-pg'); await pg.locator('.etq-ed .etq', { hasText: 'Urgente' }).click(); await page.waitForTimeout(500);
+  expect(await page.evaluate(id => window.__D.cat.app.articulos.find(a => a.id === id).tags, a0.id)).toEqual(['urg']);
+  await pg.locator('.op-back').click(); await page.waitForTimeout(300); await stock(); await page.waitForTimeout(400);
+  await page.locator('.chip.etq-chip', { hasText: 'Urgente' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#lstStock .it')).toHaveCount(1); await expect(page.locator('#lstStock .it .etq')).toHaveText('Urgente');
+  await page.locator('button', { hasText: '+ Guardar esta vista' }).click(); await page.locator('#vNom').fill('Lo urgente');
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
+  await page.locator('.chip.etq-chip', { hasText: 'Urgente' }).click(); await page.waitForTimeout(300);
+  expect(await page.locator('#lstStock .it').count()).toBeGreaterThan(1);
+  await page.locator('.vista-b', { hasText: 'Lo urgente' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#lstStock .it')).toHaveCount(1);
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});

@@ -31,3 +31,18 @@ test('mosaicos con comparativa frente al mes pasado y gráfica de 6 meses', asyn
   await page.screenshot({ path: process.env.CAPDIR ? process.env.CAPDIR + '/inicio-cmp.png' : 'test-results/inicio-cmp.png', fullPage: true });
   expect(err).toEqual([]);
 });
+test('Inicio a tu gusto: ocultar un mosaico y cambiar el orden se guarda', async ({ page }) => {
+  const url = montar('inicio.html', 'inicio.html');
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(700);
+  await page.locator('button', { hasText: 'Personalizar' }).click(); await page.waitForTimeout(200);
+  const d = page.locator('.dlg', { hasText: 'Personalizar Inicio' });
+  await d.locator('.ini-pf', { hasText: 'Cuarentena' }).locator('input[type=checkbox]').uncheck();
+  await d.locator('.ini-pf', { hasText: 'Pistones usados' }).locator('button[aria-label^="Subir"]').click();
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.ini-t', { hasText: 'Ejes rotos o agarrotados' })).toHaveCount(0);
+  const orden = await page.locator('.ini-grp').first().locator('.ini-t .tt').allInnerTexts();
+  expect(orden.indexOf('Pistones usados')).toBeLessThan(orden.indexOf('Gasto del mes'));
+  await page.reload(); await page.waitForTimeout(700);
+  await expect(page.locator('.ini-t', { hasText: 'Ejes rotos o agarrotados' })).toHaveCount(0);
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});
