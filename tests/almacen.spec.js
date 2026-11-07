@@ -1653,3 +1653,48 @@ test('Apuntar: botones directos, lo que sueles apuntar y quién/a qué hora en �
   if (/^Pistón/.test(t)) await expect(page.locator('.pg-h')).toHaveText('Pistones'); else await expect(page.locator('.pg-h')).toHaveText('Consumo');
   expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
 });
+
+test('Registro de cambios: Más → Registro de cambios cuenta en palabras quién cambió qué', async ({ page }) => {
+  await page.addInitScript(() => {
+    const filas = [
+      { id: 1, at: '2026-10-30T09:15:00Z', por: 'u1', col: 'alm_mov', doc: '2026-10', item: 'x1', op: 'cambio', antes: { id: 'x1', tipo: 'salida', art: 'pist-60', cant: 2, f: '2026-10-30' }, despues: { id: 'x1', tipo: 'salida', art: 'pist-60', cant: 3, f: '2026-10-30' } },
+      { id: 2, at: '2026-10-29T08:00:00Z', por: null, col: 'alm_cat', doc: 'app', item: 'proveedores/pv1', op: 'cambio', antes: { id: 'pv1', nom: 'Meyusa', tel: '1' }, despues: { id: 'pv1', nom: 'Meyusa', tel: '2' } },
+      { id: 3, at: '2026-10-28T08:00:00Z', por: 'u1', col: 'alm_pist', doc: '2026', item: 'p9', op: 'baja', antes: { id: 'p9', diam: 'Ø 80', maq: 'F67', f: '2026-10-28' }, despues: null }];
+    const q = d => { const o = { select: () => o, in: () => o, order: () => o, limit: () => o, or: () => o, eq: () => o, then: (ok, ko) => Promise.resolve({ data: d, error: null }).then(ok, ko) }; return o; };
+    window.sbColada = { from: t => q(t === 'usuarios' ? [{ user_id: 'u1', nombre: 'Beatriz' }] : filas) };
+  });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Registro de cambios'); await page.waitForTimeout(600);
+  const c = page.locator('.card', { hasText: 'quién cambió qué y cuándo' });
+  await expect(c).toContainText('Cambiado: Consumo · Pistón Ø 60'); await expect(c).toContainText('cantidad 2 → 3'); await expect(c).toContainText('Beatriz');
+  await expect(c).toContainText('proveedor · Meyusa'); await expect(c).toContainText('directo en la base de datos');
+  await expect(c).toContainText('Borrado: cambio de pistón Ø 80');
+  await c.locator('input[type=search]').fill('meyusa'); await page.waitForTimeout(200);
+  await expect(c.locator('.it')).toHaveCount(1);
+  expect(await c.innerText()).not.toMatch(/undefined|NaN/);
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});
+
+test('Notas con aviso: «Avisar a @Beatriz» le deja el aviso en su campana y pide el aviso al móvil', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__rpc = [];
+    const q = d => { const o = { select: () => o, in: () => o, order: () => o, limit: () => o, or: () => o, eq: () => o, then: (ok, ko) => Promise.resolve({ data: d, error: null }).then(ok, ko) }; return o; };
+    window.sbColada = { from: t => q(t === 'usuarios' ? [{ user_id: 'u-bea', nombre: 'Beatriz López', activo: true }, { user_id: 'u-cris', nombre: 'Cristian Portela', activo: true }] : []),
+      rpc: async (fn, a) => { window.__rpc.push([fn, a]); return { data: true, error: null }; } };
+  });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Catálogo'); await page.waitForTimeout(400);
+  const t = page.locator('.pv-grid .pv-t', { hasText: 'Proveedores' }); if (await t.count()) { await t.first().click(); await page.waitForTimeout(300); }
+  const prov = await page.evaluate(() => window.__D.cat.app.proveedores[0]);
+  await page.locator('button.it', { hasText: prov.nom }).first().click(); await page.waitForTimeout(500);
+  const pg = page.locator('.op-pg'); await pg.locator('.op-tabs button', { hasText: 'Notas' }).click(); await page.waitForTimeout(400);
+  await pg.locator('.fn-form textarea').fill('@Beatriz mira el precio nuevo');
+  await expect(pg.locator('.fn-menc .chip', { hasText: '@Beatriz' })).toHaveAttribute('aria-pressed', 'true');
+  await pg.locator('.fn-form button', { hasText: 'Guardar nota' }).click(); await page.waitForTimeout(700);
+  await expect(pg.locator('.fn-it')).toContainText('Avisado: Beatriz');
+  const m = await page.evaluate(() => window.__D.menc && window.__D.menc['u-bea']); expect(m.L.length).toBe(1); expect(m.L[0].leido).toBe(false); expect(m.L[0].clave).toBe('prov_' + prov.id);
+  const r = await page.evaluate(() => window.__rpc); expect(r[0][0]).toBe('alm_mencionar'); expect(r[0][1].p_para).toEqual(['u-bea']); expect(r[0][1].p_url).toContain('ficha=prov_');
+  expect(err).toEqual([]);
+});

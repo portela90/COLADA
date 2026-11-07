@@ -192,7 +192,7 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
     subirDoc(async d=>{const x=maqDe(m.id);x.hornoDocs=(x.hornoDocs||[]).concat([d]);await saveCat();toast("Guardado");cerrarDlgs();fichaIny(m,5);},"Subir foto o documento del horno"),
     el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:"Editar datos del horno",onclick:()=>formHorno(m,reabre(0))})]);
   const S=(t,...kids)=>el("section",{class:"card"},[t?el("div",{class:"hd"},el("h2",{text:t})):null,el("div",{class:"bd",style:"display:grid;gap:10px"},kids.filter(Boolean))]);
-  objPage({notas:"maq_"+m.id,tipo:"Inyectora",ruta:["Máquinas",m.nave||"Planta"],titulo:m.cod,sub:B[0]&&B[0].textContent,
+  objPage({notas:"maq_"+m.id,cambios:q=>q.or("item.eq."+qv("maquinas/"+m.id)+",despues->>maq.eq."+qv(m.id)+",antes->>maq.eq."+qv(m.id)),tipo:"Inyectora",ruta:["Máquinas",m.nave||"Planta"],titulo:m.cod,sub:B[0]&&B[0].textContent,
     kpis:[["Ø pistón",dm||"—"],["Pistones 3 meses",String(c3)],["Último cambio",u?"hace "+dias(u.f,hy)+" d":"—"],["Stock de ese Ø",pa?fmtN(stockDe(pa.id)):"—",pa&&nivel(pa)==="bad"?"neg":""]],
     tab:tab0||0,
     tabs:[["Ahora",[S("Lo que monta ahora",ahora,avisosMaq(m).length?el("div",{class:"banner w",text:avisosMaq(m).join(" · ")}):null),S("Ficha técnica",B[5]),S("Horno · placa",(()=>{return el("div",{style:"display:grid;gap:8px"},[hornoBox.firstChild.cloneNode(true),el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:hd.length?"Editar · "+hd.length+(hd.length===1?" documento":" documentos")+" en Documentos":"Editar datos del horno",onclick:()=>formHorno(m,reabre(0))})]);})())]],

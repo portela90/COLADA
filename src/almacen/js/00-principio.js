@@ -4,9 +4,9 @@
 const TABS=[["res","Hoy"],["rap","Apuntar"],["consu","Consumo"],["stock","Stock"],["repo","Reponer"],["mas","Más"]];
 /* Más: por pieza (cada una con todo lo suyo), máquinas y gestión */
 const SUB=[["pist","Pistones"],["ejes","Ejes"],["cont","Contenedores"],["btb","Barras expulsoras"],["btt","Tornillos tope"],["bth","Horno"],["quim","Aceites, taladrinas y jabones"],
-  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"]];
-const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat"]]];
-const PADRE={abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
+  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["reg","Registro de cambios"]];
+const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat","reg"]]];
+const PADRE={reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
 /* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
 const INY_SUB=[["iny","Plano"],["cons","Consumo por máquina"],["mol","Moldes"]];
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t)||INY_SUB.some(x=>x[0]===t)||t==="bt"||t==="mat";
@@ -35,6 +35,7 @@ function el(t,a,k){const n=document.createElement(t);
     if(p==="class")n.className=v;else if(p==="text")n.textContent=v;else if(p.startsWith("on")&&typeof v==="function")n.addEventListener(p.slice(2),v);
     else if(p==="value")n.value=v;else if(p==="checked")n.checked=!!v;else n.setAttribute(p,v===true?"":v);}
   return n;}
+const qv=x=>'"'+String(x).replace(/["\\]/g,"")+'"';
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const mesDe=f=>String(f).slice(0,7);
 const fmtF=f=>{if(!f)return"—";const[y,m,d]=f.split("-");return d+"/"+m+"/"+y.slice(2);};
@@ -150,7 +151,7 @@ const SEC_ALM={res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["n
   pist:["naranja","Cambios de pistón, usados y recuperados"],ejes:["indigo","Dónde está cada eje y sus reparaciones"],cont:["turquesa","Contenedores de cada tipo y dónde están"],
   btb:["ambar","Barras expulsoras: stock, uso y recuperación"],btt:["ambar","Tornillos tope: stock y uso"],bth:["naranja","Recambios de horno y tolvas"],quim:["turquesa","Aceites, taladrinas y jabones, y sus contadores"],
   iny:["morado","Plano de inyectoras, material y moldes"],cons:["rosa","Lo que gasta cada máquina"],mol:["morado","Moldes y en qué máquina están"],aver:["rosa","Averías y sus causas"],
-  bd:["turquesa","Pregúntale a la app lo que quieras saber"],desv:["ambar","Consumos que se salen de lo normal"],abc:["indigo","Qué artículos contar y cuándo"],mov:["azul","Todas las entradas, salidas y traslados"],cat:["gris","Artículos, proveedores, máquinas y ajustes"]};
+  bd:["turquesa","Pregúntale a la app lo que quieras saber"],desv:["ambar","Consumos que se salen de lo normal"],abc:["indigo","Qué artículos contar y cuándo"],mov:["azul","Todas las entradas, salidas y traslados"],reg:["gris","Quién cambió o borró qué y cuándo"],cat:["gris","Artículos, proveedores, máquinas y ajustes"]};
 const secAlm=t=>SEC_ALM[t]||["gris",""];
 function render0(force){const a=document.activeElement;
   if(!force&&a&&a.closest&&a.closest("#view")&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&a.type!=="file"&&a.type!=="checkbox"){pending=true;return;}
@@ -164,12 +165,14 @@ function render0(force){const a=document.activeElement;
   {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:"Más",fn:()=>irA("mas")}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
-  (VC[tab]||{abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
+  (VC[tab]||{reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
   if(typeof panelizar==="function")try{panelizar(v);}catch(e){console.warn(e);}
   document.querySelector("main").scrollTop=sc;kpiInicio();campanaAlm();}
 /* campana de avisos: lo mismo que «Qué hacer hoy» (se recalcula como mucho cada 2 s) */
 let _cmpT=null;function campanaAlm(){if(!window.campana||!ready)return;clearTimeout(_cmpT);_cmpT=setTimeout(()=>{try{const H=tareasHoy();
-  campana.pon("almacen",H.tareas.map(t=>({niv:t.niv,t:t.txt,d:t.det&&t.det.length>90?t.det.slice(0,88)+"…":t.det,fn:t.fn})));}catch(e){}},2000);}
+  campana.pon("almacen",H.tareas.map(t=>({niv:t.niv,t:t.txt,d:t.det&&t.det.length>90?t.det.slice(0,88)+"…":t.det,fn:t.fn})));
+  try{escuchaMenc();campana.pon("menc",itemsMenc());}catch(e){}
+  if(PEND_FICHA&&catOk){const c=PEND_FICHA;PEND_FICHA=null;try{history.replaceState(null,"",location.pathname);}catch(e){}setTimeout(()=>abrirFichaClave(c),200);}}catch(e){}},2000);}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',consu:'<path d="M12 20V8M7 13l5-5 5 5"/><path d="M5 4h14"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};
