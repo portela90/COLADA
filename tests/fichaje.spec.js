@@ -38,3 +38,24 @@ test('jefe: registro de jornada en Equipo (con correcciones marcadas) y coste de
   expect(err).toEqual([]);
   delete R.fichaje_hoy; delete R.fichajes_mes; delete R.limp_costes; delete R.limp_costes_opciones;
 });
+test('jefe: actividad reciente de los trabajos en Equipo (fotos juntas, incidencias)', async ({ page }) => {
+  R.fichaje_hoy = Object.assign({}, F0, { activo: false }); R.fichajes_mes = MES;
+  const at = m => new Date(Date.now() - m * 60000).toISOString();
+  R.limp_actividad = [
+    { at: at(2), quien: 'Abdoul kader Maiga', acc: 'hecha', det: 'todo ok', ot: 'o1', tit: 'Limpieza F63' },
+    { at: at(10), quien: 'Abdoul kader Maiga', acc: 'foto', det: '', ot: 'o1', tit: 'Limpieza F63' },
+    { at: at(11), quien: 'Abdoul kader Maiga', acc: 'foto', det: '', ot: 'o1', tit: 'Limpieza F63' },
+    { at: at(12), quien: 'Abdoul kader Maiga', acc: 'foto', det: '', ot: 'o1', tit: 'Limpieza F63' },
+    { at: at(40), quien: 'Cristian Portela', acc: 'reasignada', det: 'Ahmed El Hait', ot: 'o2', tit: 'Cámaras de inyección' },
+    { at: at(90), quien: 'Abdoul kader Maiga', acc: 'incidencia', det: 'Fuga de aceite', tit: 'avería', lugar: 'F25', urg: true }];
+  const { err } = await abre(page, ADMIN); await page.waitForTimeout(600);
+  await page.evaluate(() => [...document.querySelectorAll('#nav button')].find(b => b.textContent.includes('Equipo')).click()); await page.waitForTimeout(1200);
+  const c = page.locator('.card.act'); const it = c.locator('.act-it');
+  await expect(it).toHaveCount(4);
+  await expect(it.nth(0)).toContainText('Terminado: «Limpieza F63»'); await expect(it.nth(0)).not.toContainText('todo ok');
+  await expect(it.nth(1)).toContainText('3 fotos en «Limpieza F63»');
+  await expect(it.nth(2)).toContainText('«Cámaras de inyección» reasignado a Ahmed El Hait');
+  await expect(it.nth(3)).toContainText('Incidencia urgente en F25: Fuga de aceite'); await expect(it.nth(3)).toHaveClass(/baja/);
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+  delete R.fichaje_hoy; delete R.fichajes_mes; delete R.limp_actividad;
+});

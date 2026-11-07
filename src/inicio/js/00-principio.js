@@ -98,7 +98,7 @@ function pinta(){pinta0=pinta;GR=[];const v=$("view");v.textContent="";campanaIn
     tile({t:"Inyectoras",s:"Plano, material y moldes",n:fN(a.iny),un:"máquinas",u:AL+"iny"}),
     tile({t:"Análisis",s:"Pregúntale a la app y tendencias",n:"Abrir",u:AL+"consultas",niv:"app"})]));
   /* --- Coladas --- (no lo ve el usuario de solo consulta del Almacén) */
-  if(SC)return;
+  if(SC){actIni(v);return;}
   const N=c.naves||{};const nv=Object.keys(N).sort();
   apG(v,grupo("Coladas","aluminio · "+fc,[
     tile({t:"Stock de aluminio",s:"Total en todas las naves",n:fKg(c.kg),un:uKg(c.kg)+(c.fa!=null?" · "+fN(c.fa)+" fardos":""),u:"index.html?t=stock"})]
@@ -108,12 +108,15 @@ function pinta(){pinta0=pinta;GR=[];const v=$("view");v.textContent="";campanaIn
       tile({t:"Entradas del mes",s:"Aluminio recibido",n:fKg(c.entMes),un:uKg(c.entMes),u:"index.html?t=entrada",cmp:{a:c.entMes,b:c.entAnt},spark:c.entSerie})]:[])
     .concat([tile({t:"Apuntar consumo",s:"Fardos gastados hoy",n:"Abrir",u:"index.html?t=consumo",niv:"app"}),
       tile({t:"Entrada de material",s:"Albaranes de aluminio",n:c.sinAlb?fN(c.sinAlb):"Abrir",un:c.sinAlb?"sin albarán":null,niv:c.sinAlb?"warn":"app",u:"index.html?t=entrada",f:c.sinAlb?"pendientes de completar":null})])));
+  actIni(v);
   /* --- Otras apps --- */
   const nE=ERRS?ERRS.filter(e=>!e.visto).length:null;
   const tE=ERRS?tile({t:"Errores de la app",s:"Lo que ha fallado en los móviles",n:fN(nE),un:nE===1?"sin revisar":"sin revisar",niv:nE?"bad":"ok",u:"#errores",f:ERRS.length?ERRS.length+" en 30 días":"ninguno en 30 días"}):null;
   if(tE)tE.addEventListener("click",e=>{e.preventDefault();verErrores();});
   apG(v,grupo("Otras apps",null,[tile({t:"Limpieza",s:"CIE · trabajos, hornos y horas",n:"Abrir",u:"limpieza.html",niv:"app"}),tE]));
 }
+/* actividad reciente: la tarjeta se hace una vez y se vuelve a poner en cada repintado (se refresca sola) */
+let ACT=null;function actIni(v){if(!window.Actividad)return;if(!ACT)ACT=Actividad.caja({ver:10});v.appendChild(ACT);}
 async function arranca(){try{db=await claude.use("db");}catch(e){db=null;}
   try{await cargaPref();}catch(e){}
   if(!db){pinta();return;}
