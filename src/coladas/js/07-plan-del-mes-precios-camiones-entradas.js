@@ -46,8 +46,10 @@ async function setPrecio(mes,prov,mat,val){
   c[mes]=p;cfg.precios=c;await saveCfg();}
 const eurT=v=>(Math.round(v*100)/100).toLocaleString("es-ES",{minimumFractionDigits:1,maximumFractionDigits:2});
 /* precios en € por kg (se guardan en €/t): 2787,5 €/t → 2,7875 €/kg */
-const eurKg=v=>(v/1000).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:4});
-const kgTxt=v=>v?String(Math.round(v*10)/10000).replace(".",","):"";
+const eurKg=v=>(v/1000).toLocaleString("es-ES",{minimumFractionDigits:3,maximumFractionDigits:4});
+const kgTxt=v=>v?(Math.round(v*10)/10000).toLocaleString("es-ES",{minimumFractionDigits:3,maximumFractionDigits:4,useGrouping:false}):"";
+/* nº de pedido de cada proveedor en cada mes (cfg.pedidos[mes][PROVEEDOR]) */
+const pedidoDe=(m,prov)=>prov?(((cfg.pedidos||{})[m]||{})[String(prov).toUpperCase()]||""):"";
 /* lo que se escribe en €/kg → €/t para guardar. Si alguien pone el de la tonelada (más de 100), se entiende como €/t */
 const deKg=t=>{const v=numES(t);if(!(v>0))return v;return Math.round((v>100?v:v*1000)*100)/100;};
 function vPrecios(){
@@ -62,6 +64,9 @@ function vPrecios(){
       placeholder:her&&her.v?eurKg(her.v)+(her.m!==m?" ("+nomMes(her.m).slice(0,3)+")":""):"€/kg","aria-label":prov+" "+MAT[mat].nom+" €/kg",
       onchange:async e=>{const t=e.target.value.trim(),v=t===""?0:deKg(t);if(t!==""&&!(v>0)){toast("Pon el precio en € por kg, por ejemplo 2,7875");return;}
         try{await setPrecio(m,prov,mat,v);toast(v?"Precio guardado":"Precio quitado: se usa el del mes anterior");render();}catch(err){toast("No se pudo guardar");}}})]);};
+  const celdaPed=prov=>el("td",{},[el("input",{type:"text",inputmode:"numeric",style:"font-size:15px;padding:7px 9px;min-width:90px",value:pedidoDe(m,prov),placeholder:"—","aria-label":"Nº de pedido de "+prov,
+    onchange:async e=>{const t=e.target.value.trim(),k=prov.toUpperCase();const P=Object.assign({},cfg.pedidos||{}),x=Object.assign({},P[m]||{});if(t)x[k]=t;else delete x[k];P[m]=x;cfg.pedidos=P;
+      try{await saveCfg();toast(t?"Pedido guardado":"Pedido quitado");}catch(err){toast("No se pudo guardar");}}})]);
   const general=(()=>{const p=(cfg.precios||{})[m]||{},own=p.azul||0,her=own?null:precioDe(m,"*","L-2521-B");
     return el("tr",{},[el("td",{},[document.createTextNode("Otros"),el("div",{class:"sub",text:"AlSi12 de un proveedor sin precio propio"})]),el("td",{class:"sub",text:"—"}),
       el("td",{},[el("input",{class:"num",type:"text",inputmode:"decimal",style:"font-size:15px;padding:7px 9px",value:kgTxt(own),placeholder:her&&her.v?eurKg(her.v):"€/kg",
@@ -76,8 +81,8 @@ function vPrecios(){
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Precios del aluminio"}),el("div",{style:"margin-left:auto;min-width:175px"},[selM])]),
       el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:12px"},[
         el("p",{class:"hint",text:"En € por kg (por ejemplo 2,7875). Lo que dejes vacío toma el precio del mes anterior (sale en gris). Solo cambia los que suban o bajen."}),
-        el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"AlSi9 €/kg"}),el("th",{text:"AlSi12 azul €/kg"})])]),
-          el("tbody",{},provs.map(p=>el("tr",{},[el("td",{text:p}),celda(p,"L-2630"),celda(p,"L-2521-B")])).concat([general]))])]),
+        el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Proveedor"}),el("th",{text:"AlSi9 €/kg"}),el("th",{text:"AlSi12 azul €/kg"}),el("th",{text:"Nº pedido"})])]),
+          el("tbody",{},provs.map(p=>el("tr",{},[el("td",{text:p}),celda(p,"L-2630"),celda(p,"L-2521-B"),celdaPed(p)])).concat([general]))])]),
         sinP.length?el("div",{class:"banner w",text:sinP.length+" entrada(s) de este mes sin precio: "+[...new Set(sinP.map(x=>(x.prov||"sin proveedor")+" "+(MAT[x.mat]?MAT[x.mat].nom:"")))].join(", ")+"."}):null])]),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Precio para el cierre"})]),
       el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[

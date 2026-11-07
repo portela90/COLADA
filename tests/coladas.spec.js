@@ -69,6 +69,14 @@ test('Precios: se meten y se ven en €/kg (y si se escribe en €/t se entiende
   await fila('IDALSA').fill('2797,5'); await fila('IDALSA').dispatchEvent('change');
   await expect.poll(() => page.evaluate(() => ((__D.cfg.app.precios['2026-10'] || {}).prov || {}).IDALSA)).toBe(2797.5);
   await expect(fila('IDALSA')).toHaveValue('2,7975');
+  // precio redondo: sale con tres decimales (2,670)
+  await fila('BEFESA').fill('2,67'); await fila('BEFESA').dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => ((__D.cfg.app.precios['2026-10'] || {}).prov || {}).BEFESA)).toBe(2670);
+  await expect(fila('BEFESA')).toHaveValue('2,670');
+  // nº de pedido del proveedor en el mes
+  const ped = page.locator('[aria-label="Nº de pedido de BEFESA"]');
+  await ped.fill('2499700'); await ped.dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => ((__D.cfg.app.pedidos || {})['2026-10'] || {}).BEFESA)).toBe('2499700');
   expect(err).toEqual([]);
 });
 

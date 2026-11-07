@@ -25,13 +25,13 @@ function vMesAud(m){const I=informeMes(m),Sf=conCorte(I.dn,saldos),lote=id=>lote
   const E=I.entradas.filter(x=>!x.h).slice().sort((a,b)=>a.r.f.localeCompare(b.r.f));
   const porProv={};E.forEach(x=>{const p=x.r.p||x.l.proveedor||"Sin proveedor";const o=porProv[p]=porProv[p]||{n:0,fa:0,kg:0};o.n++;o.fa+=x.fa;o.kg+=x.kg;});
   const cam=sec("Camiones que entraron",E.length+(E.length===1?" camión":" camiones")+" · "+fmt(Math.round(E.reduce((a,x)=>a+x.kg,0)))+" kg",[
-    E.length?tabla(["Día","Proveedor","Colada","Albarán","Nave","Descarga","Fardos","Kg albarán","Kg báscula","Foto"],
+    E.length?tabla(["Día","Proveedor","Pedido","Colada","Albarán","Nave","Descarga","Fardos","Kg albarán","Kg báscula","Foto"],
       E.map(x=>{const p=x.r.p||x.l.proveedor||"";const dn=dondeEn(x.l,x.r.f);const kb=typeof x.r.kb==="number"?x.r.kb:null;
-        return{c:[dmyA(x.r.f),el("span",{},[dot(p),document.createTextNode(p||"—")]),x.l.nombre||"—",x.r.a||x.l.albaran||(x.r.sa?"sin albarán":"—"),x.l.nave,dn==="externo"?"Almacén externo":"En la nave",fmt(x.fa),fmt(Math.round(x.kg))+(x.r.ke||x.r.sa?" (estimado)":""),
+        return{c:[dmyA(x.r.f),el("span",{},[dot(p),document.createTextNode(p||"—")]),(typeof pedidoDe==="function"&&pedidoDe(mesDe(x.r.f),p))||"—",x.l.nombre||"—",x.r.a||x.l.albaran||(x.r.sa?"sin albarán":"—"),x.l.nave,dn==="externo"?"Almacén externo":"En la nave",fmt(x.fa),fmt(Math.round(x.kg))+(x.r.ke||x.r.sa?" (estimado)":""),
           kb==null?"—":fmt(kb)+(Math.abs(kb-x.kg)>Math.max(50,x.kg*0.005)?" ("+(kb>x.kg?"+":"−")+fmt(Math.abs(Math.round(kb-x.kg)))+")":""),
-          x.r.ft?el("button",{type:"button",class:"btn sec peq",text:"Ver",onclick:()=>verFoto(x.r.ft)}):"—"]};}),[6,7,8],
-      ["Total","","","","","",fmt(E.reduce((a,x)=>a+x.fa,0)),fmt(Math.round(E.reduce((a,x)=>a+x.kg,0))),"",""]):el("p",{class:"empty",text:"Este mes no entró ningún camión."}),
-    Object.keys(porProv).length>1?tabla(["Proveedor","Camiones","Fardos","Kg"],Object.entries(porProv).sort((a,b)=>b[1].kg-a[1].kg).map(([p,o])=>({c:[el("span",{},[dot(p),document.createTextNode(p)]),fmt(o.n),fmt(o.fa),fmt(Math.round(o.kg))]})),[1,2,3]):null].filter(Boolean));
+          x.r.ft?el("button",{type:"button",class:"btn sec peq",text:"Ver",onclick:()=>verFoto(x.r.ft)}):"—"]};}),[7,8,9],
+      ["Total","","","","","","",fmt(E.reduce((a,x)=>a+x.fa,0)),fmt(Math.round(E.reduce((a,x)=>a+x.kg,0))),"",""]):el("p",{class:"empty",text:"Este mes no entró ningún camión."}),
+    Object.keys(porProv).length?tabla(["Proveedor","Nº pedido","Camiones","Fardos","Kg"],Object.entries(porProv).sort((a,b)=>b[1].kg-a[1].kg).map(([p,o])=>({c:[el("span",{},[dot(p),document.createTextNode(p)]),(typeof pedidoDe==="function"&&pedidoDe(m,p))||"—",fmt(o.n),fmt(o.fa),fmt(Math.round(o.kg))]})),[2,3,4]):null].filter(Boolean));
   /* 3 · consumo por día y relevo */
   const CM=ms.filter(r=>r.t==="C");const dias={};
   CM.forEach(r=>{const l=lote(r.o);if(!l.nave)return;const d=dias[r.f]=dias[r.f]||{};const k=key(l.nave,l.material)+"|"+r.u;const o=d[k]=d[k]||{fa:0,kg:0};o.fa+=Math.abs(r.fa||0);o.kg+=Math.abs(kgAp(r,Sf)||0);});
