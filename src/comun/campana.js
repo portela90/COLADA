@@ -30,5 +30,7 @@
     const hd=nodo("div","campana-hd");hd.appendChild(nodo("b",null,"Avisos"));const L=todos(),n=L.filter(x=>x.niv!=="info").length;
     hd.appendChild(nodo("span",null,n?n+(n===1?" pendiente":" pendientes"):"todo al día"));const x=nodo("button","campana-x","✕");x.type="button";x.setAttribute("aria-label","Cerrar");x.onclick=cerrar;hd.appendChild(x);
     p.appendChild(hd);const l=nodo("div","campana-l");p.appendChild(l);lista(l);pan.appendChild(p);document.body.appendChild(pan);document.addEventListener("keydown",esc);}
+  /* la campana sale siempre, aunque no haya nada pendiente o la app tarde en mirar sus avisos */
+  (function arranca(n){if(sitio())pintaBoton();else if(n<40)setTimeout(()=>arranca(n+1),250);})(0);
   window.campana={pon(k,L){F[k]=(L||[]).filter(x=>x&&x.t);pintaBoton();},quita(k){delete F[k];pintaBoton();},abrir,lista:todos,repinta:pintaBoton};
 })();

@@ -318,3 +318,18 @@ main{--mpt:16px}
 .rgx-pieb{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:-14px;background:var(--surf);padding:8px 0 2px}
 .rgx-pieb .btn{flex:0 1 auto}
 @media (max-width:480px){.rgx-pieb .btn{flex:1 1 0}.rgx-acc{margin-left:14px;width:100%}}
+/* ===== móvil: la barra de abajo y la de arriba iguales en todas las apps =====
+   El apartado elegido va resaltado igual en todas: fondo suave del color del apartado y una raya arriba. */
+@media (max-width:799px), (max-height:559px){
+  nav#tabs{gap:2px!important;padding:6px 4px calc(8px + env(safe-area-inset-bottom,0px))!important}
+  nav#tabs button{border-top:0!important;margin-top:0!important;border-radius:12px!important;min-height:56px;padding:6px 2px!important;font-size:12px!important;font-weight:600!important;
+    letter-spacing:0!important;text-transform:none!important;color:var(--ink2);display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;overflow:hidden}
+  nav#tabs button svg{width:24px!important;height:24px!important;flex:none}
+  nav#tabs button span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  nav#tabs button[aria-selected="true"],html:has(script[data-app="limpieza"]) #nav button[aria-selected=true]{background:var(--ss)!important;color:var(--sd)!important;
+    box-shadow:inset 0 3px 0 var(--sc)!important;border-radius:12px!important;font-weight:700!important}
+  /* «Buscar» con su palabra en todas (en pantallas muy estrechas, solo la lupa) */
+  #app>header .lupa>span:not(.lupa-l){display:inline!important}
+  #app>header .lupa{gap:6px;padding:0 12px!important;width:auto!important;height:40px!important;min-height:40px;border-radius:10px!important;align-items:center}
+}
+@media (max-width:359px){#app>header .lupa>span:not(.lupa-l){display:none!important}}
