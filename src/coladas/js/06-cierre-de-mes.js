@@ -364,6 +364,15 @@ function cardGraficos(){if(!window.GRAF)return null;
   setTimeout(()=>{if(sc.length)GRAF.barras(g1,{x,apilado:true,leyenda:true,fmt:"kg",series:sc});if(se.length)GRAF.barras(g2,{x,apilado:true,leyenda:true,fmt:"kg",series:se});},0);
   return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Aluminio por mes"}),el("span",{class:"sub",style:"margin-left:auto",text:"últimos 12 meses"})]),
     el("div",{class:"bd",style:"display:grid;gap:14px"},[sc.length?el("div",{},[el("h3",{class:"g-tit",text:"Consumo"}),g1]):null,se.length?el("div",{},[el("h3",{class:"g-tit",text:"Entradas"}),g2]):null])]);}
+/* pestañas por meses en Consultas: al tocar un mes, todo (movimientos, consumo por relevo, detalle y cierre) va a ese mes */
+function barraMeses(f){const ms=Object.keys(meses).filter(m=>(meses[m]||[]).length).sort().reverse();if(!ms.length)return null;
+  const esMes=m=>m?f.desde===m+"-01"&&f.hasta===finDeMes(m):!f.desde&&!f.hasta;
+  const ir=m=>{if(m){f.desde=m+"-01";f.hasta=finDeMes(m);if(Object.keys(meses).includes(m)&&(meses[m]||[]).some(r=>!r.h))cierreMes=m;}else{f.desde="";f.hasta="";}render();};
+  const act=mesDe(hoy());
+  const bar=el("div",{class:"meses-tabs",role:"tablist","aria-label":"Ver un mes"},[["","Todo"]].concat(ms.map(m=>[m,Mayus(nomMes(m))+(m===act?" (en curso)":"")])).map(([m,t])=>
+    el("button",{type:"button",role:"tab","aria-selected":String(esMes(m)),class:"mes-tab",text:t,onclick:()=>ir(m)})));
+  const sel=[...bar.children].find(b=>b.getAttribute("aria-selected")==="true");if(sel)setTimeout(()=>{try{sel.scrollIntoView({block:"nearest",inline:"center"});}catch(e){}},0);
+  return bar;}
 function vConsultas(){
   const f=filtro,rows=filtrados();
   const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};
@@ -460,7 +469,7 @@ function vConsultas(){
     copia
   ]);
   /* panel de mosaicos: el buscador arriba y cada parte en su ventana */
-  const cont=el("div",{class:"bq-resto"},autoPanel("hist",[...resto.children],{juntar:{"Consumo por nave y relevo":"Consultar movimientos","Detalle":"Consultar movimientos"},nombre:{"Consultar movimientos":"Movimientos"},sub:{"Aluminio por mes":"consumo y entradas de los últimos 12 meses"}}));
+  const cont=el("div",{class:"bq-resto"},autoPanel("hist",[...resto.children],{juntar:{"Consumo por nave y relevo":"Consultar movimientos","Detalle":"Consultar movimientos"},nombre:{"Consultar movimientos":"Movimientos"},sub:{"Aluminio por mes":"consumo y entradas de los últimos 12 meses"}},[barraMeses(f)]));
   return [vBuscaCol(cont),cont];
 }
 function vMin(){

@@ -273,6 +273,9 @@ input[type=file]{font-size:15px;padding:9px 10px}
 .kil-pie{font-size:13px;color:var(--mut)}
 
 /* Stock: panel de mosaicos y ventanas */
+.meses-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:thin}
+.mes-tab{flex:none;font:inherit;font-size:14px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card,transparent);color:inherit;cursor:pointer;white-space:nowrap}
+.mes-tab[aria-selected="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
 .stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
 .stk-t{appearance:none;font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .stk-t:hover{border-color:var(--acc)}
