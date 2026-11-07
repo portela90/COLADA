@@ -855,3 +855,47 @@ test('Consultas: informe del año y registro de cambios', async ({ page }) => {
   await expect(page.locator('.mes-aud')).toContainText('Cambios en los apuntes de este mes');
   expect(err).toEqual([]);
 });
+
+test('Incidencias: se apuntan desde la ficha de la colada y salen en Consultas; proveedores del año', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'coladas en externo'); await page.waitForTimeout(300);
+  await page.locator('.bq-res tr.fila-link td[data-l="Aleación"]').first().click(); await page.waitForTimeout(400);
+  const fi = page.locator('.ficha-ov').last();
+  await fi.locator('#inc-nueva').click();
+  await page.selectOption('#inc-tipo', 'Mojados o con humedad'); await page.fill('#inc-fa', '3'); await page.fill('#inc-nota', 'Llovió en la descarga');
+  await page.click('#inc-ok'); await page.waitForTimeout(600);
+  const I = await page.evaluate(() => Object.values(window.__D.incid || {}).flatMap(x => x.items || []));
+  expect(I).toHaveLength(1); expect(I[0]).toMatchObject({ tipo: 'Mojados o con humedad', fa: 3, estado: 'abierta' });
+  await expect(page.locator('.ficha-ov').last()).toContainText('Mojados o con humedad');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  await page.fill('#bqQ', ''); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Incidencias del material' }).first().click(); await page.waitForTimeout(300);
+  const c = page.locator('.card', { hasText: 'Incidencias del material' }).last();
+  await expect(c).toContainText('Mojados o con humedad');
+  await c.getByRole('button', { name: 'Reclamada' }).click(); await page.waitForTimeout(400);
+  expect(await page.evaluate(() => Object.values(window.__D.incid).flatMap(x => x.items)[0].estado)).toBe('reclamada');
+  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Proveedores del año' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.card', { hasText: 'Proveedores del año' }).last()).toContainText('Incidencias');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Trazabilidad: qué colada se usaba un día y nave; certificado en la ficha de la colada', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: '¿Qué colada se usaba ese día?' }).first().click(); await page.waitForTimeout(300);
+  await page.fill('#tz-f', '2026-10-13'); await page.locator('#tz-f').dispatchEvent('change'); await page.waitForTimeout(300);
+  const c = page.locator('.card', { hasText: '¿Qué colada se usaba ese día?' }).last();
+  await expect(c).toContainText('2 f');
+  await expect(c).toContainText('Sin consumo apuntado en este relevo');
+  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
+  await page.fill('#bqQ', 'coladas en externo'); await page.waitForTimeout(300);
+  await page.locator('.bq-res tr.fila-link td[data-l="Aleación"]').first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.ficha-ov').last()).toContainText('Certificado de calidad');
+  await expect(page.locator('#cert-in')).toHaveCount(1);
+  expect(err).toEqual([]);
+});

@@ -7,7 +7,7 @@ const REG_CFG={precios:"Precios",pedidos:"Nº de pedido",candado:"Candado de mes
   proveedores:"Proveedores",provNave:"Nave de descarga de cada proveedor",minimos:"Mínimos",recuentos:"Recuentos hechos",cierres:"Cierres enviados",
   horneros:"Horneros",envioParte:"Envío del parte",maquinas:"Máquinas"};
 async function cargarCambios(f){const sb=window.sbColada;if(!sb){REG.err="Solo se puede ver en la app conectada.";REG.L=[];return;}
-  try{let q=sb.from("cambios").select("id,at,por,col,doc,item,op,antes,despues").in("col",["mov","lotes","cfg"]).order("at",{ascending:false}).limit(500);
+  try{let q=sb.from("cambios").select("id,at,por,col,doc,item,op,antes,despues").in("col",["mov","lotes","cfg","incid"]).order("at",{ascending:false}).limit(500);
     if(f&&f.mov)q=sb.from("cambios").select("id,at,por,col,doc,item,op,antes,despues").eq("col","mov").eq("doc",f.mov).order("at",{ascending:false}).limit(500);
     const r=await q;if(r.error)throw r.error;
     if(!Object.keys(REG.usu).length){try{const u=await sb.from("usuarios").select("user_id,nombre");(u.data||[]).forEach(x=>{REG.usu[x.user_id]=x.nombre;});}catch(e){}}
@@ -25,6 +25,8 @@ function txtCambio(c){const v=c.despues||c.antes||{};
     const ch=Object.keys(N).filter(k=>JSON.stringify(A[k])!==JSON.stringify(D[k])).map(k=>{const f=x=>x==null?"—":k==="o"||k==="d"?((lotes.find(y=>y.id===x)||{}).nombre||x):k==="f"?dmy(x):k==="kg"||k==="kb"?fmt(Math.abs(Math.round(x))):k==="mot"&&typeof AJ_MOT!=="undefined"?(AJ_MOT[x]||x):Math.abs(+x)===+x||isNaN(+x)?String(x):String(Math.abs(+x));
       return N[k]+" "+f(A[k])+" → "+f(D[k]);});
     return{t:"Cambiado: "+base,d:ch.join(" · ")||"cambio interno"};}
+  if(c.col==="incid"){const E={abierta:"abierta",reclamada:"reclamada",cerrada:"cerrada"};
+    return{t:(c.op==="alta"?"Incidencia nueva: ":c.op==="baja"?"Incidencia borrada: ":"Incidencia cambiada: ")+(v.tipo||"")+" · "+(v.colada||""),d:c.op==="cambio"&&c.antes&&c.despues&&c.antes.estado!==c.despues.estado?"estado "+E[c.antes.estado]+" → "+E[c.despues.estado]:[v.prov,v.fa?v.fa+" f":null,v.nota].filter(Boolean).join(" · ")};}
   if(c.col==="lotes"){const n=(c.despues||c.antes||{}).nombre||((lotes.find(x=>x.id===c.doc)||{}).nombre)||"colada";
     if(c.op!=="cambio")return{t:(c.op==="alta"?"Colada nueva: ":"Colada borrada: ")+n,d:[v.nave,v.material&&MAT[v.material]?MAT[v.material].nom:"",v.donde==="externo"?"externo":v.donde?"nave":""].filter(Boolean).join(" · ")};
     const A=c.antes||{},D=c.despues||{};return{t:"Colada cambiada: "+n,d:Object.keys(Object.assign({},A,D)).map(k=>k+" "+(A[k]==null?"—":String(A[k]))+" → "+(D[k]==null?"—":String(D[k]))).join(" · ")};}

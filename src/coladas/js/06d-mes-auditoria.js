@@ -69,4 +69,8 @@ function vMesAud(m){const I=informeMes(m),Sf=conCorte(I.dn,saldos),lote=id=>lote
     el("div",{style:"flex:1;min-width:200px"},[el("h2",{style:"margin:0",text:Mayus(nomMes(m))}),el("div",{class:"sub",text:"Todo lo de este mes en una página: para revisar o enseñar en la auditoría."})]),
     el("button",{type:"button",class:"btn",id:"mes-xlsx",text:"Descargar Excel del mes",onclick:bajar}),
     el("button",{type:"button",class:"btn sec",text:"Ir al cierre",onclick:()=>{cierreMes=m;mesSel="";const f=filtro;f.desde=m+"-01";f.hasta=finDeMes(m);PANV.hist="";render();setTimeout(()=>{const t=[...document.querySelectorAll(".stk-t")].find(x=>/Cierre de mes/.test(x.textContent));if(t)t.click();},50);}})])]);
-  return el("div",{class:"mes-aud",style:"display:flex;flex-direction:column;gap:14px"},[cab,res,cam,con,sub,aj,fin,typeof regMes==="function"?regMes(m):null,arr,fab].filter(Boolean));}
+  return el("div",{class:"mes-aud",style:"display:flex;flex-direction:column;gap:14px"},[cab,res,cam,con,sub,aj,incMes(m),fin,typeof regMes==="function"?regMes(m):null,arr,fab].filter(Boolean));}
+
+function incMes(m){if(typeof todasIncid!=="function")return null;const L=todasIncid().filter(r=>(r.f||"").startsWith(m));
+  return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Incidencias con el material"}),el("span",{class:"der sub",text:L.length?L.length+"":"ninguna"})]),
+    el("div",{class:"bd"},[L.length?el("div",{class:"lst"},L.map(r=>filaIncid(r,true))):el("p",{class:"empty",text:"Este mes no se apuntó ninguna incidencia con el material."})])]);}

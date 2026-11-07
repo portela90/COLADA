@@ -77,7 +77,8 @@ function abrirFicha(id){
   const tec=e=>{if(e.key==="Escape"&&!document.querySelector(".dlg-ov,.lightbox"))cerrar();};
   const ov=el("div",{class:"ficha-ov",role:"dialog","aria-modal":"true","aria-label":"Ficha de colada"},[
     el("div",{class:"ficha-top"},[el("button",{type:"button",class:"btn sec",style:"font-size:14px;padding:9px 14px",text:"← Volver",onclick:cerrar}),tit]),body]);
-  document.addEventListener("keydown",tec);document.body.appendChild(ov);fichaRefresca=pinta;pinta();
+  const pinta2=()=>{pinta();const l=lotes.find(x=>x.id===id),w=body.querySelector(".wrap");if(l&&w&&typeof cardCertColada==="function")w.appendChild(cardCertColada(l,pinta2));if(l&&w&&typeof cardIncidColada==="function")w.appendChild(cardIncidColada(l,pinta2));};
+  document.addEventListener("keydown",tec);document.body.appendChild(ov);fichaRefresca=pinta2;pinta2();
 }
 /* ---------- Ficha de albarán: qué coladas trajo y cuánto queda ---------- */
 let albRefresca=null;
