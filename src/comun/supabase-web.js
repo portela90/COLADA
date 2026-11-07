@@ -137,12 +137,19 @@ async function leeDoc(col,id){const C=P+col,k="d:"+C+"/"+id,ap=d=>d?{data:OFF.ap
     const r=await sb.from("docs").select("data,updated_at").eq("col",C).eq("id",id).maybeSingle();if(r.error)throw r.error;const v=r.data?{data:r.data.data,u:r.data.updated_at}:null;OFF.guarda(k,v);OFF.red(true);return ap(v);}
   catch(e){if(!OFF.esRed(e))throw e;OFF.red(false);let d=await OFF.lee(k);if(d===undefined){const L=await OFF.lee("c:"+C);const x=(L||[]).find(z=>z.id===id);d=x?{data:x.data}:undefined;}
     if(d===undefined&&!OFF.cola().some(o=>o.col===C&&o.id===id))throw e;return ap(d||null);}}
-const rpc=async(f,a)=>{noConsulta();const r=await sb.rpc(f,a);if(r.error)throw r.error;marcaGuardado();};
+const rpc=async(f,a)=>{noConsulta();let r=await sb.rpc(f,a);if(r.error&&esPermiso(r.error)){try{await sb.auth.refreshSession();}catch(_){}r=await sb.rpc(f,a);}if(r.error)throw r.error;marcaGuardado();};
 /* apuntes (añadir, quitar o cambiar líneas): sin red se guardan en la cola y se envían al volver */
 const rpcQ=async(f,a)=>{noConsulta();try{if(!navigator.onLine)throw new TypeError("offline");await rpc(f,a);OFF.red(true);}
   catch(e){if(!OFF.esRed(e)){if(window.reportarError)reportarError(e,"guardar "+f+" "+a.p_col);throw e;}OFF.red(false);await OFF.encola({fn:f,args:a,col:a.p_col,id:a.p_id,desc:sinP(a.p_col)+" "+a.p_id});recargar([a.p_col]);}};
 const sinRed=()=>new Error("Sin conexión: esto se podrá guardar cuando vuelva la red. Los consumos y apuntes sí se guardan sin red.");
-const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();try{const r=await fn();if(r&&r.error)throw r.error;OFF.red(true);marcaGuardado();return r;}catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
+/* si la sesión del móvil se estaba renovando, la base no sabe quién es y rechaza el guardado («row-level security»):
+   se renueva la sesión y se intenta otra vez antes de dar el error */
+const esPermiso=e=>/row-level security|JWT expired|jwt expired|PGRST301|42501/i.test(String((e&&(e.message||e.code))||e));
+const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();
+  const una=async()=>{const r=await fn();if(r&&r.error)throw r.error;return r;};
+  try{let r;try{r=await una();}catch(e){if(!esPermiso(e))throw e;try{await sb.auth.refreshSession();}catch(_){}r=await una();}
+    OFF.red(true);marcaGuardado();return r;}
+  catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
 OFF.ejecutor=op=>rpc(op.fn,op.args);OFF.alVaciar=cols=>recargar(cols);
 const db={
   /* en el Almacén cada apunte guarda quién lo ha hecho («por») */
