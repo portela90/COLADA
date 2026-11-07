@@ -26,3 +26,11 @@ test('limpieza en el ordenador: menú a la izquierda', async ({ page }) => {
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+test('limpieza en el iPad con menú lateral: la barra de botones de abajo no queda debajo del menú', async ({ page }) => {
+  const { OPER } = require('./limp');
+  await page.setViewportSize({ width: 1000, height: 700 });
+  const { err } = await abre(page, Object.assign({}, OPER, { encargado: true }));
+  const r = await page.evaluate(() => { const p = document.querySelector('.pie'), n = document.querySelector('#nav'); return { pie: p.getBoundingClientRect().left, nav: n.getBoundingClientRect().right, lateral: n.getBoundingClientRect().height > n.getBoundingClientRect().width }; });
+  expect(r.lateral).toBe(true); expect(r.pie).toBeGreaterThanOrEqual(r.nav - 1);
+  expect(err).toEqual([]);
+});

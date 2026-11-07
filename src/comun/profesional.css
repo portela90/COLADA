@@ -80,13 +80,15 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
   #app>nav#tabs button:hover{background:var(--nav-hov)!important;color:#fff!important}
   #app>nav#tabs button[aria-selected="true"]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
   /* Limpieza: el menú del jefe, de arriba abajo, con la cabecera a su derecha */
-  #nav{background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;z-index:21!important;gap:3px!important}
-  #nav::before{content:"CIE";display:flex;align-items:center;min-height:52px;padding:0 8px;margin-bottom:8px;color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em;
+  html:has(script[data-app="limpieza"]) #nav{background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;z-index:21!important;gap:3px!important}
+  html:has(script[data-app="limpieza"]) #nav::before{content:"CIE";display:flex;align-items:center;min-height:52px;padding:0 8px;margin-bottom:8px;color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em;
     border-bottom:1px solid rgba(255,255,255,.08);flex:none}
-  body:has(#nav:not([hidden]))>header{padding-left:calc(var(--side-w,228px) + 16px)!important}
-  #nav button{color:var(--nav-ink)!important;background:none;box-shadow:none!important;font-weight:500}
-  #nav button:hover{background:var(--nav-hov)!important;color:#fff!important}
-  #nav button[aria-selected=true]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
+  html:has(script[data-app="limpieza"]) body:has(#nav:not([hidden]))>header{padding-left:calc(var(--side-w,228px) + 16px)!important}
+  html:has(script[data-app="limpieza"]) #nav button{color:var(--nav-ink)!important;background:none;box-shadow:none!important;font-weight:500}
+  html:has(script[data-app="limpieza"]) #nav button:hover{background:var(--nav-hov)!important;color:#fff!important}
+  html:has(script[data-app="limpieza"]) #nav button[aria-selected=true]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
+  /* la barra de botones de abajo (Máquinas, Ver todos, Abrir trabajo) empieza a la derecha del menú */
+  body:has(#nav:not([hidden])) .pie{left:calc(var(--side-w,228px) + max(0px,(100vw - var(--side-w,228px) - 1240px)/2))!important;right:max(0px,(100vw - var(--side-w,228px) - 1240px)/2)!important;border-radius:0!important}
 }
 
 /* Inicio: cifras de los mosaicos en negrita */
