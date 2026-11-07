@@ -26,5 +26,10 @@
       setTimeout(()=>v.classList.remove("pg-entra"),450);}
     ultima=k;
     return h;};
+  /* buscador grande en la barra de arriba (en el iPad y el ordenador): el botón «Buscar» pasa a parecer un campo de búsqueda */
+  const LUPA={coladas:"Busca una colada, un camión, un albarán…",almacen:"Busca un artículo, una máquina, un eje…"};
+  function lupaLarga(){const b=document.getElementById("lupa");if(!b||b.querySelector(".lupa-l"))return;const sc=document.querySelector("script[data-app]");const app=sc&&sc.getAttribute("data-app");
+    if(!LUPA[app])return;const s=document.createElement("span");s.className="lupa-l";s.textContent=LUPA[app];b.appendChild(s);b.classList.add("lupa-campo");}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",lupaLarga);else lupaLarga();
   window.svgPg=p=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 })();

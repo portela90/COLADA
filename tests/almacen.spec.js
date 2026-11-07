@@ -1639,3 +1639,17 @@ test('Fichas: proveedor con datos, compras y notas; las notas se guardan con fec
   expect(await page.evaluate(() => typeof cajaNotas)).toBe('undefined'); // las piezas no son globales: se comprueba por la pantalla
   expect(err).toEqual([]);
 });
+
+test('Apuntar: botones directos, lo que sueles apuntar y quién/a qué hora en «Apuntado hoy»', async ({ page }) => {
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  const apuntar = () => page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click());
+  await apuntar(); await page.waitForTimeout(400);
+  for (const t of ['Cambio de pistón', 'Consumo', 'Foto del albarán', 'Entrada', 'Traslado', 'Recuento', 'Avería', 'Eje a cuarentena']) await expect(page.locator('.rap-b', { hasText: t })).toHaveCount(1);
+  await page.locator('.rap-b', { hasText: 'Traslado' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.pg-h')).toHaveText('Movimientos'); await expect(page.locator('#mDest')).toHaveCount(1);
+  await apuntar(); await page.waitForTimeout(400);
+  const h = page.locator('.rap-h').first(); await expect(h).toBeVisible();
+  const t = await h.locator('b').innerText(); await h.click(); await page.waitForTimeout(500);
+  if (/^Pistón/.test(t)) await expect(page.locator('.pg-h')).toHaveText('Pistones'); else await expect(page.locator('.pg-h')).toHaveText('Consumo');
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});

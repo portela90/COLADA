@@ -83,7 +83,7 @@ function pantallaImportar(vacia){return new Promise(res=>{
 /* ---------- usuario en la cabecera y gestión de usuarios ---------- */
 function ponUsuario(){const hd=document.querySelector("header");if(!hd||document.getElementById("usr-btn"))return;
   const n=String(yo.nombre||yo.email||"?").trim(),ini=n.split(/[\s@.]+/).filter(Boolean).map(x=>x[0]).slice(0,2).join("").toUpperCase();
-  const av=h("button",{id:"usr-btn",class:"usr-av",type:"button",title:n,"aria-label":"Menú de "+n+": otras apps, historial y usuario",text:ini,onclick:menuUsuario});const lu=hd.querySelector(".lupa");if(lu)lu.after(av);else hd.appendChild(av);
+  const av=h("button",{id:"usr-btn",class:"usr-av",type:"button",title:n,"aria-label":"Menú de "+n+": otras apps, historial y usuario",text:ini,onclick:menuUsuario});const nm=h("button",{class:"usr-nom",type:"button",title:n,"aria-label":"Menú de "+n,text:n.split(" ")[0],onclick:menuUsuario});const lu=hd.querySelector(".lupa");if(lu){lu.after(av);av.after(nm);}else{hd.appendChild(av);hd.appendChild(nm);}
   if(yo.consulta)av.before(h("span",{class:"solo-c",title:SOLO_MSG,text:"Solo consulta",style:"align-self:center;flex:none;font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;background:var(--info-bg,#E1F4FF);color:var(--info,#0064D9);white-space:nowrap"}));}
 function menuUsuario(){const APP=window.APP_ID||(P?"almacen":"colada");
   const box=h("div",{class:"dlg",role:"dialog"}),ov=h("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}},[box]);

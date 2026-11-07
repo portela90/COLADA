@@ -245,9 +245,11 @@ function vRap(v){
   const go=el("button",{type:"button",class:"btn",style:"flex:1",text:rq.cargando==="local"?"Leyendo…":"Entender",disabled:!!rq.cargando,onclick:()=>entender(false)});
   const goIA=rq.ofrecerIA?el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0"},[el("span",{style:"flex:1;min-width:160px",text:"No lo he entendido. La IA lo lee mejor (medio céntimo)."}),el("button",{type:"button",class:"btn peq",text:rq.cargando==="ia"?"Pensando…":"Probar con IA",disabled:!!rq.cargando,onclick:()=>entender(true)})]):null;
   const goNota=el("button",{type:"button",class:"btn sec",style:"flex:1",text:"＋ Guardar como nota",onclick:guardarNota});
+  {const c=cardAccionesRap();if(c)v.appendChild(c);}
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Apuntar rápido"}),el("span",{class:"der sub",text:"Escríbelo o díctalo como lo dirías"})]),
     el("div",{class:"bd frm",style:"gap:10px"},[ta,el("div",{class:"acciones"},[SR?el("button",{type:"button",class:"btn sec",text:"Dictar",onclick:e=>dictar(e.currentTarget,ta)}):null,goNota]),el("div",{class:"acciones"},[go]),goIA,
       el("details",{},[el("summary",{class:"hint",style:"cursor:pointer;font-weight:600",text:"¿Qué frases entiende?"}),el("p",{class:"hint",text:"Durante el día ve guardando notas y al final procésalas todas juntas. O pulsa «Entender» para hacerlo al momento. «Entender» es gratis: entiende frases como «pistón 90 esp en la 66 desgaste el 211», «3 escobas N1A», «bajado 2 pistones del 80 de general a N2», «entrada 20 m manguera Eguiber», «eje 2.3.C-3 postizo roto», «recibidos 3.1.A-9 y 2.2.B-4 albarán 001400A26». Si no lo entiende bien, «Con IA» lo lee mejor (medio céntimo cada vez; si pones varias cosas juntas, se paga una sola vez). Antes de guardar lo ves todo y lo puedes corregir."})])])]));
+  {const c=cardHabitualesRap();if(c)v.appendChild(c);}
   v.appendChild(el("datalist",{id:"lOperR"},responsables().map(x=>el("option",{value:x}))));
   v.appendChild(el("datalist",{id:"lEjesR"},ejes.map(e=>el("option",{value:e.cod}))));
   if(notas.length){const hy=hoy();v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Notas pendientes ("+notas.length+")"}),el("span",{class:"der sub",text:"Se procesan todas de una vez"})]),
@@ -259,13 +261,14 @@ function vRap(v){
   if(rq.acc&&rq.acc.length&&!rq.ia&&rq.lote&&rq.acc.some(r=>r.lote===rq.lote&&faltaR(r).length))v.appendChild(el("div",{class:"acciones"},[el("span",{class:"hint",style:"flex:1;align-self:center",text:"¿No lo ha entendido bien?"}),el("button",{type:"button",class:"btn sec peq",text:"Probar con IA (½ cént.)",disabled:!!rq.cargando,onclick:()=>{rq.txt="";entender(true);}})]));
   if(rq.acc&&rq.acc.length){rq.acc.forEach(r=>v.appendChild(filaR(r)));v.appendChild(el("div",{id:"rPie",class:"acciones",style:"position:sticky;bottom:0;background:var(--bg);padding:8px 0"}));pintaPie();}
   apuntesHoy(v);}
+const horaPor=x=>{const h=x.ts?new Date(x.ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";const q=x.por||"";return [h,q].filter(Boolean).join(" · ")||null;};
 function apuntesHoy(v){const hy=hoy();
   const ps=todosPist().filter(p=>p.f===hy).reverse();const ids=new Set(ps.map(p=>p.movId).filter(Boolean));
   const ms=todosMov().filter(m=>m.f===hy&&!ids.has(m.id)).sort((a,b)=>(b.ts||0)-(a.ts||0));
   const rows=ps.map(p=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:"Pistón "+p.diam+((+p.cant||1)>1?" ×"+p.cant:"")+" · "+maqN(p.maq)}),
-      el("div",{class:"t2",text:[cap(p.motivo),cap(p.dest||""),p.resp?respTxt(p.resp):null].filter(Boolean).join(" · ")})]),
+      el("div",{class:"t2",text:[cap(p.motivo),cap(p.dest||""),p.resp?respTxt(p.resp):null,horaPor(p)].filter(Boolean).join(" · ")})]),
       el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+(p.movId?". El pistón vuelve al stock.":"."),"Borrar",async()=>{await delPist(p);toast("Borrado");})})]))
-    .concat(ms.map(m=>{const a=art(m.art);return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a?a.desc:"(borrado)"}),el("div",{class:"t2",text:TIPOS[m.tipo]+" · "+dondeTxt(m)})]),
+    .concat(ms.map(m=>{const a=art(m.art);return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:a?a.desc:"(borrado)"}),el("div",{class:"t2",text:[TIPOS[m.tipo]+" · "+dondeTxt(m),horaPor(m)].filter(Boolean).join(" · ")})]),
       el("b",{class:"num",text:signo(m)}),el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",TIPOS[m.tipo]+" · "+(a?a.desc:"")+"."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Borrado");})})]);}));
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Apuntado hoy ("+rows.length+")"})),rows.length?el("div",{class:"lst"},rows):el("div",{class:"empty",text:"Nada todavía."})]));}
 

@@ -249,3 +249,33 @@ body>header .campana~.who{order:0}
 .xl-b:disabled{opacity:.6;cursor:wait}
 .card>.xl-bar,.card .bd>.xl-bar{padding:0 14px}
 .card>.bd>.xl-bar,.card .bd .xl-bar{padding:0}
+
+/* ===================== Barra de arriba como en los programas de gestión (iPad y ordenador) =====================
+   buscador grande a la izquierda · cifras (Coladas) · campana · usuario con su nombre a la derecha. El título y la fecha
+   no hacen falta aquí: el menú lateral dice la app y la cabecera de cada pantalla dice dónde estás. */
+.usr-nom{display:none}
+.lupa .lupa-l{display:none}
+@media (min-width:800px) and (min-height:560px){
+  #app>header{align-items:center!important;gap:12px!important;min-height:64px}
+  #app>header h1{display:none!important}
+  #app>header .lupa.lupa-campo{order:1;flex:1 1 320px;max-width:540px;margin:0!important;justify-content:flex-start;gap:10px;height:42px;padding:0 14px!important;
+    border:1px solid var(--line)!important;background:var(--surf2)!important;color:var(--mut)!important;font-weight:400!important;border-radius:10px!important;box-shadow:none}
+  #app>header .lupa.lupa-campo:hover{border-color:var(--btnb)!important;background:var(--surf)!important}
+  #app>header .lupa.lupa-campo>span:not(.lupa-l){display:none!important}
+  #app>header .lupa.lupa-campo .lupa-l{display:inline!important;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #app>header .chips2{order:2;flex:0 1 auto!important;width:auto!important}
+  #app>header .tot{order:3;margin-left:auto!important}
+  #app>header .campana{order:4;margin-left:auto!important}
+  #app>header .tot~.campana{margin-left:12px!important}
+  #app>header .usr-av{order:5;margin-left:4px}
+  #app>header .usr-nom{order:6;display:inline-flex;align-items:center;appearance:none;border:0;background:none;padding:0 4px 0 0;font:600 14px Inter,system-ui,sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap}
+}
+@media (min-width:800px) and (min-height:560px){#app>header .lupa.lupa-campo{min-width:0}#app>header .tot{white-space:nowrap;flex:none}#app>header .tot>div{white-space:nowrap}}
+@media (min-width:800px) and (max-width:1023px) and (min-height:560px){#app>header .usr-nom{display:none}#app>header .chips2{display:none!important}
+  #app>header .tot{gap:10px}#app>header .tot b{font-size:16px}#app>header .lupa.lupa-campo{flex-basis:160px}}
+
+/* barras de pestañas que se quedan fijas al bajar: pegadas al borde de arriba (sin dejar ver lo de detrás) */
+main{--mpt:16px}
+@media (min-width:700px){main{--mpt:20px}}
+@media (min-width:1200px) and (min-height:560px){main{--mpt:24px}}
+.op-tabs.secc-tabs,.bd-caja{top:calc(-1 * var(--mpt))!important}
