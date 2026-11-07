@@ -5,6 +5,7 @@ module.exports = {
   testDir: __dirname,
   testMatch: /.*\.spec\.js$/,
   timeout: 45000,
+  expect: { timeout: 15000 },
   retries: process.env.CI ? 1 : 0,
   workers: 2,
   reporter: process.env.CI ? [['list'], ['github']] : 'list',
