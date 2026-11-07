@@ -104,14 +104,16 @@ function pinPad(w){let pin="",pin1=null,alta=null;const nuevo=!w.tiene_pin;const
   pintaDots();cerrar=dlg(w.nombre,el("div",null,[msg,dots,pad]),[{t:"Cancelar",cls:"sec"}]);}
 
 /* visor de fotos dentro de la app (los móviles no dejan abrir la foto en otra pestaña) */
-function verFoto(src,pie){const ov=el("div",{class:"visor",role:"dialog","aria-modal":"true","aria-label":"Foto"});
+function verFoto(src,pie,borrar){const ov=el("div",{class:"visor",role:"dialog","aria-modal":"true","aria-label":"Foto"});
   const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};const tec=e=>{if(e.key==="Escape")cerrar();};document.addEventListener("keydown",tec);
-  ov.appendChild(el("div",{class:"vbar"},[el("span",{style:"flex:1",text:pie||""}),el("a",{class:"btn sec peq",href:src,download:"foto-"+Date.now()+".jpg",text:"Guardar"}),el("button",{class:"btn peq",text:"✕ Cerrar",onclick:cerrar})]));
+  ov.appendChild(el("div",{class:"vbar"},[el("span",{style:"flex:1",text:pie||""}),borrar?el("button",{class:"btn bad peq",type:"button",text:"Borrar foto",onclick:()=>{cerrar();borrar();}}):null,el("a",{class:"btn sec peq",href:src,download:"foto-"+Date.now()+".jpg",text:"Guardar"}),el("button",{class:"btn peq",text:"✕ Cerrar",onclick:cerrar})]));
   ov.appendChild(el("div",{class:"vimg",onclick:e=>{if(e.target===e.currentTarget)cerrar();}},el("img",{src,alt:pie||"foto"})));document.body.appendChild(ov);}
 const miniFoto=(x,pie)=>x.data?el("button",{class:"mini",type:"button","aria-label":"Ver foto",onclick:()=>verFoto(x.data,pie)},el("img",{src:x.data,alt:"foto"})):el("span",{class:"pill",text:"guardada en la copia"});
-/* foto con botón «Borrar» (solo admin y encargado), para quitar fotos subidas por error */
-function miniFotoB(x,pie){const m=miniFoto(x,pie);if(!x.id||!(esAdm()||esEnc()))return m;
-  const w=el("div",{class:"mini-b"},[m,el("button",{class:"btn bad peq",type:"button","aria-label":"Borrar esta foto",text:"Borrar",onclick:()=>confirma("¿Borrar esta foto?","Se quita del trabajo y no se puede recuperar.","Borrar",async()=>{try{await rpc("foto_borrar",{p_tok:S.tok,p_id:x.id});w.remove();toast("Foto borrada");}catch(e){toast(e.message);return false;}})})]);return w;}
+/* foto con botón «Borrar» (solo admin y encargado), para quitar fotos subidas por error; también se borra desde la foto en grande */
+function miniFotoB(x,pie){if(!x.id||!(esAdm()||esEnc()))return miniFoto(x,pie);let w;
+  const borra=()=>confirma("¿Borrar esta foto?","Se quita del trabajo y no se puede recuperar.","Borrar",async()=>{try{await rpc("foto_borrar",{p_tok:S.tok,p_id:x.id});w.remove();toast("Foto borrada");}catch(e){toast(e.message);return false;}});
+  const m=x.data?el("button",{class:"mini",type:"button","aria-label":"Ver foto",onclick:()=>verFoto(x.data,pie,borra)},el("img",{src:x.data,alt:"foto"})):miniFoto(x,pie);
+  w=el("div",{class:"mini-b"},[m,el("button",{class:"btn bad peq",type:"button","aria-label":"Borrar esta foto",text:"Borrar",onclick:borra})]);return w;}
 /* ---------- tarjeta de OT ---------- */
 const durTxt=m=>{if(m==null)return"";m=Math.max(0,Math.round(m));if(m<60)return m+" min";const r=m%60;return Math.floor(m/60)+" h"+(r?" "+String(r).padStart(2,"0")+" min":"");};
 const desde=ts=>(Date.now()-new Date(ts).getTime())/60000;
