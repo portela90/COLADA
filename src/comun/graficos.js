@@ -4,9 +4,11 @@
    Colores de la paleta SAP Fiori; se adapta al modo oscuro y al ancho del móvil. */
 (function(){
   if(window.GRAF)return;
-  var LIB="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js",carga=null;
+  /* primero la copia que va con la app (no depende de otras webs, que a veces la red de la empresa o el iPad bloquean); si no, la de internet */
+  var LIBS=["lib/echarts-5.5.1.min.js","https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js","https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"],carga=null;
+  function una(src){return new Promise(function(ok,ko){var s=document.createElement("script");s.src=src;s.onload=function(){window.echarts?ok(window.echarts):ko(new Error("sin echarts"));};s.onerror=function(){s.remove();ko(new Error("no carga "+src));};document.head.appendChild(s);});}
   function lib(){if(window.echarts)return Promise.resolve(window.echarts);
-    if(!carga)carga=new Promise(function(ok,ko){var s=document.createElement("script");s.src=LIB;s.onload=function(){ok(window.echarts);};s.onerror=function(){carga=null;ko(new Error("No se pudo cargar la librería de gráficos"));};document.head.appendChild(s);});
+    if(!carga)carga=LIBS.reduce(function(p,src){return p.catch(function(){return una(src);});},Promise.reject()).catch(function(){carga=null;throw new Error("No se pudo cargar la librería de gráficos");});
     return carga;}
   var PAL=["#0070F2","#C87B00","#358A4D","#DF1278","#8B47D7","#049F9A","#E76500","#5D36FF","#798C77","#DA6C6C","#168EFF","#75980B"];
   function css(v,def){try{var x=getComputedStyle(document.documentElement).getPropertyValue(v).trim();return x||def;}catch(e){return def;}}
