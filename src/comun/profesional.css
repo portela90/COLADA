@@ -124,3 +124,75 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
   html:has(script[data-app="toolbox"]) .top{background:var(--nav-bg)!important;color:#fff!important;box-shadow:none!important}
   html:has(script[data-app="toolbox"]) .top .ib{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important}
 }
+
+/* ===================== Pantallas: cada apartado con su color, cabecera grande, tablas y transición ===================== */
+:root{--sc:var(--acc);--sd:var(--acc);--ss:var(--acc-soft)}
+:root[data-sec="azul"]{--sc:#2563EB;--sd:#1E40AF;--ss:#EFF6FF}
+:root[data-sec="naranja"]{--sc:#EA580C;--sd:#9A3412;--ss:#FFF7ED}
+:root[data-sec="verde"]{--sc:#059669;--sd:#065F46;--ss:#ECFDF5}
+:root[data-sec="morado"]{--sc:#7C3AED;--sd:#5B21B6;--ss:#F5F3FF}
+:root[data-sec="turquesa"]{--sc:#0D9488;--sd:#115E59;--ss:#F0FDFA}
+:root[data-sec="ambar"]{--sc:#B45309;--sd:#78350F;--ss:#FFFBEB}
+:root[data-sec="indigo"]{--sc:#4F46E5;--sd:#3730A3;--ss:#EEF2FF}
+:root[data-sec="rosa"]{--sc:#DB2777;--sd:#9D174D;--ss:#FDF2F8}
+:root[data-sec="gris"]{--sc:#475569;--sd:#1E293B;--ss:#F1F5F9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-sec="azul"]{--sc:#3B82F6;--sd:#93C5FD;--ss:#15223F}:root:not([data-theme="light"])[data-sec="naranja"]{--sc:#F97316;--sd:#FDBA74;--ss:#2E1C12}:root:not([data-theme="light"])[data-sec="verde"]{--sc:#10B981;--sd:#6EE7B7;--ss:#0F2A24}:root:not([data-theme="light"])[data-sec="morado"]{--sc:#8B5CF6;--sd:#C4B5FD;--ss:#221A3D}:root:not([data-theme="light"])[data-sec="turquesa"]{--sc:#14B8A6;--sd:#5EEAD4;--ss:#0E2A2C}:root:not([data-theme="light"])[data-sec="ambar"]{--sc:#D97706;--sd:#FCD34D;--ss:#2C2210}:root:not([data-theme="light"])[data-sec="indigo"]{--sc:#6366F1;--sd:#A5B4FC;--ss:#1C1F45}:root:not([data-theme="light"])[data-sec="rosa"]{--sc:#EC4899;--sd:#F9A8D4;--ss:#2E1528}:root:not([data-theme="light"])[data-sec="gris"]{--sc:#64748B;--sd:#CBD5E1;--ss:#1B2434}}
+:root[data-theme="dark"][data-sec="azul"]{--sc:#3B82F6;--sd:#93C5FD;--ss:#15223F}
+:root[data-theme="dark"][data-sec="naranja"]{--sc:#F97316;--sd:#FDBA74;--ss:#2E1C12}
+:root[data-theme="dark"][data-sec="verde"]{--sc:#10B981;--sd:#6EE7B7;--ss:#0F2A24}
+:root[data-theme="dark"][data-sec="morado"]{--sc:#8B5CF6;--sd:#C4B5FD;--ss:#221A3D}
+:root[data-theme="dark"][data-sec="turquesa"]{--sc:#14B8A6;--sd:#5EEAD4;--ss:#0E2A2C}
+:root[data-theme="dark"][data-sec="ambar"]{--sc:#D97706;--sd:#FCD34D;--ss:#2C2210}
+:root[data-theme="dark"][data-sec="indigo"]{--sc:#6366F1;--sd:#A5B4FC;--ss:#1C1F45}
+:root[data-theme="dark"][data-sec="rosa"]{--sc:#EC4899;--sd:#F9A8D4;--ss:#2E1528}
+:root[data-theme="dark"][data-sec="gris"]{--sc:#64748B;--sd:#CBD5E1;--ss:#1B2434}
+/* Toolbox no tiene modo oscuro: sus colores claros */
+@media (prefers-color-scheme:dark){html:has(script[data-app="toolbox"]):not([data-theme="light"]){--sd:#065F46;--ss:#ECFDF5}}
+
+/* cabecera de la pantalla */
+.pg-hd{position:relative;display:flex;flex-direction:column;gap:8px;padding:16px 20px 16px 22px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background:linear-gradient(135deg,var(--ss) 0%,var(--surf) 75%);box-shadow:var(--shadow)}
+.pg-hd::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc)}
+.pg-ruta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--mut)}
+.pg-ruta b{color:var(--sd);font-weight:600}
+.pg-ruta-s{opacity:.5}
+.pg-ruta-b{appearance:none;border:0;background:none;padding:0;font:inherit;color:var(--mut);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.pg-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pg-ico{width:46px;height:46px;flex:none;border-radius:12px;background:var(--sc);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(17,26,46,.16)}
+.pg-ico svg{width:24px;height:24px;display:block}
+.pg-tit{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pg-h{margin:0;font-size:24px;line-height:1.15;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.pg-sub{margin:0;font-size:14px;color:var(--mut)}
+.pg-acc{display:flex;gap:8px;flex-wrap:wrap}
+.pg-acc .btn{background:var(--sc)!important;border-color:var(--sc)!important;color:#fff!important;font-size:15px;padding:10px 16px;margin:0;box-shadow:0 2px 6px rgba(17,26,46,.12)}
+.pg-acc .btn.sec{background:var(--surf)!important;color:var(--sd)!important;border-color:var(--line)!important;box-shadow:none}
+@media (max-width:699px){
+  .pg-hd{padding:12px 14px 12px 16px;gap:6px;margin-bottom:12px}
+  .pg-ruta{display:none}
+  .pg-ico{width:38px;height:38px;border-radius:10px}.pg-ico svg{width:20px;height:20px}
+  .pg-h{font-size:20px}.pg-sub{font-size:13px}
+  .pg-acc{width:100%}.pg-acc .btn{flex:1 1 auto}
+}
+/* el apartado elegido con su color: menú lateral, barra de abajo, pestañas y subrayados */
+@media (min-width:800px) and (min-height:560px){
+  #app>nav#tabs button[aria-selected="true"],html:has(script[data-app="limpieza"]) #nav button[aria-selected=true]{background:var(--sc)!important}
+}
+@media (max-width:799px), (max-height:559px){
+  nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{background:var(--ss)!important;color:var(--sd)!important}
+}
+.stk-side .stk-t.mini.on{border-bottom-color:var(--sc)!important}
+.stk-side .stk-t.mini.on .stk-t-t{color:var(--sd)!important}
+.pv-side .pv-t.mini.on{border-color:var(--sc)!important;background:var(--ss)!important}
+.mes-tab[aria-selected="true"]{border-bottom-color:var(--sc)!important;color:var(--sd)!important}
+.seg>button[aria-pressed="true"]{color:var(--sd)!important}
+
+/* tablas: cabecera gris, filas que se marcan al pasar por encima */
+.card table th,.dlg table th{background:var(--surf2);color:var(--mut);font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:none}
+.card table td,.card table th{border-bottom:1px solid var(--line2)}
+.card table tbody tr:hover>td{background:var(--ss)}
+
+/* al cambiar de pantalla, el contenido entra (sin mover las barras fijas) */
+@keyframes pgEntra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pg-entra>*:not(.pie):not(.ov):not(.dlg-ov){animation:pgEntra .32s cubic-bezier(.2,.7,.3,1) both}
+.pg-entra>*:nth-child(2){animation-delay:.03s}.pg-entra>*:nth-child(3){animation-delay:.06s}.pg-entra>*:nth-child(n+4){animation-delay:.09s}
+@media (prefers-reduced-motion:reduce){.pg-entra>*{animation:none!important}}

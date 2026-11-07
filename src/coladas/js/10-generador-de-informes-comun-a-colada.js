@@ -160,6 +160,11 @@ function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(
     Object.assign(k,{conMes:sK("C",PC.d1,PC.h),conAnt:sK("C",PC.a1,PC.ah),conSerie:PC.meses.map(m=>sK("C",m+"-01",m+"-31")),
       entMes:sK("E",PC.d1,PC.h),entAnt:sK("E",PC.a1,PC.ah),entSerie:PC.meses.map(m=>sK("E",m+"-01",m+"-31"))});}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
+/* color, título y frase de cada apartado (cabecera de la pantalla) */
+const SEC_COL={stock:["azul","Stock","Lo que hay de cada aleación, en la nave y fuera"],consumo:["naranja","Consumo","Lo que gastan los hornos, relevo a relevo"],
+  entrada:["verde","Entrada","Camiones y albaranes de aluminio que llegan"],lotes:["morado","Lotes","Cada colada: de dónde viene, dónde está y cuánto queda"],
+  hist:["turquesa","Consultas","Cierres de mes, movimientos, informes y auditoría"],precios:["ambar","Precios","Precio de cada proveedor y nº de pedido del mes"],
+  plan:["indigo","Plan","Camiones previstos y pedido del mes que viene"]};
 function pinta(){
   const v=$("view");v.textContent="";v.classList.toggle("estrecha",tab==="consumo"||tab==="entrada"||tab==="precios");
   if(!ready){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"Cargando…"})]));return;}
@@ -167,7 +172,10 @@ function pinta(){
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
   $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();prodAlmacen();
-  if(tab==="stock"||tab==="hist")v.appendChild(el("div",{style:"display:flex;justify-content:flex-end"},[el("button",{type:"button",class:"btn",text:"Generar informe",onclick:()=>generarInforme()})]));
+  {const C=SEC_COL[tab]||SEC_COL.stock;
+    v.appendChild(cabeceraPg({ruta:["Coladas"],titulo:C[1],sub:C[2],color:C[0],icono:svgPg(ICO_T[tab]||""),vista:v,
+      acciones:[tab==="stock"||tab==="hist"?{t:"Generar informe",fn:()=>generarInforme()}:null,
+        tab==="consumo"?{t:"+ Apuntar relevo",fn:()=>irPanel("consumo","relevo")}:null]}));}
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
 function tabsUI(){const n=$("tabs");n.textContent="";

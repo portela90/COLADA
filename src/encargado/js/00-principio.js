@@ -59,6 +59,14 @@ async function pinta(){const v=$("v");v.textContent="";
   if(esJefe()&&S.tab==="hoy")S.tab="inicio";
   if(!esJefe()&&!["hoy","inc"].includes(S.tab)&&!SUB_ENC.includes(S.tab))S.tab="hoy";
   pintaNav();
+  {const C={hoy:["ambar","Hoy","Lo que hay que revisar hoy: trabajos, checklist e instrucciones",'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>'],
+      inicio:["indigo","Instrucciones","Lo que te deja Cristian cuando no está",'<path d="M4 5h16v11H8l-4 4z"/>'],
+      excel:["azul","Trabajos","Los trabajos del fin de semana",'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>'],
+      check:["verde","Checklist","Lo que hay que revisar en la nave",'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 12l2 2 4-4"/>'],
+      inc:["rosa","Incidencias","Lo que ha pasado y cómo se ha resuelto",'<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'],
+      ajustes:["gris","Ajustes","Checklist, avisos y quién es encargado",'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>']}[S.tab]||["ambar","Encargado","",""];
+    const sub=!esJefe()&&SUB_ENC.includes(S.tab);
+    v.appendChild(cabeceraPg({ruta:["Encargado",sub?{t:"Hoy",fn:()=>{S.tab="hoy";ls.set("enc.tab","hoy");pinta();window.scrollTo(0,0);}}:null],titulo:C[1],sub:C[2],color:C[0],icono:C[3]?svgPg(C[3]):null,vista:v}));}
   if(!esJefe()&&SUB_ENC.includes(S.tab)){ /* secciones abiertas desde Hoy: botón para volver */
     v.appendChild(el("button",{class:"btn sec peq",style:"margin-bottom:10px",text:"‹ Hoy",onclick:()=>{S.tab="hoy";ls.set("enc.tab","hoy");pinta();window.scrollTo(0,0);}})); }
   ({hoy:vHoy,inicio:vInicio,excel:vExcel,check:vCheck,inc:vInc,ajustes:vAjustes})[S.tab](v);}

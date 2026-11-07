@@ -2,10 +2,13 @@
 const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"]];
 const ICL={hoy:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',semana:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',tareas:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',equipo:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/>',avisos:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',resumen:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',toolbox:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/>',encargado:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',calendario:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3"/>'};
 const svgI=k=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICL[k]||"")+'</svg>';
+/* color y frase de cada pantalla (cabecera) */
+const SEC_LIM={hoy:["azul","Los trabajos del día, quién los hace y cómo van"],semana:["indigo","Lo planificado para la semana y las horas de cada uno"],tareas:["morado","Trabajos habituales y cada cuánto se hacen"],
+  equipo:["verde","Quién trabaja, turnos, faltas y permisos"],avisos:["ambar","Avisos al móvil y problemas que se repiten"],resumen:["turquesa","Cómo va el mes: trabajos, horas, consumos e informes"]};
 function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   if(!S.tok||!S.yo){$("who").textContent="";$("bsalir").hidden=true;nav.hidden=true;vEntrar(v);return;}
   $("who").textContent=S.yo.nombre.split(" ")[0]+(S.verOp?" (prueba: operario)":"");$("bsalir").hidden=false;
-  {const h=document.querySelector("header h1");const tt=esAdm()?((TABS_ADMIN.find(x=>x[0]===S.tab)||[])[1]||"Limpieza"):"Limpieza";if(h)h.textContent=tt;}
+  {const h=document.querySelector("header h1");if(h)h.textContent="Limpieza";}
   if(S.yo.rol==="admin"){let bp=$("bprueba");if(!bp){bp=el("button",{id:"bprueba",class:"sec",type:"button"});$("bsalir").parentNode.insertBefore(bp,$("bsalir"));}
     bp.hidden=!S.verOp&&window.innerWidth<760;bp.textContent=S.verOp?"↩ Volver a jefe":"Probar como operario";bp.onclick=()=>{S.verOp=!S.verOp;S.tab="hoy";pinta();window.scrollTo(0,0);};}
   else{const bp=$("bprueba");if(bp)bp.hidden=true;}
@@ -33,6 +36,8 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
     nav.appendChild(el("button",{"aria-selected":"false",onclick:()=>{location.href="toolbox.html?v="+Date.now();}},[el("span",{text:"Toolbox EPI"})]));
   }
   else{nav.hidden=true;S.tab="hoy";}
+  {const C=SEC_LIM[S.tab]||SEC_LIM.hoy;const ttl=esAdm()?((TABS_ADMIN.find(x=>x[0]===S.tab)||[])[1]||"Día"):"Mi día";
+    v.appendChild(cabeceraPg({ruta:["Limpieza CIE"],titulo:ttl,sub:esAdm()||esEnc()?C[1]:"Los trabajos que tienes hoy, en orden",color:C[0],icono:svgI(S.tab),vista:v}));}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
   ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
@@ -47,7 +52,7 @@ let _tbN=0;const _pintaTb=pinta;pinta=function(){_pintaTb();const n=++_tbN;
     const tit=esD?(DN[p.doc]||"Documento")+" para firmar":esF?"Formación en el puesto para firmar":"Toolbox de "+MS[p.mes-1]+" para firmar";
     const b=el("a",{href:esD?"toolbox.html?d="+p.id:esF?"toolbox.html?f="+p.id:"toolbox.html?a="+p.anio+"&m="+p.mes,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:var(--acc);border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:tit}),el("span",{style:"font-size:14px;opacity:.9",text:L.length>1?"Tienes "+L.length+" documentos pendientes. Toca para leer y firmar.":"Toca para leerlo y firmar."})]),el("span",{style:"font-size:26px",text:"›"})]);
-    const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
+    const v=$("v");if(v){const hd=v.querySelector(":scope>.pg-hd");if(hd)hd.after(b);else v.prepend(b);}}).catch(()=>{});};
 /* Encargado: aviso de instrucciones sin leer. Jefe: incidencias abiertas */
 let _enN=0;const _pintaEn=pinta;pinta=function(){_pintaEn();const n=++_enN;
   if(!S.tok||!S.yo||S.tab!=="hoy"||!(esGes()))return;
@@ -57,14 +62,14 @@ let _enN=0;const _pintaEn=pinta;pinta=function(){_pintaEn();const n=++_enN;
     if(!tit)return;
     const b=el("a",{href:"encargado.html?v="+Date.now(),style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:"+(R.inc_urgentes&&R.rol==="admin"?"#C0392B":"#16212C")+";border-radius:var(--r);padding:12px 16px;margin:0 0 12px"},
       [el("span",{style:"font-size:26px;line-height:1",text:R.rol==="admin"?"":""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:16px",text:tit}),el("span",{style:"font-size:14px;opacity:.9",text:sub})]),el("span",{style:"font-size:24px",text:"›"})]);
-    const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
+    const v=$("v");if(v){const hd=v.querySelector(":scope>.pg-hd");if(hd)hd.after(b);else v.prepend(b);}}).catch(()=>{});};
 /* Calendario laboral pendiente de firmar (trabajadores) */
 let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
   if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
   rpc("cal_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_caN||!Array.isArray(L)||!L.length)return;const p=L[0];
     const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
-    const v=$("v");if(v)v.prepend(b);}).catch(()=>{});};
+    const v=$("v");if(v){const hd=v.querySelector(":scope>.pg-hd");if(hd)hd.after(b);else v.prepend(b);}}).catch(()=>{});};
 /* Problemas que se repiten (aceite, taladrina, agua, roturas en el mismo sitio): recuadro rojo arriba para el jefe y el encargado, hasta que se solucionen */
 try{const c=new URLSearchParams(location.search).get("prob");if(c){S.probPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
 const EST_P={pendiente:["Pendiente de actuar","bad"],en_marcha:["En marcha","warn"],solucionado:["Solucionado","ok"],descartado:["Descartado","info"],quitado:["Aviso quitado","info"]};
@@ -114,7 +119,7 @@ let _prN=0;const _pintaPr=pinta;pinta=function(){_pintaPr();const n=++_prN;
           el("span",{class:"pill "+EST_P[p.estado][1],text:p.reabierto&&p.estado==="pendiente"?"Ha vuelto a pasar":EST_P[p.estado][0]})]),
         el("div",{class:"meta"},[el("span",{text:p.veces7+" veces en 7 días"+(p.veces>p.veces7?" ("+p.veces+" en total)":"")}),el("span",{text:"Última: "+fCorta(p.ultima)}),
           p.estado==="en_marcha"?el("span",{text:((p.historial||[]).filter(h=>h.estado==="en_marcha").slice(-1)[0]||{}).nota||""}):null])]))]);
-    const v=$("v");if(v)v.prepend(caja);}).catch(()=>{});};
+    const v=$("v");if(v){const hd=v.querySelector(":scope>.pg-hd");if(hd)hd.after(caja);else v.prepend(caja);}}).catch(()=>{});};
 const _pinta0=pinta;pinta=function(){_pinta0();if(S.petPend&&S.tok&&S.yo){const c=S.petPend;S.petPend=null;if(esAdm())rpc("extra_ver",{p_tok:S.tok,p_id:c}).then(p=>{if(p.estado==="pendiente")setTimeout(()=>dlg("Pide quedarse",el("div",null,filaPet(p,()=>pinta())),[{t:"Cerrar",cls:"sec"}]),300);}).catch(()=>{});}if(S.elPend&&S.tok&&S.yo){const c=S.elPend;S.elPend=null;setTimeout(()=>c==="vaciados"?listaElementos(()=>pinta(),"vaciados"):fichaElemento(c),300);}};
 pinta();if(S.tok)pushSync();else regSW();
 /* si la app se cerró con una OT a medias (por la foto), se reabre con lo escrito */

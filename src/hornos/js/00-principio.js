@@ -39,7 +39,7 @@ function sinSesion(){
 /* ---------- Inicio: trabajos de hornos de hoy + acceso a un horno ---------- */
 async function inicio(){
   const v=$("v");v.textContent="";
-  v.appendChild(el("div",{class:"h2",style:"margin-top:0",text:"Hoy · "+fCorta(hoyISO())}));
+  v.appendChild(cabeceraPg({ruta:["Limpieza CIE"],titulo:"Hornos",sub:"Trabajos de hornos de hoy · "+fCorta(hoyISO()),color:"naranja",icono:svgPg('<rect x="4" y="6" width="16" height="13" rx="2"/><path d="M8 3v3M16 3v3M8 13c1-2 3-2 4 0s3 2 4 0"/>'),vista:v}));
   const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));
   v.appendChild(box);
   let H,D;
@@ -70,6 +70,7 @@ async function inicio(){
 /* ---------- Ficha de un horno ---------- */
 async function ficha(cod){
   const v=$("v");v.textContent="";
+  v.appendChild(cabeceraPg({ruta:["Limpieza CIE",{t:"Hornos",fn:()=>{history.replaceState(null,"",location.pathname);inicio();}}],titulo:cod,sub:"Ficha del horno",color:"naranja",icono:svgPg('<rect x="4" y="6" width="16" height="13" rx="2"/><path d="M8 3v3M16 3v3M8 13c1-2 3-2 4 0s3 2 4 0"/>'),vista:v}));
   v.appendChild(el("a",{href:"#",text:"‹ Hornos",style:"display:inline-block;margin:0 0 8px;color:var(--acc)",onclick:e=>{e.preventDefault();history.replaceState(null,"",location.pathname);inicio();}}));
   const box=el("div",null,el("div",{class:"empty",text:"Cargando…"}));v.appendChild(box);
   let e;

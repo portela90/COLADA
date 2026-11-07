@@ -124,7 +124,7 @@ function sigPad(box){const cv=box.querySelector("canvas"),ph=box.querySelector("
 /* ================================================================== */
 const S={tok:ls.get("limp.tok"),yo:JSON.parse(ls.get("limp.yo")||"null")};
 const Q=new URLSearchParams(location.search);
-const v=$("v");
+const v=$("v");document.documentElement.setAttribute("data-sec","indigo");
 const esJefe=()=>S.yo&&S.yo.rol==="admin";
 const A={anio:null,eq:"Semana",R:null,mapa:{},modo:false,ini:null};
 

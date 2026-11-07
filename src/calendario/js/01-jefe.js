@@ -1,6 +1,7 @@
 /* ---------------- JEFE ---------------- */
 async function vJefe(){ls.set("cal.anio",String(A.anio));ls.set("cal.eq",A.eq);
   const y0=window.scrollY;v.textContent="";
+  v.appendChild(cabeceraPg({ruta:["Limpieza CIE"],titulo:"Calendario laboral",sub:"Festivos, vacaciones y firmas de cada equipo · "+A.anio,color:"indigo",icono:svgPg('<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),vista:v}));
   const otroEq=A.eq==="Semana"?"Finde":"Semana",nEq=e=>e==="Finde"?"fin de semana":"semana";
   v.appendChild(el("div",{class:"barra"},[
     el("div",{class:"seg"},[el("button",{"aria-label":"Año anterior",text:"◀",onclick:()=>{A.anio--;vJefe();}}),el("button",{"aria-pressed":"true",text:String(A.anio)}),el("button",{"aria-label":"Año siguiente",text:"▶",onclick:()=>{A.anio++;vJefe();}})]),

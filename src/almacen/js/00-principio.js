@@ -144,6 +144,14 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 /* ---------- render ---------- */
 let _pintando=false,_otraVez=false;
 function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);}}
+/* color y frase de cada pantalla (cabecera) */
+const SEC_ALM={res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["naranja","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
+  stock:["verde","Lo que hay en cada almacén y punto de consumo"],repo:["morado","Lo que hay que bajar a planta para que no falte"],mas:["gris","Piezas, máquinas y gestión"],
+  pist:["naranja","Cambios de pistón, usados y recuperados"],ejes:["indigo","Dónde está cada eje y sus reparaciones"],cont:["turquesa","Contenedores de cada tipo y dónde están"],
+  btb:["ambar","Barras expulsoras: stock, uso y recuperación"],btt:["ambar","Tornillos tope: stock y uso"],bth:["naranja","Recambios de horno y tolvas"],quim:["turquesa","Aceites, taladrinas y jabones, y sus contadores"],
+  iny:["morado","Plano de inyectoras, material y moldes"],cons:["rosa","Lo que gasta cada máquina"],mol:["morado","Moldes y en qué máquina están"],aver:["rosa","Averías y sus causas"],
+  bd:["turquesa","Pregúntale a la app lo que quieras saber"],desv:["ambar","Consumos que se salen de lo normal"],abc:["indigo","Qué artículos contar y cuándo"],mov:["azul","Todas las entradas, salidas y traslados"],cat:["gris","Artículos, proveedores, máquinas y ajustes"]};
+const secAlm=t=>SEC_ALM[t]||["gris",""];
 function render0(force){const a=document.activeElement;
   if(!force&&a&&a.closest&&a.closest("#view")&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&a.type!=="file"&&a.type!=="checkbox"){pending=true;return;}
   pending=false;SM=stockMap();CONS=consMap();if(typeof ajustaAceites==="function")ajustaAceites();
@@ -153,6 +161,7 @@ function render0(force){const a=document.activeElement;
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(!catOk){v.appendChild(el("div",{class:"banner b",text:"No se ha podido cargar el catálogo (¿sin cobertura?). Cierra y vuelve a abrir la app. Mientras tanto no se guarda nada en el catálogo para no borrarlo."}));}
+  {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:"Más",fn:()=>irA("mas")}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
   (VC[tab]||{abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
@@ -162,8 +171,8 @@ document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',consu:'<path d="M12 20V8M7 13l5-5 5 5"/><path d="M5 4h14"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};
 const nomTab=t=>{const x=TABS.concat(SUB).find(z=>z[0]===t)||INY_SUB.find(z=>z[0]===t);return x?x[1]:"Almacén";};
-function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent=nomTab(tab);const sb=$("hSub");
-  sb.textContent=tab==="res"?cap(new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})):"";
+function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent="Almacén";const sb=$("hSub");
+  sb.textContent=cap(new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}));
   const c=$("hChips");c.textContent="";if(!ready||tab!=="res")return;
   let nb=0;try{lineas().forEach(l=>{nb+=faltas(l.id).filter(f=>f.falta>0&&f.org).length;});}catch(e){}
   if(nb)c.appendChild(el("button",{type:"button",class:"chip2 warn",onclick:()=>irA("repo")},[el("b",{text:String(nb)}),"para bajar a planta"]));
