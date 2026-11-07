@@ -462,6 +462,8 @@ function vConsultas(){
   const resto=el("div",{class:"bq-resto"},[
     vCierre(),
     typeof vRepaso==="function"?vRepaso():null,
+    typeof vRegistro==="function"?vRegistro():null,
+    typeof vInformeAnual==="function"?vInformeAnual():null,
     cardGraficos(),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Consultar movimientos"})]),filtros,resumen,botones]),
     desglose,

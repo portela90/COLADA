@@ -839,3 +839,19 @@ test('Consultas: al tocar un mes se abre su ficha completa (camiones, consumo, a
   await expect(page.locator('.stk-t', { hasText: 'Cierre de mes' }).first()).toBeVisible();
   expect(err).toEqual([]);
 });
+
+test('Consultas: informe del año y registro de cambios', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Informe del año' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('#inf-ano')).toHaveValue('2026');
+  await expect(page.locator('#inf-ano-xlsx')).toBeVisible();
+  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Registro de cambios' }).first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.card', { hasText: 'Registro de cambios' }).last()).toContainText('quién cambió qué');
+  await page.locator('button:visible', { hasText: '← Panel' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.mes-tab', { hasText: 'Octubre 2026' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.mes-aud')).toContainText('Cambios en los apuntes de este mes');
+  expect(err).toEqual([]);
+});
