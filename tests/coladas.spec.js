@@ -809,25 +809,3 @@ test('Cierre: recuento de cierre guiado, un sitio detrás de otro', async ({ pag
   await expect(page.locator('.rc-ov')).toContainText(/paso 2 de \d/);
   expect(err).toEqual([]);
 });
-
-test('Recuento diario: casilla de kilos de los fardos del relevo (sin pesarlos uno a uno)', async ({ page }) => {
-  const err = await vigila(page);
-  await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
-  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
-  const k = 'Nave 1|L-2630';
-  const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
-  await expect(page.locator(`[id="rdkg-${k}-0"]`)).toBeHidden();
-  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ya0 + 2));
-  await expect(page.locator(`[id="rdkg-${k}-0"]`)).toBeVisible();
-  await page.locator(`[id="rdkg-${k}-0"]`).fill('9000');
-  await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first()).toContainText('kg por fardo');
-  await page.locator(`[id="rdkg-${k}-0"]`).fill('1460');
-  for (const b of await page.locator('.rd-fifo').all()) await b.click();
-  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
-  await page.locator('.dlg button', { hasText: /^(Guardar|Lo contado es lo correcto)$/ }).last().click(); await page.waitForTimeout(700);
-  const C = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => r.t === 'C' && /kilos totales del relevo/.test(r.n || '')));
-  expect(C.reduce((s, r) => s + r.fa, 0)).toBe(2);
-  expect(C.reduce((s, r) => s + r.kg, 0)).toBe(1460);
-  expect(err).toEqual([]);
-});
