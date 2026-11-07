@@ -69,7 +69,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(37,99,235,.25);ou
 nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(--acc)}
 
 /* ---------- iPad y ordenador: menú lateral azul marino ---------- */
-@media (min-width:800px){
+@media (min-width:800px) and (min-height:560px){
   /* Coladas y Almacén: el menú ocupa todo el alto y la cabecera va a su derecha */
   #app:has(>nav#tabs){grid-template-rows:auto minmax(0,1fr)}
   #app>nav#tabs{grid-row:1/-1!important;grid-column:1;background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;gap:3px!important}
@@ -101,7 +101,7 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
 :root[data-theme="dark"]{--bg:#0D1424;--surf:#151F33;--surf2:#1B263D;--line:#26334D;--line2:#1F2A40;--ink:#EEF2F8;--ink2:#B4BFD2;--mut:#8D9AB2;--acc:#5B8DEF;--acc2:#5B8DEF;--accb:#3B76F6;--acc-ink:#FFFFFF;--acc-soft:#1C2C4F;--btnb:#34435F;--ok:#4ADE80;--ok-bg:#12301F;--okbg:#12301F;--warn:#FBBF24;--warn-bg:#33270B;--warnbg:#33270B;--bad:#F87171;--bad-bg:#3A1717;--badbg:#3A1717;--info:#5B8DEF;--info-bg:#1C2C4F;--infobg:#1C2C4F;--shadow:none;--sh:none;--nav-bg:#0A1020;--nav-ink:#B4BFD2;--nav-hov:#18233A;--seg-bg:#0F1828;--seg-on:#26334D}
 
 /* ---------- móvil y iPad pequeño: cabecera azul marino con letras blancas ---------- */
-@media (max-width:799px){
+@media (max-width:799px), (max-height:559px){
   #app>header,body>header{background:var(--nav-bg)!important;color:#fff!important;border-bottom:0!important}
   #app>header h1,body>header h1,header .tot b{color:#fff!important}
   header .tot span,header .hsub,header .who,header .sub{color:#AEB9CC!important}
@@ -110,4 +110,17 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
   /* barra de abajo: el apartado elegido con fondo azul suave */
   nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{background:var(--acc-soft)!important;border-radius:12px!important;box-shadow:none!important}
   nav#tabs{gap:2px;padding-left:4px;padding-right:4px}
+}
+
+/* ---------- Toolbox: no tiene modo oscuro, se queda con los colores claros ---------- */
+@media (prefers-color-scheme:dark){html:has(script[data-app="toolbox"]):not([data-theme="light"]){--bg:#F4F6FA;--surf:#FFFFFF;--surf2:#F7F9FC;--line:#E3E8F0;--line2:#EDF1F6;--ink:#111827;--ink2:#4B5563;--mut:#6B7280;
+  --acc:#2563EB;--acc2:#2563EB;--accb:#2563EB;--acc-ink:#FFFFFF;--acc-soft:#EAF1FE;--btnb:#D5DCE6;
+  --ok:#047857;--ok-bg:#E7F6EF;--okbg:#E7F6EF;--warn:#B45309;--warn-bg:#FEF3C7;--warnbg:#FEF3C7;--bad:#B91C1C;--bad-bg:#FDECEC;--badbg:#FDECEC;
+  --info:#2563EB;--info-bg:#EAF1FE;--infobg:#EAF1FE;
+  --shadow:0 1px 2px rgba(17,26,46,.05);--sh:0 1px 2px rgba(17,26,46,.05);--r:12px;
+  --nav-bg:#111A2E;--nav-ink:#C7D0E0;--nav-mut:#6B7790;--nav-hov:#1E2A44;--seg-bg:#EEF2F7;--seg-on:#FFFFFF}}
+/* Toolbox: cabecera azul marino en el móvil, como las demás */
+@media (max-width:799px), (max-height:559px){
+  html:has(script[data-app="toolbox"]) .top{background:var(--nav-bg)!important;color:#fff!important;box-shadow:none!important}
+  html:has(script[data-app="toolbox"]) .top .ib{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important}
 }

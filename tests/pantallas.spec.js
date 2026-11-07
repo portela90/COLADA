@@ -34,3 +34,9 @@ test('limpieza en el iPad con menú lateral: la barra de botones de abajo no que
   expect(r.lateral).toBe(true); expect(r.pie).toBeGreaterThanOrEqual(r.nav - 1);
   expect(err).toEqual([]);
 });
+test('móvil en horizontal: pestañas abajo, sin menú lateral', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const err = await vigila(page); await page.goto(montar('index.html', 'coladas.html')); await page.waitForTimeout(1000);
+  const r = await page.evaluate(() => { const n = document.querySelector('#tabs').getBoundingClientRect(); return n.height > n.width; });
+  expect(r).toBe(false); expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});

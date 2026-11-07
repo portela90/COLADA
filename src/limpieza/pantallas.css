@@ -8,7 +8,7 @@
   nav button{flex:0 1 120px}
   .pie{left:max(0px,calc(50% - 520px));right:max(0px,calc(50% - 520px));border-radius:12px 12px 0 0}
 }
-@media (min-width:800px){
+@media (min-width:800px) and (min-height:560px){
   body:has(#nav:not([hidden])) main{max-width:1240px;margin-left:calc(var(--side-w,228px) + max(0px,(100vw - var(--side-w,228px) - 1240px)/2));margin-right:auto;padding:22px 32px 48px}
   #nav{top:0;bottom:0;left:0;right:auto;width:var(--side-w,228px);z-index:19;flex-direction:column;justify-content:flex-start;gap:2px;
     padding:68px 10px 16px;border-top:0;box-shadow:inset -1px 0 0 var(--line);overflow-y:auto}
@@ -20,4 +20,11 @@
   body:has(#nav:not([hidden])) .toast{bottom:28px}
 }
 
-@media (min-width:800px) and (max-width:1199px){:root{--side-w:200px}body:has(#nav:not([hidden])) main{padding:20px 20px 40px}}
+@media (min-width:800px) and (max-width:1199px) and (min-height:560px){:root{--side-w:200px}body:has(#nav:not([hidden])) main{padding:20px 20px 40px}}
+/* barra de botones de abajo (Máquinas, Ver todos, Abrir trabajo) con el menú del encargado:
+   en el móvil va justo encima de la barra de pestañas, no debajo; y el contenido deja sitio para las dos */
+@media (max-width:799px), (max-height:559px){
+  body:has(#nav:not([hidden])) .pie{bottom:calc(70px + env(safe-area-inset-bottom,0px));padding-bottom:10px;border-radius:0}
+  body:has(#nav:not([hidden])):has(.pie) main{padding-bottom:160px}
+}
+@media (min-width:800px) and (min-height:560px){body:has(#nav:not([hidden])):has(.pie) main{padding-bottom:110px}}

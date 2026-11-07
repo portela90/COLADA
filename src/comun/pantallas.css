@@ -21,7 +21,7 @@
 }
 
 /* menú lateral: desde el iPad (800 px) */
-@media (min-width:800px){
+@media (min-width:800px) and (min-height:560px){
   #app{display:grid;grid-template-columns:var(--side-w,228px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100%}
   #app>header{grid-column:1/-1;grid-row:1;padding-left:24px;padding-right:24px}
   #app>main{grid-column:2;grid-row:2;min-height:0;padding:24px 32px 40px}
@@ -35,7 +35,7 @@
   #app>nav#tabs button svg{width:20px!important;height:20px!important;flex:none}
   #toast{bottom:28px}
 }
-@media (min-width:800px) and (max-width:1199px){:root{--side-w:200px}#app>main{padding:20px 22px 32px!important}}
+@media (min-width:800px) and (max-width:1199px) and (min-height:560px){:root{--side-w:200px}#app>main{padding:20px 22px 32px!important}}
 @media (min-width:1200px){
   .wrap{max-width:1360px}
   /* pantallas que son un formulario: no hace falta que ocupen todo el ancho */
