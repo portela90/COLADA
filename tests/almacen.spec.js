@@ -1699,22 +1699,66 @@ test('Notas con aviso: «Avisar a @Beatriz» le deja el aviso en su campana y pi
   expect(err).toEqual([]);
 });
 
-test('Reglas automáticas: crear «un pistón dura poco», ver lo que salta y que salga en Qué hacer hoy', async ({ page }) => {
+test('Reglas automáticas: montar una regla como una frase, ver lo que salta y que salga en Qué hacer hoy', async ({ page }) => {
   const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
   await pulsa(page, 'Reglas automáticas'); await page.waitForTimeout(400);
   await expect(page.locator('.pg-h')).toHaveText('Reglas automáticas');
   await page.locator('button', { hasText: '+ Nueva regla' }).click(); await page.waitForTimeout(300);
-  const d = page.locator('.dlg'); await expect(d.locator('.rg-t')).toHaveCount(6);
-  await d.locator('.rg-t', { hasText: 'Máquina sin cambiar pistón' }).click();
-  await d.locator('#rgN').fill('1'); await expect(d).toContainText('Quedará así: «Si una máquina lleva más de 1 días sin cambiar pistón»');
+  const d = page.locator('.rgx-dlg');
+  expect(await d.locator('#rgxM option').count()).toBeGreaterThanOrEqual(14);
+  await d.locator('#rgxM').selectOption('dias_sin_cambio');
+  await d.locator('#rgxN').fill('1');
+  await expect(d).toContainText('Quedará así: «Avisar si los días sin cambiar pistón de alguna máquina son más de 1 días»');
+  await expect(d.locator('.rgx-prev')).toContainText('Ahora mismo saltaría');
   await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(600);
-  const g = await page.evaluate(() => window.__D.cat.app.reglas); expect(g.length).toBe(1); expect(g[0].tipo).toBe('sinCambio');
+  const g = await page.evaluate(() => window.__D.cat.app.reglas); expect(g.length).toBe(1); expect(g[0].m).toBe('dias_sin_cambio'); expect(g[0].n).toBe(1);
   await expect(page.locator('.card', { hasText: 'Tus reglas' })).toContainText('salta ahora');
-  await expect(page.locator('.card', { hasText: 'Lo que salta ahora' })).toContainText('sin cambiar pistón');
+  await expect(page.locator('.card', { hasText: 'Lo que salta ahora' })).toContainText('días sin cambiar pistón');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Hoy')).click()); await page.waitForTimeout(500);
-  await expect(page.locator('.card', { hasText: 'Qué hacer hoy' }).first()).toContainText('sin cambiar pistón');
+  await expect(page.locator('.card', { hasText: 'Qué hacer hoy' }).first()).toContainText('días sin cambiar pistón');
   expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});
+
+test('Reglas: con filtro y periodo (roturas en 30 días), desde un ejemplo, y las reglas antiguas se siguen entendiendo', async ({ page }) => {
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.reglas = [{ id: 'viejo', tipo: 'consSem', n: 5, art: v.cat.app.articulos[0].id, activa: true }]; } }); });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Reglas automáticas'); await page.waitForTimeout(400);
+  await expect(page.locator('.rgx-it').first()).toContainText('Avisar si lo gastado de');
+  await expect(page.locator('.rgx-it').first()).toContainText('en los últimos 7 días es más de 5');
+  await page.locator('button', { hasText: '+ Nueva regla' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.rgx-dlg');
+  await d.locator('#rgxEj').selectOption({ label: 'Más de 2 roturas de pistón en una máquina en 30 días' });
+  await expect(d.locator('#rgxF_motivo')).toHaveValue('ROTURA'); await expect(d.locator('#rgxP')).toHaveValue('30d');
+  await d.locator('#rgxP').selectOption('mes');
+  await expect(d).toContainText('Avisar si el número de cambios de pistón por rotura de alguna máquina este mes es más de 2 cambios');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(600);
+  const g = await page.evaluate(() => window.__D.cat.app.reglas);
+  expect(g.length).toBe(2); expect(g[0].m).toBe('consumo'); expect(g[0].p).toBe('7d');
+  expect(g[1]).toMatchObject({ m: 'pist_cambios', f: { motivo: 'ROTURA' }, p: 'mes', op: '>', n: 2, niv: 'bad' });
+  /* apagar y quitar (dos toques) */
+  const it = page.locator('.rgx-it', { hasText: 'por rotura' });
+  await it.locator('button', { hasText: 'Apagar' }).click(); await page.waitForTimeout(500);
+  expect((await page.evaluate(() => window.__D.cat.app.reglas))[1].activa).toBe(false);
+  await page.locator('.rgx-it', { hasText: 'por rotura' }).locator('button', { hasText: 'Quitar' }).click();
+  await page.locator('.rgx-it', { hasText: 'por rotura' }).locator('button', { hasText: 'Toca otra vez' }).click(); await page.waitForTimeout(500);
+  expect((await page.evaluate(() => window.__D.cat.app.reglas)).length).toBe(1);
+  expect(err).toEqual([]);
+});
+
+test('Reglas: la ventana cabe en un iPhone en vertical', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Reglas automáticas'); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: '+ Nueva regla' }).click(); await page.waitForTimeout(300);
+  await page.locator('#rgxM').selectOption('consumo');
+  const anchos = await page.evaluate(() => { const d = document.querySelector('.rgx-dlg'); const W = innerWidth; return [...d.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > W + 1 || r.left < -1); }).map(e => e.id || e.className); });
+  expect(anchos).toEqual([]);
+  await expect(page.locator('.rgx-pieb button', { hasText: 'Guardar' })).toBeVisible();
+  expect(err).toEqual([]);
 });
 
 test('Etiquetas y vistas guardadas: poner «Urgente» en un artículo, filtrar por ella y guardar la vista', async ({ page }) => {

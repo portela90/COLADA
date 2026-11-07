@@ -1,70 +1,83 @@
-/* ===== REGLAS AUTOMÁTICAS =====
-   Tú pones la condición y la app avisa sola en «Qué hacer hoy» y en la campana, con un botón para actuar.
-   Se guardan en el catálogo (cat.reglas) y valen para todos. Tipos:
-   · pistDura   — un pistón ha durado menos de N días en una máquina (todas o una) → botón «Abrir avería»
-   · stockPunto — el stock de un artículo en un almacén o punto baja de N
-   · ejeTaller  — un eje lleva más de N días en el taller
-   · gastoMaq   — una máquina (todas o una) lleva gastados más de N € este mes
-   · sinCambio  — una máquina lleva más de N días sin cambiar pistón
-   · consSem    — en los últimos 7 días se han gastado más de N de un artículo */
-const REG_T={pistDura:{t:"Un pistón dura poco",d:"Si un pistón dura menos de N días en una máquina",u:"días",maq:true,def:10},
-  stockPunto:{t:"Queda poco en un punto",d:"Si el stock de un artículo en un almacén o punto baja de N",u:"unidades",art:true,alm:true,def:50},
-  ejeTaller:{t:"Eje mucho tiempo en el taller",d:"Si un eje lleva más de N días en el taller",u:"días",def:30},
-  gastoMaq:{t:"Una máquina gasta mucho",d:"Si una máquina lleva gastados más de N € este mes",u:"€",maq:true,def:500},
-  sinCambio:{t:"Máquina sin cambiar pistón",d:"Si una máquina lleva más de N días sin cambiar pistón",u:"días",maq:true,def:90},
-  consSem:{t:"Se gasta mucho de algo",d:"Si en los últimos 7 días se gastan más de N de un artículo",u:"unidades",art:true,def:20}};
-const reglas=()=>(cat.reglas||[]).filter(r=>r&&REG_T[r.tipo]);
-function txtRegla(r){const T=REG_T[r.tipo],a=r.art?art(r.art):null,al=r.alm?(cat.almacenes||[]).find(x=>x.id===r.alm):null,mq=r.maq?maqN(r.maq):null;
-  const n=fmtN(+r.n||0);
-  return {pistDura:"Si un pistón dura menos de "+n+" días"+(mq?" en la "+mq:" en cualquier máquina"),
-    stockPunto:"Si "+(a?a.desc:"(artículo)")+" baja de "+n+" "+(a&&a.ud||"")+" en "+(al?al.nom:"(almacén)"),
-    ejeTaller:"Si un eje lleva más de "+n+" días en el taller",
-    gastoMaq:"Si "+(mq?"la "+mq:"una máquina")+" gasta más de "+n+" € en el mes",
-    sinCambio:"Si "+(mq?"la "+mq:"una máquina")+" lleva más de "+n+" días sin cambiar pistón",
-    consSem:"Si en 7 días se gastan más de "+n+" "+(a&&a.ud||"")+" de "+(a?a.desc:"(artículo)")}[r.tipo]||T.d;}
-/* lo que salta ahora: [{r, niv, txt, det, btn, fn}] */
-function evalReglas(){const out=[],h=hoy();
-  reglas().filter(r=>r.activa!==false).forEach(r=>{const N=+r.n||0;try{
-    if(r.tipo==="pistDura"){const G={};todosPist().forEach(p=>{if(!p.maq||!p.f)return;if(r.maq&&p.maq!==r.maq)return;(G[p.maq]=G[p.maq]||new Set()).add(p.f);});
-      Object.entries(G).forEach(([mq,S])=>{const fs=[...S].sort();if(fs.length<2)return;const u=fs[fs.length-1],a=fs[fs.length-2],d=dias(a,u);
-        if(d<N&&dias(u,h)<=14)out.push({r,niv:"bad",txt:"El pistón de la "+maqN(mq)+" ha durado "+d+(d===1?" día":" días"),det:"Cambiado el "+fmtF(a)+" y otra vez el "+fmtF(u)+" · regla: menos de "+N+" días",btn:"Abrir avería",fn:()=>{if(typeof nuevaAveriaMano==="function")nuevaAveriaMano(mq);}});});}
-    if(r.tipo==="stockPunto"&&r.art&&r.alm){const a=art(r.art);if(!a)return;const st=stockDe(a.id,r.alm),al=(cat.almacenes||[]).find(x=>x.id===r.alm);
-      if(st<N)out.push({r,niv:"warn",txt:"Queda poco "+a.desc+" en "+(al?al.nom:"el almacén")+": "+fmtN(st)+" "+(a.ud||""),det:"Regla: menos de "+fmtN(N)+" "+(a.ud||""),btn:"Reponer",fn:()=>irA("repo")});}
-    if(r.tipo==="ejeTaller")ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").forEach(e=>{const ab=abiertaDe(e.cod);if(!ab||!ab.env)return;const d=dias(ab.env,h);
-      if(d>N)out.push({r,niv:"warn",txt:"El eje "+e.cod+" lleva "+d+" días en el taller",det:"Enviado el "+fmtF(ab.env)+(ab.alb?" · albarán "+ab.alb:"")+" · regla: más de "+N+" días",btn:"Ver eje",fn:()=>fichaEje(e)});});
-    if(r.tipo==="gastoMaq"){const d1=h.slice(0,7)+"-01",G={};evTodo().forEach(e=>{if(!e.f||e.f<d1||e.f>h)return;const m=mqEv(e);if(!m)return;if(r.maq&&m.id!==r.maq)return;G[m.id]=(G[m.id]||0)+(e.eur||0);});
-      Object.entries(G).forEach(([id,eu])=>{if(eu>N)out.push({r,niv:"warn",txt:"La "+maqN(id)+" lleva "+eur(Math.round(eu))+" gastados este mes",det:"Regla: más de "+eur(N),btn:"Ver máquina",fn:()=>{const m=maqDe(id);if(m)fichaIny(m);}});});}
-    if(r.tipo==="sinCambio")(cat.maquinas||[]).filter(m=>(!r.maq||m.id===r.maq)&&(diamDe(m)||ultimoPist(m.id))).forEach(m=>{const u=ultimoPist(m.id);if(!u)return;const d=dias(u.f,h);
-      if(d>N)out.push({r,niv:"info",txt:"La "+m.cod+" lleva "+d+" días sin cambiar pistón",det:"Último cambio el "+fmtF(u.f)+" · regla: más de "+N+" días",btn:"Ver máquina",fn:()=>fichaIny(m)});});
-    if(r.tipo==="consSem"&&r.art){const a=art(r.art);if(!a)return;const d0=sumaDias(h,-6);const c=todosMov().filter(m=>m.tipo==="salida"&&m.art===a.id&&m.f>=d0&&m.f<=h).reduce((s,m)=>s+(+m.cant||0),0);
-      if(c>N)out.push({r,niv:"warn",txt:"Se han gastado "+fmtN(c)+" "+(a.ud||"")+" de "+a.desc+" en 7 días",det:"Regla: más de "+fmtN(N),btn:"Ver",fn:()=>fichaProd(a.id)});}
-  }catch(e){}});
-  return out;}
+/* ===== REGLAS AUTOMÁTICAS (constructor de reglas) =====
+   Tú montas la regla como una frase (qué miro · de qué · cuándo · a partir de cuánto) y la app avisa sola en
+   «Qué hacer hoy» y en la campana, con un botón para actuar. El constructor está en comun/reglas.js; aquí van
+   las cosas que se pueden mirar en Almacén. Se guardan en el catálogo (cat.reglas) y valen para todos.
+   Las reglas antiguas (tipo pistDura, stockPunto…) se convierten solas al leerlas. */
+const RG_ANT={pistDura:r=>({m:"pist_dura",f:{maq:r.maq},op:"<",niv:"bad"}),stockPunto:r=>({m:"stock",f:{art:r.art,alm:r.alm},op:"<"}),
+  ejeTaller:()=>({m:"dias_taller",op:">"}),gastoMaq:r=>({m:"gasto_maq",f:{maq:r.maq},p:"mes",op:">"}),
+  sinCambio:r=>({m:"dias_sin_cambio",f:{maq:r.maq},op:">",niv:"info"}),consSem:r=>({m:"consumo",f:{art:r.art},p:"7d",op:">"})};
+function reglaNueva(r){if(!r||!r.tipo||r.m)return r;const c=RG_ANT[r.tipo];if(!c)return r;const x=c(r);const f={};Object.keys(x.f||{}).forEach(k=>{if(x.f[k])f[k]=x.f[k];});
+  return{id:r.id,m:x.m,f,p:x.p,op:x.op,n:+r.n||0,niv:x.niv||"warn",activa:r.activa!==false};}
+const leerReglas=()=>(cat.reglas||[]).map(reglaNueva);
+const navesMaq=()=>[...new Set((cat.maquinas||[]).map(m=>m.nave).filter(Boolean))].sort();
+const mqOk=(f,m)=>!!m&&(!f.maq||m.id===f.maq)&&(!f.nave||m.nave===f.nave);
+const artOk=(f,a)=>!!a&&(!f.art||a.id===f.art)&&(!f.fam||a.fam===f.fam);
+const udArt=f=>{const a=f.art?art(f.art):null;return a?(a.ud||"uds"):"uds";};
+const PER_T=["7d","30d","mes","mesant","hoy"];
+const RG_F={
+  maq:{e:"Máquina",todos:"Cualquiera",opts:()=>maqOpts(),txt:v=>" de la "+maqN(v)},
+  nave:{e:"Nave",todos:"Todas",opts:()=>navesMaq().map(n=>[n,n]),txt:v=>" en la "+v},
+  art:{e:"Artículo",todos:"Cualquiera",opts:()=>artsActivos().slice().sort((a,b)=>a.desc.localeCompare(b.desc)).map(a=>[a.id,a.desc,FAM[a.fam]||"Otro"]),txt:v=>{const a=art(v);return" de "+(a?a.desc:"(artículo)");}},
+  fam:{e:"Familia",todos:"Todas",opts:()=>Object.keys(FAM).map(k=>[k,FAM[k]]),txt:v=>" (familia "+(FAM[v]||v).toLowerCase()+")"},
+  alm:{e:"Almacén o punto",todos:"Todos",opts:()=>(cat.almacenes||[]).map(a=>[a.id,a.nom]),txt:v=>{const a=(cat.almacenes||[]).find(x=>x.id===v);return" en "+(a?a.nom:"(almacén)");}},
+  motivo:{e:"Motivo",todos:"Cualquiera",opts:()=>MOTIVOS.map(m=>[m,cap(m)]),txt:v=>" por "+v.toLowerCase()}};
+const verMaq=id=>()=>{const m=maqDe(id);if(m)fichaIny(m);};
+const RG_M={
+  pist_dura:{g:"Pistones",e:"Lo que dura un pistón (por máquina)",d:"Días entre los dos últimos cambios de pistón de cada máquina (si el último es de las dos últimas semanas).",
+    s:"lo que ha durado el último pistón",t:"el último pistón ha durado",u:"días",f:["maq","nave"],cada:" en alguna máquina",cadaF:"maq",op:"<",def:10,
+    calc:(f,P)=>{const G={};todosPist().forEach(p=>{if(!p.maq||!p.f)return;if(!mqOk(f,maqDe(p.maq)))return;(G[p.maq]=G[p.maq]||new Set()).add(p.f);});
+      return Object.entries(G).map(([mq,S])=>{const fs=[...S].sort();if(fs.length<2)return null;const u=fs[fs.length-1],a=fs[fs.length-2];if(dias(u,P.hoy)>14)return null;
+        return{nom:maqN(mq),v:dias(a,u),det:"cambiado el "+fmtF(a)+" y otra vez el "+fmtF(u),btn:"Abrir avería",fn:()=>{if(typeof nuevaAveriaMano==="function")nuevaAveriaMano(mq);}};});}},
+  dias_sin_cambio:{g:"Pistones",e:"Días sin cambiar pistón (por máquina)",s:"los días sin cambiar pistón",pl:true,t:"días sin cambiar pistón",u:"días",f:["maq","nave"],cada:" de alguna máquina",cadaF:"maq",op:">",def:90,
+    calc:(f,P)=>(cat.maquinas||[]).filter(m=>mqOk(f,m)).map(m=>{const u=ultimoPist(m.id);return u?{nom:m.cod,v:dias(u.f,P.hoy),det:"último cambio el "+fmtF(u.f),btn:"Ver máquina",fn:verMaq(m.id)}:null;})},
+  pist_cambios:{g:"Pistones",e:"Cambios de pistón de una máquina",d:"Cuántos pistones se han cambiado en cada máquina en ese tiempo. Con «Motivo» puedes contar solo las roturas, fugas…",
+    s:"el número de cambios de pistón",t:"cambios de pistón",u:"cambios",f:["maq","nave","motivo"],cada:" de alguna máquina",cadaF:"maq",per:["30d","7d","mes","mesant","hoy"],op:">",def:3,
+    calc:(f,P)=>{const G={};todosPist().forEach(p=>{if(!p.maq||!p.f||p.f<P.d0||p.f>P.d1)return;if(f.motivo&&p.motivo!==f.motivo)return;if(!mqOk(f,maqDe(p.maq)))return;G[p.maq]=(G[p.maq]||0)+(+p.cant||1);});
+      return Object.entries(G).map(([id,n])=>({nom:maqN(id),v:n,btn:"Ver máquina",fn:verMaq(id)}));}},
+  pist_total:{g:"Pistones",e:"Cambios de pistón en total",s:"el total de cambios de pistón",t:"cambios de pistón en total",u:"cambios",f:["nave","motivo"],per:["mes","7d","30d","mesant","hoy"],op:">",def:20,
+    calc:(f,P)=>{let n=0;todosPist().forEach(p=>{if(!p.f||p.f<P.d0||p.f>P.d1)return;if(f.motivo&&p.motivo!==f.motivo)return;if(f.nave){const m=maqDe(p.maq);if(!m||m.nave!==f.nave)return;}n+=(+p.cant||1);});
+      return[{v:n,btn:"Ver pistones",fn:()=>irA("pist")}];}},
+  consumo:{g:"Material",e:"Lo que se gasta de un artículo",d:"Salidas de material en ese tiempo, artículo por artículo.",s:"lo gastado",t:"gastado",u:udArt,f:["art","fam","alm","maq"],cada:" de algún artículo",cadaF:"art",per:PER_T,op:">",def:20,
+    calc:(f,P)=>{const G={};todosMov().forEach(m=>{if(m.tipo!=="salida"||!m.f||m.f<P.d0||m.f>P.d1)return;if(f.alm&&m.alm!==f.alm)return;if(f.maq&&m.maq!==f.maq)return;if(!artOk(f,art(m.art)))return;G[m.art]=(G[m.art]||0)+(+m.cant||0);});
+      return Object.entries(G).map(([id,c])=>{const a=art(id);return{nom:a.desc,v:c,btn:"Ver",fn:()=>fichaProd(id)};});}},
+  entradas:{g:"Material",e:"Lo que entra de un artículo",s:"lo que ha entrado",t:"ha entrado",u:udArt,f:["art","fam","alm"],cada:" de algún artículo",cadaF:"art",per:PER_T,op:">",def:50,
+    calc:(f,P)=>{const G={};todosMov().forEach(m=>{if(m.tipo!=="entrada"||!m.f||m.f<P.d0||m.f>P.d1)return;if(f.alm&&m.alm!==f.alm)return;if(!artOk(f,art(m.art)))return;G[m.art]=(G[m.art]||0)+(+m.cant||0);});
+      return Object.entries(G).map(([id,c])=>{const a=art(id);return{nom:a.desc,v:c,btn:"Ver",fn:()=>fichaProd(id)};});}},
+  stock:{g:"Material",e:"Stock de un artículo",d:"Lo que queda ahora, en un almacén o punto o en todos.",s:"el stock",t:"stock",u:udArt,f:["art","alm","fam"],cada:" de algún artículo",cadaF:"art",op:"<",def:10,
+    calc:f=>{if(!f.art&&!f.fam)return[];return artsActivos().filter(a=>artOk(f,a)).map(a=>({nom:a.desc+(f.alm?"":" (todos los almacenes)"),v:stockDe(a.id,f.alm||undefined),btn:"Reponer",fn:()=>irA("repo")}));}},
+  bajo_min:{g:"Material",e:"Artículos por debajo del mínimo",s:"el número de artículos bajo mínimo",t:"artículos bajo mínimo",u:"artículos",f:["fam"],op:">",def:0,
+    calc:f=>[{v:artsActivos().filter(a=>artOk(f,a)&&nivel(a)==="bad").length,btn:"Reponer",fn:()=>irA("repo")}]},
+  dias_sin_contar:{g:"Material",e:"Días sin contar un artículo",d:"Días desde el último recuento de cada artículo que tiene stock.",s:"los días sin contar",pl:true,t:"días sin contar",u:"días",f:["art","fam"],cada:" de algún artículo",cadaF:"art",op:">",def:90,
+    calc:(f,P)=>artsActivos().filter(a=>artOk(f,a)&&stockDe(a.id)>0).map(a=>{const u=ultimoConteo(a.id);return u?{nom:a.desc,v:dias(u,P.hoy),det:"contado el "+fmtF(u),btn:"Ver",fn:()=>fichaProd(a.id)}:null;})},
+  gasto_maq:{g:"Gasto",e:"Gasto de una máquina (€)",d:"Pistones, ejes y material que ha llevado cada máquina, en euros.",s:"el gasto",t:"gasto",u:"€",f:["maq","nave"],cada:" de alguna máquina",cadaF:"maq",per:["mes","mesant","30d","7d"],op:">",def:500,
+    calc:(f,P)=>{const G={};evTodo().forEach(e=>{if(!e.f||e.f<P.d0||e.f>P.d1)return;const m=mqEv(e);if(!mqOk(f,m))return;G[m.id]=(G[m.id]||0)+(e.eur||0);});
+      return Object.entries(G).map(([id,eu])=>({nom:maqN(id),v:Math.round(eu),btn:"Ver máquina",fn:verMaq(id)}));}},
+  gasto_total:{g:"Gasto",e:"Gasto total (€)",s:"el gasto total",t:"gasto total",u:"€",f:["nave"],per:["mes","mesant","30d","7d"],op:">",def:5000,
+    calc:(f,P)=>{let s=0;evTodo().forEach(e=>{if(!e.f||e.f<P.d0||e.f>P.d1)return;if(f.nave){const m=mqEv(e);if(!(m&&m.nave===f.nave)&&e.nave!==f.nave)return;}s+=(e.eur||0);});return[{v:Math.round(s),btn:"Ver gasto",fn:()=>irA("bd")}];}},
+  dias_taller:{g:"Ejes",e:"Días de un eje en el taller",s:"los días en el taller",pl:true,t:"días en el taller",u:"días",cada:" de algún eje",op:">",def:30,
+    calc:(f,P)=>ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").map(e=>{const ab=abiertaDe(e.cod);if(!ab||!ab.env)return null;
+      return{nom:"eje "+e.cod,v:dias(ab.env,P.hoy),det:"enviado el "+fmtF(ab.env)+(ab.alb?" · albarán "+ab.alb:""),btn:"Ver eje",fn:()=>fichaEje(e)};})},
+  ejes_fuera:{g:"Ejes",e:"Ejes en reparación",s:"el número de ejes en reparación",t:"ejes en reparación",u:"ejes",op:">",def:5,
+    calc:()=>[{v:ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,btn:"Ver ejes",fn:()=>irA("ejes")}]},
+  averias_abiertas:{g:"Averías",e:"Averías abiertas",s:"el número de averías abiertas",t:"averías abiertas",u:"averías",f:["maq","nave"],op:">",def:3,
+    calc:f=>[{v:(typeof AVER!=="undefined"?AVER:[]).filter(a=>a.estado==="abierta"&&mqOk(f,avMaq(a))).length,btn:"Ver averías",fn:()=>irA("aver")}]},
+  dias_averia:{g:"Averías",e:"Días que lleva abierta una avería",s:"los días que lleva abierta una avería",pl:true,t:"días abierta",u:"días",f:["maq","nave"],op:">",def:7,
+    calc:(f,P)=>(typeof AVER!=="undefined"?AVER:[]).filter(a=>a.estado==="abierta"&&a.f&&mqOk(f,avMaq(a))).map(a=>({nom:"avería "+avNom(a),v:dias(a.f,P.hoy),det:"abierta el "+fmtF(a.f),btn:"Ver averías",fn:()=>irA("aver")}))}};
+const RG_EJ=[{nom:"Un pistón dura menos de 10 días",r:{m:"pist_dura",op:"<",n:10,niv:"bad"}},
+  {nom:"Más de 2 roturas de pistón en una máquina en 30 días",r:{m:"pist_cambios",f:{motivo:"ROTURA"},p:"30d",op:">",n:2,niv:"bad"}},
+  {nom:"Máquina más de 90 días sin cambiar pistón",r:{m:"dias_sin_cambio",op:">",n:90,niv:"info"}},
+  {nom:"Una máquina gasta más de 500 € en el mes",r:{m:"gasto_maq",p:"mes",op:">",n:500}},
+  {nom:"Gasto total del mes de más de 5.000 €",r:{m:"gasto_total",p:"mes",op:">",n:5000}},
+  {nom:"Queda poco de un artículo",r:{m:"stock",op:"<",n:10}},
+  {nom:"Algún artículo por debajo del mínimo",r:{m:"bajo_min",op:">",n:0}},
+  {nom:"Artículo sin contar en 90 días",r:{m:"dias_sin_contar",op:">",n:90,niv:"info"}},
+  {nom:"Un eje lleva más de 30 días en el taller",r:{m:"dias_taller",op:">",n:30}},
+  {nom:"Avería abierta más de 7 días",r:{m:"dias_averia",op:">",n:7}}];
+let _RG=null;
+const RG=()=>_RG||(_RG=Reglas({M:RG_M,F:RG_F,ejemplos:RG_EJ,hoy:()=>hoy(),toast:t=>toast(t),puede:()=>!window.SOLO_CONSULTA,
+  leer:leerReglas,guardar:async L=>{cat.reglas=L;await saveCat();},alCambiar:()=>render(true),
+  pie:"Las reglas se miran cada vez que se abre la app. Lo que salta sale en «Qué hacer hoy» y en la campana de todos."}));
+/* lo que salta ahora: [{r, niv, txt, det, btn, fn}] (para «Qué hacer hoy» y la campana) */
+function evalReglas(){try{return RG().evaluar();}catch(e){return[];}}
 /* pantalla: Más → Reglas automáticas */
-function vReglas(v){const L=reglas(),S=evalReglas(),puede=!window.SOLO_CONSULTA;
-  const fila=r=>{const n=S.filter(x=>x.r.id===r.id).length;return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(r.activa===false?"":n?"warn":"ok")}),
-    el("div",{class:"ppal"},[el("div",{class:"t1",text:txtRegla(r)}),el("div",{class:"t2",text:REG_T[r.tipo].t+" · "+(r.activa===false?"apagada":n?"salta ahora: "+n+(n===1?" aviso":" avisos"):"ahora no salta")})]),
-    puede?el("div",{class:"acciones",style:"flex:0 0 auto"},[el("button",{type:"button",class:"btn sec peq",text:r.activa===false?"Encender":"Apagar",onclick:async()=>{r.activa=r.activa===false;await saveCat();render(true);}}),
-      el("button",{type:"button",class:"btn sec peq",text:"Cambiar",onclick:()=>formRegla(r)}),
-      el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>confirmar("¿Quitar esta regla?",txtRegla(r),"Quitar",async()=>{cat.reglas=(cat.reglas||[]).filter(x=>x.id!==r.id);await saveCat();render(true);})})]):null]);};
-  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Tus reglas"}),el("span",{class:"der sub",text:L.length?L.length+(L.length===1?" regla":" reglas"):"ninguna todavía"})]),
-    L.length?el("div",{class:"lst"},L.map(fila)):el("div",{class:"bd"},el("p",{class:"hint",style:"margin:0",text:"Pon una condición y la app te avisará sola en «Qué hacer hoy» y en la campana cuando se cumpla."})),
-    puede?el("div",{class:"bd"},el("button",{type:"button",class:"btn",text:"+ Nueva regla",onclick:()=>formRegla(null)})):null]));
-  if(S.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Lo que salta ahora ("+S.length+")"})),
-    el("div",{class:"lst"},S.map(x=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(x.niv==="info"?"":x.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.txt}),el("div",{class:"t2",text:x.det})]),
-      el("button",{type:"button",class:"btn peq",text:x.btn,onclick:x.fn})])))]));
-  v.appendChild(el("p",{class:"hint",text:"Las reglas se miran cada vez que se abre la app. Lo que salta sale en «Qué hacer hoy» y en la campana de todos."}));}
-function formRegla(r0){const r=r0?Object.assign({},r0):{id:uid(),tipo:"pistDura",n:REG_T.pistDura.def,activa:true};
-  const box=el("div",{style:"display:grid;gap:10px"});
-  const pinta=()=>{box.textContent="";const T=REG_T[r.tipo];
-    box.appendChild(el("div",{class:"rg-tipos"},Object.entries(REG_T).map(([k,x])=>el("button",{type:"button",class:"rg-t","aria-pressed":String(r.tipo===k),onclick:()=>{if(r.tipo!==k){r.tipo=k;r.n=x.def;delete r.art;delete r.alm;delete r.maq;}pinta();}},[el("b",{text:x.t}),el("small",{text:x.d})]))));
-    if(T.art)box.appendChild(fld("Artículo",sel("rgArt",artOpts(),r.art||"",x=>{r.art=x;pintaRes();},"Elige…")));
-    if(T.alm)box.appendChild(fld("Almacén o punto",sel("rgAlm",(cat.almacenes||[]).map(a=>[a.id,a.nom]),r.alm||"",x=>{r.alm=x;pintaRes();},"Elige…")));
-    if(T.maq)box.appendChild(fld("Máquina",sel("rgMaq",maqOpts(),r.maq||"",x=>{r.maq=x||undefined;pintaRes();},"Cualquiera")));
-    box.appendChild(fld("N ("+T.u+")",inp("rgN",String(r.n),x=>{r.n=parseN(x);pintaRes();},{inputmode:"decimal",class:"num"})));
-    box.appendChild(res);pintaRes();};
-  const res=el("p",{class:"banner",style:"margin:0"});const pintaRes=()=>{res.textContent="Quedará así: «"+txtRegla(r)+"»";};
-  pinta();
-  dlg(r0?"Cambiar regla":"Nueva regla",[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const T=REG_T[r.tipo];
-    if(!(+r.n>0)){toast("Pon un número mayor que 0");return false;}if(T.art&&!r.art){toast("Elige el artículo");return false;}if(T.alm&&!r.alm){toast("Elige el almacén");return false;}
-    cat.reglas=(cat.reglas||[]).filter(x=>x.id!==r.id).concat([r]);try{await saveCat();}catch(e){return false;}toast("Regla guardada");render(true);}}]);}
+function vReglas(v){v.appendChild(RG().pantalla());}

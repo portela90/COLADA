@@ -465,6 +465,7 @@ function vConsultas(){
     typeof vRegistro==="function"?vRegistro():null,
     typeof vInformeAnual==="function"?vInformeAnual():null,
     typeof vIncidencias==="function"?vIncidencias():null,
+    typeof cardReglasCol==="function"?cardReglasCol():null,
     typeof vProveedoresAno==="function"?vProveedoresAno():null,
     typeof vTrazabilidad==="function"?vTrazabilidad():null,
     cardGraficos(),

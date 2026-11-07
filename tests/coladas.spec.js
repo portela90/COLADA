@@ -917,3 +917,27 @@ test('Consumo: mosaico «Consumo del mes» con comparativa frente al mes pasado 
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Reglas automáticas en Coladas: se monta una regla, se guarda en los ajustes y sale en la campana', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.waitForTimeout(1500);
+  await page.locator('.stk-t', { hasText: 'Reglas automáticas' }).first().click(); await page.waitForTimeout(600);
+  await page.locator('button', { hasText: '+ Nueva regla' }).last().click(); await page.waitForTimeout(300);
+  const d = page.locator('.rgx-dlg');
+  await d.locator('#rgxM').selectOption('stock_kg');
+  await d.locator('#rgxF_nave').selectOption('Nave 1');
+  await d.locator('#rgxOp').selectOption('>'); await d.locator('#rgxN').fill('0');
+  await expect(d).toContainText('Quedará así: «Avisar si los kilos en stock en la Nave 1 son más de 0 kg»');
+  await expect(d.locator('.rgx-prev')).toContainText('Ahora mismo saltaría');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const g = await page.evaluate(() => __D.cfg.app.reglas); expect(g.length).toBe(1); expect(g[0]).toMatchObject({ m: 'stock_kg', f: { nave: 'Nave 1' }, op: '>', n: 0 });
+  await expect(page.locator('.rgx-it').first()).toContainText('salta ahora');
+  await page.waitForTimeout(1800);
+  await page.locator('.camp-b, #campana, [aria-label*="visos"]').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('body')).toContainText('Nave 1 · ');
+  await expect(page.locator('body')).toContainText('kilos en stock');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
