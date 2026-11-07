@@ -82,7 +82,7 @@ function fichaProblema(p,re){const nota={v:""};
     el("b",{style:"display:block;margin:10px 0 4px",text:"Avisos de los trabajadores"}),
     el("div",{style:"max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px"},(p.ots||[]).map(o=>{const fb=el("div",{class:"fotos",style:"margin-top:6px"});
       if(o.nfotos){fb.appendChild(el("span",{class:"hint",style:"margin:0",text:"Cargando "+o.nfotos+" foto"+(o.nfotos>1?"s":"")+"…"}));
-        rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>{fb.textContent="";L.forEach(x=>fb.appendChild(miniFoto(x,fCorta(o.fecha)+" · "+o.titulo+(x.por?" · "+x.por:""))));}).catch(e=>{fb.textContent=e.message;});}
+        rpc("fotos_ot",{p_tok:S.tok,p_ot:o.id}).then(L=>{fb.textContent="";L.forEach(x=>fb.appendChild(miniFotoB(x,fCorta(o.fecha)+" · "+o.titulo+(x.por?" · "+x.por:""))));}).catch(e=>{fb.textContent=e.message;});}
       return el("div",{class:"ot",style:"padding:8px 10px"},[
       el("div",{class:"t",text:fCorta(o.fecha)+" · "+o.titulo}),o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
       el("div",{class:"meta"},[el("span",{text:o.lugar||""}),o.creado_por_n?el("span",{text:"Avisó "+o.creado_por_n.split(" ")[0]}):null,el("span",{text:({hecha:"Limpiado",pendiente:"Sin limpiar",en_curso:"Limpiando",no_hecha:"No se pudo"})[o.estado]||o.estado}),o.nfotos?null:el("span",{text:"Sin fotos"})]),
