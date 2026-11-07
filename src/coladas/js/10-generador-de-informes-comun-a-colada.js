@@ -160,6 +160,17 @@ function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(
     Object.assign(k,{conMes:sK("C",PC.d1,PC.h),conAnt:sK("C",PC.a1,PC.ah),conSerie:PC.meses.map(m=>sK("C",m+"-01",m+"-31")),
       entMes:sK("E",PC.d1,PC.h),entAnt:sK("E",PC.a1,PC.ah),entSerie:PC.meses.map(m=>sK("E",m+"-01",m+"-31"))});}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
+/* campana de avisos: lo pendiente de Coladas (como mucho se recalcula cada 1,5 s) */
+let _cmpT=null;
+function campanaCol(){if(!window.campana)return;clearTimeout(_cmpT);_cmpT=setTimeout(()=>{const L=[];
+  const go=(t,v)=>()=>{tab=t;try{localStorage.setItem("colada.tab",t);}catch(e){}if(v&&typeof PANV!=="undefined"&&t in PANV)PANV[t]=v;tabsUI();render();try{document.querySelector("main").scrollTop=0;}catch(e){}};
+  try{Object.values(bloques().B).forEach(b=>{if(b.dias!=null&&b.dias<=5)L.push({niv:b.dias<=2?"bad":"warn",t:"Queda material para "+b.dias+(b.dias===1?" día":" días")+" en "+b.nave+" "+MAT[b.mat].nom,d:"Conviene traer del almacén externo o pedir",fn:go("stock")});});}catch(e){}
+  try{const n=huecos().reduce((s,d)=>s+d.falta.length,0);if(n)L.push({niv:"bad",t:n+(n===1?" relevo sin consumo apuntado":" relevos sin consumo apuntado"),d:"Últimas dos semanas",fn:go("consumo","huecos")});}catch(e){}
+  try{const n=sinAlbaran().length;if(n)L.push({niv:"warn",t:n+(n===1?" entrada sin albarán":" entradas sin albarán"),d:"Pendientes de completar",fn:go("entrada")});}catch(e){}
+  try{const mp=perCmp(hoy()).a1.slice(0,7);if((meses[mp]||[]).some(r=>!r.h)&&!mesCerrado(mp))L.push({niv:"warn",t:"Cierra "+nomMes(mp)+" con el candado",d:"Para que no se cambien los apuntes de ese mes",fn:go("hist")});}catch(e){}
+  try{const n=todasIncid().filter(r=>r.estado!=="cerrada").length;if(n)L.push({niv:"warn",t:n+(n===1?" incidencia de proveedor abierta":" incidencias de proveedor abiertas"),fn:go("hist")});}catch(e){}
+  try{const nf=NAVES.filter(n=>!rdHoyN(n));if(nf.length&&new Date().getHours()>=7)L.push({niv:"info",t:"Recuento diario sin hacer hoy: "+nf.join(" y "),fn:go("consumo","rdiario")});}catch(e){}
+  campana.pon("coladas",L);},1500);}
 /* color, título y frase de cada apartado (cabecera de la pantalla) */
 const SEC_COL={stock:["azul","Stock","Lo que hay de cada aleación, en la nave y fuera"],consumo:["naranja","Consumo","Lo que gastan los hornos, relevo a relevo"],
   entrada:["verde","Entrada","Camiones y albaranes de aluminio que llegan"],lotes:["morado","Lotes","Cada colada: de dónde viene, dónde está y cuánto queda"],
@@ -171,7 +182,7 @@ function pinta(){
   if(!db){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."})]));return;}
   if(!window.WEB)v.appendChild(el("div",{class:"banner b",text:"Esta Colada ya no se usa: los datos se apuntan en la aplicación web (portela90.github.io/COLADA). Aquí solo se puede consultar."}));
   const S=saldos();let k=0,f=0;for(const i in S){k+=S[i].kg;f+=S[i].fa;}
-  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();prodAlmacen();
+  $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();prodAlmacen();campanaCol();
   {const C=SEC_COL[tab]||SEC_COL.stock;
     v.appendChild(cabeceraPg({ruta:["Coladas"],titulo:C[1],sub:C[2],color:C[0],icono:svgPg(ICO_T[tab]||""),vista:v,
       acciones:[tab==="stock"||tab==="hist"?{t:"Generar informe",fn:()=>generarInforme()}:null,

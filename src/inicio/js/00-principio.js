@@ -41,7 +41,16 @@ function spark(v){if(!v||v.length<2||!v.some(x=>x>0))return null;const W=120,H=2
   const w=el("span",{class:"tspk"},[svg,el("span",{class:"tspk-m"},v.map((_,i)=>el("i",{text:MS[(m0-(v.length-1-i)+120)%12]})))]);return w;}
 const fEur=n=>n==null?"–":Math.round(n).toLocaleString("es-ES")+" €";
 function grupo(t,sub,tiles){return el("section",{class:"ini-grp"},[el("h2",null,[t,sub?el("small",{text:sub}):null]),el("div",{class:"ini-tiles"},tiles)]);}
-function pinta(){const v=$("view");v.textContent="";
+function campanaIni(){if(!window.campana)return;const a=A||{},c=C||{},L=[],AL="almacen.html?t=",SC=!!(window.SOLO_CONSULTA||window.SIN_COLADAS);
+  if(a.bajoMin)L.push({niv:"bad",t:a.bajoMin+(a.bajoMin===1?" artículo bajo mínimo":" artículos bajo mínimo"),d:"Almacén",href:AL+"stock"});
+  if(a.pedir&&a.pedir>(a.bajoMin||0))L.push({niv:"warn",t:(a.pedir-(a.bajoMin||0))+" para pedir",d:"Almacén · por debajo del punto de pedido",href:AL+"stock"});
+  if(a.bajar)L.push({niv:"warn",t:"Bajar "+a.bajar+(a.bajar===1?" artículo":" artículos")+" a planta",d:"Almacén",href:AL+"repo"});
+  if(a.cuarentena)L.push({niv:"bad",t:a.cuarentena+(a.cuarentena===1?" eje en cuarentena":" ejes en cuarentena"),d:"Almacén",href:AL+"ejes"});
+  if(a.presuMes&&a.gastoMes>a.presuMes)L.push({niv:"bad",t:"Presupuesto del mes superado",d:"Almacén · "+fN(a.gastoMes)+" € de "+fN(a.presuMes)+" €",href:AL+"res"});
+  if(!SC&&c.sinAlb)L.push({niv:"warn",t:c.sinAlb+(c.sinAlb===1?" entrada de aluminio sin albarán":" entradas de aluminio sin albarán"),d:"Coladas",href:"index.html?t=entrada"});
+  const nE=ERRS?ERRS.filter(e=>!e.visto).length:0;if(nE)L.push({niv:"warn",t:nE+(nE===1?" error de la app sin revisar":" errores de la app sin revisar"),fn:verErrores});
+  campana.pon("inicio",L);}
+function pinta(){const v=$("view");v.textContent="";campanaIni();
   const hr=new Date().getHours();v.appendChild(el("p",{class:"ini-hola",text:(hr<14?"Buenos días":hr<21?"Buenas tardes":"Buenas noches")}));
   v.appendChild(el("p",{class:"ini-sub",text:new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})+" · pulsa un mosaico para ir directo"}));
   const a=A||{},c=C||{};const fa=hace(a.ts),fc=hace(c.ts);

@@ -196,3 +196,47 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
 .pg-entra>*:not(.pie):not(.ov):not(.dlg-ov){animation:pgEntra .32s cubic-bezier(.2,.7,.3,1) both}
 .pg-entra>*:nth-child(2){animation-delay:.03s}.pg-entra>*:nth-child(3){animation-delay:.06s}.pg-entra>*:nth-child(n+4){animation-delay:.09s}
 @media (prefers-reduced-motion:reduce){.pg-entra>*{animation:none!important}}
+
+/* ===================== Campana de avisos ===================== */
+.campana{position:relative;appearance:none;display:inline-flex!important;align-items:center;justify-content:center;width:40px;height:38px;min-width:40px;flex:none;padding:0!important;
+  border-radius:8px!important;border:1px solid var(--line)!important;background:var(--surf)!important;color:var(--ink2)!important;cursor:pointer;align-self:center;margin-left:auto}
+#app>header .campana+.lupa{margin-left:8px!important}
+@media (min-width:521px){#app>header .campana{order:3}#app>header .campana+.lupa{order:4}}
+body>header .campana{margin-left:auto}
+body>header .campana~.who{order:0}
+.campana svg{display:block}
+.campana-n{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#F59E0B;color:#fff;font:700 11px/18px Inter,system-ui,sans-serif;text-align:center;box-shadow:0 0 0 2px var(--surf)}
+.campana.hay-bad .campana-n{background:#DC2626}
+.campana-n[hidden]{display:none}
+@media (max-width:799px), (max-height:559px){
+  #app>header .campana,body>header .campana{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.18)!important;color:#fff!important}
+  .campana-n{box-shadow:0 0 0 2px var(--nav-bg)}
+}
+.campana-ov{position:fixed;inset:0;z-index:70;background:rgba(10,16,32,.35);display:flex;justify-content:flex-end;align-items:flex-start;padding:64px 16px 16px}
+.campana-pan{width:min(420px,100%);max-height:calc(100vh - 90px);display:flex;flex-direction:column;background:var(--surf);color:var(--ink);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 18px 40px rgba(10,16,32,.25);overflow:hidden;animation:pgEntra .2s ease-out both}
+.campana-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.campana-hd b{font-size:16px}.campana-hd span{flex:1;font-size:13px;color:var(--mut)}
+.campana-x{appearance:none;border:0;background:none;color:var(--mut);font-size:16px;cursor:pointer;width:32px;height:32px;border-radius:8px}
+.campana-x:hover{background:var(--surf2)}
+.campana-l{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.campana-it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--line2);background:none;color:var(--ink);font:inherit;cursor:pointer}
+.campana-it:last-child{border-bottom:0}
+.campana-it:hover{background:var(--surf2)}
+.campana-p{width:10px;height:10px;border-radius:50%;flex:none;background:#3B82F6}
+.campana-it.bad .campana-p{background:#DC2626}.campana-it.warn .campana-p{background:#F59E0B}
+.campana-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.campana-tx b{font-size:14px;font-weight:600;overflow-wrap:anywhere}.campana-tx small{font-size:12px;color:var(--mut);overflow-wrap:anywhere}
+.campana-fl{color:var(--mut);font-size:20px}
+.campana-vacia{margin:0;padding:24px 16px;text-align:center;color:var(--mut)}
+@media (max-width:699px){
+  .campana-ov{padding:0;align-items:flex-end}
+  .campana-pan{width:100%;max-height:80vh;border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom,0)}
+}
+/* iPad: cabecera de arriba en una sola fila (con la campana) */
+@media (min-width:700px) and (max-width:1199px){
+  #app>header h1{white-space:nowrap}
+  #app>header .chips2{flex-wrap:nowrap!important;overflow:hidden}
+  #app>header .chips2 .chip2{white-space:nowrap}
+  #app>header .lupa span{display:none}
+}

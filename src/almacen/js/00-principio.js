@@ -166,7 +166,10 @@ function render0(force){const a=document.activeElement;
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
   (VC[tab]||{abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
   if(typeof panelizar==="function")try{panelizar(v);}catch(e){console.warn(e);}
-  document.querySelector("main").scrollTop=sc;kpiInicio();}
+  document.querySelector("main").scrollTop=sc;kpiInicio();campanaAlm();}
+/* campana de avisos: lo mismo que «Qué hacer hoy» (se recalcula como mucho cada 2 s) */
+let _cmpT=null;function campanaAlm(){if(!window.campana||!ready)return;clearTimeout(_cmpT);_cmpT=setTimeout(()=>{try{const H=tareasHoy();
+  campana.pon("almacen",H.tareas.map(t=>({niv:t.niv,t:t.txt,d:t.det&&t.det.length>90?t.det.slice(0,88)+"…":t.det,fn:t.fn})));}catch(e){}},2000);}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',consu:'<path d="M12 20V8M7 13l5-5 5 5"/><path d="M5 4h14"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};

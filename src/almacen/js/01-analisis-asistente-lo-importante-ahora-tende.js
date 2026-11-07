@@ -135,7 +135,8 @@ function bajarEditor(L){return el("div",{style:"margin-top:6px"},L.map(f=>el("di
   el("div",{class:"bjt"},[el("b",{text:f.a.desc}),el("small",{class:f.st<0?"neg":null,text:"a "+corto(f.l)+" · "+hayTxt(f.st)+" de "+fmtN(f.obj)})]),
   el("button",{type:"button",class:"bjq num","aria-label":"Cambiar cantidad de "+f.a.desc,text:fmtN(f.falta),onclick:()=>cambiarBajar(f)}),
   el("button",{type:"button",class:"bjx","aria-label":"No bajar "+f.a.desc,text:"✕",onclick:()=>quitarBajar(f)})])));}
-function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);if(fn)setTimeout(fn,0);};
+/* lo que hay que hacer hoy (lo usan la pantalla Hoy y la campana de avisos) */
+function tareasHoy(){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);if(fn)setTimeout(fn,0);};
   /* --- qué hacer hoy --- */
   const tareas=[];const T=(niv,txt,det,btn,fn,extra)=>tareas.push({niv,txt,det,btn,fn,extra});
   const crit=artsActivos().filter(a=>!a.pedido&&nivel(a)==="bad"),pedir=artsActivos().filter(a=>!a.pedido&&nivel(a)==="warn");
@@ -162,8 +163,10 @@ function vRes(v){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);
   try{const pc=invPorComprobar();if(pc.length)T("warn",pc.length+(pc.length===1?" acción para comprobar si ha funcionado":" acciones para comprobar si han funcionado"),pc.slice(0,4).map(c=>c.t+" ("+c.accion+")").join(", "),"Comprobar",()=>fichaConclusion(pc[0]),pc.length>1?el("div",{class:"chips",style:"margin-top:4px"},pc.slice(1,6).map(c=>el("button",{type:"button",class:"chip",text:c.t,onclick:()=>fichaConclusion(c)}))):null);}catch(e){}
   try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
-  presuAvisos().forEach(x=>T(x.niv,x.txt,x.det,"Ver",()=>{PANA[tab]="Presupuesto del mes";render(true);}));
+  presuAvisos().forEach(x=>T(x.niv,x.txt,x.det,"Ver",()=>{PANA.res="Presupuesto del mes";if(tab!=="res")irA("res");else render(true);}));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
+  return{hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ejP,prevP,nN};}
+function vRes(v){const {hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ejP,prevP,nN}=tareasHoy();
   /* los avisos informativos se pueden ocultar (✕) en este dispositivo; vuelven solos si cambian (p. ej. otro número) */
   let ocu=[];try{ocu=JSON.parse(localStorage.getItem("alm.avOcultos")||"[]");}catch(e){}
   const vis=tareas.filter(t=>!(t.niv==="info"&&ocu.includes(t.txt))),nOc=tareas.length-vis.length;

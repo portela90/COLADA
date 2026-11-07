@@ -46,7 +46,7 @@ try{const c=new URLSearchParams(location.search).get("pet");if(c){S.petPend=c;hi
 /* Toolbox HSE: si el operario tiene uno pendiente de firmar, sale un aviso arriba que lleva a toolbox.html */
 let _tbN=0;const _pintaTb=pinta;pinta=function(){_pintaTb();const n=++_tbN;
   if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
-  rpc("prl_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_tbN||!Array.isArray(L)||!L.length)return;const p=L[0];
+  rpc("prl_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_tbN||!Array.isArray(L))return;if(window.campana)campana.pon("firmas",L.length?[{niv:"warn",t:L.length>1?L.length+" documentos para firmar":"Tienes un documento para firmar",d:"Toolbox y prevención",href:"toolbox.html"}]:[]);if(!L.length)return;const p=L[0];
     const MS=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
     const esF=p.tipo==="formacion",esD=p.tipo==="doc",DN={epi:"Entrega de EPI",epi_col:"Entrega de EPI",info:"Entrega de información"};
     const tit=esD?(DN[p.doc]||"Documento")+" para firmar":esF?"Formación en el puesto para firmar":"Toolbox de "+MS[p.mes-1]+" para firmar";
@@ -59,6 +59,7 @@ let _enN=0;const _pintaEn=pinta;pinta=function(){_pintaEn();const n=++_enN;
   rpc("enc_resumen",{p_tok:S.tok}).then(R=>{if(n!==_enN||!R||R.rol==="no")return;let tit=null,sub="";
     if(R.rol==="encargado"&&R.traspasos_sin_leer>0){tit=R.traspasos_sin_leer>1?"Tienes "+R.traspasos_sin_leer+" instrucciones nuevas":"Tienes instrucciones nuevas de Cristian";sub="Toca para leerlas.";}
     else if(R.rol==="admin"&&R.inc_abiertas>0){tit=R.inc_abiertas+(R.inc_abiertas>1?" incidencias abiertas":" incidencia abierta")+(R.inc_urgentes?" ("+R.inc_urgentes+" urgente"+(R.inc_urgentes>1?"s":"")+")":"");sub="Toca para verlas.";}
+    if(window.campana)campana.pon("enc",tit?[{niv:R.inc_urgentes&&R.rol==="admin"?"bad":"warn",t:tit,d:"Encargado",href:"encargado.html?v="+Date.now()}]:[]);
     if(!tit)return;
     const b=el("a",{href:"encargado.html?v="+Date.now(),style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:"+(R.inc_urgentes&&R.rol==="admin"?"#C0392B":"#16212C")+";border-radius:var(--r);padding:12px 16px;margin:0 0 12px"},
       [el("span",{style:"font-size:26px;line-height:1",text:R.rol==="admin"?"":""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:16px",text:tit}),el("span",{style:"font-size:14px;opacity:.9",text:sub})]),el("span",{style:"font-size:24px",text:"›"})]);
@@ -66,7 +67,7 @@ let _enN=0;const _pintaEn=pinta;pinta=function(){_pintaEn();const n=++_enN;
 /* Calendario laboral pendiente de firmar (trabajadores) */
 let _caN=0;const _pintaCa=pinta;pinta=function(){_pintaCa();const n=++_caN;
   if(!S.tok||!S.yo||esAdm()||S.tab!=="hoy")return;
-  rpc("cal_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_caN||!Array.isArray(L)||!L.length)return;const p=L[0];
+  rpc("cal_pendientes",{p_tok:S.tok}).then(L=>{if(n!==_caN||!Array.isArray(L))return;if(window.campana)campana.pon("cal",L.length?[{niv:"warn",t:"Calendario laboral "+L[0].anio+" para firmar",href:"calendario.html?f="+L[0].id}]:[]);if(!L.length)return;const p=L[0];
     const b=el("a",{href:"calendario.html?f="+p.id,style:"display:flex;gap:12px;align-items:center;text-decoration:none;color:#fff;background:#6A3FA0;border-radius:var(--r);padding:14px 16px;margin:0 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)"},
       [el("span",{style:"font-size:30px;line-height:1",text:""}),el("span",{style:"flex:1"},[el("b",{style:"display:block;font-size:17px",text:"Calendario laboral "+p.anio+" para firmar"}),el("span",{style:"font-size:14px;opacity:.9",text:"Toca para verlo y firmar que lo has recibido."})]),el("span",{style:"font-size:26px",text:"›"})]);
     const v=$("v");if(v){const hd=v.querySelector(":scope>.pg-hd");if(hd)hd.after(b);else v.prepend(b);}}).catch(()=>{});};
@@ -108,7 +109,7 @@ function quitarDeProblema(p,o,re){const m={v:""};
       await rpc("problema_quitar_ot",{p_tok:S.tok,p_id:p.id,p_ot:o.id,p_nota:m.v.trim()});toast("Aviso quitado");document.querySelectorAll(".ov").forEach(x=>x.remove());re&&re();}}]);}
 let _prN=0;const _pintaPr=pinta;pinta=function(){_pintaPr();const n=++_prN;
   if(!S.tok||!S.yo||!esGes()||(S.tab!=="hoy"&&!S.probPend))return;
-  rpc("problemas_lista",{p_tok:S.tok}).then(L=>{if(n!==_prN||!Array.isArray(L))return;
+  rpc("problemas_lista",{p_tok:S.tok}).then(L=>{if(n!==_prN||!Array.isArray(L))return;if(window.campana)campana.pon("prob",L.map(p=>({niv:p.estado==="pendiente"?"bad":"warn",t:p.tema+" en "+p.lugar,d:"Problema que se repite · "+p.veces7+" veces en 7 días",fn:()=>fichaProblema(p,()=>pinta())})));
     if(S.probPend){const c=S.probPend;S.probPend=null;const x=L.find(y=>y.id===c);if(x)setTimeout(()=>fichaProblema(x,()=>pinta()),300);}
     if(!L.length||S.tab!=="hoy")return;
     const caja=el("div",{class:"card prob-rep",style:"border:2px solid var(--bad);margin:0 0 12px;overflow:hidden"},[
