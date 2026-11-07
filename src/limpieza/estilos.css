@@ -134,3 +134,14 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
 input::placeholder,textarea::placeholder{color:var(--mut);opacity:1}
 /* botones de los cuadros: se reparten en varias filas si no caben, sin cortar el texto */
 .dlg>.row:last-child{display:flex;flex-wrap:wrap;gap:8px}.dlg>.row:last-child>.btn{flex:1 1 130px;min-width:0;white-space:normal;line-height:1.2;text-align:center;min-height:48px}
+/* fichaje */
+.fich{padding:14px;display:flex;flex-direction:column;gap:12px;border-left:4px solid var(--mut)}
+.fich.dentro{border-left-color:var(--ok)}.fich.pausa{border-left-color:var(--warn)}
+.fich-hd{display:flex;gap:12px;align-items:center}
+.fich-hd b{font-size:17px}
+.fich-h{display:flex;flex-direction:column;align-items:flex-end}.fich-h b{font-size:20px;font-variant-numeric:tabular-nums}.fich-h small{color:var(--mut);font-size:12px}
+.fich-acc .btn{flex:1 1 140px;margin:0}
+.fich-trab{border-top:1px solid var(--line);padding:10px 14px}
+.fich-trab summary{cursor:pointer;padding:2px 0}
+.fich-trab .tw{margin-top:8px}
+.card .seg.sel button{white-space:nowrap}
