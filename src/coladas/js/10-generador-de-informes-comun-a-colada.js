@@ -149,6 +149,8 @@ function render(){
 function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
   const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
   return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
+const lunesC=f=>{const d=new Date(f+"T12:00:00"),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const semanasC=h=>{const L=[],l0=lunesC(h);for(let i=5;i>=0;i--){const d=new Date(l0+"T12:00:00");d.setDate(d.getDate()-7*i);L.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));}return L;};
 let _kpiT=null,_kpiU="";
 function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{const R=bloques();const nv={};
   Object.values(R.B).forEach(b=>{const x=nv[b.nave]=nv[b.nave]||{kg:0,fa:0,kgN:0,kgE:0,cUd:0};x.kg+=b.kg;x.fa+=b.fa;x.kgN+=b.kgN;x.kgE+=b.kgE;x.cUd+=b.cUd;});
@@ -159,6 +161,11 @@ function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(
       sK=(t,d,h2)=>Math.round(M.filter(r=>r.t===t&&r.f>=d&&r.f<=h2).reduce((s,r)=>s+Math.abs(kgAp(r,S)||0),0));
     Object.assign(k,{conMes:sK("C",PC.d1,PC.h),conAnt:sK("C",PC.a1,PC.ah),conSerie:PC.meses.map(m=>sK("C",m+"-01",m+"-31")),
       entMes:sK("E",PC.d1,PC.h),entAnt:sK("E",PC.a1,PC.ah),entSerie:PC.meses.map(m=>sK("E",m+"-01",m+"-31"))});}catch(e){}
+  /* semanas (de lunes a domingo, las 6 últimas) para el resumen semanal por correo: consumo y entradas por nave y aleación */
+  try{const W=semanasC(hoy()),S2=saldos(),sem={};W.forEach(w=>{sem[w]={con:{tot:0,L:{}},ent:{tot:0,n:0,L:{}}};});
+    todosMovs().forEach(r=>{if(r.h||!r.f||(r.t!=="C"&&r.t!=="E")||r.f<W[0])return;const w=lunesC(r.f),x=sem[w];if(!x)return;const l=lotes.find(z=>z.id===(r.t==="C"?r.o:r.d));if(!l)return;
+      const kg=Math.round(Math.abs(kgAp(r,S2)||0)),ln=l.nave+" · "+(MAT[l.material]?MAT[l.material].nom:l.material),o=r.t==="C"?x.con:x.ent;o.tot+=kg;o.L[ln]=(o.L[ln]||0)+kg;if(r.t==="E")o.n++;});
+    k.sem=sem;}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 /* campana de avisos: lo pendiente de Coladas (como mucho se recalcula cada 1,5 s) */
 let _cmpT=null;

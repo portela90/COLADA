@@ -91,6 +91,8 @@ async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite de
 function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
   const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
   return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
+const lunesC=f=>{const d=new Date(f+"T12:00:00"),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const semanasC=h=>{const L=[],l0=lunesC(h);for(let i=5;i>=0;i--){const d=new Date(l0+"T12:00:00");d.setDate(d.getDate()-7*i);L.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));}return L;};
 let _kpiT=null,_kpiU="";
 function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{
   let bajar=0,uds=0;lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org){bajar++;uds+=f.falta;}}));
@@ -104,7 +106,14 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
   try{const PC=perCmp(hoy()),sP=(d,h2)=>todosPist().filter(p=>p.f>=d&&p.f<=h2).reduce((t,p)=>t+(+p.cant||1),0);
     k.pistAnt=sP(PC.a1,PC.ah);k.pistSerie=PC.meses.map(m=>sP(m+"-01",m+"-31"));}catch(e){}
   try{const PC=perCmp(hoy()),EV=evTodo(),sE=(d,h2)=>Math.round(EV.filter(e=>e.f>=d&&e.f<=h2).reduce((t,e)=>t+(e.eur||0),0));
-    k.gastoMes=sE(PC.d1,PC.h);try{const PD=presuDatos();if(PD.hay)k.presuMes=Math.round(PD.tot.p);}catch(e){}k.gastoAnt=sE(PC.a1,PC.ah);k.gastoSerie=PC.meses.map(m=>sE(m+"-01",m+"-31"));}catch(e){}
+    k.gastoMes=sE(PC.d1,PC.h);try{const PD=presuDatos();if(PD.hay)k.presuMes=Math.round(PD.tot.p);}catch(e){}
+  /* semanas (de lunes a domingo, las 6 últimas) para el resumen semanal por correo: gasto por familia, pistones por máquina */
+  try{const W=semanasC(hoy()),EV=evTodo(),sem={};W.forEach(w=>{sem[w]={eur:0,F:{},pist:0,M:{}};});
+    EV.forEach(e=>{if(!e.f||e.f<W[0])return;const x=sem[lunesC(e.f)];if(!x)return;const eu=Math.round((e.eur||0)*100)/100;x.eur+=eu;const fm=e.fam||"Otros";x.F[fm]=Math.round(((x.F[fm]||0)+eu)*100)/100;});
+    todosPist().forEach(p=>{if(!p.f||p.f<W[0])return;const x=sem[lunesC(p.f)];if(!x)return;const c=+p.cant||1;x.pist+=c;const mq=maqN(p.maq);x.M[mq]=(x.M[mq]||0)+c;});
+    Object.values(sem).forEach(x=>{x.eur=Math.round(x.eur);});k.sem=sem;
+    k.pedirL=artsActivos().filter(a=>!a.pedido&&(nivel(a)==="bad"||nivel(a)==="warn")).slice(0,15).map(a=>({d:a.desc,n:nivel(a),st:stockDe(a.id),min:+a.min||0,ud:a.ud||"ud",c:typeof cantPedir==="function"?cantPedir(a):null}));
+    try{const PD=presuDatos();if(PD.hay)k.presu={dd:PD.dd,dm:PD.dm,g:Math.round(PD.tot.g),p:Math.round(PD.tot.p),pr:Math.round(PD.tot.pr),L:PD.C.map(x=>({f:x.fam,g:Math.round(x.g),p:Math.round(x.p),pr:Math.round(x.pr),niv:x.niv}))};}catch(e){}}catch(e){}k.gastoAnt=sE(PC.a1,PC.ah);k.gastoSerie=PC.meses.map(m=>sE(m+"-01",m+"-31"));}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",
