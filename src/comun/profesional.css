@@ -26,7 +26,7 @@ body>header a{color:var(--acc)}
 .card{box-shadow:var(--shadow)}
 .card>.hd h2,.card .hd h2{font-weight:600;letter-spacing:0}
 .stk-t{border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--line);border-left-width:1px;padding:16px 18px;gap:8px;transition:border-color .12s,box-shadow .12s}
-.stk-t:hover{border-color:#C9D4E3;box-shadow:0 4px 14px rgba(17,26,46,.07)}
+.stk-t:hover{border-color:var(--btnb);box-shadow:0 4px 14px rgba(17,26,46,.07)}
 .stk-t-t{text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink2)}
 /* el mosaico con aviso conserva su marca de color a la izquierda */
 .stk-t.s-bad,.stk-t.s-warn{border-left-width:4px}
@@ -41,10 +41,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(37,99,235,.25);ou
 .chip{border-radius:8px;text-transform:none;letter-spacing:0}
 
 /* ---------- selector de opciones: interruptor gris con la opción elegida en blanco ---------- */
-.seg{gap:4px!important;background:#EEF2F7;padding:4px;border-radius:10px}
+.seg{gap:4px!important;background:var(--seg-bg);padding:4px;border-radius:10px}
 .seg>button{border:0!important;border-radius:7px!important;margin:0!important;background:transparent!important;color:var(--mut)!important;box-shadow:none!important;font-weight:500}
 .seg>button:hover{color:var(--ink)!important}
-.seg>button[aria-pressed="true"],.seg>button[aria-selected="true"]{background:#FFFFFF!important;color:var(--ink)!important;font-weight:600;box-shadow:0 1px 3px rgba(17,26,46,.12)!important}
+.seg>button[aria-pressed="true"],.seg>button[aria-selected="true"]{background:var(--seg-on)!important;color:var(--ink)!important;font-weight:600;box-shadow:0 1px 3px rgba(17,26,46,.12)!important}
 /* las barras de botones de acción (no de elegir) siguen siendo botones normales */
 .seg>button.btn{background:var(--acc)!important;color:var(--acc-ink)!important}
 .seg:has(>button.btn:only-child){background:none;padding:0}
@@ -68,8 +68,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(37,99,235,.25);ou
 /* ---------- móvil y tablet: barra de abajo blanca con el apartado elegido en azul ---------- */
 nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(--acc)}
 
-/* ---------- ordenador: menú lateral azul marino ---------- */
-@media (min-width:1200px){
+/* ---------- iPad y ordenador: menú lateral azul marino ---------- */
+@media (min-width:800px){
   /* Coladas y Almacén: el menú ocupa todo el alto y la cabecera va a su derecha */
   #app:has(>nav#tabs){grid-template-rows:auto minmax(0,1fr)}
   #app>nav#tabs{grid-row:1/-1!important;grid-column:1;background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;gap:3px!important}
@@ -83,7 +83,7 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
   #nav{background:var(--nav-bg)!important;box-shadow:none!important;padding:0 12px 16px!important;z-index:21!important;gap:3px!important}
   #nav::before{content:"CIE";display:flex;align-items:center;min-height:52px;padding:0 8px;margin-bottom:8px;color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em;
     border-bottom:1px solid rgba(255,255,255,.08);flex:none}
-  body:has(#nav:not([hidden]))>header{padding-left:244px!important}
+  body:has(#nav:not([hidden]))>header{padding-left:calc(var(--side-w,228px) + 16px)!important}
   #nav button{color:var(--nav-ink)!important;background:none;box-shadow:none!important;font-weight:500}
   #nav button:hover{background:var(--nav-hov)!important;color:#fff!important}
   #nav button[aria-selected=true]{background:var(--acc)!important;color:#fff!important;box-shadow:none!important;font-weight:600}
@@ -92,3 +92,20 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
 /* Inicio: cifras de los mosaicos en negrita */
 .ini-t{border-radius:12px}
 .ini-t .tn{font-weight:700!important;font-size:32px!important;letter-spacing:-.01em}
+
+/* ---------- modo oscuro: los mismos tonos azul marino ---------- */
+:root{--seg-bg:#EEF2F7;--seg-on:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0D1424;--surf:#151F33;--surf2:#1B263D;--line:#26334D;--line2:#1F2A40;--ink:#EEF2F8;--ink2:#B4BFD2;--mut:#8D9AB2;--acc:#5B8DEF;--acc2:#5B8DEF;--accb:#3B76F6;--acc-ink:#FFFFFF;--acc-soft:#1C2C4F;--btnb:#34435F;--ok:#4ADE80;--ok-bg:#12301F;--okbg:#12301F;--warn:#FBBF24;--warn-bg:#33270B;--warnbg:#33270B;--bad:#F87171;--bad-bg:#3A1717;--badbg:#3A1717;--info:#5B8DEF;--info-bg:#1C2C4F;--infobg:#1C2C4F;--shadow:none;--sh:none;--nav-bg:#0A1020;--nav-ink:#B4BFD2;--nav-hov:#18233A;--seg-bg:#0F1828;--seg-on:#26334D}}
+:root[data-theme="dark"]{--bg:#0D1424;--surf:#151F33;--surf2:#1B263D;--line:#26334D;--line2:#1F2A40;--ink:#EEF2F8;--ink2:#B4BFD2;--mut:#8D9AB2;--acc:#5B8DEF;--acc2:#5B8DEF;--accb:#3B76F6;--acc-ink:#FFFFFF;--acc-soft:#1C2C4F;--btnb:#34435F;--ok:#4ADE80;--ok-bg:#12301F;--okbg:#12301F;--warn:#FBBF24;--warn-bg:#33270B;--warnbg:#33270B;--bad:#F87171;--bad-bg:#3A1717;--badbg:#3A1717;--info:#5B8DEF;--info-bg:#1C2C4F;--infobg:#1C2C4F;--shadow:none;--sh:none;--nav-bg:#0A1020;--nav-ink:#B4BFD2;--nav-hov:#18233A;--seg-bg:#0F1828;--seg-on:#26334D}
+
+/* ---------- móvil y iPad pequeño: cabecera azul marino con letras blancas ---------- */
+@media (max-width:799px){
+  #app>header,body>header{background:var(--nav-bg)!important;color:#fff!important;border-bottom:0!important}
+  #app>header h1,body>header h1,header .tot b{color:#fff!important}
+  header .tot span,header .hsub,header .who,header .sub{color:#AEB9CC!important}
+  header .lupa,body>header button{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important}
+  body>header a{color:#9EC1FF!important}
+  /* barra de abajo: el apartado elegido con fondo azul suave */
+  nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{background:var(--acc-soft)!important;border-radius:12px!important;box-shadow:none!important}
+  nav#tabs{gap:2px;padding-left:4px;padding-right:4px}
+}

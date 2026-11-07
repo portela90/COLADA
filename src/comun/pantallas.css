@@ -1,8 +1,8 @@
 /* ===== Cada pantalla con su forma: móvil, tablet y ordenador =====
    Lo usan Coladas y Almacén (misma estructura: #app > header + main > .wrap + nav#tabs).
    - Móvil (< 700 px): como siempre, barra de pestañas abajo.
-   - Tablet (700–1199 px): contenido más ancho y pestañas centradas abajo.
-   - Ordenador (≥ 1200 px): menú lateral a la izquierda y el contenido usa el ancho, a dos columnas donde tiene sentido. */
+   - Tablet pequeña (700–799 px): contenido más ancho y pestañas centradas abajo.
+   - iPad y ordenador (≥ 800 px): menú lateral a la izquierda; desde 1200 px el contenido usa el ancho, a dos columnas donde tiene sentido. */
 
 /* dos columnas: en el móvil y la tablet una debajo de otra (mismo orden de siempre) */
 .dosc{display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -20,8 +20,9 @@
   #app>header .tot+.lupa{margin-left:14px}
 }
 
-@media (min-width:1200px){
-  #app{display:grid;grid-template-columns:228px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100%}
+/* menú lateral: desde el iPad (800 px) */
+@media (min-width:800px){
+  #app{display:grid;grid-template-columns:var(--side-w,228px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100%}
   #app>header{grid-column:1/-1;grid-row:1;padding-left:24px;padding-right:24px}
   #app>main{grid-column:2;grid-row:2;min-height:0;padding:24px 32px 40px}
   #app>nav#tabs{grid-column:1;grid-row:2;position:static;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:2px;
@@ -32,10 +33,13 @@
   #app>nav#tabs button:hover{background:var(--surf2)}
   #app>nav#tabs button[aria-selected="true"]{background:var(--acc-soft)!important;color:var(--acc);box-shadow:inset 3px 0 0 var(--accb)!important}
   #app>nav#tabs button svg{width:20px!important;height:20px!important;flex:none}
+  #toast{bottom:28px}
+}
+@media (min-width:800px) and (max-width:1199px){:root{--side-w:200px}#app>main{padding:20px 22px 32px!important}}
+@media (min-width:1200px){
   .wrap{max-width:1360px}
   /* pantallas que son un formulario: no hace falta que ocupen todo el ancho */
   .wrap.estrecha{max-width:960px}
   .dosc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
   .dosc.ancha-izq{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
-  #toast{bottom:28px}
 }

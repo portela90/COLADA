@@ -1,4 +1,4 @@
-// Cada app se adapta a la pantalla: móvil (barra abajo), tablet y ordenador (menú a la izquierda), sin salirse.
+// Cada app se adapta a la pantalla: móvil (barra abajo), iPad y ordenador (menú a la izquierda), sin salirse.
 const { test, expect } = require('@playwright/test');
 const { montar, vigila, desbordes } = require('./util');
 const { abre, ADMIN } = require('./limp');
@@ -8,8 +8,8 @@ for (const [pag, mock, sel] of [['index.html', 'coladas.html', 'nav button'], ['
       await page.setViewportSize({ width: w, height: 900 });
       const err = await vigila(page); await page.goto(montar(pag, mock)); await page.waitForTimeout(1000);
       const r = await page.evaluate(s => { const n = document.querySelector('#tabs').getBoundingClientRect(), m = document.querySelector('main').getBoundingClientRect(); return { lateral: n.height > n.width, mainIzq: m.left, n: document.querySelectorAll(s).length }; }, sel);
-      expect(r.lateral).toBe(w >= 1200);
-      if (w >= 1200) expect(r.mainIzq).toBeGreaterThan(200);
+      expect(r.lateral).toBe(w >= 800);
+      if (w >= 800) expect(r.mainIzq).toBeGreaterThan(190);
       for (let i = 0; i < r.n; i++) {
         await page.evaluate(([s, i]) => document.querySelectorAll(s)[i].click(), [sel, i]); await page.waitForTimeout(350);
         expect(await desbordes(page), pag + ' ' + w + 'px pestaña ' + i).toEqual([]);
