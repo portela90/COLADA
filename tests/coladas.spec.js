@@ -968,3 +968,32 @@ test('Aprobaciones en Coladas: un ajuste grande queda pendiente, se aprueba y lo
   await expect(page.locator('.card.apr').last()).toContainText('Aprobado por Cristian');
   expect(err).toEqual([]);
 });
+
+test('Enlace para compartir: desde un informe se crea un enlace que caduca, se copia y se puede anular', async ({ page }) => {
+  await page.addInitScript(() => { window.__ins = []; window.__upd = [];
+    const filas = [];
+    const t = () => { const st = {}; const o = { insert: x => { st.op = 'ins'; st.x = x; return o; }, update: x => { st.op = 'upd'; st.x = x; return o; }, select: () => o, order: () => o, limit: () => o, eq: (k, v) => { st.eq = v; return o; },
+      then: (ok, ko) => { let data = null;
+        if (st.op === 'ins') { const r = Object.assign({ id: 'c' + filas.length, token: 'abcdef0123456789abcdef0123', creado: new Date().toISOString(), vistas: 0 }, st.x); filas.unshift(r); window.__ins.push(st.x); data = [r]; }
+        else if (st.op === 'upd') { Object.assign(filas.find(f => f.id === st.eq), st.x); window.__upd.push(st.x); }
+        else data = filas.slice();
+        return Promise.resolve({ data, error: null }).then(ok, ko); } }; return o; };
+    window.sbColada = { from: () => t(), rpc: async () => ({ data: [] }) }; });
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.locator('button', { hasText: 'Generar informe' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.inf-it').first().click(); await page.waitForTimeout(400);
+  await page.locator('.inf-acc button', { hasText: 'Enlace para compartir' }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.cmp-ov');
+  await d.locator('.chip', { hasText: '7 días' }).click();
+  await d.locator('button', { hasText: 'Crear el enlace' }).click(); await page.waitForTimeout(500);
+  await expect(d.locator('.cmp-url')).toHaveValue(/informe\.html#k=abcdef0123456789abcdef0123$/);
+  const ins = await page.evaluate(() => window.__ins[0]);
+  expect(ins.contenido.texto.length).toBeGreaterThan(20); expect(ins.app).toBeTruthy();
+  const ahora = await page.evaluate(() => Date.now()); expect(Math.round((Date.parse(ins.caduca) - ahora) / 864e5)).toBe(7);
+  await expect(d.locator('.cmp-l li')).toHaveCount(1); await expect(d.locator('.cmp-l li')).toContainText('0 veces abierto');
+  await d.locator('.cmp-l button', { hasText: 'Anular' }).click(); await page.waitForTimeout(400);
+  expect((await page.evaluate(() => window.__upd[0])).anulado).toBeTruthy();
+  await expect(d.locator('.cmp-l li')).toContainText('anulado');
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});

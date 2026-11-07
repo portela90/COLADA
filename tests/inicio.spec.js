@@ -142,3 +142,15 @@ test('Mis trabajos: no sale a quien no es el administrador', async ({ page }) =>
   await page.goto(url); await page.waitForTimeout(700);
   await expect(page.locator('.card.mt-res')).toHaveCount(0);
 });
+test('Comparar con el año pasado: sale solo cuando hay datos del mismo mes del año anterior', async ({ page }) => {
+  const fs = require('fs'); const url0 = montar('inicio.html', 'inicio.html'); const f = url0.replace('file://', '');
+  fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('"pistAnt":5,', '"pistAnt":5,"pistAnio":10,"gastoAnio":1600,"anioMes":"2025-10",').replace('"conAnt":25000,', '"conAnt":25000,"conAnio":0,"anioMes":"2025-10",'));
+  const err = await vigila(page);
+  await page.goto(url0); await page.waitForTimeout(700);
+  const pist = page.locator('.ini-t', { hasText: 'Cambios este mes' });
+  await expect(pist.locator('.tcmp-y')).toContainText('▼ 30 % vs. oct 2025'); await expect(pist.locator('.tcmp-y')).toHaveClass(/bien/);
+  await expect(page.locator('.ini-t', { hasText: 'Gasto del mes' }).locator('.tcmp-y')).toContainText('▲ 15 % vs. oct 2025');
+  await expect(page.locator('.ini-t', { hasText: 'Consumo del mes' }).locator('.tcmp-y')).toContainText('en oct 2025 a día 31 no había nada');
+  await expect(page.locator('.ini-t', { hasText: 'Entradas del mes' }).locator('.tcmp-y')).toHaveCount(0);
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});

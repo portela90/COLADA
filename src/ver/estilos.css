@@ -1,0 +1,28 @@
+:root{--bg:#F4F6FA;--surf:#fff;--surf2:#F1F4F9;--line:#DCE2EC;--line2:#E8ECF3;--ink:#111A2E;--ink2:#3B4660;--mut:#66718A;--acc:#2563EB;--acc-ink:#fff;--bad:#B91C1C;--ok:#047857}
+@media (prefers-color-scheme:dark){:root{--bg:#0D1424;--surf:#151F33;--surf2:#1B263D;--line:#26334D;--line2:#1F2A40;--ink:#EEF2F8;--ink2:#B4BFD2;--mut:#8D9AB2;--acc:#5B8DEF;--bad:#F87171;--ok:#4ADE80}}
+html,body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif}
+#app{min-height:100vh;display:flex;flex-direction:column}
+#app>header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--line)}
+#app>header h1{margin:0;font-size:19px;display:flex;flex-direction:column;flex:1}
+#app>header .hsub{font-size:12.5px;font-weight:400;color:var(--mut)}
+.lupa{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--surf2);color:var(--ink);cursor:pointer}
+main{flex:1;padding:16px}
+.ver-wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.ver-p{color:var(--mut)}
+.ver-cab{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:16px}
+.ver-cab h2{margin:0 0 4px;font-size:22px}
+.ver-cab p{margin:0;color:var(--mut);font-size:13.5px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card>.hd{padding:11px 14px;border-bottom:1px solid var(--line2)}
+.card>.hd h2{margin:0;font-size:15px}
+.card>.bd{padding:14px}
+.ver-txt{margin:0;white-space:pre-wrap;font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);overflow-wrap:anywhere}
+.tbl-wrap{overflow-x:auto}
+table.tbl{border-collapse:collapse;width:100%;font-size:13.5px}
+table.tbl th,table.tbl td{padding:7px 10px;border-bottom:1px solid var(--line2);text-align:left;white-space:nowrap}
+table.tbl th{background:var(--surf2);font-weight:600;color:var(--ink2)}
+table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ver-err{background:var(--surf);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:12px;padding:18px}
+.ver-err h2{margin:0 0 6px;font-size:18px}
+.ver-pie{font-size:12.5px;color:var(--mut);text-align:center;padding:8px 0 20px}
+@media print{#app>header,.xl-bar,.ver-pie{display:none!important}main{padding:0}.card,.ver-cab{border:0}}

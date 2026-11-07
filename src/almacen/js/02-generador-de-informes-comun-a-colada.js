@@ -77,7 +77,8 @@ function infEditor(def0,esEsp){const def=JSON.parse(JSON.stringify(def0));def.op
   cerrar=infModal(nuevo?"Nuevo informe especial":def.nom,[
     nomI?IE("label",{},["Nombre",nomI]):null,
     perBox,campos,IE("div",{class:"inf-gh",text:"Vista previa"}),ta,
-    IE("div",{class:"inf-acc"},[infBtn("Copiar",copiar),wa,mail,infBtn("Excel",excel,"sec"),correoYo?infBtn("A mi correo con Excel",correoYo,"sec"):null]),
+    IE("div",{class:"inf-acc"},[infBtn("Copiar",copiar),wa,mail,infBtn("Excel",excel,"sec"),correoYo?infBtn("A mi correo con Excel",correoYo,"sec"):null,
+      window.Compartir?infBtn("Enlace para compartir",()=>Compartir.dialogo({app:INF.app,titulo:def.nom||"Informe",periodo:infBl(def).some(b=>b.per)?(P.d===P.h?iDmy(P.d):iDmy(P.d)+" a "+iDmy(P.h)):null,texto:ta.value,hojas:infHojas(def,P).slice(1)}),"sec"):null]),
     IE("div",{class:"inf-acc"},[infBtn(esEsp?(nuevo?"Guardar informe especial":"Guardar cambios"):"Guardar como informe especial",esEsp?guardar:()=>{cerrar();infEditor(Object.assign({},def,{id:null,nom:"",desc:""}),true);},"sec"),esEsp&&!nuevo?borrarB:null])],
     [infBtn("← Otros",()=>{cerrar();generarInforme();},"sec"),infBtn("Cerrar",()=>cerrar(),"sec"),infBtn("Copiar",copiar)]);}
 /* ===== INFORMES DEL ALMACÉN: campos disponibles e informes de serie ===== */

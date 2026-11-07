@@ -90,7 +90,9 @@ async function excelPaso(p,r,btn){if(!downloads){toast("Esta vista no permite de
 /* periodos para comparar: este mes hasta hoy, el mes pasado hasta el mismo día y los últimos 6 meses */
 function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
   const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
-  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
+  const ua=new Date(y-1,mo,0).getDate(),ya=(y-1)+"-"+String(mo).padStart(2,"0");
+  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i)),
+    y1:ya+"-01",yh:ya+"-"+String(Math.min(d,ua)).padStart(2,"0"),ym:ya};}
 const lunesC=f=>{const d=new Date(f+"T12:00:00"),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const semanasC=h=>{const L=[],l0=lunesC(h);for(let i=5;i>=0;i--){const d=new Date(l0+"T12:00:00");d.setDate(d.getDate()-7*i);L.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));}return L;};
 let _kpiT=null,_kpiU="";
@@ -114,6 +116,9 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
     Object.values(sem).forEach(x=>{x.eur=Math.round(x.eur);});k.sem=sem;
     k.pedirL=artsActivos().filter(a=>!a.pedido&&(nivel(a)==="bad"||nivel(a)==="warn")).slice(0,15).map(a=>({d:a.desc,n:nivel(a),st:stockDe(a.id),min:+a.min||0,ud:a.ud||"ud",c:typeof cantPedir==="function"?cantPedir(a):null}));
     try{const PD=presuDatos();if(PD.hay)k.presu={dd:PD.dd,dm:PD.dm,g:Math.round(PD.tot.g),p:Math.round(PD.tot.p),pr:Math.round(PD.tot.pr),L:PD.C.map(x=>({f:x.fam,g:Math.round(x.g),p:Math.round(x.p),pr:Math.round(x.pr),niv:x.niv}))};}catch(e){}}catch(e){}k.gastoAnt=sE(PC.a1,PC.ah);k.gastoSerie=PC.meses.map(m=>sE(m+"-01",m+"-31"));}catch(e){}
+  /* el mismo mes del año pasado (hasta el mismo día), solo si ese mes ya se apuntaba en la app */
+  try{const PC=perCmp(hoy()),EV=evTodo(),P=todosPist();if(EV.some(e=>(e.f||"").slice(0,7)===PC.ym)||P.some(p=>(p.f||"").slice(0,7)===PC.ym)){
+    k.anioMes=PC.ym;k.gastoAnio=Math.round(EV.filter(e=>e.f>=PC.y1&&e.f<=PC.yh).reduce((t,e)=>t+(e.eur||0),0));k.pistAnio=P.filter(p=>p.f>=PC.y1&&p.f<=PC.yh).reduce((t,p)=>t+(+p.cant||1),0);}}catch(e){}
   const u=JSON.stringify(k);if(u===_kpiU)return;_kpiU=u;await db.doc("kpi/inicio").set(Object.assign(k,{ts:Date.now()}));}catch(e){}},20000);}
 function vMas(v){
   const D={pist:"Cambios, stock por Ø, informe para Beatriz y gasto",ejes:"Modelos y planos, dónde está cada eje, cuarentena, taller y costes",cont:"Estantería, inventario y qué lleva cada máquina",

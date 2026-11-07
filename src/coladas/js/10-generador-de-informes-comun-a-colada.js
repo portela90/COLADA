@@ -77,7 +77,8 @@ function infEditor(def0,esEsp){const def=JSON.parse(JSON.stringify(def0));def.op
   cerrar=infModal(nuevo?"Nuevo informe especial":def.nom,[
     nomI?IE("label",{},["Nombre",nomI]):null,
     perBox,campos,IE("div",{class:"inf-gh",text:"Vista previa"}),ta,
-    IE("div",{class:"inf-acc"},[infBtn("Copiar",copiar),wa,mail,infBtn("Excel",excel,"sec"),correoYo?infBtn("A mi correo con Excel",correoYo,"sec"):null]),
+    IE("div",{class:"inf-acc"},[infBtn("Copiar",copiar),wa,mail,infBtn("Excel",excel,"sec"),correoYo?infBtn("A mi correo con Excel",correoYo,"sec"):null,
+      window.Compartir?infBtn("Enlace para compartir",()=>Compartir.dialogo({app:INF.app,titulo:def.nom||"Informe",periodo:infBl(def).some(b=>b.per)?(P.d===P.h?iDmy(P.d):iDmy(P.d)+" a "+iDmy(P.h)):null,texto:ta.value,hojas:infHojas(def,P).slice(1)}),"sec"):null]),
     IE("div",{class:"inf-acc"},[infBtn(esEsp?(nuevo?"Guardar informe especial":"Guardar cambios"):"Guardar como informe especial",esEsp?guardar:()=>{cerrar();infEditor(Object.assign({},def,{id:null,nom:"",desc:""}),true);},"sec"),esEsp&&!nuevo?borrarB:null])],
     [infBtn("← Otros",()=>{cerrar();generarInforme();},"sec"),infBtn("Cerrar",()=>cerrar(),"sec"),infBtn("Copiar",copiar)]);}
 /* ===== INFORMES DE COLADA: campos disponibles e informes de serie ===== */
@@ -148,7 +149,9 @@ function render(){
 /* periodos para comparar: este mes hasta hoy, el mes pasado hasta el mismo día y los últimos 6 meses */
 function perCmp(h){const y=+h.slice(0,4),mo=+h.slice(5,7),d=+h.slice(8,10),ym=(a,b)=>{const t=new Date(a,b-1,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");};
   const ant=ym(y,mo-1),ult=new Date(+ant.slice(0,4),+ant.slice(5,7),0).getDate();
-  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i))};}
+  const ua=new Date(y-1,mo,0).getDate(),ya=(y-1)+"-"+String(mo).padStart(2,"0");
+  return{d1:h.slice(0,7)+"-01",h,a1:ant+"-01",ah:ant+"-"+String(Math.min(d,ult)).padStart(2,"0"),meses:[5,4,3,2,1,0].map(i=>ym(y,mo-i)),
+    y1:ya+"-01",yh:ya+"-"+String(Math.min(d,ua)).padStart(2,"0"),ym:ya};}
 const lunesC=f=>{const d=new Date(f+"T12:00:00"),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const semanasC=h=>{const L=[],l0=lunesC(h);for(let i=5;i>=0;i--){const d=new Date(l0+"T12:00:00");d.setDate(d.getDate()-7*i);L.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));}return L;};
 let _kpiT=null,_kpiU="";
@@ -161,6 +164,9 @@ function kpiInicio(){if(!ready||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(
       sK=(t,d,h2)=>Math.round(M.filter(r=>r.t===t&&r.f>=d&&r.f<=h2).reduce((s,r)=>s+Math.abs(kgAp(r,S)||0),0));
     Object.assign(k,{conMes:sK("C",PC.d1,PC.h),conAnt:sK("C",PC.a1,PC.ah),conSerie:PC.meses.map(m=>sK("C",m+"-01",m+"-31")),
       entMes:sK("E",PC.d1,PC.h),entAnt:sK("E",PC.a1,PC.ah),entSerie:PC.meses.map(m=>sK("E",m+"-01",m+"-31"))});}catch(e){}
+  /* el mismo mes del año pasado (hasta el mismo día), solo si ese mes ya se apuntaba en la app */
+  try{const PC=perCmp(hoy()),S=saldos(),M=todosMovs().filter(r=>!r.h&&r.f);if(M.some(r=>r.f.slice(0,7)===PC.ym)){const sK=(t,d,h2)=>Math.round(M.filter(r=>r.t===t&&r.f>=d&&r.f<=h2).reduce((s,r)=>s+Math.abs(kgAp(r,S)||0),0));
+    Object.assign(k,{conAnio:sK("C",PC.y1,PC.yh),entAnio:sK("E",PC.y1,PC.yh),anioMes:PC.ym});}}catch(e){}
   /* semanas (de lunes a domingo, las 6 últimas) para el resumen semanal por correo: consumo y entradas por nave y aleación */
   try{const W=semanasC(hoy()),S2=saldos(),sem={};W.forEach(w=>{sem[w]={con:{tot:0,L:{}},ent:{tot:0,n:0,L:{}}};});
     todosMovs().forEach(r=>{if(r.h||!r.f||(r.t!=="C"&&r.t!=="E")||r.f<W[0])return;const w=lunesC(r.f),x=sem[w];if(!x)return;const l=lotes.find(z=>z.id===(r.t==="C"?r.o:r.d));if(!l)return;
