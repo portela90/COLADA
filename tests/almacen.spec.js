@@ -1364,6 +1364,8 @@ test('Consultas: preguntas de la revisión semanal (estoy, últimas, quién, cu�
   expect(await resp('Quién')).not.toContain('«quien»');
   expect(await resp('Quien no apunta')).toContain('quién no apunta');
   for (const q of ['cuanto tiempo ha durado el pistón', 'cuánto tiempo duran los pistones']) expect(await resp(q), q).toMatch(/cuánto dura un pistón/);
+  for (const q of ['Que tiempo dura un pistón puesto en máquina', 'cuánto tiempo está puesto un pistón', 'cuánto dura un pistón montado']) { const r = await resp(q); expect(r, q).toMatch(/cuánto dura un pistón/); expect(r, q).toMatch(/Un pistón puesto en máquina dura de media \d+ días/); }
+  expect(await resp('qué tiempo dura un pistón puesto en la F66')).toMatch(/En la F66 un pistón dura de media \d+ días/);
   t = await resp('Qué maquina tiene mas consumo este mes cuanto tiempo ha durado el pistón en maquina'); expect(t).toContain('cuánto dura un pistón'); expect(t).not.toContain('«durado»');
   expect(await resp('Cuántos pistones an entrado')).not.toContain('«an»');
   expect(await resp('Consumo 20/10/26')).toMatch(/el 20\/10\/(20)?26/);
