@@ -345,3 +345,20 @@ a.act-it:hover{background:var(--surf2)}
 .act-t{font-size:14px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .act-s{font-size:12.5px;color:var(--mut)}
 .act-mas{margin:4px 14px 12px}
+/* ===== aprobaciones (aprobaciones.js) ===== */
+.apr .apr-der{margin-left:auto;font-size:12.5px;color:var(--mut)}
+.apr-p{padding:10px 14px;margin:0}
+.apr-ok{color:var(--ok);font-weight:600}
+.apr-sec{border-top:1px solid var(--line2)}
+.apr-sec h3{margin:0;padding:11px 14px 2px;font-size:13px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+.apr-it{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line2);border-left:3px solid var(--warn)}
+.apr-it:last-child{border-bottom:0}.apr-it.no{border-left-color:var(--bad)}.apr-it.ok{border-left-color:var(--ok)}
+.apr-tx{flex:1 1 220px;min-width:0}
+.apr-t{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.apr-s{font-size:12.5px;color:var(--mut);margin-top:2px}
+.apr-mot{font-size:13px;color:var(--bad);margin-top:3px;overflow-wrap:anywhere}
+.apr-acc{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.apr-in{font:inherit;font-size:16px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink);min-width:0;flex:1 1 180px}
+.apr-esp{font-size:12.5px;color:var(--warn);font-weight:600}
+.apr-ck{display:flex;align-items:center;gap:8px;font-size:14.5px;padding:4px 0}
+.apr-quien{display:flex;flex-direction:column}

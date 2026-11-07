@@ -941,3 +941,30 @@ test('Reglas automáticas en Coladas: se monta una regla, se guarda en los ajust
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test('Aprobaciones en Coladas: un ajuste grande queda pendiente, se aprueba y lo pequeño no pide nada', async ({ page }) => {
+  await page.addInitScript(() => { window.__rpc = [];
+    window.yoId = () => 'u-cris'; window.yoNombre = () => 'Cristian'; window.yoAdmin = () => true;
+    const q = d => { const o = { select: () => o, in: () => o, eq: () => o, then: (ok, ko) => Promise.resolve({ data: d, error: null }).then(ok, ko) }; return o; };
+    window.sbColada = { from: () => q([{ user_id: 'u-cris', nombre: 'Cristian', activo: true, coladas: true }]), rpc: async (f, a) => { window.__rpc.push([f, a]); return { data: true }; } }; });
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => {
+    await db.doc('cfg/app').set(Object.assign({}, __D.cfg.app, { aprob: { quien: ['u-cris'], ajuste_kg: 1000, desde: '2026-10-01' } }));
+    const sn = await db.doc('mov/2026-10').get(); const it = sn.exists ? (sn.data().items || []) : [];
+    await db.doc('mov/2026-10').set({ items: it.concat([{ i: 'aj1', t: 'A', o: 'l1', f: '2026-10-30', fa: -3, kg: -2100, n: 'Recuento: faltan 3 fardos' }, { i: 'aj2', t: 'A', o: 'l1', f: '2026-10-30', fa: -1, kg: -700, n: 'Recuento' }]) }); });
+  await page.waitForTimeout(2200);
+  await page.locator('.campana').click(); await page.waitForTimeout(200);
+  await expect(page.locator('.campana-pan')).toContainText('1 apunte pendiente de aprobar');
+  await page.locator('.campana-pan .campana-x').click();
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(1500);
+  await page.locator('.stk-t', { hasText: 'Por aprobar' }).first().click(); await page.waitForTimeout(600);
+  const c = page.locator('.card.apr').last();
+  await expect(c.locator('.apr-it')).toHaveCount(1);
+  await expect(c).toContainText('Ajuste de −2100 kg (3 f) · colada C25001');
+  await c.locator('button', { hasText: 'Aprobar' }).click(); await page.waitForTimeout(700);
+  const m = await page.evaluate(() => __D.mov['2026-10'].items.find(x => x.i === 'aj1'));
+  expect(m.apr).toMatchObject({ est: 'ok', por: 'Cristian' }); expect(m.kg).toBe(-2100);
+  await expect(page.locator('.card.apr').last()).toContainText('Aprobado por Cristian');
+  expect(err).toEqual([]);
+});

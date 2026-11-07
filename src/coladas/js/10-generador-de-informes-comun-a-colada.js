@@ -178,6 +178,7 @@ function campanaCol(){if(!window.campana)return;clearTimeout(_cmpT);_cmpT=setTim
   try{const n=todasIncid().filter(r=>r.estado!=="cerrada").length;if(n)L.push({niv:"warn",t:n+(n===1?" incidencia de proveedor abierta":" incidencias de proveedor abiertas"),fn:go("hist")});}catch(e){}
   try{const nf=NAVES.filter(n=>!rdHoyN(n));if(nf.length&&new Date().getHours()>=7)L.push({niv:"info",t:"Recuento diario sin hacer hoy: "+nf.join(" y "),fn:go("consumo","rdiario")});}catch(e){}
   try{if(typeof evalReglasCol==="function")evalReglasCol().forEach(x=>L.push({niv:x.niv,t:x.txt,d:x.det,fn:x.fn||go("hist")}));}catch(e){}
+  try{if(typeof APRC==="function"){APRC().campana(go("hist")).forEach(x=>L.push(x));APRC().avisaNuevos();}}catch(e){}
   campana.pon("coladas",L);},1500);}
 /* color, título y frase de cada apartado (cabecera de la pantalla) */
 const SEC_COL={stock:["azul","Stock","Lo que hay de cada aleación, en la nave y fuera"],consumo:["naranja","Consumo","Lo que gastan los hornos, relevo a relevo"],

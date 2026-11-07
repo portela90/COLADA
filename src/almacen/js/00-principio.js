@@ -4,9 +4,9 @@
 const TABS=[["res","Hoy"],["rap","Apuntar"],["consu","Consumo"],["stock","Stock"],["repo","Reponer"],["mas","Más"]];
 /* Más: por pieza (cada una con todo lo suyo), máquinas y gestión */
 const SUB=[["pist","Pistones"],["ejes","Ejes"],["cont","Contenedores"],["btb","Barras expulsoras"],["btt","Tornillos tope"],["bth","Horno"],["quim","Aceites, taladrinas y jabones"],
-  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["reglas","Reglas automáticas"],["reg","Registro de cambios"]];
-const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat","reglas","reg"]]];
-const PADRE={reglas:"mas",reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
+  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["aprob","Por aprobar"],["reglas","Reglas automáticas"],["reg","Registro de cambios"]];
+const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat","aprob","reglas","reg"]]];
+const PADRE={aprob:"mas",reglas:"mas",reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
 /* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
 const INY_SUB=[["iny","Plano"],["cons","Consumo por máquina"],["mol","Moldes"]];
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t)||INY_SUB.some(x=>x[0]===t)||t==="bt"||t==="mat";
@@ -146,7 +146,7 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 let _pintando=false,_otraVez=false;
 function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);}}
 /* color y frase de cada pantalla (cabecera) */
-const SEC_ALM={res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["naranja","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
+const SEC_ALM={aprob:["rosa","Lo que necesita el visto bueno de Beatriz"],res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["naranja","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
   stock:["verde","Lo que hay en cada almacén y punto de consumo"],repo:["morado","Lo que hay que bajar a planta para que no falte"],mas:["gris","Piezas, máquinas y gestión"],
   pist:["naranja","Cambios de pistón, usados y recuperados"],ejes:["indigo","Dónde está cada eje y sus reparaciones"],cont:["turquesa","Contenedores de cada tipo y dónde están"],
   btb:["ambar","Barras expulsoras: stock, uso y recuperación"],btt:["ambar","Tornillos tope: stock y uso"],bth:["naranja","Recambios de horno y tolvas"],quim:["turquesa","Aceites, taladrinas y jabones, y sus contadores"],
@@ -165,13 +165,14 @@ function render0(force){const a=document.activeElement;
   {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:"Más",fn:()=>irA("mas")}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
-  (VC[tab]||{reglas:vReglas,reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
+  (VC[tab]||{aprob:vAprob,reglas:vReglas,reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
   if(typeof panelizar==="function")try{panelizar(v);}catch(e){console.warn(e);}
   document.querySelector("main").scrollTop=sc;kpiInicio();campanaAlm();}
 /* campana de avisos: lo mismo que «Qué hacer hoy» (se recalcula como mucho cada 2 s) */
 let _cmpT=null;function campanaAlm(){if(!window.campana||!ready)return;clearTimeout(_cmpT);_cmpT=setTimeout(()=>{try{const H=tareasHoy();
   campana.pon("almacen",H.tareas.map(t=>({niv:t.niv,t:t.txt,d:t.det&&t.det.length>90?t.det.slice(0,88)+"…":t.det,fn:t.fn})));
   try{escuchaMenc();campana.pon("menc",itemsMenc());}catch(e){}
+  try{campana.pon("aprob",APR().campana(()=>irA("aprob")));APR().avisaNuevos();}catch(e){}
   if(PEND_FICHA&&catOk){const c=PEND_FICHA;PEND_FICHA=null;try{history.replaceState(null,"",location.pathname);}catch(e){}setTimeout(()=>abrirFichaClave(c),200);}}catch(e){try{campana.repinta();}catch(e2){}}},2000);}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
 function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}

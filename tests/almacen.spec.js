@@ -1780,3 +1780,60 @@ test('Etiquetas y vistas guardadas: poner «Urgente» en un artículo, filtrar p
   await expect(page.locator('#lstStock .it')).toHaveCount(1);
   expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
 });
+
+const APR_SEED = () => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+  const a = v.cat.app.articulos.find(x => x.id === 'pist-60'); a.precio = 200;
+  v.cat.app.aprob = { quien: ['u-bea'], salida_eur: 300, baja_eje: true, desde: '2026-10-01' };
+  const k = '2026-10'; v.mov[k] = v.mov[k] || { items: [] };
+  v.mov[k].items.push({ id: 'cara1', f: '2026-10-30', ts: 1, alm: 'n1', art: 'pist-60', cant: 2, tipo: 'salida', maq: v.cat.app.maquinas[0].id, por: 'Cristian' },
+    { id: 'barata', f: '2026-10-30', ts: 1, alm: 'n1', art: 'pist-60', cant: 1, tipo: 'salida', por: 'Cristian' });
+  v.ejes['eb'] = { cod: '2.8.J-9', mod: '2.8.J', estado: 'baja', baja: '2026-10-29' }; } }); };
+const APR_SB = () => { window.__rpc = [];
+  const q = d => { const o = { select: () => o, in: () => o, order: () => o, limit: () => o, or: () => o, eq: () => o, then: (ok, ko) => Promise.resolve({ data: d, error: null }).then(ok, ko) }; return o; };
+  window.sbColada = { from: t => q(t === 'usuarios' ? [{ user_id: 'u-bea', nombre: 'Beatriz', activo: true }, { user_id: 'u-cris', nombre: 'Cristian', activo: true }] : []),
+    rpc: async (fn, a) => { window.__rpc.push([fn, a]); return { data: true, error: null }; } }; };
+
+test('Aprobaciones: Beatriz ve lo pendiente (salida cara y baja de eje), aprueba y rechaza con motivo', async ({ page }) => {
+  await page.addInitScript(APR_SEED); await page.addInitScript(APR_SB);
+  await page.addInitScript(() => { window.yoId = () => 'u-bea'; window.yoNombre = () => 'Beatriz'; window.yoAdmin = () => false; });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(3500);
+  await page.locator('.campana').click(); await page.waitForTimeout(200);
+  await expect(page.locator('.campana-pan')).toContainText('2 apuntes pendientes de aprobar');
+  await page.locator('.campana-pan .campana-x').click();
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Por aprobar'); await page.waitForTimeout(500);
+  const c = page.locator('.card.apr');
+  await expect(c.locator('.apr-it')).toHaveCount(2);
+  await expect(c).toContainText('Salida de 2 ud · Pistón Ø 60 · 400 €'); await expect(c).not.toContainText('Salida de 1 ud');
+  await expect(c).toContainText('Baja del eje 2.8.J-9');
+  await expect(c).toContainText('Aprueba: Beatriz');
+  /* aprobar la baja del eje */
+  await c.locator('.apr-it', { hasText: 'Baja del eje' }).locator('button', { hasText: 'Aprobar' }).click(); await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__D.ejes.eb.apr)).toMatchObject({ est: 'ok', por: 'Beatriz', uid: 'u-bea' });
+  /* rechazar la salida con motivo */
+  const it = page.locator('.card.apr .apr-it', { hasText: 'Salida de 2' });
+  await it.locator('button', { hasText: 'Rechazar' }).click();
+  await it.locator('.apr-in').fill('Era para la F12, no para esta');
+  await it.locator('button', { hasText: 'Confirmar rechazo' }).click(); await page.waitForTimeout(600);
+  const m = await page.evaluate(() => window.__D.mov['2026-10'].items.find(x => x.id === 'cara1'));
+  expect(m.apr).toMatchObject({ est: 'no', por: 'Beatriz', mot: 'Era para la F12, no para esta' });
+  await expect(page.locator('.card.apr')).toContainText('Rechazados: hay que corregir');
+  await expect(page.locator('.card.apr')).toContainText('«Era para la F12, no para esta»');
+  await expect(page.locator('.card.apr')).toContainText('No hay nada pendiente de aprobar');
+  expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
+});
+
+test('Aprobaciones: el que apunta no aprueba, y a Beatriz le llega un solo aviso al móvil', async ({ page }) => {
+  await page.addInitScript(APR_SEED); await page.addInitScript(APR_SB);
+  await page.addInitScript(() => { window.yoId = () => 'u-cris'; window.yoNombre = () => 'Cristian'; });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(3500);
+  const r = await page.evaluate(() => window.__rpc.filter(x => x[0] === 'alm_mencionar'));
+  expect(r.length).toBe(1); expect(r[0][1].p_para).toEqual(['u-bea']); expect(r[0][1].p_titulo).toContain('2 apuntes para aprobar'); expect(r[0][1].p_url).toBe('almacen.html?t=aprob');
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(300);
+  await pulsa(page, 'Por aprobar'); await page.waitForTimeout(1200);
+  const c = page.locator('.card.apr');
+  await expect(c.locator('button', { hasText: 'Aprobar' })).toHaveCount(0);
+  await expect(c).toContainText('Esperando el visto bueno');
+  expect((await page.evaluate(() => window.__rpc.filter(x => x[0] === 'alm_mencionar'))).length).toBe(1);
+  expect(err).toEqual([]);
+});

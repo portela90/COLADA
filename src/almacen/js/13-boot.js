@@ -22,7 +22,7 @@ window.addEventListener("solo-consulta",modoConsulta);
   cargaProd().then(()=>{_desvC=null;if(ready)render(true);});
   db.collection("cont").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});contAnos=m;if(ready)render();},()=>{});
   db.collection("pist").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});pistAnos=m;listo("pist");},()=>listo("pist"));
-  db.collection("ejes").onSnapshot(sn=>{ejes=sn.docs.map(d=>Object.assign({id:d.id},d.data())).filter(e=>e.estado!=="baja");listo("ejes");},()=>listo("ejes"));
+  db.collection("ejes").onSnapshot(sn=>{const T=sn.docs.map(d=>Object.assign({id:d.id},d.data()));ejesBaja=T.filter(e=>e.estado==="baja");ejes=T.filter(e=>e.estado!=="baja");listo("ejes");},()=>listo("ejes"));
   db.doc("notas/pend").onSnapshot(sn=>{notas=sn.exists?((sn.data()||{}).items||[]):[];render();},()=>{});
   db.collection("rep").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});reps=m;listo("rep");},()=>listo("rep"));
 })();
