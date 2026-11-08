@@ -454,3 +454,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .tspk-m{display:flex;justify-content:space-around;font-size:10px;color:var(--mut)}
 .tspk-m i{font-style:normal}
 #cons-mes .tspk{max-width:360px}
+.stk-volver-m{white-space:nowrap;flex:none}

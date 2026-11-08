@@ -62,3 +62,6 @@ button.linea{all:unset;display:flex;gap:8px;align-items:center;padding:10px 14px
 .modo{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 12px;margin:0 0 10px;font-weight:600;display:flex;gap:8px;align-items:center}
 .modo span{flex:1}
 
+/* botones de herramientas: cada uno con su ancho mínimo, para que en el móvil no queden tres columnas estrechas con el texto partido */
+.row>.btn{flex:1 1 180px}
+@media (max-width:520px){.res{grid-template-columns:repeat(2,minmax(0,1fr))}}

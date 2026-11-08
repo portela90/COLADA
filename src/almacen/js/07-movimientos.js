@@ -86,7 +86,7 @@ function vHist(v,soloT){const h=draft.hm;const hT=soloT||h.tipo;const ms=Object.
   const card=el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:soloT?"Consumos apuntados":"Historial"}),
       el("div",{class:"der",style:"display:flex;gap:8px"},[sel("hMes",(ms.length?ms:[h.mes]).map(k=>[k,fmtMes(k)]),h.mes,x=>{h.mes=x;render(true);}),
         soloT?null:sel("hTipo",Object.entries(TIPOS),h.tipo,x=>{h.tipo=x;render(true);},"Todos")])]),
-    list.length?el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Artículo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"}),el("th",{text:""})])),
+    list.length?el("div",{class:"tw"},el("table",{class:"t-hist"},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Artículo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"}),el("th",{text:""})])),
       el("tbody",{},list.map(m=>{const a=art(m.art);return el("tr",{},[el("td",{class:"num",text:fmtF(m.f)}),
         el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.resp?"Operario: "+respTxt(m.resp):null,m.nota].filter(Boolean).join(" · ")}),
           m.foto?el("img",{class:"thumb",src:fotoUrl(m.foto),alt:"Albarán",loading:"lazy",onclick:()=>lightbox(fotoUrl(m.foto))}):null]),

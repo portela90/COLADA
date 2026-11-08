@@ -150,3 +150,4 @@ input::placeholder,textarea::placeholder{color:var(--mut);opacity:1}
 .mini-b{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
 /* campos sueltos dentro de una fila de tarjeta (p. ej. Zonas): mismo aspecto que los demás */
 .card .row>input:not([type=checkbox]):not([type=radio]):not([type=file]),.card .row>select{font:inherit;font-size:16px;min-height:44px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;flex:1 1 160px;min-width:0;box-sizing:border-box}
+.card .row:has(>input)>.btn{flex:0 0 auto;white-space:nowrap}

@@ -523,9 +523,11 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
 @media (min-width:1200px){.wrap.estrecha:has(>.stk-grid){max-width:1360px}}
 /* los mosaicos de Coladas se estiran hasta llenar la fila (antes dejaban un hueco a la derecha) */
 @media (min-width:800px) and (min-height:560px){.stk-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}}
-@media (min-width:1800px) and (min-height:560px){.wrap.estrecha{max-width:1240px}.wrap.estrecha:has(>.stk-grid){max-width:1600px}}
+@media (min-width:1800px) and (min-height:560px){.wrap.estrecha{max-width:1400px}.wrap.estrecha:has(>.stk-grid){max-width:1600px}}
 /* Hornos en el ordenador: el botón de escanear y la lista de hornos uno al lado del otro, no dos barras de lado a lado */
 @media (min-width:800px) and (min-height:560px){
   html:has(script[data-app="hornos"]) .hz-elige{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:12px;align-items:stretch}
   html:has(script[data-app="hornos"]) .hz-elige>*{margin:0!important;width:100%}
 }
+/* Almacén, menú lateral: los nombres largos (Aceites, taladrinas y jabones) bajan de línea en vez de cortarse */
+@media (min-width:800px) and (min-height:560px){#app>nav#tabs .sub-mas button{white-space:normal!important;text-align:left;line-height:1.25}#app>nav#tabs .sub-mas button span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}}
