@@ -28,3 +28,18 @@
   body:has(#nav:not([hidden])):has(.pie) main{padding-bottom:160px}
 }
 @media (min-width:800px) and (min-height:560px){body:has(#nav:not([hidden])):has(.pie) main{padding-bottom:110px}}
+/* ===== monitor grande (≥ 1800 px de ancho; el portátil, el iPad y el móvil no cambian) =====
+   - Todo un poco más grande (en un monitor grande la letra quedaba diminuta).
+   - El contenido usa más ancho y el Día del jefe va en dos columnas: a la izquierda el día (fecha, cifras, botones,
+     quién trabaja) y a la derecha los trabajos. En el móvil y el iPad no cambia nada. */
+@media (min-width:1800px) and (min-height:560px){html{zoom:1.12}}
+@media (min-width:2200px) and (min-height:560px){html{zoom:1.25}}
+@media (min-width:1800px) and (min-height:560px){
+  body:has(#nav:not([hidden])) main{max-width:1640px;margin-left:calc(var(--side-w,228px) + max(0px,(100% - var(--side-w,228px) - 1640px)/2));margin-right:auto;padding:24px 32px 48px}
+  .dia-cols{display:grid;grid-template-columns:minmax(330px,400px) minmax(0,1fr);gap:18px;align-items:start}
+  .dia-izq,.dia-der{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .dia-izq>*,.dia-der>*{margin-top:0!important;margin-bottom:0!important}
+  .dia-izq .kpis{grid-template-columns:repeat(2,1fr)}
+  .dia-izq .herr{grid-template-columns:repeat(2,1fr)}
+  .dia-izq .datebar b{font-size:15px}
+}

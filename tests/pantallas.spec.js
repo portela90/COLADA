@@ -40,3 +40,16 @@ test('móvil en horizontal: pestañas abajo, sin menú lateral', async ({ page }
   const r = await page.evaluate(() => { const n = document.querySelector('#tabs').getBoundingClientRect(); return n.height > n.width; });
   expect(r).toBe(false); expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
 });
+test('Limpieza en un monitor grande: el Día en dos columnas; en el portátil, como siempre', async ({ page }) => {
+  const { abre, ADMIN } = require('./limp');
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  const { err } = await abre(page, ADMIN); await page.waitForTimeout(800);
+  await expect(page.locator('.dia-cols')).toHaveCount(1);
+  await expect(page.locator('.dia-izq .kpis')).toHaveCount(1);
+  await expect(page.locator('.dia-der .card', { hasText: 'Por hacer' })).toHaveCount(1);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).zoom)).toBe('1.25');
+  await page.setViewportSize({ width: 1512, height: 945 }); await page.waitForTimeout(800);
+  await expect(page.locator('.dia-cols')).toHaveCount(0);
+  await expect(page.locator('main .kpis')).toHaveCount(1);
+  expect(err).toEqual([]);
+});

@@ -96,3 +96,7 @@ textarea.inp{min-height:80px;resize:vertical}
 @font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
 @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
+/* monitor grande (≥ 1800 px; el portátil no cambia): más ancho, los meses en 4 columnas y todo un poco más grande */
+@media (min-width:1800px){.wrap{max-width:1120px;padding-left:24px;padding-right:24px}.sticky-act>div{max-width:1120px}.months{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}}
+@media (min-width:1800px){html{zoom:1.12}}
+@media (min-width:2200px){html{zoom:1.25}}
