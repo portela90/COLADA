@@ -486,3 +486,26 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
   #app>nav#tabs .sub-mas button[aria-selected="true"]{background:var(--sc,var(--acc))!important;color:#fff!important;font-weight:600!important}
   #app>nav#tabs:has(.sub-mas [aria-selected="true"])>button[data-t="mas"]{background:none!important;color:#fff!important;font-weight:700}
 }
+/* Toolbox, Encargado, Calendario y Hornos: el contenido usa el mismo ancho que Limpieza (antes era una columna estrecha) */
+@media (min-width:800px) and (min-height:560px){
+  html.con-cie-side main,html.con-cie-side #app .wrap,html.con-cie-side .sticky-act>div{max-width:1240px!important;padding-left:32px!important;padding-right:32px!important;box-sizing:border-box;width:100%}
+}
+@media (min-width:1800px) and (min-height:560px){
+  html.con-cie-side main,html.con-cie-side #app .wrap,html.con-cie-side .sticky-act>div{max-width:1640px!important}
+  html:has(script[data-app="toolbox"]) .months{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+}
+/* Encargado: mosaicos en «Hoy» y sus apartados en el menú lateral (ordenador e iPad) */
+.enc-tiles{display:grid;gap:10px;margin:0 0 12px}.enc-tiles>.card{margin:0!important}
+.cie-sub{display:none}
+@media (min-width:800px) and (min-height:560px){
+  .enc-tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .enc-tiles>.card{padding:18px 20px!important;min-height:120px;align-content:start;border-radius:14px}
+  .enc-tiles>.card:hover{border-color:var(--sc,var(--acc));box-shadow:0 0 0 1px var(--sc,var(--acc))}
+  html.con-cie-side .cie-sub{display:flex;flex-direction:column;gap:1px;margin:2px 0 6px}
+  .cie-sub button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;min-height:32px;padding:5px 12px 5px 44px;border-radius:7px;color:var(--nav-ink);font-size:13px;cursor:pointer}
+  .cie-sub button:hover{background:var(--nav-hov);color:#fff}
+  .cie-sub button[aria-current]{background:color-mix(in srgb,var(--sc,var(--acc)) 30%,transparent);color:#fff;font-weight:600}
+  .cie-sub button b.n{margin-left:auto;background:var(--bad);color:#fff;border-radius:999px;font-size:11px;padding:0 6px}
+  html.con-cie-side:has(script[data-app="encargado"]) body>#nav{display:none!important}
+  html.con-cie-side:has(script[data-app="encargado"]) main{padding-bottom:40px!important}
+}

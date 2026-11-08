@@ -16,7 +16,16 @@
     L.forEach(([k,t,u])=>{const a=document.createElement("a");a.href=u;if(k===app)a.setAttribute("aria-current","page");
       a.innerHTML='<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICL[k]||"")+'</svg></span>';
       const s=document.createElement("span");s.textContent=t;a.appendChild(s);n.appendChild(a);});
-    document.body.appendChild(n);document.documentElement.classList.add("con-cie-side");}
+    document.body.appendChild(n);document.documentElement.classList.add("con-cie-side");
+    /* Encargado: sus apartados (Hoy, Instrucciones, Trabajos, Checklist, Incidencias…) salen desplegados debajo en el menú,
+       en vez de en la barra de abajo */
+    if(app==="encargado"){const sub=document.createElement("div");sub.className="cie-sub";const ya=n.querySelector('a[aria-current="page"]');if(ya)ya.after(sub);else n.appendChild(sub);
+      const copia=()=>{const nav=document.getElementById("nav");sub.textContent="";if(!nav)return;
+        [...nav.querySelectorAll(":scope>button")].forEach(b=>{const x=document.createElement("button");x.type="button";
+          x.textContent=[...b.querySelectorAll("span")].map(z=>z.textContent).filter(t=>t&&t.trim().length>1).pop()||b.textContent.trim();
+          const nb=b.querySelector("b.n");if(nb&&nb.textContent.trim()){const c=document.createElement("b");c.className="n";c.textContent=nb.textContent;x.appendChild(c);}
+          if(b.getAttribute("aria-selected")==="true")x.setAttribute("aria-current","true");x.onclick=()=>b.click();sub.appendChild(x);});};
+      const nav=document.getElementById("nav");if(nav){new MutationObserver(copia).observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:["aria-selected"]});copia();}}}
   if(document.body)pon();else document.addEventListener("DOMContentLoaded",pon);
   /* Toolbox: cabecera de cada apartado como en las demás apps (Toolbox, Formación, Documentos) */
   if(app==="toolbox"&&window.cabeceraPg){const SEC={toolbox:["turquesa","Toolbox","Charlas del mes, firmas y envío a prevención"],form:["verde","Formación","Formación práctica en el puesto"],

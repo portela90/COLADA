@@ -48,8 +48,10 @@ async function vHoy(v){
     el("div",{style:"display:flex;gap:8px;align-items:center"},[el("b",{style:"flex:1;font-size:17px",text:titulo}),aviso?el("span",{class:"pill warn",text:aviso}):null]),
     el("span",{class:"meta",text:texto})]);
   const ir=t=>()=>{S.tab=t;ls.set("enc.tab",t);pinta();window.scrollTo(0,0);};
-  v.appendChild(bloque("Trabajos del fin de semana","Revísalos a primera hora y cambia el día si hace falta",ir("excel")));
-  v.appendChild(bloque("Checklist de hoy","Lo que hay que revisar en la nave",ir("check")));
+  /* en el ordenador los tres van en mosaicos, uno al lado del otro */
+  const g=el("div",{class:"enc-tiles"});v.appendChild(g);
+  g.appendChild(bloque("Trabajos del fin de semana","Revísalos a primera hora y cambia el día si hace falta",ir("excel")));
+  g.appendChild(bloque("Checklist de hoy","Lo que hay que revisar en la nave",ir("check")));
   const sin=S.res.traspasos_sin_leer||0;
-  v.appendChild(bloque("Instrucciones de Cristian",sin?(sin+" sin leer"):"Al día",ir("inicio"),sin?"Nuevo":null));
+  g.appendChild(bloque("Instrucciones de Cristian",sin?(sin+" sin leer"):"Al día",ir("inicio"),sin?"Nuevo":null));
 }
