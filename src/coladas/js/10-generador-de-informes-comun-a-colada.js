@@ -201,11 +201,11 @@ function pinta(){
   {const C=SEC_COL[tab]||SEC_COL.stock;
     v.appendChild(cabeceraPg({ruta:["Coladas"],titulo:C[1],sub:C[2],color:C[0],icono:svgPg(ICO_T[tab]||""),vista:v,
       acciones:[tab==="stock"||tab==="hist"?{t:"Generar informe",fn:()=>generarInforme()}:null,
-        tab==="consumo"?{t:"+ Apuntar relevo",fn:()=>irPanel("consumo","relevo")}:null]}));}
+        tab==="consumo"?{t:"+ Recuento diario",fn:()=>irPanel("consumo","rdiario")}:null]}));}
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
 function tabsUI(){const n=$("tabs");n.textContent="";
-  TABS.forEach(([id,t])=>{const b=el("button",{type:"button","aria-selected":String(tab===id),onclick:()=>{tab=id;if(id==="consumo")PANV.consumo="rdiario";try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}});
+  TABS.forEach(([id,t])=>{const b=el("button",{type:"button","aria-selected":String(tab===id),onclick:()=>{tab=id;if(id==="consumo")PANV.consumo="";try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}});
     b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO_T[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});}
 /* iconos de las pestañas */
 const ICO_T={stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',consumo:'<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.3 3 2.5 3 0-3-1-5.5 0-8z"/>',

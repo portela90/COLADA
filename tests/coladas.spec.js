@@ -371,7 +371,7 @@ test('Kilos sin redondeos acumulados: una colada gastada entera (con un ajuste p
 test('Consumo por kilos: kilos de cada fardo, peso raro, se guarda con kilos reales y al acabar la colada se ajusta la diferencia', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Por kilos' }).first().click(); await page.waitForTimeout(300);
   const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   await card.locator('select').first().selectOption({ label: '⬅ C25003 · 8 f' });
@@ -430,7 +430,7 @@ test('Consumo, Consultas y Plan: panel de mosaicos que abre cada ventana', async
   await page.setViewportSize({ width: 1300, height: 850 });
   await page.goto(url); await page.waitForTimeout(900);
   const ir = t => page.evaluate(t => [...document.querySelectorAll('nav button')].find(b => b.textContent === t).click(), t);
-  await ir('Consumo'); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(400);
+  await ir('Consumo'); await page.waitForTimeout(400);
   for (const t of ['Por relevo', 'Por kilos', 'Apunte suelto', 'Falta por apuntar']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
   await page.locator('.stk-grid .stk-t', { hasText: 'Por relevo' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.stk-det')).toContainText('Consumo del relevo');
@@ -450,7 +450,7 @@ test('Consumo, Consultas y Plan: panel de mosaicos que abre cada ventana', async
 test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cuadra o ajusta, y da el parte para compras', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   const k = 'Nave 1|L-2630';
@@ -494,7 +494,7 @@ test('Recuento diario: si bajan dos coladas, los pesos de cada una van a su cola
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(async () => { await db.doc('lotes/l2').update({ donde: 'nave' }); }); await page.waitForTimeout(300);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   const k = 'Nave 1|L-2630', card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
@@ -518,7 +518,7 @@ test('Recuento diario: si bajan dos coladas, los pesos de cada una van a su cola
 test('Recuento diario: de madrugada el relevo en marcha es la noche del día anterior', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-11-04T05:19:00+01:00'));
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   const rels = await card.locator('.rd-rels .rd-rl').allInnerTexts();
@@ -530,7 +530,7 @@ test('Recuento diario: cada nave se guarda por separado', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
   await page.evaluate(async () => { await db.doc('lotes/l9').set({ nombre: 'C26009', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 7000, fardosInv: 10, entrada: '2026-09-20' }); }); await page.waitForTimeout(300);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   await expect(page.locator('.stk-det .seg button[aria-pressed="true"]')).toHaveText('Nave 1');
   await expect(page.locator('.card', { hasText: 'Nave 2 · AlSi9' })).toHaveCount(0);
@@ -644,7 +644,7 @@ test('Recuento diario: «Ha subido del externo» y «Ha llegado un camión» sin
   await page.evaluate(async () => { const app = Object.assign({}, __D.cfg.app); app.proveedores = ['BEFESA'];
     app.plan = { '2026-10': { camiones: [{ p: 'BEFESA', m: 'L-2630', n: 2 }], consumo: {}, entradas: [{ f: '2026-10-30', k: 'Nave 1|L-2630', fa: 37, o: 'C', p: 'BEFESA' }] } };
     await db.doc('cfg/app').set(app); }); await page.waitForTimeout(300);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
   await expect(page.locator('[id="rdc-l1"]')).toHaveCount(0);
@@ -709,7 +709,7 @@ test('Horneros: semana con rotación, cambio de un día y consultas por hornero'
     const app = Object.assign({}, __D.cfg.app); app.horn = { lista: [{ id: 'h1', n: 'Juan' }, { id: 'h2', n: 'Pedro' }, { id: 'h3', n: 'Luis' }, { id: 'h4', n: 'Ana' }], sem: {}, dia: {} }; await db.doc('cfg/app').set(app);
     await db.doc('mov/2026-10').set({ items: [{ i: 'c1', t: 'C', f: '2026-10-27', u: 'Mañana', o: 'l3', fa: 3, n: 'Recuento diario · Fuera de FIFO' }, { i: 'c2', t: 'C', f: '2026-10-27', u: 'Tarde', o: 'l3', fa: 1 }] }); });
   await page.waitForTimeout(300);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Horneros' }).first().click(); await page.waitForTimeout(400);
   await expect(page.locator('.hn-sem')).toContainText('Semana del 26/10');
   const pon = async (cel, nombre) => { await page.locator(`button[aria-label="Quién está ${cel}"]`).click(); await page.locator('.dlg .hn-chk', { hasText: nombre }).locator('input').check(); await page.locator('#hn-ok').click(); await page.waitForTimeout(300); };
@@ -773,7 +773,7 @@ test('Cierre: con el mes cerrado (candado) no se puede apuntar nada de ese mes; 
   await page.goto(url); await page.waitForTimeout(900);
   const n0 = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).length);
   // recuento diario de hoy (octubre, cerrado): no deja guardar y lo explica
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
   const k = 'Nave 1|L-2630';
   const ya0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder')) || 0;
@@ -903,7 +903,7 @@ test('Trazabilidad: qué colada se usaba un día y nave; certificado en la ficha
 test('Consumo: mosaico «Consumo del mes» con comparativa frente al mes pasado y 6 meses', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(400);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(400);
   const t = page.locator('.stk-grid .stk-t', { hasText: 'Consumo del mes' });
   await expect(t).toHaveCount(1);
   await expect(t.locator('.stk-t-cmp')).toContainText(/vs\. mes pasado|sin consumo el mes pasado/);
@@ -998,18 +998,18 @@ test('Enlace para compartir: desde un informe se crea un enlace que caduca, se c
   expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
 });
 
-test('Consumo abre directamente el recuento diario (y con «Panel» se ven los demás)', async ({ page }) => {
+test('Consumo: la pestaña abre la vista general y el botón naranja lleva al recuento diario', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(500);
+  const consumo = () => page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click());
+  await consumo(); await page.waitForTimeout(500);
+  await expect(page.locator('.stk-t', { hasText: 'Recuento diario' }).first()).toBeVisible();
+  await expect(page.locator('.stk-t', { hasText: 'Por relevo' }).first()).toBeVisible();
+  await page.locator('button', { hasText: '+ Recuento diario' }).click(); await page.waitForTimeout(500);
   await expect(page.locator('.stk-det h2').first()).toContainText('Recuento diario');
-  /* aunque antes se hubiera quedado en «Por relevo» */
-  await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(200);
-  await page.locator('.stk-t', { hasText: 'Por relevo' }).first().click(); await page.waitForTimeout(300);
+  /* al volver a la pestaña, otra vez la vista general */
   await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Stock').click()); await page.waitForTimeout(200);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(500);
-  await expect(page.locator('.stk-det h2').first()).toContainText('Recuento diario');
-  await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
+  await consumo(); await page.waitForTimeout(500);
   await expect(page.locator('.stk-t', { hasText: 'Por relevo' }).first()).toBeVisible();
   expect(err).toEqual([]);
 });

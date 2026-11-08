@@ -3,8 +3,7 @@
    al pulsarlo se abre su ventana (en el ordenador con la lista de mosaicos a la izquierda).
    autoPanel arma los mosaicos solo, a partir de las tarjetas que ya pintaba cada pantalla:
    el título de la tarjeta es el del mosaico y lo que lleva a la derecha del título, su dato. */
-/* Consumo abre directamente el recuento diario (lo que más se usa); con «← Panel» se ven los demás */
-const PANV={consumo:"rdiario",hist:"",plan:""};
+const PANV={consumo:"",hist:"",plan:""};
 function irPanel(sec,v){PANV[sec]=v;render();try{document.querySelector("main").scrollTop=0;}catch(e){}}
 const hdDe=n=>n&&n.querySelector?n.querySelector(":scope > .hd, :scope > summary.hd, :scope > summary"):null;
 function datoHd(n){const hd=hdDe(n);if(!hd)return"";const t=[...hd.children].filter(c=>c.tagName!=="H2"&&!c.querySelector("select,input,button")&&c.tagName!=="SELECT").map(c=>c.textContent.trim()).filter(Boolean).join(" · ");return t.length>80?t.slice(0,78)+"…":t;}
