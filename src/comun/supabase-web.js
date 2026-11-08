@@ -145,10 +145,13 @@ const sinRed=()=>new Error("Sin conexión: esto se podrá guardar cuando vuelva 
 /* si la sesión del móvil se estaba renovando, la base no sabe quién es y rechaza el guardado («row-level security»):
    se renueva la sesión y se intenta otra vez antes de dar el error */
 const esPermiso=e=>/row-level security|JWT expired|jwt expired|PGRST301|42501/i.test(String((e&&(e.message||e.code))||e));
-const escribe=async fn=>{noConsulta();if(!navigator.onLine)throw sinRed();
+/* lo que la app guarda sola (cifras para Inicio, avisos ya mandados, preferencias, vistas, menciones leídas) no es algo
+   que haya hecho la persona: no saca «Guardado · Deshacer» */
+const AUTO_COL=/(^|_)(kpi|aprav|ipref|vistas|menc|avisados|prod|desv)$/;
+const escribe=async(fn,auto)=>{noConsulta();if(!navigator.onLine)throw sinRed();
   const una=async()=>{const r=await fn();if(r&&r.error)throw r.error;return r;};
   try{let r;try{r=await una();}catch(e){if(!esPermiso(e))throw e;try{await sb.auth.refreshSession();}catch(_){}r=await una();}
-    OFF.red(true);marcaGuardado();return r;}
+    OFF.red(true);if(!auto)marcaGuardado();return r;}
   catch(e){if(OFF.esRed(e)){OFF.red(false);throw sinRed();}if(window.reportarError)reportarError(e,"guardar documento");throw e;}};
 OFF.ejecutor=op=>rpc(op.fn,op.args);OFF.alVaciar=cols=>recargar(cols);
 const db={
@@ -170,8 +173,8 @@ const db={
     full();canal(col,go);return()=>{};}}),
   doc:path=>{const [col,id]=path.split("/");return{
     get:async()=>{const d=await leeDoc(col,id);return{exists:!!d,data:()=>d?d.data:undefined};},
-    set:async data=>{await escribe(()=>sb.from("docs").upsert({col:P+col,id,data}));},
-    update:async patch=>{if(!navigator.onLine)throw sinRed();const d=await leeDoc(col,id);await escribe(()=>sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)}));},
+    set:async data=>{await escribe(()=>sb.from("docs").upsert({col:P+col,id,data}),AUTO_COL.test(P+col));},
+    update:async patch=>{if(!navigator.onLine)throw sinRed();const d=await leeDoc(col,id);await escribe(()=>sb.from("docs").upsert({col:P+col,id,data:Object.assign({},d?d.data:{},patch)}),AUTO_COL.test(P+col));},
     onSnapshot:(cb,er)=>{const C=P+col;const go=()=>leeDoc(col,id).then(d=>cb({exists:!!d,data:()=>d?d.data:undefined})).catch(e=>er&&er(e));go();
       canal(col,p=>{if(!p){go();return;}const ev=p.eventType||p.type;if(ev!=="DELETE"&&p.new&&p.new.id===id&&p.new.data!==undefined&&!(p.errors&&p.errors.length)){const d=p.new.data;OFF.guarda("d:"+C+"/"+id,{data:d,u:p.new.updated_at||null});try{cb({exists:true,data:()=>OFF.aplicaDoc(C,id,d)});}catch(e){er&&er(e);}return;}if((p.new&&p.new.id===id)||(p.old&&p.old.id===id))go();});return()=>{};}};}
 };

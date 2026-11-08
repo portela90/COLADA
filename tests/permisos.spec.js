@@ -55,3 +55,15 @@ test('después de guardar sale «Deshacer» y busca lo último que has guardado'
   await page.waitForTimeout(1200);
   await expect(page.locator('#undo-chip')).toHaveCount(0);
 });
+test('lo que la app guarda sola (cifras, avisos, vistas…) no saca «Deshacer» aunque acabes de tocar la pantalla', async ({ page }) => {
+  await prepara(page, 'cris');
+  await page.goto('file://' + path.join(ROOT, 'almacen.html')); await page.waitForTimeout(1500);
+  await page.mouse.click(5, 5);
+  await page.evaluate(async () => { const db = await window.claude.use('db');
+    for (const d of ['kpi/inicio', 'aprav/lista', 'vistas/cris', 'desv/semana', 'menc/cris', 'ipref/cris']) await db.doc(d).set({ a: 1 }); });
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#undo-chip')).toHaveCount(0);
+  await page.mouse.click(5, 5);
+  await page.evaluate(async () => { const db = await window.claude.use('db'); await db.doc('mov/2026-11').set({ items: [] }); });
+  await expect(page.locator('#undo-chip')).toBeVisible({ timeout: 3000 });
+});
