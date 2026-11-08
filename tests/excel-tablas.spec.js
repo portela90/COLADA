@@ -6,6 +6,7 @@ test('Coladas: la tabla de Consumo del mes se descarga en Excel', async ({ page 
   await page.addInitScript(() => { let c; Object.defineProperty(window, 'claude', { configurable: true, get: () => c, set: v => { c = { use: async n => n === 'downloads' ? { save: async ({ filename, data }) => { window.__dl = { filename, n: (data.byteLength || data.size || 0) }; } } : v.use(n) }; } }); });
   const err = await vigila(page); await page.goto(montar('index.html', 'coladas.html')); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('nav#tabs button')].find(b => b.textContent.includes('Consumo')).click()); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '← Panel' }).click(); await page.waitForTimeout(300);
   await page.locator('.stk-grid .stk-t', { hasText: 'Consumo del mes' }).click(); await page.waitForTimeout(600);
   const b = page.locator('#cons-mes .xl-b'); await expect(b).toHaveCount(1);
   await b.click(); await page.waitForFunction(() => window.__dl, null, { timeout: 8000 });
