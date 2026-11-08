@@ -184,7 +184,11 @@ function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent="A
   let nb=0;try{lineas().forEach(l=>{nb+=faltas(l.id).filter(f=>f.falta>0&&f.org).length;});}catch(e){}
   if(nb)c.appendChild(el("button",{type:"button",class:"chip2 warn",onclick:()=>irA("repo")},[el("b",{text:String(nb)}),"para bajar a planta"]));
   if(al)c.appendChild(el("button",{type:"button",class:"chip2 bad",onclick:()=>irA("stock")},[el("b",{text:String(al)}),"para pedir"]));}
-function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||PADRE[tab]===id),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
+function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||PADRE[tab]===id),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);
+    /* en el menú lateral (ordenador e iPad), lo de «Más» sale desplegado debajo: piezas, máquinas y gestión */
+    if(id==="mas")n.appendChild(el("div",{class:"sub-mas"},SUB_G.map(([g,ks])=>el("div",{class:"sub-g"},[el("div",{class:"sub-gt",text:g})].concat(ks.map(k=>{const x=SUB.find(z=>z[0]===k);if(!x)return null;
+      return el("button",{type:"button","data-t":k,"aria-selected":String(tab===k),onclick:()=>irA(k)},[el("span",{text:x[1]})]);}).filter(Boolean))))));});
+  const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
 
 /* ===== CONSULTAS: preguntas con filtros sobre pistones, ejes y material ===== */
 const Q_QUE=[["pist","Cambios de pistón"],["rep","Reparaciones de ejes"],["mat","Consumo de material"],["gasto","Todo el gasto"]];

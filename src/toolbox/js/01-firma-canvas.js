@@ -48,7 +48,7 @@ function hojaFirma(titulo, sub, onOk){
 
 // ====== ADMIN: año ======
 function tabsSeccion(){ return `<div class="tabs"><button data-sec="toolbox" class="${S.seccion==='toolbox'?'on':''}">Toolbox</button><button data-sec="form" class="${S.seccion==='form'?'on':''}">Formación</button><button data-sec="docs" class="${S.seccion==='docs'?'on':''}">Documentos</button></div>`; }
-function enlazarSeccion(){ document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{ S.seccion=b.dataset.sec; ls.set('tb.sec',S.seccion); S.seccion==='form'?pantallaFormaciones():S.seccion==='docs'?pantallaDocumentos():pantallaAnio(); }); }
+function enlazarSeccion(){ document.querySelectorAll('button[data-sec]').forEach(b=>b.onclick=()=>{ S.seccion=b.dataset.sec; ls.set('tb.sec',S.seccion); S.seccion==='form'?pantallaFormaciones():S.seccion==='docs'?pantallaDocumentos():pantallaAnio(); }); }
 async function pantallaAnio(){
   pararVoz();
   if(S.seccion==='form') return pantallaFormaciones();

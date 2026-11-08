@@ -1837,3 +1837,17 @@ test('Aprobaciones: el que apunta no aprueba, y a Beatriz le llega un solo aviso
   expect((await page.evaluate(() => window.__rpc.filter(x => x[0] === 'alm_mencionar'))).length).toBe(1);
   expect(err).toEqual([]);
 });
+
+test('Menú lateral: lo de «Más» sale desplegado (en el ordenador) y en el móvil no', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  const sub = page.locator('nav#tabs .sub-mas');
+  await expect(sub).toBeVisible();
+  for (const t of ['Pistones', 'Aceites, taladrinas y jabones', 'Averías', 'Por aprobar', 'Reglas automáticas', 'Registro de cambios']) await expect(sub.locator('button', { hasText: t })).toHaveCount(1);
+  await sub.locator('button', { hasText: 'Reglas automáticas' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('.pg-h')).toHaveText('Reglas automáticas');
+  await expect(sub.locator('button[aria-selected="true"]')).toHaveText('Reglas automáticas');
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+  await expect(sub).toBeHidden();
+  expect(err).toEqual([]);
+});
