@@ -60,11 +60,12 @@ async function inicio(){
   });
 
   box.appendChild(el("h2",{text:"Hornos"}));
-  if(ESC_OK()) box.appendChild(el("button",{class:"btn",type:"button",text:"Escanear código QR del horno",onclick:()=>escanear()}));
+  const eli=el("div",{class:"hz-elige"});box.appendChild(eli);
+  if(ESC_OK()) eli.appendChild(el("button",{class:"btn",type:"button",text:"Escanear código QR del horno",onclick:()=>escanear()}));
   const sel=el("select",null,[el("option",{value:"",text:"— Elige un horno —"})].concat(H.filter(h=>h.activo).sort((a,b)=>a.codigo.localeCompare(b.codigo,"es",{numeric:true}))
     .map(h=>el("option",{value:h.codigo,text:h.codigo+" · "+h.nombre}))));
   sel.onchange=()=>{if(sel.value)ficha(sel.value);};
-  box.appendChild(sel);
+  eli.appendChild(sel);
 }
 
 /* ---------- Ficha de un horno ---------- */

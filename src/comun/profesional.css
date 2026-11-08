@@ -173,6 +173,15 @@ nav#tabs button[aria-selected="true"],#nav button[aria-selected=true]{color:var(
   .pg-h{font-size:20px}.pg-sub{font-size:13px}
   .pg-acc{width:100%}.pg-acc .btn{flex:1 1 auto}
 }
+/* móvil tumbado (poca altura): cabecera de pantalla en una sola línea para dejar sitio al contenido */
+@media (max-height:559px) and (orientation:landscape){
+  .pg-hd{padding:8px 14px 8px 16px;gap:4px;margin-bottom:10px;flex-direction:row;align-items:center}
+  .pg-ruta,.pg-sub{display:none}
+  .pg-fila{flex:1;flex-wrap:nowrap;gap:10px}
+  .pg-ico{width:32px;height:32px;border-radius:9px}.pg-ico svg{width:18px;height:18px}
+  .pg-h{font-size:18px}
+  .pg-acc{width:auto}.pg-acc .btn{padding:7px 12px;font-size:14px}
+}
 /* el apartado elegido con su color: menú lateral, barra de abajo, pestañas y subrayados */
 @media (min-width:800px) and (min-height:560px){
   #app>nav#tabs button[aria-selected="true"],html:has(script[data-app="limpieza"]) #nav button[aria-selected=true]{background:var(--sc)!important}
@@ -508,4 +517,15 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
   .cie-sub button b.n{margin-left:auto;background:var(--bad);color:#fff;border-radius:999px;font-size:11px;padding:0 6px}
   html.con-cie-side:has(script[data-app="encargado"]) body>#nav{display:none!important}
   html.con-cie-side:has(script[data-app="encargado"]) main{padding-bottom:40px!important}
+}
+/* ===================== Revisión de reescalado =====================
+   Coladas: la vista general de Consumo, Entrada y Precios (mosaicos) usa todo el ancho; solo sus formularios van en columna. */
+@media (min-width:1200px){.wrap.estrecha:has(>.stk-grid){max-width:1360px}}
+/* los mosaicos de Coladas se estiran hasta llenar la fila (antes dejaban un hueco a la derecha) */
+@media (min-width:800px) and (min-height:560px){.stk-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}}
+@media (min-width:1800px) and (min-height:560px){.wrap.estrecha{max-width:1240px}.wrap.estrecha:has(>.stk-grid){max-width:1600px}}
+/* Hornos en el ordenador: el botón de escanear y la lista de hornos uno al lado del otro, no dos barras de lado a lado */
+@media (min-width:800px) and (min-height:560px){
+  html:has(script[data-app="hornos"]) .hz-elige{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:12px;align-items:stretch}
+  html:has(script[data-app="hornos"]) .hz-elige>*{margin:0!important;width:100%}
 }
