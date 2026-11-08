@@ -38,6 +38,19 @@ Deno.serve(async (req) => {
       if (data.length < 1000) break;
     }
 
+    // tablas aparte de «docs»: usuarios, registro de cambios, «Mis trabajos», enlaces compartidos, palabras enseñadas al buscador
+    const tablas: Record<string, unknown[]> = {};
+    for (const t of ["usuarios", "cambios", "mis_tareas", "informes_compartidos", "sinonimos"]) {
+      const filas: unknown[] = [];
+      for (let desde = 0; ; desde += 1000) {
+        const { data, error } = await sb.from(t).select("*").range(desde, desde + 999);
+        if (error) { console.error("copia tabla", t, error.message); break; }
+        filas.push(...data);
+        if (data.length < 1000) break;
+      }
+      tablas[t] = filas;
+    }
+
     // fotos de albaranes: enlaces válidos 2 horas
     const nombres: string[] = [];
     for (let off = 0; ; off += 1000) {
@@ -53,7 +66,7 @@ Deno.serve(async (req) => {
       for (const s of data) if (s.signedUrl && s.path) fotos_urls[s.path] = s.signedUrl;
     }
 
-    return json({ app: "colada", version: 1, fecha: new Date().toISOString(), docs, fotos_urls });
+    return json({ app: "colada", version: 1, fecha: new Date().toISOString(), docs, tablas, fotos_urls });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);
   }
