@@ -399,3 +399,16 @@ a.act-it:hover{background:var(--surf2)}
 .mt-ov2{z-index:950}
 .mt-toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--surf);padding:8px 14px;border-radius:8px;z-index:999;font-size:14px}
 .mt-res{margin:12px 0 18px}
+/* ===================== Monitor grande (≥ 1800 px de ancho) en todas las apps =====================
+   En el portátil, el iPad y el móvil no cambia nada. En un monitor grande todo un poco más grande y usando el ancho. */
+@media (min-width:1800px) and (min-height:560px){html{zoom:1.12}}
+@media (min-width:2200px) and (min-height:560px){html{zoom:1.25}}
+@media (min-width:1800px) and (min-height:560px){
+  .wrap{max-width:1600px}
+  .ini-wrap{max-width:1560px}
+  html:has(script[data-app="encargado"]) main{max-width:1180px}
+  html:has(script[data-app="encargado"]) #nav{justify-content:center}
+  html:has(script[data-app="encargado"]) #nav button{flex:0 1 220px}
+  html:has(script[data-app="calendario"]) main{max-width:1500px}
+  html:has(script[data-app="hornos"]) main{max-width:1100px}
+}
