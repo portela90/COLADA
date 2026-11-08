@@ -412,3 +412,41 @@ a.act-it:hover{background:var(--surf2)}
   html:has(script[data-app="calendario"]) main{max-width:1500px}
   html:has(script[data-app="hornos"]) main{max-width:1100px}
 }
+/* ===================== Interfaz con color en todas las pantallas =====================
+   El color de cada apartado (--sc fuerte, --sd oscuro, --ss suave; lo pone cabecera.js según la pantalla) llega
+   también al contenido: cabecera de cada tarjeta, el campo que estás rellenando, la opción elegida, las cifras de
+   arriba y la fila por la que pasas. Si una pantalla no tiene color propio se usa el azul de la app. */
+html:has(script[data-app="toolbox"]){--sc:#0D9488;--sd:#115E59;--ss:#F0FDFA}
+/* 1 · cabecera de cada tarjeta, teñida del color del apartado */
+.card>.hd{background:var(--ss,var(--surf2));border-bottom-color:color-mix(in srgb,var(--sc,var(--acc)) 22%,var(--line))}
+.card>.hd h2,.card>.hd>h2{color:var(--sd,var(--ink))}
+.card{border-color:color-mix(in srgb,var(--sc,var(--acc)) 14%,var(--line))}
+/* 2 · el campo que estás rellenando: borde, fondo y sombra del color; su etiqueta también se marca */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):focus,select:focus,textarea:focus{
+  outline:none!important;border-color:var(--sc,var(--acc))!important;background-color:var(--ss,var(--surf))!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--sc,var(--acc)) 24%,transparent)!important}
+label:focus-within,.f:focus-within>label,.f:focus-within>span:first-child,.rgx-campo:focus-within .rgx-et{color:var(--sd,var(--acc))!important}
+/* 3 · la opción elegida (relevo, filtros, Sí/No, máquinas): rellena del color del apartado */
+.seg>button[aria-pressed="true"],.seg>button[aria-selected="true"],.seg button[aria-pressed="true"],.chip[aria-pressed="true"],.chip-sel.on,.tabs button.on{
+  background:var(--sc,var(--acc))!important;border-color:var(--sc,var(--acc))!important;color:#fff!important;font-weight:700!important;
+  box-shadow:0 2px 6px color-mix(in srgb,var(--sc,var(--acc)) 32%,transparent)!important}
+.seg>button[aria-pressed="true"] *,.chip[aria-pressed="true"] *{color:inherit!important}
+/* 4 · las cifras de arriba, como los mosaicos de Inicio: cada una con su color */
+.kpis>div{--k:#2563EB;background:color-mix(in srgb,var(--k) 9%,var(--surf))!important;border:1px solid color-mix(in srgb,var(--k) 28%,var(--line))!important;box-shadow:none!important}
+.kpis>div:nth-child(4n+2){--k:#EA580C}.kpis>div:nth-child(4n+3){--k:#7C3AED}.kpis>div:nth-child(4n+4){--k:#059669}
+.kpis>div b{color:color-mix(in srgb,var(--k) 78%,var(--ink))!important}
+.kpis>div small{color:color-mix(in srgb,var(--k) 60%,var(--ink2))!important;font-weight:600}
+/* 5 · la fila por la que pasas (ordenador) */
+@media (hover:hover){
+  .lst>.it:hover,.lst>a:hover,.tbl tbody tr:hover,.card table tbody tr:hover,.linea:hover,.ot:hover{background:var(--ss,var(--surf2))!important}
+}
+.lst>.it:focus-visible,.linea:focus-visible{outline:2px solid var(--sc,var(--acc));outline-offset:-2px}
+/* Toolbox: cada mes con el color de su estado y el mes actual resaltado */
+.mcard:has(.chip.ok){background:#ECFDF5;border-color:#A7F3D0}
+.mcard:has(.chip.warn){background:#FFFBEB;border-color:#FDE68A}
+.mcard.off{border-style:dashed}
+.mcard.now{border:2px solid var(--sc)!important;box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 16%,transparent)}
+.mcard:hover{border-color:var(--sc)}
+/* Limpieza › Día: cada grupo de trabajos con su color */
+.card.g-atras{--gc:#DC2626}.card.g-curso{--gc:#7C3AED}.card.g-hacer{--gc:#EA580C}.card.g-hecho{--gc:#059669}
+.card.g-atras,.card.g-curso,.card.g-hacer,.card.g-hecho{--sc:var(--gc);--ss:color-mix(in srgb,var(--gc) 9%,var(--surf));--sd:color-mix(in srgb,var(--gc) 78%,var(--ink));border-color:color-mix(in srgb,var(--gc) 26%,var(--line))}

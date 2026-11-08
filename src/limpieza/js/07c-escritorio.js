@@ -17,5 +17,8 @@ function columnasDia(v){if(!v||v.querySelector(".dia-cols"))return;const hijos=[
   [...box.children].forEach(x=>{const t=(x.querySelector("h2")||{}).textContent||"";
     if(x.matches(".kpis,.herr,.fpleg,.plant,.aviso")||/^Faltas/.test(t))izq.appendChild(x);else der.appendChild(x);});
   box.remove();}
-{const _vHoy2=vHoy;vHoy=async function(v){await _vHoy2(v);try{if(esAdm()&&ancho2c())columnasDia(v);}catch(e){}};}
+/* cada grupo de trabajos con su color: atrasadas rojo, en curso morado, por hacer naranja, terminadas verde */
+function coloresDia(v){v.querySelectorAll(".card>.hd>h2").forEach(h=>{const t=h.textContent||"",c=h.parentNode.parentNode;
+  const g=/^Atrasadas/.test(t)?"g-atras":/^En curso/.test(t)?"g-curso":/^Por hacer|^Para repartir|^Sin asignar/.test(t)?"g-hacer":/^Terminadas|^Hechas/.test(t)?"g-hecho":/^No se pudo/.test(t)?"g-atras":null;if(g)c.classList.add(g);});}
+{const _vHoy2=vHoy;vHoy=async function(v){await _vHoy2(v);try{coloresDia(v);}catch(e){}try{if(esAdm()&&ancho2c())columnasDia(v);}catch(e){}};}
 {let ult=ancho2c();window.addEventListener("resize",()=>{const a=ancho2c();if(a!==ult){ult=a;if(S.tab==="hoy")pinta();}});}
