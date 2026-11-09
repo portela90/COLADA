@@ -121,8 +121,9 @@ function informeCont(){const st=draft.ict=draft.ict||{nave:"Nave 1",k:"todos"};c
   pinta();dlg("Consumo de aceite y glicol",[box],[{t:"Cerrar",cls:"sec"}]);}
 async function excelCont(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
-    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(todasLect().map(r=>Object.assign({Fecha:r.f,Nave:r.nave},Object.fromEntries(CONT.map(([k,n])=>[n,typeof r.c[k]==="number"?r.c[k]:""])),{Quién:r.por||""}))),"Lecturas");
+    X.utils.book_append_sheet(wb,X.utils.json_to_sheet(todasLect().map(r=>Object.assign({Fecha:r.f,Nave:r.nave},Object.fromEntries(CONT.map(([k,n])=>[n,typeof r.c[k]==="number"?r.c[k]:""])),{"Agua (m³)":typeof r.c.agua==="number"?r.c.agua:"",Quién:r.por||""}))),"Lecturas");
     const T=[];NAVES_CT.forEach(n=>CONT.forEach(([k])=>tramos(n,k).forEach(t=>T.push({Desde:t.f0,Hasta:t.f,Nave:n,Contador:nomCont(k),Litros:t.dif,"Días laborables":t.lab,"Litros por día":Math.round(t.lpd*10)/10,Aviso:t.raro==="baja"?"El contador baja":t.raro==="alto"?"Mucho más de lo normal":""}))));
+    if(typeof tramosAgua==="function")tramosAgua().forEach(t=>T.push({Desde:t.f0,Hasta:t.f,Nave:"Agua (un solo contador)",Contador:"Agua",Litros:"","Días laborables":t.d,"Litros por día":"","m³":t.dif,"m³ por día":Math.round(t.mpd*100)/100,Aviso:t.raro==="baja"?"El contador baja":t.raro==="alto"?"Mucho más de lo normal":""}));
     X.utils.book_append_sheet(wb,X.utils.json_to_sheet(T.length?T:[{Desde:"Sin datos"}]),"Consumos");
     await downloads.save({filename:"Contadores_aceite_"+hoy()+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");}
   catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}btn.disabled=false;}

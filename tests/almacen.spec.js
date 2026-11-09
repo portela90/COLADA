@@ -1907,3 +1907,29 @@ test('Pérdidas e incidencias: un robo con material del almacén y una línea a 
   await expect(page.locator('#bdRes')).toContainText('No hay');
   expect(err).toEqual([]);
 });
+
+test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca menos y sale en Consultas', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="quim"]').click()); await page.waitForTimeout(400);
+  const card = page.locator('#aguaCard'); await expect(card).toBeVisible();
+  await expect(card).toContainText('sin lecturas');
+  const apunta = async (f, v) => { await page.click('#bAgua'); await page.fill('#aguaF', f); await page.fill('#aguaV', v);
+    await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400); };
+  await apunta('2026-10-28', '393539');
+  await apunta('2026-10-29', '393551,5');
+  const L = await page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua'));
+  expect(L.map(r => r.c.agua)).toEqual([393539, 393551.5]);
+  await expect(card).toContainText('12,5 m³');
+  // si marca menos que antes, avisa y no guarda a la primera
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.fill('#aguaV', '393540');
+  await expect(page.locator('.dlg').last()).toContainText('Marca menos que la lectura anterior');
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
+  expect(await page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').length)).toBe(2);
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
+  // Consultas
+  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="bd"]').click()); await page.waitForTimeout(400);
+  await page.fill('#bdQ', 'consumo de agua este año'); await page.waitForTimeout(500);
+  await expect(page.locator('#bdRes')).toContainText('12,5');
+  expect(err).toEqual([]);
+});
