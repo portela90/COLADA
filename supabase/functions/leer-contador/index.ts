@@ -23,16 +23,20 @@ Si no ves el contador o no se puede leer, responde {"lectura": null, "dudosas": 
 async function leer(img: string, tipo: string) {
   const cuenta = (Deno.env.get("CF_ACCOUNT_ID") || "").trim(), token = (Deno.env.get("CF_AI_TOKEN") || "").trim();
   if (!cuenta || !token) return { error: "Faltan los secretos CF_ACCOUNT_ID o CF_AI_TOKEN en Supabase (Edge Functions → Secrets)." };
+  if (!/^[A-Za-z0-9_\-]{20,200}$/.test(token) || !/^[a-f0-9]{32}$/.test(cuenta)) return { error: "Los secretos de Cloudflare no tienen el formato correcto (pega solo la clave y el ID de la cuenta)." };
   const modelo = Deno.env.get("CF_MODELO_CONTADOR") || "@cf/mistralai/mistral-small-3.1-24b-instruct";
   const url = img.startsWith("data:") ? img : "data:image/jpeg;base64," + img;
-  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cuenta}/ai/v1/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: modelo, max_tokens: 120, temperature: 0,
-      messages: [{ role: "user", content: [{ type: "text", text: prompt(tipo) }, { type: "image_url", image_url: { url } }] }] }),
-  });
+  let r: Response;
+  try {
+    r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cuenta}/ai/v1/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: modelo, max_tokens: 120, temperature: 0,
+        messages: [{ role: "user", content: [{ type: "text", text: prompt(tipo) }, { type: "image_url", image_url: { url } }] }] }),
+    });
+  } catch (_e) { return { error: "No se pudo llamar a la IA de Cloudflare" }; }
   const txt = await r.text();
-  if (!r.ok) return { error: "Cloudflare " + r.status + ": " + txt.slice(0, 400) };
+  if (!r.ok) return { error: r.status === 429 ? "Se ha gastado el cupo gratis de hoy de la IA: escribe el número a mano" : "La IA de Cloudflare ha dado un error (" + r.status + ")" };
   let out = ""; try { out = JSON.parse(txt).choices?.[0]?.message?.content || ""; } catch { out = txt; }
   const m = String(out).match(/\{[\s\S]*\}/);
   let d: { lectura?: string | null; dudosas?: number; seguro?: boolean } = {};
@@ -52,8 +56,8 @@ Deno.serve(async (req) => {
     if (ok.error || ok.data !== true) return json({ error: "Sin acceso" }, 403);
     if (!body.image) return json({ error: "Falta la foto" }, 400);
     const res = await leer(String(body.image), tipo);
-    return json(res, "error" in res ? 502 : 200);
-  } catch (e) {
-    return json({ error: String((e as Error)?.message || e) }, 500);
+    return json(res);
+  } catch (_e) {
+    return json({ error: "No se pudo leer la foto" }, 500);
   }
 });

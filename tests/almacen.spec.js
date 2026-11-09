@@ -1914,7 +1914,7 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="quim"]').click()); await page.waitForTimeout(400);
   const card = page.locator('#aguaCard'); await expect(card).toBeVisible();
   await expect(card).toContainText('sin lecturas');
-  const apunta = async (f, v) => { await page.click('#bAgua'); await page.fill('#aguaF', f); await page.fill('#aguaV', v);
+  const apunta = async (f, v) => { await page.click('#bAgua'); await page.fill('#aguaF', f); await page.waitForTimeout(200); await page.fill('#aguaV', v);
     await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400); };
   await apunta('2026-10-28', '393539');
   await apunta('2026-10-29', '393551,5');
@@ -1922,11 +1922,21 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   expect(L.map(r => r.c.agua)).toEqual([393539, 393551.5]);
   await expect(card).toContainText('12,5 m³');
   // si marca menos que antes, avisa y no guarda a la primera
-  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.fill('#aguaV', '393540');
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.waitForTimeout(200); await page.fill('#aguaV', '393540');
   await expect(page.locator('.dlg').last()).toContainText('Marca menos que la lectura anterior');
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
   expect(await page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').length)).toBe(2);
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
+  // leer con una foto: la IA devuelve el número y queda en la casilla para comprobarlo
+  await page.evaluate(() => { window.__CONT_MOCK = t => ({ lectura: t === 'agua' ? '393560' : '1206907', seguro: true }); });
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.waitForTimeout(200);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('.dlg').last().locator('input[type=file]').setInputFiles({ name: 'agua.png', mimeType: 'image/png', buffer: png });
+  await expect(page.locator('#aguaV')).toHaveValue('393560');
+  await expect(page.locator('.dlg').last()).toContainText('8,5 m³');
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
+  // al glicol se le escapa a veces la coma: con la lectura anterior se corrige
+  expect(await page.evaluate(() => [ajustaLectura('1206907', 'glicol', 120650.2), ajustaLectura('120690.7', 'glicol', 120650.2), ajustaLectura('031638', 'aceite', 31600)])).toEqual([120690.7, 120690.7, 31638]);
   // Consultas
   await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="bd"]').click()); await page.waitForTimeout(400);
   await page.fill('#bdQ', 'consumo de agua este año'); await page.waitForTimeout(500);

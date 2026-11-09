@@ -361,3 +361,6 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 .inc-fotos{display:flex;gap:8px;flex-wrap:wrap}.inc-fotos img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff}
 .inc-grupos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.inc-grupos>.card{margin:0}
 @media (max-width:640px){.inc-lin{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.inc-lin>label:first-child{grid-column:1/-1}.inc-pu{padding-bottom:0}}
+/* casilla de un contador con su botón de foto al lado */
+.con-foto{display:flex;gap:8px;align-items:stretch}.con-foto>input{flex:1;min-width:0}.con-foto .foto-cont{flex:none;min-width:48px;font-size:20px;padding:0 10px}
+input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;border-color:#F59E0B!important}

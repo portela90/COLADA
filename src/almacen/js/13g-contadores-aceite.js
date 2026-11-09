@@ -53,7 +53,8 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
         out.textContent="= "+fmtL(d)+(lab>1?" en "+lab+" días ("+fmtL(d/lab)+"/día)":"")+(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10?" · mucho más de lo normal ("+fmtL(med)+"/día)":"");
         if(med!=null&&T.length>=5&&d/lab>Math.max(med*2,med+20)&&d>10)out.className="sub neg";};
       const i=inp("ct"+k,f.v[k]||"",v=>{f.v[k]=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:pv!=null?fmtN(pv):"lectura"});
-      box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[i,out])));calc();});
+      const fb=typeof botonFotoCont==="function"?botonFotoCont(k==="gli"?"glicol":"aceite",pv,v=>{f.v[k]=String(v).replace(".",",");i.value=f.v[k];i.classList.add("leido");calc();}):null;
+      box.appendChild(fld(nom+(pv!=null?" · antes "+fmtN(pv):""),el("div",{style:"display:grid;gap:2px"},[fb?el("div",{class:"con-foto"},[i,fb]):i,out])));calc();});
     /* GRG: cambio del de arriba (nivel del de abajo) o solo apuntar cuánto hay (arriba y abajo), p. ej. el primer día */
     if(esta&&esta.grg&&!f.gcarg){f.g={};Object.keys(esta.grg).forEach(k=>{const g=esta.grg[k];f.g[k]={m:g.ar!=null?"n":"c",ab:String(g.ab).replace(".",","),ar:g.ar!=null?String(g.ar).replace(".",","):""};});f.gcarg=true;}
     f.g=f.g||{};
