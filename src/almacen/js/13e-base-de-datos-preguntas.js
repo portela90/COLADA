@@ -19,9 +19,9 @@ function artsQ(q){let rest=" "+q+" ";const F=[];
   const ign=[];rest.split(" ").filter(w=>w&&!QSTOP.has(w)&&!QM_STOP.has(w)&&w.length>1&&!/^(nave|1a|1b|recambios?|articulos?|material(es)?|productos?|cosas?|almacen|stock|euros?|dinero)$/.test(w)).forEach(w=>{const a0=raiz(w);const L2=L.filter(a=>reQ(a0).test(txt(a)));if(L2.length)L=L2;else ign.push(w);});
   return{L,ign,fam:F.length>0};}
 function evTodo(){const L=SECC.pist.ev().map(e=>Object.assign({fam:"Pistones"},e)).concat(SECC.ejes.ev().map(e=>Object.assign({fam:"Reparación de ejes"},e)));
-  todosMov().forEach(x=>{if(x.tipo!=="salida"||/^Cambio de pistón/.test(x.nota||""))return;const a=art(x.art);if(!a)return;const c=+x.cant||0;
+  todosMov().forEach(x=>{if(x.tipo!=="salida"||x.inc||/^Cambio de pistón/.test(x.nota||""))return;const a=art(x.art);if(!a)return;const c=+x.cant||0;
     L.push({f:x.f,ts:x.ts||0,maq:x.maq||null,nave:x.nave||null,ref:nomArtC(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),quien:x.por||(x.resp?respTxt(x.resp):""),fam:famLbl(a),a});});
-  return L.filter(e=>e.f);}
+  return L.concat(typeof incEventos==="function"?incEventos():[]).filter(e=>e.f);}
 function famEvQ(q){const M=[[/\bpiston(es)?\b/,"Pistones"],[/\bejes?\b/,"Reparación de ejes"],[/\bbarras?\b/,"Barras expulsoras"],[/\btornillos?\b/,"Tornillos tope"],[/\bhornos?\b/,"Recambio de horno"],[/\baceites?\b/,"Aceite"],[/\btaladrinas?\b/,"Taladrina"],[/\bjabon(es)?\b/,"Jabón"]];
   const r=M.filter(([re])=>re.test(q)).map(x=>x[1]);return r.length?r:null;}
 const famCasa=(e,fs)=>!fs||fs.some(f=>nq(e.fam).startsWith(nq(f).slice(0,6)));

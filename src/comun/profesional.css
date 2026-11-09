@@ -538,3 +538,13 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
 }
 /* Móvil y tableta: los campos de las ventanas emergentes y los textos para copiar con letra de 16 px, para que el iPhone no amplíe la pantalla al tocarlos */
 @media (pointer:coarse){textarea,.dlg input:not([type=checkbox]):not([type=radio]):not([type=range]),.dlg select{font-size:16px!important}}
+/* Almacén, menú lateral: los grupos de «Más» recogidos; al pulsar el nombre del grupo se despliega */
+@media (min-width:800px) and (min-height:560px){
+  #app>nav#tabs .sub-mas button.sub-gt{display:flex!important;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:34px!important;padding:8px 12px 8px 44px!important;margin:0;
+    font-size:11px!important;font-weight:700!important;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.6)!important;background:none!important;box-shadow:none!important;cursor:pointer}
+  #app>nav#tabs .sub-mas button.sub-gt:hover{color:#fff!important;background:rgba(255,255,255,.06)!important}
+  #app>nav#tabs .sub-mas button.sub-gt::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:4px}
+  #app>nav#tabs .sub-mas button.sub-gt[aria-expanded="true"]::after{transform:rotate(45deg)}
+  #app>nav#tabs .sub-it{display:flex;flex-direction:column;gap:1px;padding-bottom:4px}
+  #app>nav#tabs .sub-it[hidden]{display:none}
+}

@@ -17,6 +17,7 @@ window.addEventListener("solo-consulta",modoConsulta);
   db.collection("trep").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");TREP=d?((d.data()||{}).items||[]):[];if(ready)render();},()=>{});
   db.collection("brec").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");BREC=d?((d.data()||{}).items||[]):[];if(ready)render();},()=>{});
   db.collection("aver").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");AVER=d?((d.data()||{}).items||[]):[];if(ready)render();},()=>{});
+  db.collection("inc").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");INC=d?((d.data()||{}).items||[]):[];if(ready)render();},()=>{});
   db.collection("inv").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");INV=d?((d.data()||{}).items||[]):[];if(ready)render();},()=>{});
   db.collection("desv").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=d.data()||{};});DESV_DOCS=m;_desvC=null;if(ready)render();},()=>{});
   cargaProd().then(()=>{_desvC=null;if(ready)render(true);});

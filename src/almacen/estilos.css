@@ -353,3 +353,11 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 @media (max-width:1100px){.t-hist td:nth-child(4){white-space:normal;min-width:130px}.t-hist td:last-child .btn{display:block;margin:0 0 4px}}
 /* Investigar: los periodos (Hoy, Esta semana… Mes pasado) bajan de línea en vez de quedar cortados */
 .inv>*{min-width:0}.inv .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}
+/* Pérdidas e incidencias */
+.inc-h{margin:6px 0 0;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sd,var(--ink2))}
+.inc-lin{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.3fr) minmax(0,.9fr) auto auto;gap:8px;align-items:end;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surf2)}
+.inc-lin label{min-width:0}.inc-pu{padding-bottom:12px;white-space:nowrap}
+.inc-tot{font-weight:700;font-size:16px;padding:10px 12px;border-radius:10px;background:var(--ss,var(--surf2));color:var(--sd,var(--ink))}
+.inc-fotos{display:flex;gap:8px;flex-wrap:wrap}.inc-fotos img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff}
+.inc-grupos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.inc-grupos>.card{margin:0}
+@media (max-width:640px){.inc-lin{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.inc-lin>label:first-child{grid-column:1/-1}.inc-pu{padding-bottom:0}}

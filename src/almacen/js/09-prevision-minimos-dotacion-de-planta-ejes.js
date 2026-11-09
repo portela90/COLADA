@@ -16,7 +16,7 @@ function cuantil(mu,vr,cont,niv){if(!(mu>0))return 0;const z=ZN[niv]||1.6449;
   if(cont&&vr<=mu*1.3)return poisQ(mu,niv/100);
   return redU(mu+z*Math.sqrt(Math.max(vr,cont?mu:0)),cont);}
 const finMes=f=>{const d=new Date(f+"T12:00:00");return new Date(d.getFullYear(),d.getMonth()+1,0,12).toISOString().slice(0,10);};
-function prevDatos(){const hy=hoy();const ms=todosMov().filter(m=>m.tipo==="salida"&&m.f<=hy);
+function prevDatos(){const hy=hoy();const ms=todosMov().filter(m=>m.tipo==="salida"&&!m.inc&&m.f<=hy);
   const sig1=sumaDias(finMes(hy),1),sigFin=finMes(sig1);const base={hy,mesSig:mesDe(sig1),dm:dias(sig1,sigFin)+1,H:dias(hy,sigFin)};
   if(!ms.length)return Object.assign(base,{D:0,art:{},alm:{}});
   const ini0=ms.map(m=>m.f).sort()[0],lim=sumaDias(hy,-182);const ini=ini0<lim?lim:ini0;const D=Math.max(1,dias(ini,hy)+1),W=Math.floor(D/7);

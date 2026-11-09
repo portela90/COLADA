@@ -21,7 +21,7 @@ function moldeEn(maqId,f){let v=null;todosMlog().forEach(x=>{if(x.tipo==="molde"
 /* series semanales de todo lo que se mide */
 function seriesDesv(){const h=hoy(),W0=sumaDias(lunesA(h),-7),ws=[];for(let i=13;i>=0;i--)ws.push(sumaDias(W0,-7*i));ws.push(lunesA(h));
   const w0=ws[0],S={};const ser=(key,o)=>S[key]=S[key]||Object.assign({key,v:{}},o);const add=(x,w,v)=>{x.v[w]=(x.v[w]||0)+v;};
-  evTodo().forEach(e=>{if(e.f<w0||e.f>h)return;const w=lunesA(e.f),m=mqEv(e);const a=e.a||(e.fam==="Pistones"?pistArt(e.ref):null);const u=contable(e.ud)?e.cant:0;
+  evTodo().forEach(e=>{if(e.f<w0||e.f>h||e.fam==="Incidencias")return;const w=lunesA(e.f),m=mqEv(e);const a=e.a||(e.fam==="Pistones"?pistArt(e.ref):null);const u=contable(e.ud)?e.cant:0;
     if(m){const x=ser("maq:"+m.cod,{tipo:"maq",tit:m.cod,sub:"todo lo que gasta",cod:m.cod,m,eur:true});add(x,w,e.eur);if(!x.u)x.u={};x.u[w]=(x.u[w]||0)+u;
       const fam=e.fam;const y=ser("mf:"+m.cod+"|"+fam,{tipo:"mf",tit:m.cod+" · "+fam,sub:fam,cod:m.cod,m,fam,ud:fam==="Pistones"?"ud":null,eur:fam!=="Pistones"});add(y,w,fam==="Pistones"?e.cant:e.eur);if(!y.u)y.u={};y.u[w]=(y.u[w]||0)+u;}
     if(a){const z=ser("art:"+a.id,{tipo:"art",tit:nomArtC(a),sub:famLbl(a),a,ud:a.ud||"ud",eur:false});add(z,w,e.cant);}});
@@ -108,7 +108,7 @@ function vDesv(v){const R=calcDesv(),act=R.L.filter(d=>!d.just),jus=R.L.filter(d
   if(jus.length){v.appendChild(el("h3",{class:"sub",style:"margin:14px 2px 6px",text:"Justificadas (no vuelven a avisar en 4 semanas)"}));jus.forEach(d=>v.appendChild(card(d)));}}
 /* informe del mes: gasto de cada máquina y artículo frente a lo normal (por tonelada, media de los 6 meses anteriores) y las causas apuntadas */
 function datosInformeDesv(mes){const ms=[1,2,3,4,5,6].map(i=>mesMas(mes,-i)),G={};const add=(k,o,mm,eu,u)=>{const g=G[k]=G[k]||Object.assign({k,v:{}},o);const x=g.v[mm]=g.v[mm]||{eu:0,u:0};x.eu+=eu;x.u+=u;};
-  evTodo().forEach(e=>{const mm=e.f.slice(0,7);if(mm!==mes&&!ms.includes(mm))return;const m=mqEv(e),a=e.a||(e.fam==="Pistones"?pistArt(e.ref):null);
+  evTodo().forEach(e=>{if(e.fam==="Incidencias")return;const mm=e.f.slice(0,7);if(mm!==mes&&!ms.includes(mm))return;const m=mqEv(e),a=e.a||(e.fam==="Pistones"?pistArt(e.ref):null);
     if(m)add("maq:"+m.cod,{tit:m.cod,cod:m.cod,tipo:"maq"},mm,e.eur,contable(e.ud)?e.cant:0);if(a)add("art:"+a.id,{tit:nomArtC(a),tipo:"art",a,ud:a.ud||"ud"},mm,e.eur,e.cant);});
   const ton=(g,mm)=>PROD?tonMes(mm,g.tipo==="maq"?g.cod:null):1;const ini=iniDatos();const mIni=g=>{const f=g.tipo==="art"&&g.a.fam==="piston"?ini.pist:g.tipo==="art"?ini.mov:[ini.pist,ini.rep,ini.mov].filter(Boolean).sort().pop();return f?mesMas(f.slice(0,7),1):"0000-00";};const C=causasDesv().filter(c=>(c.sem||"").slice(0,7)===mes||sumaDias(c.sem||"2000-01-01",6).slice(0,7)===mes);
   const R=Object.values(G).map(g=>{const val=mm=>(g.v[mm]||{eu:0,u:0}),usaEu=Object.values(g.v).some(x=>x.eu>0);const q=mm=>usaEu?val(mm).eu:val(mm).u;

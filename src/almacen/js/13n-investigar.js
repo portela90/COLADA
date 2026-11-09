@@ -5,7 +5,7 @@
    y deja completar lo que falta (motivo, responsable). Cada reparto se puede pulsar para bajar más. */
 function evInv(){const L=[];
   todosPist().forEach(p=>{const c=+p.cant||1,a=pistArt(p.diam);L.push({k:"p",r:p,f:p.f,maq:p.maq,a,ref:"Pistón "+(p.diam||"?").replace(/^Ø\s*/,"Ø "),fam:"Pistones",cant:c,ud:"ud",eur:c*precioDe(a),mot:String(p.motivo||"").trim(),quien:p.resp?respTxt(p.resp):"",por:p.por||"",nota:p.nota||""});});
-  todosMov().forEach(z=>{if(z.tipo!=="salida"||/^Cambio de pist/.test(z.nota||""))return;const a=art(z.art);if(!a)return;const c=+z.cant||0;
+  todosMov().forEach(z=>{if(z.tipo!=="salida"||z.inc||/^Cambio de pist/.test(z.nota||""))return;const a=art(z.art);if(!a)return;const c=+z.cant||0;
     L.push({k:"m",r:z,f:z.f,maq:z.maq||null,nave:z.nave||null,a,ref:nomArt(a),fam:famLbl(a),cant:c,ud:a.ud||"ud",eur:c*precioDe(a),mot:String(z.motivo||"").trim(),quien:z.resp?respTxt(z.resp):"",por:z.por||"",nota:z.nota||""});});
   todasRep().forEach(r=>{if(!r.env||r.res==="anulada"||r.recuento)return;const ok=r.res==="ok"&&r.rec;
     L.push({k:"r",r,f:r.env,maq:r.maq||null,a:null,ref:"Eje "+r.eje,eje:r.eje,fam:"Reparación de ejes",cant:1,ud:"eje",eur:ok?costeRep(r).v:0,mot:String(r.desp||"").trim()?motivoRep(r.desp):"",quien:r.por||"",por:r.por||"",nota:r.obs||""});});

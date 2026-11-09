@@ -5,6 +5,10 @@ const TABS=[["res","Hoy"],["rap","Apuntar"],["consu","Consumo"],["stock","Stock"
 /* Más: por pieza (cada una con todo lo suyo), máquinas y gestión */
 const SUB=[["pist","Pistones"],["ejes","Ejes"],["cont","Contenedores"],["btb","Barras expulsoras"],["btt","Tornillos tope"],["bth","Horno"],["quim","Aceites, taladrinas y jabones"],
   ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["aprob","Por aprobar"],["reglas","Reglas automáticas"],["reg","Registro de cambios"]];
+/* menú lateral: los grupos de «Más» van recogidos; se abren al pulsarlos (y el del apartado en el que estás) */
+function subAbs(){try{return JSON.parse(localStorage.getItem("almacen.subAb")||"[]");}catch(e){return[];}}
+function subGuarda(g,ab){try{const L=subAbs().filter(x=>x!==g);if(ab)L.push(g);localStorage.setItem("almacen.subAb",JSON.stringify(L));}catch(e){}}
+const subAbierto=(g,ks)=>ks.includes(tab)||subAbs().includes(g);
 const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat","aprob","reglas","reg"]]];
 const PADRE={aprob:"mas",reglas:"mas",reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
 /* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
@@ -84,7 +88,7 @@ function stockA(a,l,f){if(!f||f>=hoy())return stockDe(a,l);let s=0;todosMov().fo
 const stockDe=(a,l)=>{const x=SM[a]||{};if(l)return x[l]||0;return Object.values(x).reduce((p,c)=>p+c,0);};
 let CONS={};
 function consMap(){const hy=hoy(),desde=sumaDias(hy,-60),first={},sal={};
-  todosMov().forEach(m=>{if(!first[m.art]||m.f<first[m.art])first[m.art]=m.f;if(m.tipo==="salida"&&m.f>=desde)sal[m.art]=(sal[m.art]||0)+(+m.cant||0);});
+  todosMov().forEach(m=>{if(!first[m.art]||m.f<first[m.art])first[m.art]=m.f;if(m.tipo==="salida"&&!m.inc&&m.f>=desde)sal[m.art]=(sal[m.art]||0)+(+m.cant||0);});
   const o={};Object.keys(sal).forEach(k=>{const ini=first[k]>desde?first[k]:desde;o[k]=sal[k]/Math.max(1,dias(ini,hy)+1);});return o;}
 const consDia=a=>CONS[a.id]||0;
 function plazoArt(a){if(+a.plazo>0)return +a.plazo;const pv=cat.proveedores.find(x=>x.id===a.prov);if(pv&&+pv.plazo>0)return +pv.plazo;
@@ -186,8 +190,11 @@ function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent="A
   if(al)c.appendChild(el("button",{type:"button",class:"chip2 bad",onclick:()=>irA("stock")},[el("b",{text:String(al)}),"para pedir"]));}
 function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>6);TABS.forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||PADRE[tab]===id),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);
     /* en el menú lateral (ordenador e iPad), lo de «Más» sale desplegado debajo: piezas, máquinas y gestión */
-    if(id==="mas")n.appendChild(el("div",{class:"sub-mas"},SUB_G.map(([g,ks])=>el("div",{class:"sub-g"},[el("div",{class:"sub-gt",text:g})].concat(ks.map(k=>{const x=SUB.find(z=>z[0]===k);if(!x)return null;
-      return el("button",{type:"button","data-t":k,"aria-selected":String(tab===k),onclick:()=>irA(k)},[el("span",{text:x[1]})]);}).filter(Boolean))))));});
+    if(id==="mas")n.appendChild(el("div",{class:"sub-mas"},SUB_G.map(([g,ks])=>{const ab=subAbierto(g,ks);
+      const lst=el("div",{class:"sub-it",hidden:!ab},ks.map(k=>{const x=SUB.find(z=>z[0]===k);if(!x)return null;
+        return el("button",{type:"button","data-t":k,"aria-selected":String(tab===k),onclick:()=>irA(k)},[el("span",{text:x[1]})]);}).filter(Boolean));
+      const bt=el("button",{type:"button",class:"sub-gt","aria-expanded":String(ab),onclick:()=>{const a=lst.hidden;lst.hidden=!a;bt.setAttribute("aria-expanded",String(a));subGuarda(g,a);}},[el("span",{text:g})]);
+      return el("div",{class:"sub-g"},[bt,lst]);})));});
   const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
 
 /* ===== CONSULTAS: preguntas con filtros sobre pistones, ejes y material ===== */

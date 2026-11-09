@@ -21,6 +21,7 @@ function periodoFutA(q){const hy=hoy(),y=+hy.slice(0,4),mo=+hy.slice(5,7);const 
 function intencionA2(q){const o={q,maq:maqDeQ(q),cod:codQ(q),nave:naveQA(q)};const M=(modo,x)=>Object.assign(o,{modo},x||{});
   if(/\bquien(es)? no (apunta|apuntan|pone|ponen|rellena|rellenan|escribe|escriben|mete|meten|indica|indican)\b|\bquien(es)? (deja|dejan|se deja|se dejan|olvida|olvidan|se olvida|se olvidan)\b.*\b(motivo|responsable|sin)\b|\bsin (poner|apuntar|rellenar) (el )?(motivo|responsable)\b|\b(cambios?|pistones?) sin motivo\b|\bsin motivo\b|\bno consta el motivo\b|\bmotivos? (sin|por) (poner|apuntar|rellenar)\b/.test(q))return M("sinapuntar");
   /* «valor de 2 tubos de westofen 21 y 3 krown 18», «cuánto valen 4 resistencias RST-900» */
+  {const N=typeof intencionInc==="function"?intencionInc(q):null;if(N)return M("incid",{inc:N});}
   {const V=intencionValor(q,o);if(V){if(V.mas)return M("mas",V);if(V.modo==="presupuesto")return M("presupuesto",{valor:V.valor,qn:V.qn});return M("valorq",V);}}
   {const A=intencionAv(q);if(A)return M("averias",{av:A});}
   {const Z=typeof intencionAhorro==="function"?intencionAhorro(q):null;if(Z)return M("ahorro",{ah:Z});}
@@ -202,6 +203,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     if(per.d<MOT_VACIO_DESDE)nota("Hasta el "+fmtF(sumaDias(MOT_VACIO_DESDE,-1))+" el motivo venía puesto solo si nadie lo cambiaba («Desgaste» en pistones, «Rotura» en barras y tornillos), así que de antes no se puede saber quién no lo elegía. Desde entonces empieza vacío y aquí sale quien no lo pone.");return;}
   if(I.modo==="valorq"){pintaValor(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
   if(I.modo==="mas"){pintaMas(I,P,{add,frase,nota,ent,lista,it,pon,ign});return;}
+  if(I.modo==="incid"){pintaIncQ(I,P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="ahorro"){pintaAhorro(I,P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="averias"){pintaAveriasQ(Object.assign({maq:I.maq},I.av),P,{add,frase,nota,ent,lista,it,pon});return;}
   if(I.modo==="tolvas"){const per=P.def?{d:h.slice(0,4)+"-01-01",h,t:"este año"}:P;const D=datosTolvas(per.d,per.h),ab=trepAbiertas();const tot=D.reduce((s,g)=>s+g.taller,0);ent("tolvas",[per.t]);

@@ -4,7 +4,7 @@
    cada semana la app propone unos pocos (primero los que no cuadran, luego los A) para que el stock cuadre sin recuentos grandes. */
 const ABC_DIAS={A:28,B:56,C:112},RC_SEMANA=12;
 function datosABC(){const h=hoy(),d0=sumaDias(h,-364),G={};
-  todosMov().forEach(m=>{if(m.tipo!=="salida"||m.f<d0)return;const a=art(m.art);if(!a||a.fam==="eje")return;const g=G[a.id]=G[a.id]||{a,cant:0,eur:0};const c=+m.cant||0;g.cant+=c;g.eur+=c*precioDe(a);});
+  todosMov().forEach(m=>{if(m.tipo!=="salida"||m.inc||m.f<d0)return;const a=art(m.art);if(!a||a.fam==="eje")return;const g=G[a.id]=G[a.id]||{a,cant:0,eur:0};const c=+m.cant||0;g.cant+=c;g.eur+=c*precioDe(a);});
   const L=artsActivos().filter(a=>a.fam!=="eje").map(a=>G[a.id]||{a,cant:0,eur:0}).sort((x,y)=>y.eur-x.eur||y.cant-x.cant);const tot=L.reduce((s,x)=>s+x.eur,0);let ac=0;
   L.forEach(x=>{const prev=ac;ac+=x.eur;x.pct=tot?x.eur/tot*100:0;x.clase=!tot||!(x.eur>0)?"C":prev<tot*0.8?"A":prev<tot*0.95?"B":"C";});
   const R={A:{n:0,eur:0},B:{n:0,eur:0},C:{n:0,eur:0}};L.forEach(x=>{R[x.clase].n++;R[x.clase].eur+=x.eur;});const M={};L.forEach(x=>M[x.a.id]=x.clase);

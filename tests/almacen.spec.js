@@ -1843,11 +1843,67 @@ test('Menú lateral: lo de «Más» sale desplegado (en el ordenador) y en el m�
   const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
   const sub = page.locator('nav#tabs .sub-mas');
   await expect(sub).toBeVisible();
-  for (const t of ['Pistones', 'Aceites, taladrinas y jabones', 'Averías', 'Por aprobar', 'Reglas automáticas', 'Registro de cambios']) await expect(sub.locator('button', { hasText: t })).toHaveCount(1);
+  // los grupos van recogidos: se ven sus nombres, no lo de dentro
+  await expect(sub.locator('.sub-gt')).toHaveText(['Piezas', 'Máquinas', 'Gestión']);
+  await expect(sub.locator('button', { hasText: 'Reglas automáticas' })).toBeHidden();
+  await sub.locator('.sub-gt', { hasText: 'Gestión' }).click();
+  await expect(sub.locator('.sub-gt', { hasText: 'Gestión' })).toHaveAttribute('aria-expanded', 'true');
+  for (const t of ['Por aprobar', 'Reglas automáticas', 'Registro de cambios']) await expect(sub.locator('button', { hasText: t })).toBeVisible();
+  await expect(sub.locator('button', { hasText: 'Pistones' })).toBeHidden();
+  await sub.locator('.sub-gt', { hasText: 'Piezas' }).click();
+  for (const t of ['Pistones', 'Aceites, taladrinas y jabones']) await expect(sub.locator('button', { hasText: t })).toBeVisible();
   await sub.locator('button', { hasText: 'Reglas automáticas' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('.pg-h')).toHaveText('Reglas automáticas');
   await expect(sub.locator('button[aria-selected="true"]')).toHaveText('Reglas automáticas');
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
   await expect(sub).toBeHidden();
+  expect(err).toEqual([]);
+});
+
+test('Pérdidas e incidencias: un robo con material del almacén y una línea a mano, cargado a Nave 1, baja el stock, suma en euros y sale en Consultas', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => document.querySelector('#tabs [data-t="consu"]').click()); await page.waitForTimeout(400);
+  const card = page.locator('#incCard'); await expect(card).toBeVisible();
+  await expect(card).toContainText('No hay ninguna incidencia');
+  const movAntes = await page.evaluate(() => Object.values(window.__D.mov || {}).reduce((s, m) => s + ((m.items || []).length), 0));
+  await page.click('#bIncNueva'); await page.waitForTimeout(300);
+  const dl = page.locator('.dlg').last();
+  await page.fill('#incT', 'Robo del fin de semana');
+  await expect(dl.locator('.seg button[aria-pressed="true"]').first()).toHaveText('Robo');
+  await dl.locator('.seg button', { hasText: 'Nave 1' }).click();
+  const art = await page.$eval('#incA0', s => [...s.options].find(o => o.value && o.closest('optgroup')).value);
+  await page.selectOption('#incA0', art); await page.waitForTimeout(200);
+  await page.fill('#incC0', '2');
+  await page.fill('#incMd0', 'Taladro Makita'); await page.fill('#incMc0', '1'); await page.fill('#incMp0', '150');
+  await expect(dl.locator('.inc-tot')).toContainText('Valor de la incidencia');
+  await dl.locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  const inc = await page.evaluate(() => (window.__D.inc && window.__D.inc.lista && window.__D.inc.lista.items) || []);
+  expect(inc.length).toBe(1);
+  expect(inc[0]).toMatchObject({ tipo: 'robo', cargo: 'N1', t: 'Robo del fin de semana' });
+  expect(inc[0].lin.length).toBe(2);
+  expect(inc[0].lin[1]).toMatchObject({ k: 'm', desc: 'Taladro Makita', cant: 1, pu: 150 });
+  // la salida del almacén queda apuntada, cargada a Nave 1 y marcada como incidencia
+  const movs = await page.evaluate(() => Object.values(window.__D.mov).flatMap(m => m.items || []).filter(m => m.inc));
+  expect(movs.length).toBe(1); expect(movs[0]).toMatchObject({ tipo: 'salida', art, cant: 2, nave: 'Nave 1' });
+  expect(await page.evaluate(() => Object.values(window.__D.mov || {}).reduce((s, m) => s + ((m.items || []).length), 0))).toBe(movAntes + 1);
+  // la tarjeta la enseña y la ficha se abre
+  await expect(card).toContainText('Robo · Nave 1');
+  await card.locator('.it').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Taladro Makita');
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cerrar' }).click();
+  // el resumen
+  await page.click('#bIncTodas'); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('Por nave');
+  await page.keyboard.press('Escape');
+  // Consultas
+  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="bd"]').click()); await page.waitForTimeout(400);
+  await page.fill('#bdQ', 'cuánto nos han robado este año'); await page.waitForTimeout(500);
+  await expect(page.locator('#bdRes')).toContainText('pérdidas e incidencias');
+  await expect(page.locator('#bdRes')).toContainText('1 incidencia');
+  await page.fill('#bdQ', 'qué se ha robado este año'); await page.waitForTimeout(500);
+  await expect(page.locator('#bdRes')).toContainText('Taladro Makita');
+  await page.fill('#bdQ', 'pérdidas de la nave 2 este año'); await page.waitForTimeout(500);
+  await expect(page.locator('#bdRes')).toContainText('No hay');
   expect(err).toEqual([]);
 });

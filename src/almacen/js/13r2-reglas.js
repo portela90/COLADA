@@ -38,7 +38,7 @@ const RG_M={
     calc:(f,P)=>{let n=0;todosPist().forEach(p=>{if(!p.f||p.f<P.d0||p.f>P.d1)return;if(f.motivo&&p.motivo!==f.motivo)return;if(f.nave){const m=maqDe(p.maq);if(!m||m.nave!==f.nave)return;}n+=(+p.cant||1);});
       return[{v:n,btn:"Ver pistones",fn:()=>irA("pist")}];}},
   consumo:{g:"Material",e:"Lo que se gasta de un artículo",d:"Salidas de material en ese tiempo, artículo por artículo.",s:"lo gastado",t:"gastado",u:udArt,f:["art","fam","alm","maq"],cada:" de algún artículo",cadaF:"art",per:PER_T,op:">",def:20,
-    calc:(f,P)=>{const G={};todosMov().forEach(m=>{if(m.tipo!=="salida"||!m.f||m.f<P.d0||m.f>P.d1)return;if(f.alm&&m.alm!==f.alm)return;if(f.maq&&m.maq!==f.maq)return;if(!artOk(f,art(m.art)))return;G[m.art]=(G[m.art]||0)+(+m.cant||0);});
+    calc:(f,P)=>{const G={};todosMov().forEach(m=>{if(m.tipo!=="salida"||m.inc||!m.f||m.f<P.d0||m.f>P.d1)return;if(f.alm&&m.alm!==f.alm)return;if(f.maq&&m.maq!==f.maq)return;if(!artOk(f,art(m.art)))return;G[m.art]=(G[m.art]||0)+(+m.cant||0);});
       return Object.entries(G).map(([id,c])=>{const a=art(id);return{nom:a.desc,v:c,btn:"Ver",fn:()=>fichaProd(id)};});}},
   entradas:{g:"Material",e:"Lo que entra de un artículo",s:"lo que ha entrado",t:"ha entrado",u:udArt,f:["art","fam","alm"],cada:" de algún artículo",cadaF:"art",per:PER_T,op:">",def:50,
     calc:(f,P)=>{const G={};todosMov().forEach(m=>{if(m.tipo!=="entrada"||!m.f||m.f<P.d0||m.f>P.d1)return;if(f.alm&&m.alm!==f.alm)return;if(!artOk(f,art(m.art)))return;G[m.art]=(G[m.art]||0)+(+m.cant||0);});
