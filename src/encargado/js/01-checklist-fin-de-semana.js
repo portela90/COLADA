@@ -204,9 +204,9 @@ async function cargarConv(x,box){
   const ta=area("",v=>txt=v,2); ta.placeholder="Escribe un mensaje…";
   const enviar=el("button",{class:"btn sec peq",text:"Enviar",onclick:async e=>{ const b=e.currentTarget;
     if(!txt.trim()&&!foto){ toast("Escribe algo o añade una foto"); return; }
-    busy(b,true);
+    b.disabled=true; b.textContent="Enviando…";
     try{ await rpc("enc_incidencia_responder",{p_tok:S.tok,p_id:x.id,p:{texto:txt,foto:foto}}); toast("Enviado"); cargarConv(x,box); }
-    catch(err){ busy(b,false); toast(err.message,true); } }});
+    catch(err){ b.disabled=false; b.textContent="Enviar"; toast(err.message,true); } }});
   box.appendChild(ta); box.appendChild(ft);
   box.appendChild(el("div",{class:"row",style:"margin:6px 0 0"},[botonFoto("Añadir foto",d=>{ foto=d; pf(); }),enviar]));
 }
