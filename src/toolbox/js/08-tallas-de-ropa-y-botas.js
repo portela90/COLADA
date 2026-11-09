@@ -143,24 +143,63 @@ async function pantallaMisTallas(){
 // ---------- Pedido de ropa: cuántas personas necesitan cada prenda y en qué talla (solo admin) ----------
 // Unidades que se piden por persona: camisetas y pantalón, 2; chaqueta y botas, 1
 const UDS_PEDIDO={camiseta_larga:2,camiseta_corta:2,pantalon:2,chaqueta:1,bota_agua:1,bota_seguridad:1};
+// Al pulsar «Pedido de ropa» se abre una ventana: todos sin marcar; marcas a quién pides y, para cada uno,
+// qué prendas y cuántas (por defecto las de arriba; 0 = esa prenda no). El Excel lleva solo lo marcado.
 async function excelPedido(btn){
   busy(btn,true);
+  let Fs=[];
   try{
     const L=(await rpc('prl_fichas',{p_tok:S.tok})).filter(t=>t.activo);
     if(!L.length){ toast('No hay trabajadores activos'); return; }
-    const Fs=[]; for(const t of L) Fs.push(await rpc('prl_ficha',{p_tok:S.tok,p_trab:t.id}));
-    const orden=Object.keys(TALLAS_N), mapa={};
-    Fs.forEach(F=>{ const t=F.trabajador; orden.forEach(k=>{ const v=(t.tallas||{})[k]; if(!v) return;
-      const c=mapa[k+'|'+v]||(mapa[k+'|'+v]={k,v,n:0,nombres:[]}); c.n++; c.nombres.push(t.nombre); }); });
-    const filas=Object.values(mapa)
-      .sort((a,b)=>orden.indexOf(a.k)-orden.indexOf(b.k)||String(a.v).localeCompare(String(b.v),'es',{numeric:true}))
-      .map(c=>({Prenda:TALLAS_N[c.k],Talla:c.v,'Uds. por persona':UDS_PEDIDO[c.k],'Nº personas':c.n,'Uds. a pedir':c.n*UDS_PEDIDO[c.k],Personas:c.nombres.join(', ')}));
-    if(!filas.length){ toast('Aún no hay tallas registradas'); return; }
-    await cargaXLSX();
-    const wb=XLSX.utils.book_new(), ws=XLSX.utils.json_to_sheet(filas);
-    ws['!cols']=[{wch:40},{wch:12},{wch:16},{wch:14},{wch:14},{wch:70}];
-    XLSX.utils.book_append_sheet(wb,ws,'Pedido');
-    XLSX.writeFile(wb,'pedido-ropa-'+hoyISO()+'.xlsx');
-  }catch(e){ toast(e.message,true); }
+    for(const t of L) Fs.push((await rpc('prl_ficha',{p_tok:S.tok,p_trab:t.id})).trabajador);
+  }catch(e){ toast(e.message,true); return; }
   finally{ busy(btn,false); }
+  hojaPedido(Fs);
+}
+function hojaPedido(Fs){
+  const orden=Object.keys(TALLAS_N);
+  const P=Fs.map(t=>({t,on:false,uds:Object.fromEntries(orden.map(k=>[k,(t.tallas||{})[k]?UDS_PEDIDO[k]:0]))}));
+  const el=document.createElement('div'); el.className='sheet hoja-pedido';
+  el.innerHTML=`<div><div class="row"><b class="grow" style="font-size:18px">Pedido de ropa</b><button class="btn ghost" data-x>Cerrar</button></div>
+    <div class="muted small" style="margin-bottom:10px">Marca a quién le pides ropa. En cada uno salen sus prendas con su talla: cambia cuántas pides de cada una (0 = esa no).</div>
+    <div class="row ped-rap"><button class="btn sec" data-tod>Marcar todos</button><button class="btn sec" data-nin>Ninguno</button></div>
+    <div class="ped-prendas"><span class="small muted">A todos los marcados:</span>${orden.map(k=>`<span class="ped-pr"><span>${esc(TALLAS_N[k])}</span><button class="btn ghost" data-pk="${k}" data-pv="1">Sí</button><button class="btn ghost" data-pk="${k}" data-pv="0">No</button></span>`).join('')}</div>
+    <div class="ped-lista"></div>
+    <div class="ped-fin"><div class="ped-res"></div>
+    <div class="row" style="margin-top:8px"><span class="grow"></span><button class="btn ok" data-ok disabled>Descargar Excel</button></div></div></div>`;
+  document.body.appendChild(el);
+  const lista=el.querySelector('.ped-lista'),res=el.querySelector('.ped-res'),ok=el.querySelector('[data-ok]');
+  const marcados=()=>P.filter(p=>p.on);
+  function resumen(){const M=marcados(),T={};M.forEach(p=>orden.forEach(k=>{const n=+p.uds[k]||0;if(n>0)T[k]=(T[k]||0)+n;}));
+    const tot=Object.values(T).reduce((a,b)=>a+b,0);
+    res.innerHTML=M.length?`<b>${M.length} ${M.length===1?'persona':'personas'}</b> · ${tot?orden.filter(k=>T[k]).map(k=>T[k]+' × '+esc(TALLAS_N[k].toLowerCase())).join(', '):'ninguna prenda'}`:'<span class="muted">Marca a quién le pides ropa.</span>';
+    ok.disabled=!M.length||!tot;}
+  function pinta(){lista.innerHTML=P.map((p,i)=>{const t=p.t,tl=t.tallas||{};const falta=orden.filter(k=>!tl[k]);
+    return `<div class="ped-p${p.on?' on':''}"><label class="ped-nom"><input type="checkbox" data-i="${i}" ${p.on?'checked':''}><b>${esc(t.nombre)}</b>
+      ${falta.length===orden.length?'<span class="chip warn">sin tallas</span>':falta.length?`<span class="chip warn">sin talla: ${esc(falta.map(k=>TALLAS_N[k].toLowerCase()).join(', '))}</span>`:''}</label>
+      ${p.on?`<div class="ped-uds">${orden.map(k=>`<label class="ped-u${(+p.uds[k]||0)>0?'':' cero'}"><span>${esc(TALLAS_N[k])}<small class="${tl[k]?'muted':'ped-sin'}">${tl[k]?'talla '+esc(tl[k]):'sin talla'}</small></span>
+        <input type="number" min="0" max="20" inputmode="numeric" data-i="${i}" data-k="${k}" value="${+p.uds[k]||0}" aria-label="${esc(TALLAS_N[k])} para ${esc(t.nombre)}"></label>`).join('')}</div>`:''}</div>`;}).join('');
+    lista.querySelectorAll('input[type=checkbox]').forEach(c=>c.onchange=()=>{P[+c.dataset.i].on=c.checked;pinta();});
+    lista.querySelectorAll('input[type=number]').forEach(n=>n.oninput=()=>{P[+n.dataset.i].uds[n.dataset.k]=Math.max(0,Math.round(+n.value||0));n.closest('.ped-u').classList.toggle('cero',!(+n.value>0));resumen();});
+    resumen();}
+  el.querySelector('[data-tod]').onclick=()=>{P.forEach(p=>p.on=true);pinta();};
+  el.querySelector('[data-nin]').onclick=()=>{P.forEach(p=>p.on=false);pinta();};
+  el.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>{const k=b.dataset.pk,si=b.dataset.pv==='1';if(!marcados().length){toast('Marca antes a las personas');return;}
+    marcados().forEach(p=>p.uds[k]=si?UDS_PEDIDO[k]:0);pinta();});
+  el.querySelector('[data-x]').onclick=()=>el.remove();
+  ok.onclick=async()=>{busy(ok,true);try{await excelPedidoDe(marcados(),orden);el.remove();}catch(e){toast(e.message,true);}finally{busy(ok,false);}};
+  pinta();
+}
+async function excelPedidoDe(M,orden){
+  const mapa={},det=[];
+  M.forEach(p=>orden.forEach(k=>{const n=+p.uds[k]||0;if(!n)return;const v=(p.t.tallas||{})[k]||'SIN TALLA';
+    const c=mapa[k+'|'+v]||(mapa[k+'|'+v]={k,v,n:0,nombres:[]});c.n+=n;c.nombres.push(p.t.nombre+(n>1?' ('+n+')':''));
+    det.push({Persona:p.t.nombre,Prenda:TALLAS_N[k],Talla:v,'Uds.':n});}));
+  const filas=Object.values(mapa).sort((a,b)=>orden.indexOf(a.k)-orden.indexOf(b.k)||String(a.v).localeCompare(String(b.v),'es',{numeric:true}))
+    .map(c=>({Prenda:TALLAS_N[c.k],Talla:c.v,'Uds. a pedir':c.n,Personas:c.nombres.join(', ')}));
+  if(!filas.length){toast('No hay ninguna prenda para pedir');return;}
+  await cargaXLSX();
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(filas);ws['!cols']=[{wch:40},{wch:12},{wch:14},{wch:70}];XLSX.utils.book_append_sheet(wb,ws,'Pedido');
+  const w2=XLSX.utils.json_to_sheet(det);w2['!cols']=[{wch:30},{wch:40},{wch:12},{wch:8}];XLSX.utils.book_append_sheet(wb,w2,'Por persona');
+  XLSX.writeFile(wb,'pedido-ropa-'+hoyISO()+'.xlsx');toast('Pedido descargado: '+M.length+(M.length===1?' persona':' personas'));
 }
