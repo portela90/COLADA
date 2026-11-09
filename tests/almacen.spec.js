@@ -1927,6 +1927,21 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(300);
   expect(await page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').length)).toBe(2);
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
+  // corregir: tocando el día en la tabla se abre su lectura; se cambia y se guarda; y se puede borrar
+  await card.locator('button', { hasText: 'Gráfica' }).click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().locator('tr.fila-link', { hasText: '29/10/26' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#aguaV')).toHaveValue('393551,5');
+  await expect(page.locator('.dlg').last()).toContainText('Ya hay lectura del agua');
+  await page.fill('#aguaV', '393550');
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
+  const agua = () => page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').map(r => [r.f, r.c.agua]).sort());
+  expect(await agua()).toEqual([['2026-10-28', 393539], ['2026-10-29', 393550]]);
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-29'); await page.waitForTimeout(200);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Borrar la lectura de este día' }).click();
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Borrar' }).click(); await page.waitForTimeout(400);
+  expect(await agua()).toEqual([['2026-10-28', 393539]]);
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-29'); await page.waitForTimeout(200); await page.fill('#aguaV', '393551,5');
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
   // leer con una foto: la IA devuelve el número y queda en la casilla para comprobarlo
   await page.evaluate(() => { window.__CONT_MOCK = t => ({ lectura: t === 'agua' ? '393560' : '1206907', seguro: true }); });
   await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.waitForTimeout(200);

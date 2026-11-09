@@ -44,7 +44,8 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
     if(esta&&!f.cargada){CONT.forEach(([k])=>{if(typeof esta.c[k]==="number")f.v[k]=String(esta.c[k]).replace(".",",");});f.cargada=true;}
     box.appendChild(el("div",{class:"seg",role:"group","aria-label":"Nave"},NAVES_CT.map(n=>{const b=el("button",{type:"button","aria-pressed":String(f.nave===n),text:n});b.onclick=()=>{f.nave=n;f.v={};f.cargada=false;f.g={};f.gcarg=false;pinta();};return b;})));
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:ant?"Lectura anterior: "+fmtF(ant.f)+(ant.por?" ("+ant.por+")":"")+". Escribe lo que marca ahora cada contador.":"Primera lectura de "+f.nave+": a partir de la siguiente ya se calculan los litros."}));
-    if(esta)box.appendChild(el("div",{class:"banner w",text:"Ya hay lectura de "+f.nave+" el "+fmtF(f.f)+": si guardas, se corrige."}));
+    if(esta)box.appendChild(el("div",{class:"banner w"},[el("div",{text:"Ya hay lectura de "+f.nave+" el "+fmtF(f.f)+": cambia los números que estén mal y pulsa «Guardar» para corregirla."}),
+      window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Borrar la lectura de este día",onclick:()=>confirmar("¿Borrar la lectura?","Se borra la lectura de "+f.nave+" del "+fmtF(f.f)+". Los litros se vuelven a calcular con la lectura anterior y la siguiente.","Borrar",async()=>{try{await quitaDep(esta);toast("Lectura borrada");cerrarDlgs();render(true);}catch(e){toast("No se pudo borrar");return false;}})})]));
     CONT.forEach(([k,nom])=>{const pv=ant&&typeof ant.c[k]==="number"?ant.c[k]:null;const out=el("div",{class:"sub",style:"min-height:18px"});
       const calc=()=>{const x=parseN(f.v[k]);out.textContent="";out.className="sub";if(!(isFinite(x)&&f.v[k]!==""&&f.v[k]!=null)||pv==null)return;const d=Math.round((x-pv)*10)/10,lab=Math.max(1,laborables(ant.f,f.f));
         const T=tramos(f.nave,k).filter(t=>t.dif>=0).slice(-20).map(t=>t.lpd).sort((a,b)=>a-b),med=T.length?T[Math.floor(T.length/2)]:null;
@@ -91,7 +92,7 @@ function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]|
 function cardContadores(){const h=hoy(),m0=h.slice(0,7)+"-01",falta=faltaLectHoy(),R=rarosCont(7);
   const filas=[];NAVES_CT.forEach(n=>{const L=lectDe(n),u=L[L.length-1];
     CONT.forEach(([k,nom])=>{const T=tramos(n,k),t=T[T.length-1],mes=T.filter(x=>x.f>=m0&&x.dif>0).reduce((s,x)=>s+x.dif,0);
-      filas.push([n,nom,u&&typeof u.c[k]==="number"?fmtN(u.c[k]):"—",t?(t.dif<0?"¿?":fmtL(t.dif)+(t.lab>1?" ("+t.lab+" d)":"")):"—",mes?fmtL(mes):"—",t&&t.raro?(t.raro==="baja"?"⚠ baja":"⚠ alto"):""]);});});
+      filas.push(Object.assign([n,nom,u&&typeof u.c[k]==="number"?fmtN(u.c[k]):"—",t?(t.dif<0?"¿?":fmtL(t.dif)+(t.lab>1?" ("+t.lab+" d)":"")):"—",mes?fmtL(mes):"—",t&&t.raro?(t.raro==="baja"?"⚠ baja":"⚠ alto"):""],u&&!window.SOLO_CONSULTA?{__ir:()=>formLect(n,u.f)}:{}));});});
   const ult=n=>{const L=lectDe(n),u=L[L.length-1];return u?fmtF(u.f)+(u.f===h?" (hoy)":""):"nunca";};
   return el("section",{class:"card"+(R.length?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Contadores de aceite y glicol"}),el("span",{class:"der sub",text:NAVES_CT.map(n=>n.replace("Nave ","N")+": "+ult(n)).join(" · ")})]),
     el("div",{class:"bd",style:"display:grid;gap:10px"},[
@@ -115,8 +116,8 @@ function informeCont(){const st=draft.ict=draft.ict||{nave:"Nave 1",k:"todos"};c
       const dl=d30.reduce((s,t)=>s+t.dif,0),dd=d30.reduce((s,t)=>s+t.lab,0);return[nom,fmtL(m),dd?fmtL(dl/dd):"—",fmtL(L.reduce((s,t)=>s+t.dif,0))];});
     box.appendChild(cTabla(["Contador","Este mes","Media por día (30 d)","Total apuntado"],tot,[1,2,3]));
     const dias=[...new Set(T.map(t=>t.f))].sort().reverse().slice(0,40);
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo consumido desde la lectura anterior)"}),cTabla(["Fecha"].concat(ns.length>1?["Nave"]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(c=>c[1])),
-      [].concat(...dias.map(f=>ns.map(n=>{const fila=[fmtF(f)].concat(ns.length>1?[n]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(([k])=>{const t=T.find(x=>x.f===f&&x.n===n&&x.k===k);return t?fmtL(t.dif)+(t.raro?" ⚠":""):"";}));return fila;}))).filter(fl=>fl.slice(ns.length>1?2:1).some(Boolean)),
+    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo consumido desde la lectura anterior)"+(window.SOLO_CONSULTA?"":" · toca un día para corregir o borrar su lectura")}),cTabla(["Fecha"].concat(ns.length>1?["Nave"]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(c=>c[1])),
+      [].concat(...dias.map(f=>ns.map(n=>{const fila=[fmtF(f)].concat(ns.length>1?[n]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(([k])=>{const t=T.find(x=>x.f===f&&x.n===n&&x.k===k);return t?fmtL(t.dif)+(t.raro?" ⚠":""):"";}));if(!window.SOLO_CONSULTA)fila.__ir=()=>{cerrarDlgs();formLect(n,f);};return fila;}))).filter(fl=>fl.slice(ns.length>1?2:1).some(Boolean)),
       CONT.map((_,i)=>i+(ns.length>1?2:1)))]));
     box.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)}),el("button",{type:"button",class:"btn sec",text:"Corregir una lectura",onclick:()=>{cerrarDlgs();formLect(ns[0],todasLect().filter(r=>ns.includes(r.nave)).map(r=>r.f).pop());}})]));};
   pinta();dlg("Consumo de aceite y glicol",[box],[{t:"Cerrar",cls:"sec"}]);}

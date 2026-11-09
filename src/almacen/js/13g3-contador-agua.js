@@ -19,7 +19,8 @@ function formAgua(f0){const st={f:f0||hoy(),v:""};const box=el("div",{style:"dis
   const pinta=()=>{box.textContent="";const L=lectDe(AGUA),esta=L.find(r=>r.f===st.f),ant=L.filter(r=>r.f<st.f).pop();
     if(esta&&!st.cargada){st.v=String(esta.c.agua).replace(".",",");st.cargada=true;}
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:ant?"Lectura anterior: "+fmtN(ant.c.agua)+" m³ el "+fmtF(ant.f)+(ant.por?" ("+ant.por+")":"")+".":"Primera lectura: a partir de la siguiente ya se calcula lo gastado."}));
-    if(esta)box.appendChild(el("div",{class:"banner w",text:"Ya hay lectura del agua el "+fmtF(st.f)+": si guardas, se corrige."}));
+    if(esta)box.appendChild(el("div",{class:"banner w"},[el("div",{text:"Ya hay lectura del agua el "+fmtF(st.f)+": cambia el número si está mal y pulsa «Guardar» para corregirla."}),
+      window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn sec peq",style:"margin-top:8px",text:"Borrar la lectura de este día",onclick:()=>confirmar("¿Borrar la lectura?","Se borra la lectura del agua del "+fmtF(st.f)+". El consumo se vuelve a calcular con la lectura anterior y la siguiente.","Borrar",async()=>{try{await quitaDep(esta);toast("Lectura borrada");cerrarDlgs();render(true);}catch(e){toast("No se pudo borrar");return false;}})})]));
     const out=el("div",{class:"sub",style:"min-height:18px"});
     const calc=()=>{const x=parseN(st.v);out.textContent="";out.className="sub";if(!isFinite(x)||st.v===""||!ant)return;const av=avisoAgua(st.f,x);
       if(av){out.textContent=av;out.className="sub neg";return;}const d=Math.round((x-ant.c.agua)*100)/100,dd=Math.max(1,dias(ant.f,st.f));out.textContent="= "+fmtM3(d)+(dd>1?" en "+dd+" días ("+fmtM3(d/dd)+"/día)":"");};
@@ -46,8 +47,8 @@ function informeAgua(){const T=tramosAgua().filter(t=>t.dif>=0),box=el("div",{st
   if(!T.length)box.appendChild(el("p",{class:"hint",text:"Todavía no hay dos lecturas seguidas para calcular el consumo."}));
   else{const meses=[];for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);meses.push(d.toISOString().slice(0,7));}
     box.appendChild(el("div",{},[el("div",{class:"sub",text:"m³ por mes"}),barras(meses,meses.map(m=>T.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0)),v=>Math.round(v)+"")]));
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo gastado desde la lectura anterior)"}),cTabla(["Fecha","Lectura","Consumo","m³ por día"],
-      tramosAgua().slice().reverse().slice(0,40).map(t=>[fmtF(t.f),fmtN(t.r.c.agua),t.dif<0?"¿?":fmtM3(t.dif)+(t.d>1?" ("+t.d+" d)":""),(t.dif<0?"":fmtM3(t.mpd))+(t.raro?" ⚠":"")]),[1,2,3])]));}
+    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo gastado desde la lectura anterior)"+(window.SOLO_CONSULTA?"":" · toca un día para corregir o borrar su lectura")}),cTabla(["Fecha","Lectura","Consumo","m³ por día"],
+      tramosAgua().slice().reverse().slice(0,40).map(t=>Object.assign([fmtF(t.f),fmtN(t.r.c.agua),t.dif<0?"¿?":fmtM3(t.dif)+(t.d>1?" ("+t.d+" d)":""),(t.dif<0?"":fmtM3(t.mpd))+(t.raro?" ⚠":"")],window.SOLO_CONSULTA?{}:{__ir:()=>{cerrarDlgs();formAgua(t.f);}})),[1,2,3])]));}
   const acc=[el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)})];
   if(!window.SOLO_CONSULTA&&lectDe(AGUA).length)acc.push(el("button",{type:"button",class:"btn sec",text:"Corregir una lectura",onclick:()=>{cerrarDlgs();formAgua(lectDe(AGUA).map(r=>r.f).pop());}}));
   box.appendChild(el("div",{class:"acciones"},acc));
