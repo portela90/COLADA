@@ -48,3 +48,5 @@
 .ini-pf label{flex:1;display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}
 .ini-pf.off label span{color:var(--mut);text-decoration:line-through}
 .ini-pf .btn{min-width:38px;padding:6px!important;min-height:34px}
+/* Personalizar Inicio: casilla y nombre en la misma línea */
+.ini-pf label{flex-direction:row!important;font-weight:500}.ini-pf label input[type=checkbox]{width:20px;height:20px;flex:none;margin:0}

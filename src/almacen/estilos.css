@@ -351,3 +351,5 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .etq.rojo{background:#3A1717;color:#FCA5A5}:root:not([data-theme="light"]) .etq.ambar{background:#33270B;color:#FCD34D}:root:not([data-theme="light"]) .etq.verde{background:#12301F;color:#6EE7B7}:root:not([data-theme="light"]) .etq.azul{background:#1C2C4F;color:#93C5FD}:root:not([data-theme="light"]) .etq.morado{background:#251B3F;color:#C4B5FD}:root:not([data-theme="light"]) .etq.gris{background:#1B2434;color:#CBD5E1}}
 /* Consumos apuntados / Historial: en pantallas medianas (iPad) «Dónde» baja de línea y Modificar/Borrar van uno encima del otro, para que no se corten */
 @media (max-width:1100px){.t-hist td:nth-child(4){white-space:normal;min-width:130px}.t-hist td:last-child .btn{display:block;margin:0 0 4px}}
+/* Investigar: los periodos (Hoy, Esta semana… Mes pasado) bajan de línea en vez de quedar cortados */
+.inv>*{min-width:0}.inv .chips{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-right:0}

@@ -531,3 +531,10 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
 }
 /* Almacén, menú lateral: los nombres largos (Aceites, taladrinas y jabones) bajan de línea en vez de cortarse */
 @media (min-width:800px) and (min-height:560px){#app>nav#tabs .sub-mas button{white-space:normal!important;text-align:left;line-height:1.25}#app>nav#tabs .sub-mas button span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}}
+/* Pantalla grande (con la app ampliada): las ventanas emergentes muy largas no se salen por arriba ni por abajo; se desplazan por dentro */
+@media (min-width:1800px) and (min-height:560px){
+  .ov>.dlg,.dlg-ov>.dlg,.sheet>*{max-height:calc(100% - 32px)!important;overflow-y:auto!important}
+  .dlg-ov>.dlg{max-height:100%!important}
+}
+/* Móvil y tableta: los campos de las ventanas emergentes y los textos para copiar con letra de 16 px, para que el iPhone no amplíe la pantalla al tocarlos */
+@media (pointer:coarse){textarea,.dlg input:not([type=checkbox]):not([type=radio]):not([type=range]),.dlg select{font-size:16px!important}}

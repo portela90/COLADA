@@ -23,7 +23,7 @@
     caja.appendChild(v);caja.appendChild(marco);
     var msg=document.createElement("div");msg.textContent=o.texto||"Apunta al código";msg.style.cssText="text-align:center;max-width:420px;opacity:.9";
     var f=document.createElement("form");f.style.cssText="display:flex;gap:8px;width:min(92vw,420px)";
-    var man=document.createElement("input");man.placeholder="…o escribe el código";man.autocomplete="off";man.setAttribute("autocapitalize","characters");man.style.cssText="flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:10px;border:0";
+    var man=document.createElement("input");man.placeholder="…o escribe el código";man.autocomplete="off";man.setAttribute("autocapitalize","characters");man.style.cssText="flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 12px;border-radius:10px;border:0";
     var ok=document.createElement("button");ok.type="submit";ok.textContent="Buscar";ok.style.cssText="font:inherit;font-weight:600;padding:10px 14px;border-radius:10px;border:0;background:#0070F2;color:#fff";
     f.appendChild(man);f.appendChild(ok);
     var cer=document.createElement("button");cer.type="button";cer.textContent="Cerrar";cer.style.cssText="font:inherit;font-weight:600;padding:10px 24px;border-radius:10px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff";
