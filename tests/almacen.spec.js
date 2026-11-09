@@ -1023,7 +1023,34 @@ test('Pestaña Consumo: apuntar un consumo con el operario', async ({ page }) =>
   await page.locator('#mBtn').click(); await expect(page.locator('body')).toContainText('Falta el operario');
   await page.fill('#mResp', 'Operario prueba');
   await page.locator('#mBtn').click(); await page.waitForTimeout(500);
+  // «Consumos apuntados» sale recogida: se despliega al tocar el título y trae filtros
+  await expect(page.locator('#hTg')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('table.t-hist')).toHaveCount(0);
+  await page.locator('#hTg').click(); await page.waitForTimeout(300);
+  await expect(page.locator('#hTg')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#view')).toContainText('Operario: Operario prueba');
+  const filas = page.locator('table.t-hist tbody tr');
+  const total = await filas.count();
+  await page.fill('#hFTxt', 'operario prueba'); await page.waitForTimeout(200);
+  await expect(page.locator('table.t-hist tbody tr:visible')).toHaveCount(1);
+  await expect(page.locator('#hFN')).toHaveText('1 de ' + total);
+  await page.fill('#hFTxt', 'zzzz nada'); await page.waitForTimeout(200);
+  await expect(page.locator('#view')).toContainText('Ningún consumo coincide');
+  await page.locator('#hFQuita').click(); await page.waitForTimeout(300);
+  await expect(page.locator('table.t-hist tbody tr:visible')).toHaveCount(total);
+  await page.selectOption('#hFInc', 'i'); await page.waitForTimeout(200);
+  await expect(page.locator('table.t-hist tbody tr:visible')).toHaveCount(0);
+  await page.selectOption('#hFInc', 'n'); await page.waitForTimeout(200);
+  await expect(page.locator('table.t-hist tbody tr:visible')).toHaveCount(total);
+  // el filtro se mantiene al volver a pintar; el Excel solo saca lo que se ve
+  await page.fill('#hFTxt', 'operario prueba'); await page.waitForTimeout(200);
+  const nx = await page.evaluate(() => { const tb = document.querySelector('table.t-hist'); return [...tb.tBodies[0].rows].filter(r => !r.hidden).length; });
+  expect(nx).toBe(1);
+  await page.locator('#hTg').click(); await page.waitForTimeout(200);
+  await expect(page.locator('#hFTxt')).toHaveCount(0);
+  await page.locator('#hTg').click(); await page.waitForTimeout(200);
+  await expect(page.locator('#hFTxt')).toHaveValue('operario prueba');
+  await expect(page.locator('table.t-hist tbody tr:visible')).toHaveCount(1);
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });

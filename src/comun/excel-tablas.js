@@ -9,7 +9,7 @@
   function valor(t){t=(t||"").replace(/\s+/g," ").trim();if(!t||t==="—"||t==="-"||t==="–")return t==="—"||t==="–"?"":t;
     const m=t.match(/^([+\-−]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?\s*(?:kg|t|€|€\/kg|%|ud|uds|l|f|fardos|días|d|h|min)?$/i);
     if(!m)return t;const n=+(m[2].replace(/\./g,"")+(m[3]?"."+m[3]:""));return (m[1]==="-"||m[1]==="−")?-n:n;}
-  function filas(tb){const out=[];for(const sec of [tb.tHead,...tb.tBodies,tb.tFoot])if(sec)for(const r of sec.rows){const f=[];
+  function filas(tb){const out=[];for(const sec of [tb.tHead,...tb.tBodies,tb.tFoot])if(sec)for(const r of sec.rows){if(r.hidden||r.style.display==="none")continue;const f=[];
       for(const c of r.cells){const v=sec===tb.tHead?(c.textContent||"").replace(/\s+/g," ").trim():valor(c.textContent);f.push(v);for(let k=1;k<(c.colSpan||1);k++)f.push("");}out.push(f);}
     return out;}
   function titulo(tb){const c=tb.closest(".card,.dlg,section");const h=c&&c.querySelector("h2,h3,.pg-h");const t=(h&&h.textContent||document.title||"tabla").replace(/\s*\(\d+\)\s*$/,"").trim();

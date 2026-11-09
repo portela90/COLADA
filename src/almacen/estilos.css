@@ -364,3 +364,17 @@ details.plg>summary{list-style:none}details.plg>summary::-webkit-details-marker{
 /* casilla de un contador con su botón de foto al lado */
 .con-foto{display:flex;gap:8px;align-items:stretch}.con-foto>input{flex:1;min-width:0}.con-foto .foto-cont{flex:none;min-width:48px;font-size:20px;padding:0 10px}
 input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;border-color:#F59E0B!important}
+
+/* Consumos apuntados: recogida hasta tocar el título; filtros encima de la tabla */
+.hist-tg{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hist-tg:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:4px}
+.hist-chev{display:inline-block;transition:transform .15s;font-size:1.2em;line-height:1}
+.hist-tg[aria-expanded="true"] .hist-chev{transform:rotate(90deg)}
+.hist-n{font-size:13px;font-weight:500;color:var(--mut,#8a94a3)}
+.hist-c.recogida>.hd{border-bottom:0}
+.hist-f{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line2)}
+.hist-f input{flex:1 1 260px;min-width:0}
+.hist-f select{flex:0 1 auto;width:auto!important;min-width:0;max-width:100%}
+.hist-f input{width:auto!important}
+@media (max-width:600px){.hist-f select,.hist-f input{flex:1 1 100%;width:100%!important}}
+.hist-fn{font-size:13px;color:var(--mut,#8a94a3);white-space:nowrap}

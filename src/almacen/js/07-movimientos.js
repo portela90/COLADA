@@ -83,16 +83,38 @@ function comprimir(file){return new Promise(res=>{const img=new Image(),u=URL.cr
 function vHist(v,soloT){const h=draft.hm;const hT=soloT||h.tipo;const ms=Object.keys(meses).filter(k=>meses[k].length).sort().reverse();
   if(!h.mes||!ms.includes(h.mes))h.mes=ms.includes(mesDe(hoy()))?mesDe(hoy()):(ms[0]||mesDe(hoy()));
   const list=(meses[h.mes]||[]).filter(m=>!hT||m.tipo===hT).slice().sort((x,y)=>(y.f+"|"+y.ts).localeCompare(x.f+"|"+x.ts));
-  const card=el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:soloT?"Consumos apuntados":"Historial"}),
-      el("div",{class:"der",style:"display:flex;gap:8px"},[sel("hMes",(ms.length?ms:[h.mes]).map(k=>[k,fmtMes(k)]),h.mes,x=>{h.mes=x;render(true);}),
-        soloT?null:sel("hTipo",Object.entries(TIPOS),h.tipo,x=>{h.tipo=x;render(true);},"Todos")])]),
-    list.length?el("div",{class:"tw"},el("table",{class:"t-hist"},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Artículo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"}),el("th",{text:""})])),
-      el("tbody",{},list.map(m=>{const a=art(m.art);return el("tr",{},[el("td",{class:"num",text:fmtF(m.f)}),
+  /* en Consumo la tarjeta sale recogida: se despliega al tocar el título y entonces salen los filtros */
+  const ab=!soloT||!!h.ab;
+  const tit=soloT?el("h2",{},el("button",{type:"button",class:"hist-tg",id:"hTg","aria-expanded":String(ab),onclick:()=>{h.ab=!h.ab;render(true);}},
+      [el("span",{class:"hist-chev","aria-hidden":"true",text:"›"}),el("span",{text:"Consumos apuntados"}),el("span",{class:"hist-n",text:list.length+" en "+fmtMes(h.mes).toLowerCase()})])):el("h2",{text:"Historial"});
+  const card=el("section",{class:"card"+(soloT?" hist-c"+(ab?"":" recogida"):"")},[el("div",{class:"hd"},[tit,
+      ab?el("div",{class:"der",style:"display:flex;gap:8px"},[sel("hMes",(ms.length?ms:[h.mes]).map(k=>[k,fmtMes(k)]),h.mes,x=>{h.mes=x;render(true);}),
+        soloT?null:sel("hTipo",Object.entries(TIPOS),h.tipo,x=>{h.tipo=x;render(true);},"Todos")]):null]),
+    !ab?null:soloT&&list.length?filtrosHist(h,list):null,
+    !ab?null:list.length?el("div",{class:"tw"},el("table",{class:"t-hist"},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Artículo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"}),el("th",{text:""})])),
+      el("tbody",{},list.map(m=>{const a=art(m.art);return el("tr",soloT?{"data-t":norm([a?a.desc:"",a&&a.ref,TIPOS[m.tipo],m.resp?respTxt(m.resp):"",m.nota,dondeTxt(m)].filter(Boolean).join(" ")),"data-alm":m.alm||"","data-inc":m.inc?"i":"n"}:{},[el("td",{class:"num",text:fmtF(m.f)}),
         el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.resp?"Operario: "+respTxt(m.resp):null,m.nota].filter(Boolean).join(" · ")}),
           m.foto?el("img",{class:"thumb",src:fotoUrl(m.foto),alt:"Albarán",loading:"lazy",onclick:()=>lightbox(fotoUrl(m.foto))}):null]),
         el("td",{class:"r num",text:signo(m)+(a?" "+a.ud:"")}),el("td",{text:dondeTxt(m)}),
         el("td",{style:"white-space:nowrap"},[el("button",{type:"button",class:"btn txt peq","aria-label":"Modificar movimiento",text:"Modificar",onclick:()=>editMov(m)}),el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Movimiento borrado");})})])]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
-  v.appendChild(card);}
+  v.appendChild(card);if(soloT&&ab)aplicaFiltrosHist(card,h);}
+/* filtros de «Consumos apuntados»: artículo/operario/máquina/nota, almacén y consumos normales o incidencias.
+   Filtran las filas sin volver a pintar (así no se pierde lo que se está escribiendo); el Excel saca solo lo que se ve */
+function filtrosHist(h,list){const f=h.f||(h.f={t:"",alm:"",inc:""});
+  const usados=[...new Set(list.map(m=>m.alm).filter(Boolean))];
+  const otra=()=>{const c=document.querySelector(".hist-c");if(c)aplicaFiltrosHist(c,h);};
+  const t=inp("hFTxt",f.t,x=>{f.t=x;otra();},{type:"search",placeholder:"Filtrar por artículo, operario, máquina o nota…","aria-label":"Filtrar consumos"});
+  const a=sel("hFAlm",cat.almacenes.filter(l=>usados.includes(l.id)).map(l=>[l.id,almN(l.id)]),f.alm,x=>{f.alm=x;otra();},"Todos los almacenes");
+  const i=sel("hFInc",[["n","Consumos normales"],["i","Pérdidas e incidencias"]],f.inc,x=>{f.inc=x;otra();},"Consumos e incidencias");
+  const q=el("button",{type:"button",class:"btn txt peq",id:"hFQuita",text:"Quitar filtros",onclick:()=>{h.f={t:"",alm:"",inc:""};render(true);}});
+  return el("div",{class:"hist-f"},[t,a,i,el("span",{class:"hist-fn",id:"hFN"}),q]);}
+function aplicaFiltrosHist(card,h){const f=h.f||{t:"",alm:"",inc:""};const ws=norm(f.t).split(/\s+/).filter(Boolean);
+  const rs=[...card.querySelectorAll("table.t-hist tbody tr[data-t]")];let n=0;
+  rs.forEach(r=>{const ok=ws.every(w=>r.dataset.t.includes(w))&&(!f.alm||r.dataset.alm===f.alm)&&(!f.inc||r.dataset.inc===f.inc);r.hidden=!ok;if(ok)n++;});
+  const hay=!!(ws.length||f.alm||f.inc),nn=card.querySelector("#hFN"),qq=card.querySelector("#hFQuita");
+  if(nn)nn.textContent=hay?n+" de "+rs.length:"";if(qq)qq.hidden=!hay;
+  let vac=card.querySelector(".hist-vacio");if(!n&&rs.length){if(!vac){vac=el("div",{class:"empty hist-vacio",text:"Ningún consumo coincide con el filtro."});const tw=card.querySelector(".tw");tw&&tw.after(vac);}}else if(vac)vac.remove();
+  const tb=card.querySelector("table.t-hist");if(tb)tb.style.display=n?"":"none";}
 
 /* ===== PISTONES ===== */
 function todosPist(){const out=[];Object.keys(pistAnos).forEach(k=>pistAnos[k].forEach(p=>out.push(p)));return out.sort((a,b)=>(a.f+"|"+a.ts).localeCompare(b.f+"|"+b.ts));}
