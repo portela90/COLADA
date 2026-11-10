@@ -265,6 +265,45 @@ test('Base de datos: «quién cambió el último pistón de la F25» responde co
   expect(err).toEqual([]);
 });
 
+test('Gestores y relevos: rotan por semanas, se cambian y al apuntar un pistón el gestor pone el relevo', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-10T10:00:00+01:00'));
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.gest = { lista: [{ id: 'g1', n: 'Gorka Aretxaga' }, { id: 'g2', n: 'Josu' }, { id: 'g3', n: 'Antonio Hidalgo' }, { id: 'g4', n: '707' }, { id: 'g5', n: '708' }, { id: 'g6', n: 'Acracio' }],
+      sem: { '2026-11-09': { 'Mañana': ['g1', 'g2'], 'Tarde': ['g3', 'g4'], 'Noche': ['g5', 'g6'] } }, dia: {} }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Gestores y relevos$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view');
+  await expect(v.locator('#gCelMañana')).toContainText('Gorka Aretxaga'); await expect(v.locator('#gCelTarde')).toContainText('707');
+  // la semana siguiente sale por la rotación: mañana → noche, noche → tarde, tarde → mañana
+  await v.getByRole('button', { name: 'Semana siguiente' }).click(); await page.waitForTimeout(300);
+  await expect(v.locator('#gCelNoche')).toContainText('Gorka Aretxaga'); await expect(v.locator('#gCelMañana')).toContainText('Antonio Hidalgo'); await expect(v.locator('#gCelTarde')).toContainText('Acracio');
+  await expect(v).toContainText('Sale sola por la rotación');
+  await v.getByRole('button', { name: 'Esta semana' }).click(); await page.waitForTimeout(300);
+  // añadir uno nuevo y cambiar un nombre
+  await v.locator('#gNuevo').click(); await page.fill('#gNom', 'Nuevo G'); await page.locator('.dlg').last().getByRole('button', { name: 'Añadir' }).click(); await page.waitForTimeout(500);
+  await expect(v).toContainText('Nuevo G');
+  await v.getByRole('button', { name: 'Cambiar el nombre de 708' }).click(); await page.fill('#gRen', 'Iker 708'); await page.locator('.dlg').last().getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(500);
+  await expect(v.locator('#gCelNoche')).toContainText('Iker 708');
+  // en el cambio de pistón: el gestor pone el relevo
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#pGest option', { hasText: 'Josu (mañana)' })).toHaveCount(1);
+  await page.selectOption('#pGest', 'g6'); await expect(page.locator('#pRel')).toHaveValue('Noche');
+  await page.selectOption('#pGest', 'g3'); await expect(page.locator('#pRel')).toHaveValue('Tarde');
+  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
+  await page.selectOption('#pGest', 'g3');
+  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
+  if (await page.locator('#pResp').count()) await page.fill('#pResp', 'Op 1');
+  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  await page.selectOption('#pMot', 'DESGASTE');
+  await page.locator('#pBtn').click(); await page.waitForTimeout(600);
+  const P = await page.evaluate(() => Object.values(window.__D.pist).flatMap(x => x.items || []).find(x => x.resp === 'Op 1'));
+  expect(P).toMatchObject({ gest: 'g3', u: 'Tarde' });
+  expect(err).toEqual([]);
+});
+
 test('Borrar la salida de un cambio de pistón borra también el cambio (no sale en el informe para Beatriz)', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);

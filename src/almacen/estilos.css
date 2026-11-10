@@ -378,3 +378,14 @@ input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;bord
 .hist-f input{width:auto!important}
 @media (max-width:600px){.hist-f select,.hist-f input{flex:1 1 100%;width:100%!important}}
 .hist-fn{font-size:13px;color:var(--mut,#8a94a3);white-space:nowrap}
+
+/* Gestores de cada relevo */
+.g-rel{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.g-cel{appearance:none;font:inherit;color:inherit;text-align:left;display:flex;flex-direction:column;gap:6px;background:var(--surf2,#f4f6f8);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;min-height:64px;cursor:pointer}
+.g-cel:hover{border-color:var(--acc)}
+.g-ns,.g-todos{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.g-n{display:inline-flex;align-items:center;gap:4px;background:var(--acc-soft,#e8eefc);border-radius:999px;padding:3px 10px;font-size:13.5px;font-weight:600}
+.g-n.baja{opacity:.5;text-decoration:line-through}
+.g-ed,.g-x{appearance:none;border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0 2px}
+.g-x{color:var(--mut)}
+.g-lst{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}

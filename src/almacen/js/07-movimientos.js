@@ -20,7 +20,7 @@ function vMov(v,solo){const d=draft.m;if(solo)d.tipo="salida";
       t==="traslado"?fld("Hasta",sel("mDest",almOptsArt(art(d.art),d.alm),d.dest,x=>{d.dest=x;pintaCalc();},"Destino…")):null,
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
     t==="salida"?campoMotSal(d):null,
-    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo","horno"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—")),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),fld("Relevo",selRelevo("mRel",d)),el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
+    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo","horno"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—")),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),fld("Relevo",selRelevo("mRel",d)),typeof selGestor==="function"?selGestor("mGest",d,"mRel"):null,el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
     t==="entrada"&&!window.SOLO_CONSULTA?(()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"mLeerAlb"});fi.addEventListener("change",()=>{const f=fi.files[0];fi.value="";leerAlbaranAlm(f);});
       const fg=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"mLeerAlbG"});fg.addEventListener("change",()=>{const f=fg.files[0];fg.value="";leerAlbaranIAGratis(f);});
       return el("div",{style:"display:grid;gap:4px"},[fi,fg,el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn sec",id:"bLeerAlbG",text:"📷 Leer albarán (gratis)",onclick:()=>fg.click()}),el("button",{type:"button",class:"btn sec",text:"Leer con IA",onclick:()=>fi.click()})]),
@@ -60,7 +60,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
   const rec={f:d.f,tipo:d.tipo,art:a.id,alm:d.alm,cant:q,nota:d.nota.trim()||null};
   if(d.tipo==="ajuste"){const st=stockA(a.id,d.alm,d.f);rec.cant=Math.round((q-st)*1000)/1000;rec.contado=q;rec.teorico=st;if(rec.cant===0){rec.nota=rec.nota||"Recuento sin diferencias";}}
   if(d.tipo==="traslado")rec.dest=d.dest;
-  if(d.tipo==="salida"){ponPara(rec,d.maq);if(String(d.resp||"").trim())rec.resp=String(d.resp).trim();if(d.u)rec.u=d.u;}
+  if(d.tipo==="salida"){ponPara(rec,d.maq);if(String(d.resp||"").trim())rec.resp=String(d.resp).trim();if(d.u)rec.u=d.u;if(d.gest)rec.gest=d.gest;}
   if(d.tipo==="entrada"){if(d.prov)rec.prov=d.prov;if(d.alb.trim())rec.alb=d.alb.trim();if(a.fam==="piston"&&d.pRec)rec.rec=true;if(a.pedido)rec.ped=a.pedido;}
   if(d.tipo==="salida"&&a.fam==="piston"){const b=$("mBtn");if(b){b.disabled=true;b.textContent="Guardando…";}await guardaPistDesdeConsumo(d,a,q);render(true);return;}
   if(d.tipo==="salida"&&["barra","tornillo","horno"].includes(a.fam)){rec.motivo=d.sMot||null;if(d.sMot==="OTRO")rec.motOrig=String(d.sMotO).trim();rec.nota="Cambio de "+(a.fam==="barra"?"barra expulsora":a.fam==="tornillo"?"tornillo tope":"pieza de horno")+(d.sMot==="OTRO"?" · "+String(d.sMotO).trim():d.sMot?" · "+cap(d.sMot):"")+(rec.nota?" · "+rec.nota:"");}
@@ -93,7 +93,7 @@ function vHist(v,soloT){const h=draft.hm;const hT=soloT||h.tipo;const ms=Object.
     !ab?null:soloT&&list.length?filtrosHist(h,list):null,
     !ab?null:list.length?el("div",{class:"tw"},el("table",{class:"t-hist"},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Artículo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"}),el("th",{text:""})])),
       el("tbody",{},list.map(m=>{const a=art(m.art);return el("tr",soloT?{"data-t":norm([a?a.desc:"",a&&a.ref,TIPOS[m.tipo],m.resp?respTxt(m.resp):"",m.nota,dondeTxt(m)].filter(Boolean).join(" ")),"data-alm":m.alm||"","data-inc":m.inc?"i":"n"}:{},[el("td",{class:"num",text:fmtF(m.f)}),
-        el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.resp?"Operario: "+respTxt(m.resp):null,m.nota].filter(Boolean).join(" · ")}),
+        el("td",{},[el("div",{text:a?a.desc:"(borrado)"}),el("div",{class:"sub",text:[TIPOS[m.tipo],m.tipo==="ajuste"&&m.contado!=null?"contado "+fmtN(m.contado):null,provN(m.prov),m.alb?"Alb. "+m.alb:null,m.resp?"Operario: "+respTxt(m.resp):null,m.gest&&typeof nomGest==="function"?"Gestor: "+nomGest(m.gest)+(m.u?" ("+m.u.toLowerCase()+")":""):null,m.nota].filter(Boolean).join(" · ")}),
           m.foto?el("img",{class:"thumb",src:fotoUrl(m.foto),alt:"Albarán",loading:"lazy",onclick:()=>lightbox(fotoUrl(m.foto))}):null]),
         el("td",{class:"r num",text:signo(m)+(a?" "+a.ud:"")}),el("td",{text:dondeTxt(m)}),
         el("td",{style:"white-space:nowrap"},[el("button",{type:"button",class:"btn txt peq","aria-label":"Modificar movimiento",text:"Modificar",onclick:()=>editMov(m)}),el("button",{type:"button",class:"btn txt peq","aria-label":"Borrar movimiento",text:"Borrar",onclick:()=>confirmar("¿Borrar este movimiento?",(TIPOS[m.tipo])+" de "+fmtN(Math.abs(m.cant))+" · "+(a?a.desc:"")+" del "+fmtF(m.f)+". El stock se recalcula."+txtBorraMov(m),"Borrar",async()=>{await borraMov(m);toast("Movimiento borrado");})})])]);}))])):el("div",{class:"empty",text:"Sin movimientos en "+fmtMes(h.mes)+"."})]);
@@ -278,7 +278,7 @@ function vPist(v){const d=draft.p;
   const form=el("form",{id:"pForm"},[
     el("div",{class:"row"},[fld("Fecha",inp("pF",d.f,x=>d.f=x,{type:"date"})),fld("Inyectora",sel("pMaq",maqOpts(),d.maq,x=>{d.maq=x;d.alm="";const u=ultimoPist(x);if(u&&!d.diam)d.diam=u.diam;render(true);},"Elige…"))]),
     el("div",{class:"row"},[fld("Diámetro",sel("pDiam",DIAM.map(x=>[x,x]),d.diam,x=>{d.diam=x;d.alm="";render(true);},"Ø…")),fld("Cantidad",inp("pCant",d.cant,x=>d.cant=x,{inputmode:"numeric",class:"num"}))]),
-    el("div",{class:"row"},[fld("Motivo del cambio",sel("pMot",MOTIVOS.map(m=>[m,cap(m)]),d.motivo,x=>{d.motivo=x;d.smOk=false;},"Elige…")),fld("Responsable",resp),fld("Relevo",selRelevo("pRel",d)),dl]),
+    el("div",{class:"row"},[fld("Motivo del cambio",sel("pMot",MOTIVOS.map(m=>[m,cap(m)]),d.motivo,x=>{d.motivo=x;d.smOk=false;},"Elige…")),fld("Responsable",resp),fld("Relevo",selRelevo("pRel",d)),typeof selGestor==="function"?selGestor("pGest",d,"pRel"):null,dl]),
     fld("Destino del pistón usado",sel("pDest",DESTINOS.map(m=>[m,cap(m)]),d.dest,x=>d.dest=x,"Elige…")),
     fld("Observaciones",inp("pNota",d.nota,x=>d.nota=x,{autocomplete:"off"})),
     pa?el("div",{class:"row"},[el("label",{class:"chk"},[el("input",{type:"checkbox",id:"pDesc",checked:d.desc,onchange:e=>{d.desc=e.target.checked;}}),"Descontar del stock"]),
@@ -332,7 +332,7 @@ async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar 
   if(!d.dest){toast("Indica qué se ha hecho con el pistón usado");return;}
   if(!d.motivo&&!d.smOk){d.smOk=true;toast("Falta el motivo del cambio. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");const m=$("pMot");if(m)m.focus();return;}
   const b=$("pBtn");if(b){b.disabled=true;b.textContent="Guardando…";}
-  try{const rec={f:d.f,maq:d.maq,diam:d.diam,cant:q,motivo:d.motivo,dest:d.dest,resp:d.resp.trim()||null,nota:d.nota.trim()||null};if(d.u)rec.u=d.u;
+  try{const rec={f:d.f,maq:d.maq,diam:d.diam,cant:q,motivo:d.motivo,dest:d.dest,resp:d.resp.trim()||null,nota:d.nota.trim()||null};if(d.u)rec.u=d.u;if(d.gest)rec.gest=d.gest;
     const pa=pistArt(d.diam);
     if(pa&&d.desc&&d.alm){const m=await addMov({f:d.f,tipo:"salida",art:pa.id,alm:d.alm,cant:q,maq:d.maq,nota:"Cambio de pistón"+(d.motivo?" · "+cap(d.motivo):"")});rec.movId=m.id;}
     await addPist(rec);
@@ -432,8 +432,8 @@ function campoMotSal(d){const a=art(d.art);if(!a||!["piston","barra","tornillo",
       a.fam==="piston"?fld("Pistón usado",sel("mDestP",DESTINOS.map(m=>[m,cap(m)]),d.sDest||"",x=>d.sDest=x,"Elige…")):null]),
     a.fam==="barra"&&/^(ROTURA|DOBLADA)$/.test(d.sMot||"")?el("div",{},[el("div",{class:"sub",style:"margin-bottom:6px",text:"¿Qué se hace con la barra rota?"}),el("div",{class:"seg",role:"group","aria-label":"Barra rota"},[["guardar","Guardar para recuperar"],["chat","Chatarra"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(d.sRota===k),text:t,onclick:()=>{d.sRota=k;render(true);}})))]):null,
     a.fam==="piston"?el("p",{class:"hint",style:"margin:0",text:"Se guarda como cambio de pistón (sale en el informe para "+destPist().nom.split(" ")[0]+")."}):null]);}
-async function guardaPistDesdeConsumo(d,a,q){try{const rec={f:d.f,maq:d.maq,diam:a.diam,cant:q,motivo:d.sMot||"",dest:d.sDest,resp:String(d.resp||"").trim()||null,nota:(d.nota||"").trim()||null};if(d.u)rec.u=d.u;
-    const m=await addMov({f:d.f,tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,u:d.u||undefined,nota:"Cambio de pistón"+(rec.motivo?" · "+cap(rec.motivo):"")});rec.movId=m.id;
+async function guardaPistDesdeConsumo(d,a,q){try{const rec={f:d.f,maq:d.maq,diam:a.diam,cant:q,motivo:d.sMot||"",dest:d.sDest,resp:String(d.resp||"").trim()||null,nota:(d.nota||"").trim()||null};if(d.gest)rec.gest=d.gest;if(d.u)rec.u=d.u;
+    const m=await addMov({f:d.f,tipo:"salida",art:a.id,alm:d.alm,cant:q,maq:d.maq,u:d.u||undefined,gest:d.gest||undefined,nota:"Cambio de pistón"+(rec.motivo?" · "+cap(rec.motivo):"")});rec.movId=m.id;
     await addPist(rec);try{await ejePendDe([rec]);}catch(e){}toast("Cambio de pistón guardado en "+maqN(d.maq));
     Object.assign(d,{cant:"",nota:"",resp:"",rOk:false,sMot:"",mOk:false,sDest:""});avPistAveria(rec);}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));}}
 const MOT_AV_P={"ROTURA":["Pistón roto",""],"PISTÓN AGARROTADO":["Pistón agarrotado",""],"TRABAJANDO SIN PISTONWAX":["Pistón dañado sin pistonwax","Trabajando sin pistonwax"],"FUGA DE AGUA":["Fuga de agua en el pistón",""]};
