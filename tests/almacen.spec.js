@@ -555,6 +555,25 @@ test('Consultas: la taladrina y el aceite van por nave (no se asignan a una máq
   expect(err).toEqual([]);
 });
 
+test('Contadores: empezar a contar de nuevo un contador con lecturas mal', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const h = new Date(), F = n => { const x = new Date(h); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    v.cont = { [String(h.getFullYear())]: { items: [{ id: 'k1', f: F(3), nave: 'Nave 1', c: { e220: 1000 }, ts: 1 }, { id: 'k2', f: F(2), nave: 'Nave 1', c: { e220: 10200 }, ts: 2 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('#bReini').click(); await page.waitForTimeout(200);
+  const d = page.locator('.dlg').last();
+  await d.locator('#riK').selectOption('e220'); await d.getByRole('button', { name: 'Empezar de nuevo' }).click(); await page.waitForTimeout(500);
+  const ini = await page.evaluate(() => window.__D.cat.app.contIni);
+  expect(Object.keys(ini)).toEqual(['Nave 1|e220']);
+  // la siguiente lectura no tiene «antes»: es el nuevo punto de partida
+  await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).not.toContainText('Engrase 220 · antes');
+  expect(err).toEqual([]);
+});
+
 test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y avisa si es raro', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;

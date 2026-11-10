@@ -7,7 +7,15 @@ const NAVES_CT=["Nave 1","Nave 2"];
 const CONT_GRG=CONT.filter(c=>c[0]!=="gli");
 let contAnos={};
 function todasLect(){const o=[];Object.keys(contAnos).forEach(y=>(contAnos[y]||[]).forEach(r=>{if(!r.dep)o.push(Object.assign({y},r));}));return o.sort((a,b)=>(a.f+String(a.ts||0).padStart(15,"0")).localeCompare(b.f+String(b.ts||0).padStart(15,"0")));}
-const lectDe=n=>todasLect().filter(r=>r.nave===n);
+/* «empezar a contar de nuevo»: cat.contIni["Nave 1|e220"]="2026-11-10" → las lecturas de ese contador hasta ese día (incluido)
+   no cuentan (estaban mal o se cambió el contador); la primera lectura después es el nuevo punto de partida */
+const contIni=()=>cat.contIni||{};
+const lectDe=n=>{const I=contIni();return todasLect().filter(r=>r.nave===n).map(r=>{let c=r.c;if(c)for(const k of Object.keys(c)){const d=I[n+"|"+k];if(d&&r.f<=d){if(c===r.c)c=Object.assign({},c);delete c[k];}}return c===r.c?r:Object.assign({},r,{c});});};
+function dlgReinicio(){const v={n:NAVES_CT[0],k:CONT[0][0],f:hoy()};
+  dlg("Empezar a contar de nuevo",[el("p",{class:"hint",text:"Para un contador con lecturas mal o que se ha cambiado: las lecturas hasta el día que elijas (incluido) dejan de contar, y la siguiente lectura es el nuevo punto de partida. No se borra nada."}),
+    el("div",{class:"row"},[fld("Nave",sel("riN",NAVES_CT.map(n=>[n,n]),v.n,x=>v.n=x)),fld("Contador",sel("riK",CONT.map(([k,t])=>[k,t]),v.k,x=>v.k=x))]),
+    fld("Hasta el día (incluido)",inp("riF",v.f,x=>v.f=x,{type:"date",max:hoy()}))],
+    [{t:"Cancelar",cls:"sec"},{t:"Empezar de nuevo",fn:async()=>{cat.contIni=Object.assign({},contIni(),{[v.n+"|"+v.k]:v.f});try{await saveCat();}catch(e){toast("No se pudo guardar");return false;}toast(nomCont(v.k)+" de "+v.n+": se cuenta de nuevo desde la siguiente lectura");render(true);}}]);}
 /* depósito de glicol (uno para las dos naves, lo recarga una cisterna): items {id,f,dep:"gli",tipo:"recarga"|"nivel",l,antes,despues,n,alb,nota,ts} */
 function todosDep(){const o=[];Object.keys(contAnos).forEach(y=>(contAnos[y]||[]).forEach(r=>{if(r.dep)o.push(Object.assign({y},r));}));return o.sort((a,b)=>(a.f+String(a.ts||0).padStart(15,"0")).localeCompare(b.f+String(b.ts||0).padStart(15,"0")));}
 /* tramos entre dos lecturas seguidas de un contador: litros, días laborables y litros por día */
@@ -99,7 +107,7 @@ function cardContadores(){const h=hoy(),m0=h.slice(0,7)+"-01",falta=faltaLectHoy
       falta.length?el("div",{class:"banner w",text:"Falta la lectura de hoy de "+falta.join(" y ")+"."}):null,
       R.length?el("div",{class:"banner b",text:"Consumo raro: "+R.map(t=>nomCont(t.k)+" "+t.n+" el "+fmtF(t.f)+" ("+(t.raro==="baja"?"el contador marca menos que antes":fmtL(t.lpd)+"/día, lo normal "+fmtL(t.normal)+"/día")+")").join(" · ")}):null,
       (()=>{const CR=cotejoResumen();return CR.length?el("div",{class:"banner "+(CR.some(x=>x.niv==="bad")?"b":"w"),text:CR.map(x=>x.t).join(" · ")}):null;})(),
-      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),el("button",{type:"button",class:"btn sec",text:"Cotejo con los cambios",onclick:()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])}),el("button",{type:"button",class:"btn sec",text:"Recarga de glicol",onclick:()=>formGli()})]),
+      el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),el("button",{type:"button",class:"btn sec",text:"Cotejo con los cambios",onclick:()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])}),el("button",{type:"button",class:"btn sec",text:"Recarga de glicol",onclick:()=>formGli()}),el("button",{type:"button",class:"btn sec",id:"bReini",text:"Empezar de nuevo un contador",onclick:dlgReinicio})]),
       cTabla(["Nave","Contador","Última lectura","Último consumo","Este mes",""],filas,[2,3,4])])]);}
 
 /* informe: litros por día y por mes, por nave y contador */
