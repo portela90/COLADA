@@ -301,7 +301,13 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
     acts.push({t:"Preparar para enviar",fn:async()=>{if(!f.desp.trim()){toast("Describe el desperfecto");return false;}await addRep({eje:e.cod,desp:f.desp.trim(),alta:hoy(),env:null});await updEje(e,{estado:"preparado"});toast(e.cod+" preparado para enviar");}});}
   else if(e.estado==="preparado"){body.push(ab?el("p",{text:"Desperfecto: "+ab.desp}):null,fecha());
     acts.push({t:"Enviar a reparar",fn:async()=>{await enviar([e],f.f);toast(e.cod+" enviado a reparar");}},
-      {t:"Vuelve a planta",cls:"sec",fn:async()=>{if(ab&&!ab.env){await updReps([[ab,{res:"anulada",rec:f.f}]]);}await updEje(e,{estado:"planta"});toast(e.cod+" en planta");}});}
+      {t:"Vuelve a planta",cls:"sec",fn:async()=>{if(ab&&!ab.env){await updReps([[ab,{res:"anulada",rec:f.f}]]);}await updEje(e,{estado:"planta"});toast(e.cod+" en planta");}},
+      /* al final se ha arreglado aquí: no va al taller y suma en «Recuperados en planta» (ahorro) */
+      {t:"Recuperado en planta",cls:"sec",fn:async()=>{const ag=!!(ab&&/AGARR/i.test(ab.desp||""));
+        if(ab&&!ab.env)await updReps([[ab,{res:"anulada",rec:f.f,recup:true}]]);
+        if(ag)await contarAgarr("rec");
+        cat.ejeRecup=ejeRecup().concat([{id:uid(),f:f.f,maq:(ab&&ab.maq)||e.maq||null,mods:[e.mod],motivo:ag?AGARR:null,eje:e.cod,rep:ab?ab.id:null}]);await saveCat();
+        await updEje(e,{estado:"planta"});toast(e.cod+" recuperado en planta");}});}
   else{if(ab&&ab.traer)acts.push({t:"Quitar «pedido traer»",cls:"sec",fn:async()=>{await updReps([[ab,{traer:null}]]);toast("Marca quitada");}});
     body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer)+" (hace "+diasPedido(ab)+" días laborables)":" · En el taller sin pedir (tu reserva allí)")}):null,
       ab?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:ab.apedir?"btn sec":"btn",text:ab.apedir?"✓ En la lista para pedir · quitar":"Añadir a la lista para pedir al taller",onclick:async()=>{

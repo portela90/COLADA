@@ -898,6 +898,24 @@ test('Leer albarán: compra con una línea sin reconocer; lo que se elige se rec
   expect(err).toEqual([]);
 });
 
+test('Ejes: uno preparado para enviar que al final se arregla aquí cuenta como «Recuperado en planta»', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
+    v.ejes['ep'] = { cod: '3.2.B-7', mod: '3.2.B', num: 7, estado: 'preparado' };
+    v.rep[k].items.push({ id: 'rp', eje: '3.2.B-7', desp: 'PISTÓN AGARROTADO', alta: '2026-11-05', env: null, maq: 'F22' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'todo sobre el eje 3.2.B-7'); await page.waitForTimeout(300);
+  await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400);
+  await page.locator('.dlg button', { hasText: 'Recuperado en planta' }).click(); await page.waitForTimeout(700);
+  const D = await page.evaluate(() => ({ e: window.__D.ejes.ep, rep: Object.values(window.__D.rep).flatMap(x => x.items).find(r => r.id === 'rp'), rc: window.__D.cat.app.ejeRecup }));
+  expect(D.e.estado).toBe('planta');
+  expect(D.rep).toMatchObject({ res: 'anulada', recup: true });
+  expect(D.rc.find(x => x.eje === '3.2.B-7')).toMatchObject({ maq: 'F22', mods: ['3.2.B'], motivo: 'PISTÓN AGARROTADO' });
+  expect(err).toEqual([]);
+});
+
 test('Ejes: el plazo del taller cuenta desde que se pide; los que están allí sin pedir no son retraso', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
