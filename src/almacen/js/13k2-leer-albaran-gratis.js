@@ -68,6 +68,25 @@ function interpretarOCR(texto){const T=String(texto||"").replace(/\r/g,""),linea
     D.lineas.push({texto:desc,cantidad:cant,unidad:"",art:art||null,ok:!!art||!!hasta,desde,hasta,especial:/esp/i.test(L)});});
   if(!D.lineas.some(l=>l.ok))D.confianza="baja";
   return D;}
+/* ===== LEER UN ALBARÁN CON LA IA GRATUITA (Cloudflare, la misma que lee los contadores; función leer-albaran-cf) =====
+   Devuelve lo mismo que la lectura con Claude y pasa por la misma pantalla de revisión. Si falla (sin conexión, cupo del día
+   gastado…), se lee con el lector del propio móvil como antes. */
+function jpegAlb(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{const k=Math.min(1,1800/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);
+    const g=cv.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,cv.width,cv.height);g.drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(u);cv.toBlob(b=>b?ok(b):ko(new Error("No se pudo preparar la foto")),"image/jpeg",0.82);};
+  im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error("No se pudo abrir la foto"));};im.src=u;});}
+async function leerAlbaranIAGratis(file){if(!file)return;
+  if(window.__OCR_MOCK!=null&&!window.__ALB_CF_MOCK)return leerAlbaranGratis(file);
+  dlg("Leyendo el albarán…",[el("p",{class:"hint",text:"Un momento: la IA gratuita está leyendo la foto."})],[]);
+  try{const bl=await jpegAlb(file);let datos;
+    if(window.__ALB_CF_MOCK){const m=window.__ALB_CF_MOCK;if(m.error)throw new Error(m.error);datos=m.datos||m;}
+    else{const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]);fr.onerror=rej;fr.readAsDataURL(bl);});
+      const r=await llamarFn("leer-albaran-cf",{image:b64,mime:"image/jpeg",proveedores:cat.proveedores.map(p=>p.nom),articulos:artsActivos().filter(a=>a.fam!=="eje").map(a=>({id:a.id,t:nomArtC(a)+" · en "+a.ud+(a.peso?" (envase de "+a.peso+" "+a.ud+")":"")+[a.cod,a.codProv,a.refProv].filter(Boolean).map(c=>" ["+c+"]").join("")})),hoy:hoy(),
+        pistas:cat.proveedores.filter(p=>p.albPista).map(p=>p.nom+(p.cif?" (CIF "+p.cif+")":"")+": "+p.albPista)});
+      if(!r||r.error||!r.datos)throw new Error((r&&r.error)||"sin respuesta");datos=r.datos;}
+    if(!(datos.lineas||[]).length&&!datos.albaran)throw new Error("no ha sacado nada de la foto");
+    cerrarDlgs();revisarAlbaran(datos,bl);}
+  catch(e){cerrarDlgs();toast("La IA gratuita no ha podido leerlo ("+(e.message||e)+"): lo leo con el lector del móvil");leerAlbaranGratis(file);}}
 async function leerAlbaranGratis(file){if(!file)return;
   const est=el("p",{class:"hint",text:"Preparando el lector… la primera vez tarda un poco más (se descarga y se queda guardado)."});
   dlg("Leyendo el albarán (gratis)",[est,el("p",{class:"hint",text:"Se lee en el propio móvil: la foto no sale de aquí y no cuesta nada."})],[]);

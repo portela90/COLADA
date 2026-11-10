@@ -1583,6 +1583,28 @@ test('Leer albarán gratis (OCR en el móvil): saca proveedor, nº, fecha y lín
   expect(err).toEqual([]);
 });
 
+test('Leer albarán gratis con la IA de Cloudflare; si falla, lo lee el lector del móvil', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__ALB_CF_MOCK = { datos: { proveedor: 'Meyusa', albaran: 'CF-1', fecha: '2026-11-10', tipo: 'compra', confianza: 'alta', lineas: [{ texto: 'GUANTE ANTICORTE T9', cantidad: 6, unidad: 'par', art: 'c1' }] } }; });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Movimientos$/ }).click(); await page.waitForTimeout(300);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+  await page.locator('#mLeerAlbG').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1200);
+  let d = page.locator('.dlg').last();
+  await expect(d).not.toContainText('Leído sin IA');
+  await expect(d.locator('#laAlb')).toHaveValue('CF-1'); await expect(d.locator('#laA0')).toHaveValue('c1'); await expect(d.locator('#laC0')).toHaveValue('6');
+  await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(900);
+  const M = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(m => m.alb === 'CF-1'));
+  expect(M.map(m => [m.art, m.cant])).toEqual([['c1', 6]]);
+  // cupo gastado: pasa al lector del móvil
+  await page.evaluate(() => { window.__ALB_CF_MOCK = { error: 'Se ha gastado el cupo gratis de hoy de la IA' }; window.__OCR_MOCK = 'MEYUSA, S.A.\nALBARÁN Nº C-78   Fecha: 03/11/2026\n12 GUANTE ANTICORTE T9 3,50 42,00\nTOTAL 42,00'; });
+  await page.locator('#mLeerAlbG').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png }); await page.waitForTimeout(1500);
+  d = page.locator('.dlg').last();
+  await expect(d).toContainText('Leído sin IA'); await expect(d.locator('#laAlb')).toHaveValue('C-78');
+  expect(err).toEqual([]);
+});
+
 test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y total', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
