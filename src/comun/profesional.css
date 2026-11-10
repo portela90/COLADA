@@ -403,6 +403,7 @@ a.act-it:hover{background:var(--surf2)}
 .mt-c.vence .mt-lim{color:var(--bad);border-color:var(--bad);font-weight:700}.mt-lim.ok{color:var(--ok)}
 .mt-mv{margin-left:auto;display:flex;gap:4px}
 .mt-b{appearance:none;border:1px solid var(--line);background:var(--surf2);color:var(--ink);border-radius:8px;width:30px;height:28px;font-size:17px;line-height:1;cursor:pointer}
+.mt-add{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}.mt-add .mt-in{min-width:0;width:100%!important}.mt-addb{width:auto!important;margin:0!important;white-space:nowrap}
 .mt-in{font:inherit;font-size:16px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;background:transparent;color:var(--ink);width:100%;box-sizing:border-box}
 .mt-ta{resize:vertical;min-height:80px}
 .mt-ov2{z-index:950}

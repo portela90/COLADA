@@ -17,11 +17,13 @@ let L=null,err=null;const subs=new Set();
 const sb=()=>window.sbColada;
 async function carga(){if(!sb()){err="Se ve en la app conectada.";aviso();return;}
   try{const r=await sb().from("mis_tareas").select("*").order("orden",{ascending:true});if(r.error)throw r.error;L=r.data||[];err=null;}catch(e){err="No se pudieron cargar tus trabajos.";}aviso();}
+/* si algo falla se dice por qué y queda en el registro de errores */
+function fallo(e,ctx){const m=String((e&&(e.message||e.msg))||e||"error");toast("No se pudo guardar: "+m);try{if(window.reportarError)window.reportarError(e instanceof Error?e:new Error(m),ctx);}catch(_){}}
 const aviso=()=>subs.forEach(f=>{try{f();}catch(e){}});
 async function guarda(t,pt){const antes=Object.assign({},t);Object.assign(t,pt);aviso();
-  try{const r=await sb().from("mis_tareas").update(pt).eq("id",t.id);if(r&&r.error)throw r.error;}catch(e){Object.assign(t,antes);aviso();toast("No se pudo guardar");}}
-async function nueva(x){try{const r=await sb().from("mis_tareas").insert(x).select();if(r.error)throw r.error;L.push(r.data[0]);aviso();}catch(e){toast("No se pudo guardar");}}
-async function borra(t){try{const r=await sb().from("mis_tareas").delete().eq("id",t.id);if(r&&r.error)throw r.error;L=L.filter(x=>x.id!==t.id);aviso();toast("Borrado");}catch(e){toast("No se pudo borrar");}}
+  try{const r=await sb().from("mis_tareas").update(pt).eq("id",t.id);if(r&&r.error)throw r.error;}catch(e){Object.assign(t,antes);aviso();fallo(e,"mis trabajos: cambiar");}}
+async function nueva(x){try{if(!sb())throw new Error("sin conexión con la base de datos");if(!L)L=[];const r=await sb().from("mis_tareas").insert(x).select();if(r.error)throw r.error;L.push(r.data[0]);aviso();}catch(e){fallo(e,"mis trabajos: añadir");}}
+async function borra(t){try{const r=await sb().from("mis_tareas").delete().eq("id",t.id);if(r&&r.error)throw r.error;L=L.filter(x=>x.id!==t.id);aviso();toast("Borrado");}catch(e){fallo(e,"mis trabajos: borrar");}}
 const de=c=>(L||[]).filter(t=>t.col===c).sort((a,b)=>c==="hecho"?String(b.hecho_en||"").localeCompare(String(a.hecho_en||"")):(b.prio-a.prio)||(a.orden-b.orden));
 const vence=t=>t.col!=="hecho"&&t.limite&&t.limite<=hoyI();
 /* mover a otra columna (al final de esa columna) */
@@ -61,13 +63,16 @@ function tablero(){const box=E("div",{class:"mt-tab"});let verHecho=false;
   const pinta=()=>{box.textContent="";if(err){box.appendChild(E("p",{class:"hint",text:err}));return;}if(!L){box.appendChild(E("p",{class:"hint",text:"Cargando…"}));return;}
     COLS.forEach(([c,t])=>{let D=de(c);const tot=D.length;if(c==="hecho"&&!verHecho)D=D.slice(0,15);
       const lst=E("div",{class:"mt-l"},D.map(tarjeta));
-      const inp=E("input",{type:"text",class:"mt-in",placeholder:"+ Añadir trabajo","aria-label":"Añadir trabajo en "+t,onkeydown:async e=>{if(e.key!=="Enter")return;const v=e.target.value.trim();if(!v)return;e.target.value="";
-        await nueva({titulo:v,col:c,orden:(D.length?Math.max(...de(c).map(x=>x.orden)):Date.now()/1000)+1});setTimeout(()=>{const x=box.querySelector('.mt-col[data-c="'+c+'"] .mt-in');if(x)x.focus();},30);}});
+      /* se añade con el botón «Añadir» o con Intro (en el iPhone/iPad, la tecla «Intro» o «Ir» del teclado) */
+      const inp=E("input",{type:"text",class:"mt-in",placeholder:"+ Añadir trabajo","aria-label":"Añadir trabajo en "+t,enterkeyhint:"done"});
+      const add=async()=>{const v=inp.value.trim();if(!v){inp.focus();toast("Escribe el trabajo");return;}inp.value="";
+        await nueva({titulo:v,col:c,orden:(de(c).length?Math.max(...de(c).map(x=>x.orden)):Date.now()/1000)+1});setTimeout(()=>{const x=box.querySelector('.mt-col[data-c="'+c+'"] .mt-in');if(x)x.focus();},30);};
+      const fm=E("form",{class:"mt-add",onsubmit:e=>{e.preventDefault();add();}},[inp,E("button",{type:"submit",class:"btn peq mt-addb","aria-label":"Añadir en "+t,text:"Añadir"})]);
       const col=E("section",{class:"mt-col","data-c":c,ondragover:e=>{if(arrastra){e.preventDefault();col.classList.add("sobre");}},ondragleave:()=>col.classList.remove("sobre"),
         ondrop:e=>{e.preventDefault();col.classList.remove("sobre");if(arrastra)mover(arrastra,c);}},[
         E("div",{class:"mt-ch"},[E("h3",{text:t}),E("span",{class:"mt-cn",text:String(tot)})]),lst,
         c==="hecho"&&tot>15?E("button",{type:"button",class:"btn sec peq",text:verHecho?"Ver menos":"Ver todos ("+tot+")",onclick:()=>{verHecho=!verHecho;pinta();}}):null,
-        c!=="hecho"?inp:null]);
+        c!=="hecho"?fm:null]);
       box.appendChild(col);});};
   subs.add(pinta);pinta();box.quita=()=>subs.delete(pinta);return box;}
 function abrir(){let ov;const tb=tablero();const cerrar=()=>{tb.quita();ov.remove();document.removeEventListener("keydown",esc);try{history.replaceState(null,"",location.pathname);}catch(e){}};

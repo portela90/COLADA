@@ -114,6 +114,9 @@ test('Mis trabajos: tablero privado (solo el administrador), añadir, mover de c
   /* añadir en Pendiente */
   await tb.locator('.mt-col[data-c="pend"] .mt-in').fill('Enlace para compartir informes'); await tb.locator('.mt-col[data-c="pend"] .mt-in').press('Enter'); await page.waitForTimeout(300);
   await expect(tb.locator('.mt-col[data-c="pend"] .mt-c')).toHaveCount(2);
+  /* también con el botón «Añadir» (en el móvil) */
+  await tb.locator('.mt-col[data-c="espera"] .mt-in').fill('Llamar a Meyusa'); await tb.locator('.mt-col[data-c="espera"] .mt-addb').click(); await page.waitForTimeout(300);
+  await expect(tb.locator('.mt-col[data-c="espera"] .mt-c', { hasText: 'Llamar a Meyusa' })).toHaveCount(1);
   /* pasar a En marcha con › */
   await tb.locator('.mt-c', { hasText: 'Enlace para compartir' }).locator('button[aria-label="Pasar a En marcha"]').click(); await page.waitForTimeout(300);
   await expect(tb.locator('.mt-col[data-c="marcha"] .mt-c')).toHaveCount(2);
