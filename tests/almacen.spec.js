@@ -304,6 +304,41 @@ test('Gestores y relevos: rotan por semanas, se cambian y al apuntar un pistón 
   expect(err).toEqual([]);
 });
 
+test('Consultas por relevo y por gestor: cambios y roturas de pistones y barras', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-10T10:00:00+01:00'));
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.gest = { lista: [{ id: 'g1', n: 'Gorka Aretxaga' }, { id: 'g2', n: 'Josu' }, { id: 'g3', n: 'Antonio Hidalgo' }, { id: 'g4', n: '707' }, { id: 'g5', n: '708' }, { id: 'g6', n: 'Acracio' }],
+      sem: { '2026-11-02': { 'Mañana': ['g1', 'g2'], 'Tarde': ['g3', 'g4'], 'Noche': ['g5', 'g6'] } }, dia: {} };
+    const m25 = v.cat.app.maquinas.find(x => x.cod === 'F25').id, m22 = v.cat.app.maquinas.find(x => x.cod === 'F22').id;
+    v.pist = v.pist || {}; v.pist['2026'] = v.pist['2026'] || { items: [] };
+    v.pist['2026'].items.push(
+      { id: 'q1', f: '2026-11-03', u: 'Noche', maq: m25, diam: 'Ø 80', cant: 1, motivo: 'ROTURA', ts: 1 },
+      { id: 'q2', f: '2026-11-04', u: 'Noche', gest: 'g5', maq: m25, diam: 'Ø 80', cant: 2, motivo: 'ROTURA', ts: 2 },
+      { id: 'q3', f: '2026-11-05', u: 'Mañana', maq: m22, diam: 'Ø 70', cant: 1, motivo: 'DESGASTE', ts: 3 },
+      { id: 'q4', f: '2026-11-09', u: 'Mañana', maq: m22, diam: 'Ø 70', cant: 1, motivo: 'ROTURA', ts: 4 },
+      { id: 'q5', f: '2026-11-06', maq: m22, diam: 'Ø 70', cant: 1, motivo: 'PISTÓN AGARROTADO', ts: 5 }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(400); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  let r = await resp('roturas de pistón por relevo este mes');
+  expect(r).toMatch(/\d+ roturas este mes/); expect(r).toContain('El relevo con más es noche (3');
+  expect(r).toMatch(/Noche .*F25 3/);
+  r = await resp('cambios de pistón por relevo este mes');
+  expect(r).toMatch(/\d+ cambios de pistón este mes/); expect(r).toContain('sin relevo');
+  r = await resp('qué gestor tiene más roturas de pistón este mes');
+  expect(r).toContain('Por gestor'); expect(r).toContain('708'); expect(r).toContain('Acracio');
+  // la semana del 9 rota: mañana → noche, así que la rotura del 9 por la mañana es de Antonio Hidalgo y 707
+  r = await resp('roturas de pistón de Antonio Hidalgo este mes');
+  expect(r).toContain('Antonio Hidalgo: 1');
+  r = await resp('roturas en el turno de noche este mes');
+  expect(r).toContain('3 roturas en el relevo de noche');
+  r = await resp('roturas de pistón por relevo y máquina este mes');
+  expect(r).toContain('Por máquina y relevo');
+  expect(err).toEqual([]);
+});
+
 test('Borrar la salida de un cambio de pistón borra también el cambio (no sale en el informe para Beatriz)', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
