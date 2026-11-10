@@ -2027,6 +2027,14 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   await expect(page.locator('#aguaV')).toHaveValue('393560');
   await expect(page.locator('.dlg').last()).toContainText('8,5 m³');
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
+  // a la IA se le pasa la última lectura; si lo que lee no cuadra con ella, no se pone y avisa
+  await page.evaluate(() => { window.__CONT_MOCK = (t, x) => { window.__contX = x; return { lectura: '9', seguro: true, fuera: true }; }; });
+  await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-30'); await page.waitForTimeout(200);
+  await page.locator('.dlg').last().locator('input[type=file]').setInputFiles({ name: 'agua.png', mimeType: 'image/png', buffer: png });
+  await expect(page.locator('body')).toContainText('no cuadra con la última lectura');
+  await expect(page.locator('#aguaV')).toHaveValue('');
+  expect(await page.evaluate(() => window.__contX)).toMatchObject({ prev: 393551.5, cont: 'agua', mini: true });
+  await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
   // al glicol se le escapa a veces la coma: con la lectura anterior se corrige
   expect(await page.evaluate(() => [ajustaLectura('1206907', 'glicol', 120650.2), ajustaLectura('120690.7', 'glicol', 120650.2), ajustaLectura('031638', 'aceite', 31600)])).toEqual([120690.7, 120690.7, 31638]);
   // Consultas

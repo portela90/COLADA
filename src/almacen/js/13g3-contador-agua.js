@@ -25,7 +25,7 @@ function formAgua(f0){const st={f:f0||hoy(),v:""};const box=el("div",{style:"dis
     const calc=()=>{const x=parseN(st.v);out.textContent="";out.className="sub";if(!isFinite(x)||st.v===""||!ant)return;const av=avisoAgua(st.f,x);
       if(av){out.textContent=av;out.className="sub neg";return;}const d=Math.round((x-ant.c.agua)*100)/100,dd=Math.max(1,dias(ant.f,st.f));out.textContent="= "+fmtM3(d)+(dd>1?" en "+dd+" días ("+fmtM3(d/dd)+"/día)":"");};
     const iv=inp("aguaV",st.v,v=>{st.v=v;calc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:ant?fmtN(ant.c.agua):"m³"});
-    const fb=botonFotoCont("agua",ant?ant.c.agua:null,v=>{st.v=String(v).replace(".",",");iv.value=st.v;iv.classList.add("leido");calc();});
+    const fb=botonFotoCont("agua",ant?ant.c.agua:null,v=>{st.v=String(v).replace(".",",");iv.value=st.v;iv.classList.add("leido");calc();},()=>({cont:"agua",nave:""}));
     box.appendChild(fld("Lectura del contador (m³)"+(ant?" · antes "+fmtN(ant.c.agua):""),el("div",{style:"display:grid;gap:2px"},[fb?el("div",{class:"con-foto"},[iv,fb]):iv,out])));calc();
     box.appendChild(el("p",{class:"hint",style:"margin:0",text:"Apunta los números negros del contador (los m³ enteros)."}));};
   pinta();
@@ -66,13 +66,19 @@ window.ajustaLectura=ajustaLectura;
 function ajustaLectura(txt,tipo,prev){let v=parseFloat(String(txt).replace(",","."));if(!isFinite(v))return null;
   if(tipo==="glicol"&&prev!=null&&!/[.,]/.test(String(txt))&&v>prev*5&&v/10>=prev*0.95&&v/10<=prev*1.5+500)v=Math.round(v)/10;
   return v;}
-function botonFotoCont(tipo,prev,ponValor){if(window.SOLO_CONSULTA)return null;
+/* foto pequeña para el registro de lecturas (para revisar fallos; se borra sola a los 15 días) */
+function miniContador(dataUrl){return new Promise(ok=>{const im=new Image();im.onload=()=>{const k=Math.min(1,480/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);
+  cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);ok(cv.toDataURL("image/jpeg",0.6));};im.onerror=()=>ok(null);im.src=dataUrl;});}
+function botonFotoCont(tipo,prev,ponValor,info){if(window.SOLO_CONSULTA)return null;
   const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none"});
   fi.addEventListener("change",async()=>{const f=fi.files[0];fi.value="";if(!f)return;b.disabled=true;b.textContent="Leyendo…";
-    try{const img=await jpegContador(f);const r=window.__CONT_MOCK?window.__CONT_MOCK(tipo):await llamarFn("leer-contador",{image:img,tipo});
+    try{const img=await jpegContador(f);const ex=(typeof info==="function"?info():info)||{};const mini=await miniContador(img);
+      const r=window.__CONT_MOCK?window.__CONT_MOCK(tipo,{prev,mini:!!mini,...ex}):await llamarFn("leer-contador",{image:img,tipo,prev:prev!=null&&isFinite(+prev)?+prev:null,cont:ex.cont||"",nave:ex.nave||"",mini});
       if(r&&r.error)throw new Error(r.error);
       const v=r&&r.lectura!=null?ajustaLectura(r.lectura,tipo,prev):null;
       if(v==null){toast("No se ha podido leer el número: haz otra foto más cerca o escríbelo a mano");return;}
+      /* lo leído no cuadra con la última lectura (ni con el segundo modelo): no se pone, se avisa */
+      if(r.fuera||(prev!=null&&(v<prev-1||v>prev+Math.max(prev*0.05,3000)))){toast("La foto se lee como "+fmtN(v)+", que no cuadra con la última lectura ("+fmtN(prev)+"). Haz otra foto más de frente o escríbelo a mano.",true);return;}
       ponValor(v,r);toast("Leído "+fmtN(v)+(r.seguro===false||r.dudosas?" · alguna cifra no estaba clara":"")+": compruébalo antes de guardar");}
     catch(e){toast("No se pudo leer la foto: "+(e.message||e));}
     finally{b.disabled=false;b.textContent="📷";}});
