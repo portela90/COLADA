@@ -159,6 +159,9 @@ function vRepaso(){if(typeof huecos!=="function")return null;
   it.push({ok:!sinM.length,t:sinM.length?sinM.length+(sinM.length===1?" ajuste sin motivo":" ajustes sin motivo"):(AJ.length?"Todos los ajustes tienen motivo":"Sin ajustes esta semana"),
     det:sinM.length?"Toca uno para decir por qué no cuadraba: así el cierre separa el consumo mal apuntado de los fardos cambiados de colada.":null,
     chips:sinM.map(r=>{const l=lotes.find(x=>x.id===(r.o||r.d))||{};return{t:(l.nombre||"?")+" · "+dmy(r.f)+" · "+(r.d?"+":"−")+fmt(r.fa||0)+" f",fn:()=>motivoAjuste(r)};})});
+  /* entradas sin el peso de la báscula todavía */
+  {const PB=pendBascula();it.push({ok:!PB.length,t:PB.length?PB.length+(PB.length===1?" entrada pendiente de pesar":" entradas pendientes de pesar"):"Todas las entradas tienen su peso de báscula (o no se pesan)",
+    det:PB.length?"Pon el peso de la báscula de la fábrica para que el cierre compare con el albarán.":null,chips:PB.map(({r,l})=>({t:(l.nombre||"?")+" · "+dmy(r.f)+" · "+fmt(r.kg)+" kg",fn:()=>ponerBascula(r,l)}))});}
   /* fardos pendientes de etiqueta con más de una semana */
   {const PV=pendientesEt().filter(r=>r.f<fMas(hoy(),-7));
    it.push({ok:!PV.length,t:PV.length?PV.length+(PV.length===1?" fardo pendiente de etiqueta":" fardos pendientes de etiqueta")+" desde hace más de una semana":"Ningún fardo lleva más de una semana sin etiqueta",

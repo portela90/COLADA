@@ -29,7 +29,7 @@ header .chip2{border-radius:8px;font-weight:500}header .chip2 b{font-weight:700}
 .chk-sa{display:flex!important;flex-direction:row!important;gap:10px;align-items:flex-start;background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
 .chk-sa input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--acc)}
 .chk-sa span{display:flex;flex-direction:column;gap:2px;font-weight:400}.chk-sa small{color:var(--ink2);font-size:13px;line-height:1.35}
-.sa-row{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line2);padding-bottom:10px}.sa-row:last-child{border-bottom:0;padding-bottom:0}
+.sa-row,.pb-row{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line2);padding-bottom:10px}.sa-row:last-child,.pb-row:last-child{border-bottom:0;padding-bottom:0}
 /* camiones previstos: en el móvil cada fila es una tarjeta, sin desbordar */
 @media (max-width:600px){
  table.plan-ent thead{display:none}

@@ -455,3 +455,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .tspk-m i{font-style:normal}
 #cons-mes .tspk{max-width:360px}
 .stk-volver-m{white-space:nowrap;flex:none}
+.hint.neg,.sub.neg{color:var(--bad);font-weight:600}

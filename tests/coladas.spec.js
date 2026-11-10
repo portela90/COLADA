@@ -17,6 +17,34 @@ test('las 7 pestañas abren sin errores y sin salirse de la pantalla', async ({ 
   expect(err).toEqual([]);
 });
 
+test('Entrada sin peso de báscula: queda pendiente de pesar y se pone después (o «no se va a pesar»)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Entrada').click()); await page.waitForTimeout(300);
+  await page.fill('#e-alb', 'ALB-77'); await page.fill('#e-col', '19094'); await pulsa(page, 'Nave 1'); await pulsa(page, 'AlSi9');
+  await page.fill('#e-kg', '24269'); await page.fill('#e-fa', '35'); await page.waitForTimeout(200);
+  await expect(page.locator('#e-kbd')).toContainText('quedará pendiente de pesar');
+  await page.fill('#e-kb', '24100'); await expect(page.locator('#e-kbd')).toContainText('−169 kg (−0,7 %)'); await expect(page.locator('#e-kbd')).toHaveClass(/neg/);
+  await page.fill('#e-kb', ''); await page.waitForTimeout(100);
+  await page.click('#e-go'); await page.waitForTimeout(900);
+  const mov = () => page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(r => r.t === 'E' && r.a === 'ALB-77'));
+  expect(await mov()).toMatchObject({ pb: 1 });
+  await expect(page.locator('#pend-bas')).toContainText('19094');
+  await page.locator('#pend-bas button', { hasText: 'Poner peso' }).click(); await page.waitForTimeout(300);
+  await page.fill('#pb-kb', '24250'); await expect(page.locator('#pb-dif')).toContainText('−19 kg');
+  await page.click('#pb-ok'); await page.waitForTimeout(700);
+  const m = await mov(); expect(m.kb).toBe(24250); expect(m.pb).toBeUndefined();
+  await expect(page.locator('#pend-bas')).toHaveCount(0);
+  // otra entrada marcada «no se va a pesar»: no queda pendiente
+  await page.fill('#e-alb', 'ALB-78'); await page.fill('#e-col', '19095'); await page.fill('#e-kg', '24000'); await page.fill('#e-fa', '34');
+  await page.check('#e-nopesa'); await page.waitForTimeout(200);
+  await page.click('#e-go'); await page.waitForTimeout(900);
+  const m2 = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(r => r.t === 'E' && r.a === 'ALB-78'));
+  expect(m2).toMatchObject({ np: 1 }); expect(m2.pb).toBeUndefined();
+  await expect(page.locator('#pend-bas')).toHaveCount(0);
+  expect(err).toEqual([]);
+});
+
 test('entrada sin albarán: se mete con kilos estimados y se completa después', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);

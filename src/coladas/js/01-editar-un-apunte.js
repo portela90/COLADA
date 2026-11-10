@@ -41,7 +41,7 @@ function editarApunte(r){
       if(v.kg.trim()===""||(v.lote!==r.o&&v.kg===kgOrig))delete n.kg;else n.kg=kg;
       if(r.pk&&(n.fa!==r.fa||n.kg!==r.kg||n.o!==r.o))delete n.pk;}
     if(r.t==="G"){n.kg=r.kg<0?-kg:kg;if(!r.aj){n.u=v.u;if(r.kg<0)n.nv=v.nv;}}
-    if(r.t==="E"){n.fa=fa;n.kg=kg;{const kb=numES(v.kb||"");if(String(v.kb||"").trim()&&!(kb>0)){err.textContent="Los kilos de báscula no son un número válido.";err.hidden=false;return;}if(kb>0)n.kb=kb;else delete n.kb;}if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
+    if(r.t==="E"){n.fa=fa;n.kg=kg;{const kb=numES(v.kb||"");if(String(v.kb||"").trim()&&!(kb>0)){err.textContent="Los kilos de báscula no son un número válido.";err.hidden=false;return;}if(kb>0){n.kb=kb;delete n.pb;delete n.np;}else delete n.kb;}if(v.a.trim()){n.a=v.a.trim();delete n.sa;}else delete n.a;delete n.ke;}
     if(r.t==="A"){n.fa=fa;const b=S[r.o||r.d];n.kg=Math.round(fa*((b&&b.ratio)||0));}
     n.ed=hoy();
     const b=e.currentTarget;b.disabled=true;

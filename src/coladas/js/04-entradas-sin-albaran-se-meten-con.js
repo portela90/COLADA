@@ -31,6 +31,27 @@ function completarAlb(r,l){const v={a:r.a||l.albaran||"",col:l.nombre||"",kg:r.k
       el("p",{class:"hint",text:"Los consumos que ya se hayan apuntado de esta entrada se quedan como están; los kilos por fardo se recalculan con los reales."}),err]),
     el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),el("button",{type:"button",class:"btn",text:"Guardar",onclick:guardar})])])]);
   document.body.appendChild(ov);}
+/* ---------- Peso de báscula de la fábrica: se puede meter al registrar o después (queda «pendiente de pesar») ---------- */
+const difBasTxt=(kb,kg)=>{if(!(kb>0)||!(kg>0))return{t:"",mal:false};const d=Math.round(kb-kg),pc=d/kg*100;
+  return{t:"Báscula − albarán: "+(d>0?"+":d<0?"−":"")+fmt(Math.abs(d))+" kg ("+(pc>0?"+":pc<0?"−":"")+Math.abs(Math.round(pc*10)/10).toString().replace(".",",")+" %)",mal:Math.abs(d)>Math.max(50,kg*0.005)};};
+function pendBascula(){const o=[];todosMovs().forEach(r=>{if(r.t==="E"&&r.pb&&!r.h&&!(r.kb>0)){const l=lotes.find(x=>x.id===r.d);if(l)o.push({r,l});}});return o.sort((a,b)=>a.r.f.localeCompare(b.r.f));}
+function ponerBascula(r,l){let v="";const cerrar=()=>ov.remove();
+  const dd=el("p",{class:"sub",id:"pb-dif"});
+  const ki=el("input",{id:"pb-kb",class:"num",type:"text",inputmode:"decimal",placeholder:"kilos de la báscula",oninput:e=>{v=e.target.value;const x=difBasTxt(numES(v),r.kg);dd.textContent=x.t;dd.className="sub"+(x.mal?" neg":"");}});
+  const guarda=async(b,nuevo)=>{b.disabled=true;try{await guardarMov(r,nuevo);cerrar();toast("Guardado");render();}catch(x){b.disabled=false;if(!x.candado)toast("No se pudo guardar");}};
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)cerrar();}},[el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Peso de báscula"},[
+    el("h3",{text:"Peso de báscula"}),el("p",{class:"sub",text:(l.nombre||"?")+" · "+dmy(r.f)+" · "+(l.proveedor||r.p||"")+" · albarán "+(r.a||l.albaran||"—")+" · "+fmt(r.kg)+" kg"}),
+    el("label",{text:"Kilos que da la báscula de la fábrica"},[ki]),dd,
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),
+      el("button",{type:"button",class:"btn sec",id:"pb-no",text:"No se va a pesar",onclick:e=>{const n=Object.assign({},r);delete n.pb;n.np=1;guarda(e.currentTarget,n);}}),
+      el("button",{type:"button",class:"btn",id:"pb-ok",text:"Guardar",onclick:e=>{const kb=numES(v);if(!(kb>0)){toast("Pon los kilos de la báscula");return;}const n=Object.assign({},r,{kb});delete n.pb;delete n.np;guarda(e.currentTarget,n);}})])])]);
+  document.body.appendChild(ov);setTimeout(()=>ki.focus(),50);}
+function cardBascula(){const L=pendBascula();if(!L.length)return null;
+  return el("div",{class:"card",id:"pend-bas"},[el("div",{class:"hd"},[el("h2",{text:"Pendientes de pesar ("+L.length+")"}),el("span",{class:"sub",style:"margin-left:auto",text:"pon el peso de la báscula cuando lo tengas"})]),
+    el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},L.map(({r,l})=>el("div",{class:"pb-row"},[
+      el("div",{style:"flex:1;min-width:0"},[el("b",{text:l.nombre||"?"}),
+        el("div",{class:"sub",text:dmy(r.f)+" · "+l.nave+" · "+MAT[l.material].nom+" · "+(l.proveedor||r.p||"")+" · albarán "+fmt(r.kg)+" kg"})]),
+      el("button",{type:"button",class:"btn",text:"Poner peso",onclick:()=>ponerBascula(r,l)})])))]);}
 function vEntrada(){
   const d=draft.ent;if(!d.fecha)d.fecha=hoy();if(!d.donde)d.donde="nave";
   const provs=(cfg.proveedores||[]).slice().sort((a,b)=>a.localeCompare(b,"es"));
@@ -45,7 +66,8 @@ function vEntrada(){
   const ok=valida();
   /* Al escribir sólo se actualizan el botón y los kg/fardo: redibujar entero
      cortaba la escritura en el iPad (autocorrector) y borraba lo tecleado. */
-  const vivo=()=>{const b=$("e-go");if(b&&b.textContent==="Registrar entrada")b.disabled=!valida();
+  const difKb=()=>{const p=$("e-kbd");if(!p)return;const x=difBasTxt(numES(d.kb||""),numES(d.kg||""));p.textContent=d.noPesa?"":x.t||(String(d.kb||"").trim()?"":"Sin peso de báscula: quedará pendiente de pesar.");p.className="hint"+(x.mal?" neg":"");};
+  const vivo=()=>{difKb();const b=$("e-go");if(b&&b.textContent==="Registrar entrada")b.disabled=!valida();
     const k=numES(d.kg||""),f=numES(d.fardos||""),c=$("e-calc");
     if(c){const hay=!isNaN(k)&&!isNaN(f)&&f>0;c.hidden=!hay;if(hay)c.firstChild.textContent=(Math.round(k/f*100)/100).toLocaleString("es-ES");}
     const pe=$("e-prec");if(pe)pe.textContent=txtPrecio();
@@ -66,7 +88,7 @@ function vEntrada(){
       await db.doc("lotes/"+id).set({nombre:col,material:d.mat,nave:d.nave,donde:d.donde,kgInv:0,fardosInv:0,
         albaran:(d.alb||"").trim(),proveedor:d.prov||"",entrada:d.fecha,obs:(d.obs||"").trim(),sinAlb:d.sinAlb?true:null});
       const rec={i:uid("m"),t:"E",f:d.fecha,d:id,kg:nk,fa:nf};if(d.sinAlb)rec.sa=1;if(est)rec.ke=1;
-      {const kb=numES(d.kb||"");if(kb>0)rec.kb=kb;}if(d.prov)rec.p=d.prov;if((d.alb||"").trim())rec.a=(d.alb||"").trim();if((d.obs||"").trim())rec.n=(d.obs||"").trim();
+      {const kb=numES(d.kb||"");if(kb>0)rec.kb=kb;else if(d.noPesa)rec.np=1;else rec.pb=1;}if(d.prov)rec.p=d.prov;if((d.alb||"").trim())rec.a=(d.alb||"").trim();if((d.obs||"").trim())rec.n=(d.obs||"").trim();
       if(ft)rec.ft=ft;
       await addMov(rec);toast("Entrada registrada"+(d.sinAlb?" sin albarán":"")+(ft?" con foto":"")+": "+fmt(nk)+" kg"+(est?" estimados":""));
       if(d.plan){try{await marcarPlan(d.plan,{l:id,f:d.fecha,k:key(d.nave,d.mat)});toast("Entrada registrada y camión del plan marcado como recibido");}catch(e){toast("Entrada registrada, pero no se pudo marcar el camión del plan");}}
@@ -86,10 +108,13 @@ function vEntrada(){
     el("label",{text:"Dónde se descarga"},[el("div",{class:"seg"},[["nave","En la nave"],["externo","Almacén externo"]].map(([v,t])=>el("button",{type:"button","aria-pressed":String(d.donde===v),text:t,onclick:()=>{d.donde=v;render();}})))]),
     el("div",{class:"row"},[
       el("label",{text:d.sinAlb?"Kilos (si los sabes)":"Kilos"},[el("input",{id:"e-kg",class:"num",type:"text",inputmode:"decimal",min:"0",step:"any",value:d.kg||"",oninput:e=>{d.kg=e.target.value;vivo();}})]),
-      el("label",{text:"Kilos de báscula (si se ha pesado)"},[el("input",{id:"e-kb",class:"num",type:"text",inputmode:"decimal",value:d.kb||"",placeholder:"opcional",oninput:e=>{d.kb=e.target.value;}})]),
+      el("label",{text:"Kilos de báscula (fábrica)"},[el("input",{id:"e-kb",class:"num",type:"text",inputmode:"decimal",value:d.kb||"",disabled:d.noPesa?"":null,placeholder:d.noPesa?"no se pesa":"si aún no lo tienes, luego",oninput:e=>{d.kb=e.target.value;difKb();}})]),
       el("label",{text:"Fardos"},[el("input",{id:"e-fa",class:"num",type:"text",inputmode:"numeric",min:"0",step:"1",value:d.fardos||"",oninput:e=>{d.fardos=e.target.value;vivo();}})]),
       el("label",{text:d.sinAlb?"Día que llegó":"Fecha albarán"},[el("input",{id:"e-f",type:"date",value:d.fecha,onchange:e=>{d.fecha=e.target.value;render();}})])
     ]),
+    el("p",{id:"e-kbd",class:"hint"}),
+    el("label",{class:"chk-sa"},[el("input",{type:"checkbox",id:"e-nopesa",checked:d.noPesa?"":null,onchange:e=>{d.noPesa=e.target.checked;if(d.noPesa)d.kb="";render();}}),
+      el("span",{},[el("b",{text:"No se va a pesar"}),el("small",{text:"Si lo dejas sin marcar y sin peso, la entrada queda en «Pendientes de pesar» para ponerlo cuando tengas el pesaje de la fábrica."})])]),
     el("label",{text:"Observaciones"},[el("input",{id:"e-obs",value:d.obs||"",placeholder:"desglose de coladas, matrícula, pedido…",oninput:e=>{d.obs=e.target.value;}})]),
     el("label",{text:"Foto del albarán"},[
       el("input",{id:"e-foto",type:"file",accept:"image/*",onchange:e=>{d.foto=e.target.files&&e.target.files[0]?e.target.files[0]:null;d.leido=null;render();}}),
@@ -108,6 +133,7 @@ function vEntrada(){
     d.volver==="rdiario"?el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1 1 200px",text:"Vienes del recuento diario: al registrar la entrada vuelves allí con la colada nueva para contarla."}),
       el("button",{type:"button",class:"btn sec peq",id:"e-volver",text:"Volver al recuento",onclick:()=>{draft.ent={};tab="consumo";PANV.consumo="rdiario";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();}})]):null,
     cardSinAlb(),
+    cardBascula(),
     (()=>{const pend=pendientesPlan().filter(x=>x.f<=diaSig(diaSig(hoy())));
       if(d.plan){return el("div",{class:"banner w",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[
         el("span",{style:"flex:1",text:"Camión previsto del "+dmy(d.plan.f)+(d.plan.k?" para "+etiqLinea(d.plan.k):"")+" ("+fmt(d.plan.fa)+" f). "+
