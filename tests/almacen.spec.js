@@ -826,6 +826,38 @@ test('Tolvas: enviar a reparar, vuelven al almacén con su importe y el cambio e
   expect(err).toEqual([]);
 });
 
+test('Tolvas: las quitadas en los cambios quedan «para reparar», se corrigen, se envían y las sin arreglo van a chatarra', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];
+    const m25 = v.cat.app.maquinas.find(x => x.cod === 'F25');
+    v.cat.app.articulos.push({ id: 'tv-h', desc: 'Tolva de hierro', fam: 'horno', grupo: 'Tolvas', ud: 'ud', alms: ['gen'], precio: '300', iny: [m25.id] }, { id: 'tv-r', desc: 'Tolva refractaria', fam: 'horno', grupo: 'Tolvas', ud: 'ud', alms: ['gen'], precio: '450', iny: [m25.id] });
+    v.cat.app.tquit = { ini: '2026-01-01', base: {}, baja: [] };
+    v.mov[k].items.push({ id: 'tvs1', f: '2026-10-05', alm: 'gen', art: 'tv-r', cant: 1, tipo: 'salida', maq: m25.id }, { id: 'tvs2', f: '2026-10-06', alm: 'gen', art: 'tv-r', cant: 1, tipo: 'salida', inc: 'x' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Horno$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view'), tb = v.locator('#tqTabla');
+  await expect(tb).toContainText(/Tolva refractaria\s*1\s*0\s*0/); // la incidencia no cuenta como quitada
+  await expect(v).toContainText('1 quitadas');
+  await v.locator('#tqCorr').click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await d.locator('#tqCtv-r').fill('3'); await d.locator('#tqCtv-h').fill('1'); await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  await expect(tb).toContainText(/Tolva refractaria\s*3\s*0/); await expect(tb).toContainText(/Tolva de hierro\s*1\s*0/);
+  await v.locator('button', { hasText: 'Enviar a reparar' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last();
+  await expect(d.locator('#tvCtv-r')).toHaveValue('3'); await expect(d).toContainText('hay 3 quitadas');
+  await d.locator('#tvCtv-r').fill('2'); await d.locator('#tvCtv-h').fill(''); await d.locator('button', { hasText: 'Enviar' }).click(); await page.waitForTimeout(800);
+  await expect(tb).toContainText(/Tolva refractaria\s*1\s*2\s*0/);
+  await v.locator('button', { hasText: 'Sin arreglo (chatarra)' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await d.locator('#tqbA').selectOption('tv-r'); await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  await expect(tb).toContainText(/Tolva refractaria\s*0\s*2\s*0/);
+  await v.locator('.it', { hasText: 'Tolva refractaria × 2' }).locator('button', { hasText: 'Han vuelto' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await d.locator('#tvvA').fill('A-55'); await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(900);
+  await expect(tb).toContainText(/Tolva refractaria\s*0\s*0\s*2/);
+  await expect(v).toContainText('A-55');
+  expect(await page.evaluate(() => window.__D.cat.app.tquit.baja.length)).toBe(1);
+  expect(err).toEqual([]);
+});
+
 test('Movimientos: modificar una entrada (pistones nuevos ↔ recuperados, cantidad y fecha de otro mes)', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov).sort().pop();
