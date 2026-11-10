@@ -465,7 +465,7 @@ test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cu
   await page.locator('[id="rdc-l3"]').fill('3'); // uno más gastado de lo que dicen las hojas
   await expect(card).toContainText('en las hojas falta 1 fardo');
   await expect(card.locator('.rd-mot')).toBeVisible();
-  await expect(card.locator('.rd-mot select')).toHaveValue('con');
+  await expect(card.locator('.rd-mot select').first()).toHaveValue('con');
   await page.locator('#rd-go').click(); await page.waitForTimeout(300);
   await page.locator('.dlg button', { hasText: 'Lo contado es lo correcto' }).click(); await page.waitForTimeout(700);
   const ms = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(r => /Recuento diario/.test(r.n || '')));
@@ -487,6 +487,69 @@ test('Recuento diario: fardos de las hojas (o kilos) + lo contado, se apunta, cu
   // la próxima vez empieza en el relevo de hoy: lo ya apuntado sale como «ya apuntados»
   await expect(page.locator('.stk-t', { hasText: 'Recuento diario' }).first()).toContainText('Hecho');
   expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Recuento diario: fardo sin etiqueta en la hoja queda pendiente (sin ajuste) y se cierra al pegarla', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-04T16:00:00+01:00'));
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  const k = 'Nave 1|L-2630', kid = k.replace(/[^A-Za-z0-9]/g, '');
+  const n = await card.locator('.rd-rels input').count();
+  for (let j = 0; j < n; j++) { const ph = await page.locator(`[id="rdr-${k}-${j}"]`).getAttribute('placeholder'); await page.locator(`[id="rdr-${k}-${j}"]`).fill(ph || '0'); }
+  const fifo = Number(await card.locator('.rd-fifo').first().textContent());
+  await page.locator('[id="rdc-l3"]').fill(String(fifo - 1)); // se ha gastado uno que no sale en la hoja
+  await expect(card).toContainText('en las hojas falta 1 fardo');
+  await expect(card.locator(`#rdp-${kid}`)).toBeHidden();
+  await page.selectOption(`#rdm-${kid}`, 'pend');
+  await expect(card.locator(`#rdp-${kid}`)).toBeVisible();
+  await page.selectOption(`#rdp-${kid}`, String(n - 1));
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('1 pendiente de etiqueta');
+  await page.locator('.dlg button', { hasText: 'Lo contado es lo correcto' }).click(); await page.waitForTimeout(700);
+  const todos = () => page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items));
+  let ms = await todos();
+  expect(ms.filter(r => r.t === 'A')).toHaveLength(0);
+  const pe = ms.find(r => r.pe); expect(pe).toMatchObject({ t: 'C', o: 'l3', fa: 1 });
+  await page.locator('.dlg button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#rd-pend')).toContainText('C25003');
+  // siguiente recuento: la hoja de ese relevo ya trae la etiqueta → se cierra solo, sin consumo nuevo ni ajuste
+  const ph0 = Number(await page.locator(`[id="rdr-${k}-0"]`).getAttribute('placeholder'));
+  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ph0 - 1)); // aún sin etiqueta: vale, sigue pendiente
+  await expect(card.locator('.rd-ya.mal')).toHaveCount(0);
+  await page.locator(`[id="rdr-${k}-0"]`).fill(String(ph0));
+  for (let j = 1; j < await card.locator('.rd-rels input').count(); j++) await page.locator(`[id="rdr-${k}-${j}"]`).fill('0');
+  await card.locator('.rd-fifo').first().click();
+  await expect(card).toContainText('Etiqueta pegada: el fardo pendiente se cierra');
+  await expect(card.locator('.rd-mot')).toBeHidden();
+  await page.locator('#rd-go').click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg').last()).toContainText('1 f de etiqueta pegada');
+  await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(700);
+  ms = await todos();
+  expect(ms.filter(r => r.pe)).toHaveLength(0);
+  expect(ms.find(r => r.i === pe.i).n).toContain('etiqueta pegada después');
+  expect(ms.filter(r => r.t === 'A')).toHaveLength(0);
+  expect(ms.filter(r => r.t === 'C' && r.f + r.u > pe.f + pe.u)).toHaveLength(0);
+  await page.locator('.dlg button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('#rd-pend')).toHaveCount(0);
+  expect(err).toEqual([]);
+});
+
+test('Fardo pendiente de etiqueta: se cierra a mano con los kilos de la etiqueta', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { const m = '2026-10', it = ((window.__D.mov[m] || {}).items || []).slice(); it.push({ i: 'pe1', t: 'C', f: '2026-10-01', u: 'Mañana', o: 'l3', fa: 1, kg: 700, pe: 1, n: 'Recuento diario · falta la etiqueta en la hoja' }); await db.doc('mov/' + m).set({ items: it }); }); await page.waitForTimeout(400);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+  await page.locator('#rd-pend .chip').first().click();
+  await expect(page.locator('.dlg').last()).toContainText('Fardo pendiente de etiqueta');
+  await page.fill('#pe-kg', '712,5'); await page.locator('#pe-pegada').click(); await page.waitForTimeout(500);
+  const r = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(x => x.i === 'pe1'));
+  expect(r.pe).toBeUndefined(); expect(r.kg).toBe(712.5); expect(r.n).toContain('etiqueta pegada después');
+  await expect(page.locator('#rd-pend')).toHaveCount(0);
   expect(err).toEqual([]);
 });
 

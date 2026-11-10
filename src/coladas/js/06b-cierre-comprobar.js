@@ -159,6 +159,11 @@ function vRepaso(){if(typeof huecos!=="function")return null;
   it.push({ok:!sinM.length,t:sinM.length?sinM.length+(sinM.length===1?" ajuste sin motivo":" ajustes sin motivo"):(AJ.length?"Todos los ajustes tienen motivo":"Sin ajustes esta semana"),
     det:sinM.length?"Toca uno para decir por qué no cuadraba: así el cierre separa el consumo mal apuntado de los fardos cambiados de colada.":null,
     chips:sinM.map(r=>{const l=lotes.find(x=>x.id===(r.o||r.d))||{};return{t:(l.nombre||"?")+" · "+dmy(r.f)+" · "+(r.d?"+":"−")+fmt(r.fa||0)+" f",fn:()=>motivoAjuste(r)};})});
+  /* fardos pendientes de etiqueta con más de una semana */
+  {const PV=pendientesEt().filter(r=>r.f<fMas(hoy(),-7));
+   it.push({ok:!PV.length,t:PV.length?PV.length+(PV.length===1?" fardo pendiente de etiqueta":" fardos pendientes de etiqueta")+" desde hace más de una semana":"Ningún fardo lleva más de una semana sin etiqueta",
+     det:PV.length?"Mira si ya han pegado la etiqueta en la hoja de ese relevo o si se ha perdido, y ciérralo.":null,
+     chips:PV.map(r=>({t:nomLote(r.o)+" · "+relTxt(r)+" · "+fmt(r.fa)+" f",fn:()=>dlgPend(r)}))});}
   /* en qué línea se abre diferencia: ajustes frente al consumo apuntado */
   const L={};todosMovs().filter(r=>!r.h&&r.f>=d1&&r.f<=dn&&(r.t==="C"||r.t==="A")).forEach(r=>{const l=lotes.find(x=>x.id===(r.o||r.d));if(!l)return;const k=key(l.nave,l.material),x=L[k]=L[k]||{n:l.nave,m:l.material,c:0,a:0,fifo:0};
     const kg=Math.abs(typeof r.kg==="number"?r.kg:(r.fa||0)*((saldos()[l.id]||{}).ratio||0));if(r.t==="C"){x.c+=kg;if(/Fuera de FIFO/.test(r.n||""))x.fifo++;}else x.a+=r.d?kg:-kg;});
