@@ -70,6 +70,27 @@ test('entrada sin albarán: al llegar el albarán se lee la foto y se coteja con
   expect(err).toEqual([]);
 });
 
+test('Camión con retraso que ya se metió a mano: «Ya está metido» lo une a la entrada (sin duplicar)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-11T07:00:00+01:00'));
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.lotes.lx = { nombre: 'C26200', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: '2026-11-10', sinAlb: true };
+    (v.mov['2026-11'] = v.mov['2026-11'] || { items: [] }).items.push({ i: 'e1', t: 'E', f: '2026-11-10', d: 'lx', fa: 33, kg: 24000, sa: true });
+    const pl = v.cfg.app.plan = v.cfg.app.plan || {}; pl['2026-11'] = { camiones: [], consumo: {}, entradas: [
+      { f: '2026-11-10', k: 'Nave 2|L-2630', o: 'C', p: 'BEFESA', fa: 37 },
+      { f: '2026-11-12', k: 'Nave 1|L-2630', o: 'C', p: 'BEFESA', fa: 37, rec: { f: '2026-11-10', k: 'Nave 2|L-2630', l: 'lx' } }] }; } }); });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Entrada').click()); await page.waitForTimeout(300);
+  await page.locator('.chip.tarde').first().click(); await page.waitForTimeout(300);
+  await page.locator('#e-yametido').click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('ahora unida al camión del 12/11');
+  await d.locator('.ym-it', { hasText: 'C26200' }).click(); await page.waitForTimeout(600);
+  const P = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(P[0].rec).toMatchObject({ l: 'lx' }); expect(P[1].rec).toBeUndefined();
+  expect(err).toEqual([]);
+});
+
 test('entrada sin albarán: se mete con kilos estimados y se completa después', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);

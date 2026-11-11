@@ -172,6 +172,7 @@ function vEntrada(){
         el("span",{style:"flex:1",text:"Camión previsto del "+dmy(d.plan.f)+(d.plan.k?" para "+etiqLinea(d.plan.k):"")+" ("+fmt(d.plan.fa)+" f). "+
           ((d.nave&&d.mat&&d.plan.k&&key(d.nave,d.mat)!==d.plan.k)?"Lo estás metiendo en "+etiqLinea(key(d.nave,d.mat))+": quedará como desviado. ":"Si hay que meterlo en otra nave, cámbiala abajo. ")+
           "Al registrar quedará marcado como recibido en el Plan."}),
+        el("button",{type:"button",class:"btn sec",id:"e-yametido",text:"Ya está metido",onclick:()=>yaMetido(d.plan)}),
         el("button",{type:"button",class:"btn sec del",text:"No es ese",onclick:()=>{delete d.plan;render();}})]);}
       if(!pend.length)return null;
       return el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Camiones previstos"}),el("span",{class:"sub",style:"margin-left:auto",text:"toca el que ha llegado"})]),

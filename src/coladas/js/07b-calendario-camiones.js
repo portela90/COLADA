@@ -50,6 +50,7 @@ function dlgCamion(m,ents,idx,provs,nuevo){const x=nuevo||ents[idx],f={f:x.f,k:x
     el("div",{class:"dlg-b",style:"flex-wrap:wrap"},[
       nuevo?null:el("button",{type:"button",class:"btn sec",text:"Quitar",onclick:async()=>{if(!(await confirmar("¿Quitar este camión del calendario?",{titulo:"Quitar camión",ok:"Quitar"})))return;try{await guardarEntradas(m,ents.filter((_,i)=>i!==idx));toast("Quitado");cerrar();render();}catch(e){toast("No se pudo");}}}),
       nuevo||esB?null:el("button",{type:"button",class:"btn sec",text:"Ha llegado",onclick:()=>{cerrar();llegaCamion(Object.assign({mes:m},x));}}),
+      nuevo||esB||x.rec?null:el("button",{type:"button",class:"btn sec",text:"Ya está metido",onclick:()=>{cerrar();yaMetido(Object.assign({mes:m},x));}}),
       el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar}),
       el("button",{type:"button",class:"btn",id:"cm-ok",text:nuevo?"Añadir":"Guardar",onclick:guardar})])]);
   ov.appendChild(box);document.body.appendChild(ov);}

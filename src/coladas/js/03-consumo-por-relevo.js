@@ -208,6 +208,27 @@ async function marcarPlan(ref,rec){
   const c=Object.assign({},cfg.plan||{}),p=Object.assign({camiones:[],consumo:{},entradas:[]},c[ref.mes]||{});
   let hecho=false;p.entradas=(p.entradas||[]).map(x=>{if(!hecho&&!x.rec&&x.f===ref.f&&(x.k||"")===(ref.k||"")&&x.fa===ref.fa&&x.o===ref.o){hecho=true;return Object.assign({},x,{rec});}return x;});
   if(!hecho)return false;c[ref.mes]=p;cfg.plan=c;await saveCfg();return true;}
+/* «Ya está metido»: un camión del plan que ya se metió como entrada (p. ej. a mano, sin albarán) y no quedó unido:
+   se elige la entrada y el camión queda recibido con ella. Si esa entrada estaba unida a otro camión, ese vuelve a pendiente. */
+function yaMetido(ref){const E=todosMovs().filter(r=>r.t==="E"&&!r.h&&r.f).map(r=>({r,l:lotes.find(x=>x.id===r.d)})).filter(x=>x.l)
+    .filter(x=>Math.abs((new Date(x.r.f)-new Date(ref.f))/864e5)<=10).sort((a,b)=>Math.abs(new Date(a.r.f)-new Date(ref.f))-Math.abs(new Date(b.r.f)-new Date(ref.f)));
+  const unido={};Object.keys(cfg.plan||{}).forEach(m=>((cfg.plan[m]||{}).entradas||[]).forEach(x=>{if(x.rec&&x.rec.l)unido[x.rec.l]=x;}));
+  const ov=el("div",{class:"dlg-ov",onclick:e=>{if(e.target===ov)ov.remove();}}),cerrar=()=>ov.remove();
+  const elegir=async x=>{const c=Object.assign({},cfg.plan||{});let hecho=false;
+    Object.keys(c).forEach(m=>{const p=Object.assign({},c[m]);p.entradas=(p.entradas||[]).map(e=>{
+      if(e.rec&&e.rec.l===x.l.id&&!(m===ref.mes&&e.f===ref.f&&(e.k||"")===(ref.k||"")&&e.fa===ref.fa&&e.o===ref.o)){const n=Object.assign({},e);delete n.rec;return n;}
+      if(!hecho&&m===ref.mes&&!e.rec&&e.f===ref.f&&(e.k||"")===(ref.k||"")&&e.fa===ref.fa&&e.o===ref.o){hecho=true;return Object.assign({},e,{rec:{f:x.r.f,k:key(x.l.nave,x.l.material),l:x.l.id}});}
+      return e;});c[m]=p;});
+    if(!hecho){toast("No se ha encontrado ese camión en el plan");return;}
+    try{cfg.plan=c;await saveCfg();cerrar();if(draft.ent)delete draft.ent.plan;toast("Camión marcado como recibido con la entrada de "+(x.l.nombre||"?"));render();}catch(e){toast("No se pudo guardar");}};
+  ov.appendChild(el("div",{class:"dlg",role:"dialog","aria-modal":"true","aria-label":"Ya está metido"},[el("h3",{text:"¿Con qué entrada llegó?"}),
+    el("p",{class:"sub",text:"Camión previsto del "+dmy(ref.f)+(ref.k?" para "+etiqLinea(ref.k):"")+" ("+fmt(ref.fa)+" f). Elige la entrada que ya metiste: el camión queda recibido y no hay que meterla otra vez."}),
+    E.length?el("div",{class:"bq-lst"},E.map(x=>{const u=unido[x.l.id];return el("button",{type:"button",class:"bq-it ym-it",onclick:()=>elegir(x)},[el("div",{class:"bq-p"},[
+      el("b",{text:dmy(x.r.f)+" · "+(x.l.nombre||"coladas por saber")+" · "+fmt(x.r.fa)+" f"}),
+      el("span",{class:"sub",text:x.l.nave+" · "+MAT[x.l.material].nom+(x.l.proveedor?" · "+x.l.proveedor:"")+(x.r.sa?" · sin albarán":"")+(u?" · ahora unida al camión del "+dmy(u.f)+(u.k?" ("+etiqLinea(u.k)+")":""):"")})])]);})):
+      el("p",{class:"hint",text:"No hay entradas 10 días alrededor de ese día."}),
+    el("div",{class:"dlg-b"},[el("button",{type:"button",class:"btn sec",text:"Cancelar",onclick:cerrar})])]));
+  document.body.appendChild(ov);}
 function llegaCamion(x){
   const [n,mt]=(x.k||"|").split("|"),P=(cfg.plan||{})[x.mes]||{};
   const provs=[...new Set((P.camiones||[]).filter(c=>!mt||c.m===mt).map(c=>c.p).filter(Boolean))];
