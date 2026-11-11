@@ -20,7 +20,7 @@ const UDS=["ud","kg","l","m","caja","rollo"];
 const DIAM=["Ø 50","Ø 60","Ø 70","Ø 70 esp","Ø 80","Ø 90","Ø 90 esp","Ø 100","Ø 100 esp"];
 const MOTIVOS=["DESGASTE","ROTURA","FUGA DE AGUA","PISTÓN AGARROTADO","CAMBIO REF","CAMBIO PREVENTIVO","PRUEBAS","TRABAJANDO SIN PISTONWAX"];
 const DESTINOS=["ZONA DE PISTONES USADOS","QUEDA PUESTO EN EL EJE (AGARROTADO)","DESECHADO","NO ESTÁ EN LA ZONA PISTONES USADO NI EN EJE"];
-const EST_E={planta:["En planta","ok"],preparado:["Preparado para enviar","info"],reparacion:["En reparación","warn"],devuelto:["Devuelto a reparar","bad"]};
+const EST_E={planta:["En planta","ok"],preparado:["Preparado para enviar","info"],reparacion:["En reparación","warn"],devuelto:["Devuelto a reparar","bad"],revisar:["Llegado, por revisar","info"]};
 const AMBAR=30,ROJO=60;
 const TIPOS={entrada:"Entrada",salida:"Consumo",traslado:"Traslado",ajuste:"Conteo"};
 

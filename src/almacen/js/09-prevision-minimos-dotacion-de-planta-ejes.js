@@ -44,7 +44,7 @@ function sugEjes(P,S){const hy=hoy();const rs=todasRep().filter(r=>r.res!=="anul
     const es=ejes.filter(e=>cs.includes(e.mod));const pl=Math.max(0,es.filter(e=>e.estado==="planta").length-pend),tal=es.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length,prep=es.filter(e=>e.estado==="preparado").length;
     const min=maq+poisQ(lam*P.taller,P.nivel/100),ideal=Math.max(min+(lam>0?1:0),maq+poisQ(lam*(P.taller+30),P.nivel/100));
     const ped=es.filter(e=>(e.estado==="reparacion"||e.estado==="devuelto")&&(abiertaDe(e.cod)||{}).traer).length;
-    const bajo=pl<=min;const pedir=bajo?Math.max(0,Math.min(tal,Math.max(0,ideal-pl))-ped):0;const faltan=bajo?Math.max(0,ideal-pl-tal):0;
+    const rvN=es.filter(e=>e.estado==="revisar").length;const bajo=pl<=min;const pedir=bajo?Math.max(0,Math.min(tal,Math.max(0,ideal-pl-rvN))-ped):0;const faltan=bajo?Math.max(0,ideal-pl-tal-rvN):0;
     const ahora=Math.max(0,...G.map(x=>+x.min||0));
     L.push({m,G,pend,ped,nom:grupoNom(m),n,lam,maq,pl,rep:Math.max(0,pl-maq),tal,prep,tot:es.length,min,ideal,bajo,pedir,faltan,ahora,mes:lam*S.dm});});
   return{D,ini,L};}
@@ -195,14 +195,15 @@ const diasAb=r=>r.env?laborables(r.env,hoy()):null;
 function pillDias(n){if(n==null)return el("span",{class:"pill info",text:"Sin enviar"});return el("span",{class:"pill na",text:n+" días"});}
 function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length;
   const disp=tot?Math.round(c("planta")/tot*100):0;
-  v.appendChild(el("dl",{class:"kpis num"},[["Total",tot],["En planta",c("planta")],["En reparación",c("reparacion")],["Preparados",c("preparado")],["Devueltos",c("devuelto")],["Disponible",disp+" %"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
-  const prep=ejes.filter(e=>e.estado==="preparado"),fuera=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto");
+  v.appendChild(el("dl",{class:"kpis num"},[["Total",tot],["En planta",c("planta")],["En reparación",c("reparacion")],["Preparados",c("preparado")],["Devueltos",c("devuelto")],["Por revisar",c("revisar")],["Disponible",disp+" %"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  const prep=ejes.filter(e=>e.estado==="preparado"),fuera=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto"),rv=ejes.filter(e=>e.estado==="revisar");
+  {const cr=cardRevisar();if(cr)v.appendChild(cr);}
   {const LP=listaPedir();if(LP.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Para pedir al taller ("+LP.length+")"})]),
     el("div",{class:"lst"},LP.map(e=>el("button",{type:"button",class:"it",onclick:()=>fichaEje(e)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+" · "+ejeRef(e)}),el("div",{class:"t2",text:"En el taller desde el "+fmtF((abiertaDe(e.cod)||{}).env)})])]))),
     el("div",{class:"bd"},el("button",{type:"button",class:"btn",style:"width:100%",text:"Enviar WhatsApp al taller",onclick:dlgListaPedir}))]));}
   v.appendChild(el("div",{class:"acciones acc2"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
     fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
-    fuera.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
+    fuera.length||rv.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
     fuera.length?(()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"eLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranEjes(x);});
       return el("span",{style:"display:contents"},[fi,el("button",{type:"button",class:"btn sec",text:"Leer albarán del taller",onclick:()=>fi.click()})]);})():null,
     el("button",{type:"button",class:"btn sec",text:"Poner eje en cuarentena",onclick:()=>formCuarentena()}),el("button",{type:"button",class:"btn sec",text:"Revisar ejes",onclick:()=>revisionEjes()}),
@@ -311,11 +312,12 @@ function fichaEje(e){const f={f:hoy(),desp:"",alb:"",res:"ok",obs:""};const ab=a
         cat.ejeRecup=ejeRecup().concat([{id:uid(),f:f.f,maq:(ab&&ab.maq)||e.maq||null,mods:[e.mod],motivo:ag?AGARR:null,eje:e.cod,rep:ab?ab.id:null}]);await saveCat();
         await updEje(e,{estado:"planta"});toast(e.cod+" recuperado en planta");}});}
   else{if(ab&&ab.traer)acts.push({t:"Quitar «pedido traer»",cls:"sec",fn:async()=>{await updReps([[ab,{traer:null}]]);toast("Marca quitada");}});
-    body.push(ab?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer)+" (hace "+diasPedido(ab)+" días laborables)":" · En el taller sin pedir (tu reserva allí)")}):null,
-      ab?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:ab.apedir?"btn sec":"btn",text:ab.apedir?"✓ En la lista para pedir · quitar":"Añadir a la lista para pedir al taller",onclick:async()=>{
+    if(e.estado==="revisar"&&ab){f.f=hoy();f.alb=ab.alb||"";body.push(el("div",{class:"banner",text:"Llegó del taller el "+fmtF(ab.lleg)+(ab.alb?" (albarán "+ab.alb+")":"")+" y está por revisar. Cuando lo revises, marca OK (vuelve a planta) o NO-OK (vuelve al taller)."}));}
+    body.push(ab&&e.estado!=="revisar"?el("p",{text:"Enviado "+fmtF(ab.env)+" · "+ab.desp+(ab.traer?" · Pedido traer el "+fmtF(ab.traer)+" (hace "+diasPedido(ab)+" días laborables)":" · En el taller sin pedir (tu reserva allí)")}):null,
+      ab&&e.estado!=="revisar"?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:ab.apedir?"btn sec":"btn",text:ab.apedir?"✓ En la lista para pedir · quitar":"Añadir a la lista para pedir al taller",onclick:async()=>{
           const nu=ab.apedir?null:hoy();try{await updReps([[ab,{apedir:nu}]]);}catch(er){toast("No se pudo guardar");return;}ab.apedir=nu;toast(nu?"Añadido a la lista ("+listaPedir().length+")":"Quitado de la lista");cerrarDlgs();re();}}),
         listaPedir().length?el("button",{type:"button",class:"btn sec",text:"Ver la lista y enviar ("+listaPedir().length+")",onclick:()=>dlgListaPedir()}):null]):null,
-      fecha(),fld("Albarán de recepción",inp("efA","",v=>f.alb=v,{autocomplete:"off"})),
+      fecha(),fld("Albarán de recepción",inp("efA",f.alb,v=>f.alb=v,{autocomplete:"off"})),
       el("div",{class:"seg",role:"group","aria-label":"Resultado"},[["ok","OK"],["nook","NO-OK"]].map(([k,l])=>{const b=el("button",{type:"button","aria-pressed":String(f.res===k),text:l});b.onclick=()=>{f.res=k;b.parentNode.querySelectorAll("button").forEach(z=>z.setAttribute("aria-pressed",String(z===b)));obsF.hidden=k!=="nook";};return b;})));
     const obsF=fld("Observación NO-OK",inp("efO","",v=>f.obs=v,{autocomplete:"off"}),true);body.push(obsF);
     acts.push({t:"Registrar recepción",fn:async()=>{if(f.res==="nook"&&!f.obs.trim()){toast("Explica por qué es NO-OK");return false;}await recibir([e],f.f,f.alb,f.res,f.obs);toast(e.cod+(f.res==="ok"?" recibido OK":" devuelto a reparar"));if(f.res==="ok")trasRecibir([e]);}});}
@@ -381,7 +383,7 @@ function mensajeTaller(list,provId,alEnviar){const pv=cat.proveedores.find(x=>x.
 function envioMultiple(){const list=ejes.filter(e=>e.estado==="preparado").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy()};const cl=checkList(list,true);
   dlg("Enviar a reparar",[fld("Fecha de envío",inp("emF",f.f,v=>f.f=v,{type:"date"})),el("p",{class:"hint",text:"Desmarca los que no quieras enviar todavía: se quedan como «Preparado para enviar» para otro día."}),cl.box],
     [{t:"Cancelar",cls:"sec"},{t:"Enviar",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await enviar(s,f.f);toast(s.length+" ejes enviados a reparar");}catch(er){toast("No se pudo guardar");return false;}}}]);}
-function recepcionMultiple(){const list=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy(),alb:"",imp:""};const cl=checkList(list,false);
+function recepcionMultiple(){const list=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto"||e.estado==="revisar").sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));const f={f:hoy(),alb:"",imp:""};const cl=checkList(list,false);
   dlg("Recibir de reparación",[fld("Fecha de recepción",inp("rmF",f.f,v=>f.f=v,{type:"date"})),fld("Albarán",inp("rmA","",v=>f.alb=v,{autocomplete:"off"})),fld("Importe por eje en € (opcional; si no, se usa el precio del modelo)",inp("rmI","",v=>f.imp=v,{inputmode:"decimal",class:"num"})),el("p",{class:"hint",text:"Marca los ejes que llegan bien (OK). Si alguno llega mal, regístralo desde su ficha como NO-OK."}),cl.box],
     [{t:"Cancelar",cls:"sec"},{t:"Recibir OK",fn:async()=>{const s=cl.sel();if(!s.length){toast("Marca al menos un eje");return false;}try{await recibir(s,f.f,f.alb,"ok",null,parseN(f.imp));toast(s.length+" ejes recibidos OK");}catch(er){toast("No se pudo guardar");return false;}trasRecibir(s);}}]);}
 function analisisEjes(){const all=todasRep().filter(r=>r.env&&r.res!=="anulada"),hy=hoy(),ano=hy.slice(0,4);

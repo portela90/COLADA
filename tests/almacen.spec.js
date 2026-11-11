@@ -2202,14 +2202,23 @@ test('Leer albarán en Barras expulsoras (suma al stock) y albarán del taller e
   await ir('Ejes');
   await page.locator('#eLeerAlb').setInputFiles(png); await page.waitForTimeout(1200);
   d = page.locator('.dlg').last();
-  await expect(d.locator('#leAlb')).toHaveValue('T-55');
-  await expect(d.locator('.le-fila')).toHaveCount(2); await expect(d).not.toContainText('PORTES');
-  await expect(d.locator('#leE0')).toHaveValue('e4'); await expect(d.locator('#leE1')).toHaveValue('e2');
+  await expect(d.locator('#leAlb')).toHaveValue('T-55'); await expect(d).not.toContainText('PORTES');
+  // salen todos los del taller; los del albarán ya marcados
+  await expect(d.locator('#leC-e4')).toBeChecked(); await expect(d.locator('#leC-e2')).toBeChecked(); await expect(d.locator('#leC-e6')).not.toBeChecked();
   await expect(d).toContainText('lo ha elegido la IA');
-  await d.locator('button', { hasText: 'Recibir OK' }).click(); await page.waitForTimeout(900);
-  const E = await page.evaluate(() => [window.__D.ejes.e2.estado, window.__D.ejes.e4.estado]);
-  expect(E).toEqual(['planta', 'planta']);
-  const R = await page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).filter(r => r.alb === 'T-55').map(r => r.eje).sort());
-  expect(R).toEqual(['2.8.J-2', '2.8.J-4']);
+  await d.locator('button', { hasText: 'Dar entrada (por revisar)' }).click(); await page.waitForTimeout(900);
+  const est = () => page.evaluate(() => [window.__D.ejes.e2.estado, window.__D.ejes.e4.estado, window.__D.ejes.e6.estado]);
+  expect(await est()).toEqual(['revisar', 'revisar', 'reparacion']);
+  const R = () => page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).filter(r => r.alb === 'T-55').map(r => [r.eje, r.lleg, r.res || null, !!r.nook]).sort());
+  expect(await R()).toEqual([['2.8.J-2', '2026-11-10', null, false], ['2.8.J-4', '2026-11-10', null, false]]);
+  // más adelante se revisan: uno OK y otro NO-OK
+  await expect(page.locator('#eRevCard')).toContainText('por revisar (2)');
+  await page.locator('#eRevisar').click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last();
+  await d.locator('button[data-e="e4"][data-r="ok"]').click(); await d.locator('button[data-e="e2"][data-r="nook"]').click();
+  await d.locator('#rvO-e2').fill('sigue con holgura');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(900);
+  expect(await est()).toEqual(['devuelto', 'planta', 'reparacion']);
+  const R2 = await R(); expect(R2[1][2]).toBe('ok'); expect(R2[0][3]).toBe(true);
   expect(err).toEqual([]);
 });

@@ -32,7 +32,7 @@ function faltaR(r){const f=[],q=parseN(r.cant);if(!r.f)f.push("fecha");
   if(r.tipo.startsWith("eje_")){const e=ejeDe(r.eje);if(!e){f.push(r.eje?"no existe el eje "+r.eje:"eje");return f;}const est=(EST_E[e.estado]||[e.estado])[0];
     if(r.tipo==="eje_prep"){if(e.estado!=="planta")f.push("el eje está «"+est+"», no en planta");if(!(r.desp||"").trim())f.push("desperfecto");}
     if(r.tipo==="eje_env"&&!(e.estado==="planta"||e.estado==="preparado"))f.push("el eje ya está «"+est+"»");
-    if(r.tipo==="eje_rec"&&!(e.estado==="reparacion"||e.estado==="devuelto"))f.push("el eje está «"+est+"», no en reparación");return f;}
+    if(r.tipo==="eje_rec"&&!(e.estado==="reparacion"||e.estado==="devuelto"||e.estado==="revisar"))f.push("el eje está «"+est+"», no en reparación");return f;}
   if(r.tipo==="piston"){if(!r.maq)f.push("inyectora");if(!r.diam)f.push("diámetro");if(!(q>0)||Math.round(q)!==q)f.push("cantidad");if(!r.motivo)f.push("motivo");if(!r.dp)f.push("qué se hace con el usado");return f;}
   if(!r.art)f.push("artículo");if(!r.alm)f.push(r.tipo==="traslado"?"desde":"almacén");
   if(r.tipo==="conteo"?!(q>=0):!(q>0))f.push("cantidad");if(r.tipo==="traslado"&&(!r.dest||r.dest===r.alm))f.push("hasta");return f;}
