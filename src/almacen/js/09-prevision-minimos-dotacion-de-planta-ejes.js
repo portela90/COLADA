@@ -216,12 +216,13 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
   const sinCub=bajos.filter(x=>!cubiertoG(x.m)).length;
   if(bajos.length)v.appendChild(el("section",{class:"card"+(sinCub?" alerta":""),id:"eMinCard"},[el("div",{class:"hd"},[el("h2",{text:"Modelos en el mínimo ("+bajos.length+")"}),!sinCub?el("span",{class:"der sub",text:"todo pedido"}):null]),
     el("div",{class:"lst"},bajos.map(({m,p})=>{const tall=ejesTaller(m.cod);const sinPed=tall.filter(e=>{const ab=abiertaDe(e.cod);return!(ab&&ab.traer);});
-      const ped=pedidosG(m),cub=ped.length>=faltaG(m);
+      const ped=pedidosG(m),lle=llegadosG(m),cub=ped.length+lle.length>=faltaG(m);
       return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(cub?"info":p<+m.min?"bad":"warn")}),el("button",{type:"button",class:"ppal linkish",style:"all:unset;flex:1;min-width:0;cursor:pointer",onclick:()=>fichaModelo(m)},[el("div",{class:"t1",text:m.ref}),
         el("div",{class:"t2",text:m.cod+" · "+(tall.length?tall.length+" en el taller"+(tall.length-sinPed.length?" ("+(tall.length-sinPed.length)+" ya pedidos)":""):"ninguno en el taller")})]),
         el("div",{class:"cant num"},[el("b",{text:p}),el("small",{text:"en planta · mín "+m.min})]),
-        cub?el("span",{class:"pill info mod-ped",style:"margin-top:4px",text:"Ya pedido"+(ped.length>1?"s "+ped.length:"")+" · esperando que lleguen"+(ped[0]?" (desde el "+fmtF(ped.map(e=>abiertaDe(e.cod).traer).sort()[0])+")":"")}):
-        sinPed.length?el("button",{type:"button",class:"btn peq",style:"width:100%;margin-top:4px",text:"Pedir al taller ("+Math.min(sinPed.length,faltaG(m)-ped.length)+")",onclick:()=>pedirTraer(m.cod)}):null]);}))]));
+        cub?el("span",{class:"pill info mod-ped",style:"margin-top:4px",text:[lle.length?(lle.length===1?"1 llegado del taller":lle.length+" llegados del taller")+", por revisar":null,
+          ped.length?(ped.length===1?"1 pedido":ped.length+" pedidos")+" esperando que lleguen (desde el "+fmtF(ped.map(e=>abiertaDe(e.cod).traer).sort()[0])+")":null].filter(Boolean).join(" · ")}):
+        sinPed.length?el("button",{type:"button",class:"btn peq",style:"width:100%;margin-top:4px",text:"Pedir al taller ("+Math.min(sinPed.length,faltaG(m)-ped.length-lle.length)+")",onclick:()=>pedirTraer(m.cod)}):null]);}))]));
   /* sin marcar */
   const sinM=ejes.filter(e=>!e.marcado).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
   if(sinM.length)v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Sin el código grabado ("+sinM.length+")"}),el("span",{class:"der sub",text:"Toca para ver"})]),
@@ -352,7 +353,9 @@ function telWA(t){let d=String(t||"").replace(/\D/g,"");if(d.startsWith("00"))d=
 /* ejes ya pedidos al taller del grupo y si bastan para salir del mínimo (en planta > mínimo) */
 function pedidosG(m){const cs=grupoEje(m).map(x=>x.cod);return ejes.filter(e=>cs.includes(e.mod)&&(e.estado==="reparacion"||e.estado==="devuelto")&&(abiertaDe(e.cod)||{}).traer);}
 const faltaG=m=>Math.max(1,(+m.min||0)-plantaG(m)+1);
-const cubiertoG=m=>pedidosG(m).length>=faltaG(m);
+/* los llegados del taller por revisar también cuentan: en cuanto se revisen OK vuelven a planta */
+function llegadosG(m){const cs=grupoEje(m).map(x=>x.cod);return ejes.filter(e=>cs.includes(e.mod)&&e.estado==="revisar");}
+const cubiertoG=m=>pedidosG(m).length+llegadosG(m).length>=faltaG(m);
 function modBajo(cod){const m=modelo(cod);return!!(m&&+m.min>0&&plantaG(m)<=+m.min);}
 function ejesTaller(mod){return ejes.filter(e=>(e.estado==="reparacion"||e.estado==="devuelto")&&(!mod||e.mod===mod));}
 function pedirTraer(mod){if(typeof mod!=="string")mod=null;

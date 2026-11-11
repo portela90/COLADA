@@ -2227,7 +2227,8 @@ test('Ejes en el mínimo: si ya está pedido al taller lo suficiente, no vuelve 
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
     (v.cat.app.modelos || []).forEach(m => { if (m.cod === '2.8.J') m.min = 2; });
-    Object.values(v.rep).forEach(x => x.items.forEach(r => { if (r.eje === '2.8.J-2' && !r.res && window.__TRAER) r.traer = window.__TRAER; })); } }); });
+    Object.values(v.rep).forEach(x => x.items.forEach(r => { if (r.eje === '2.8.J-2' && !r.res && window.__TRAER) r.traer = window.__TRAER; if (r.eje === '2.8.J-2' && !r.res && window.__LLEGA) r.lleg = '2026-10-30'; }));
+    if (window.__LLEGA) Object.values(v.ejes).forEach(e => { if (e.cod === '2.8.J-2') e.estado = 'revisar'; }); } }); });
   const ver = async () => { await page.goto(url); await page.waitForTimeout(1200);
     await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
     await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(300);
@@ -2236,7 +2237,12 @@ test('Ejes en el mínimo: si ya está pedido al taller lo suficiente, no vuelve 
   await expect(it.locator('button', { hasText: 'Pedir al taller (1)' })).toBeVisible();
   await page.addInitScript(() => { window.__TRAER = '2026-11-10'; });
   it = await ver();
-  await expect(it.locator('.mod-ped')).toContainText('Ya pedido');
+  await expect(it.locator('.mod-ped')).toContainText('1 pedido esperando que lleguen');
+  await expect(it.locator('button', { hasText: 'Pedir al taller' })).toHaveCount(0);
+  // ya ha llegado (por revisar) y no se pide otro
+  await page.addInitScript(() => { window.__TRAER = null; window.__LLEGA = true; });
+  it = await ver();
+  await expect(it.locator('.mod-ped')).toContainText('1 llegado del taller, por revisar');
   await expect(it.locator('button', { hasText: 'Pedir al taller' })).toHaveCount(0);
   expect(err).toEqual([]);
 });
