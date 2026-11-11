@@ -1179,7 +1179,7 @@ test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', asy
 test('Pestaña Consumo: apuntar un consumo con el operario', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.locator('#tabs button', { hasText: 'Consumo' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click()); await page.waitForTimeout(300); await page.locator('#view button', { hasText: /^Consumo/ }).first().click(); await page.waitForTimeout(300); await page.waitForTimeout(300);
   await expect(page.locator('#view')).toContainText('Apuntar un consumo');
   await expect(page.locator('#view .seg[aria-label="Tipo de movimiento"]')).toHaveCount(0);
   const a = await page.locator('#mArt option[value]:not([value=""])').first().getAttribute('value'); await page.selectOption('#mArt', a); await page.waitForTimeout(200);
@@ -1246,7 +1246,7 @@ test('Investigar desde las fichas y comprobar una acción vencida en Hoy', async
     let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
       const m = new Date(); m.setDate(m.getDate() - 40); const f = m.toISOString().slice(0, 10); const r = new Date(); r.setDate(r.getDate() - 2);
       v.inv = { lista: { items: [{ id: 'c1', f, t: 'Pistón Ø 80', F: { t: 'Pistón Ø 80', arts: [] }, causa: 'Roturas', accion: 'Revisar refrigeración', rev: r.toISOString().slice(0, 10), antes: { pd: 1, modo: 'u', ud: 'ud', per: 'x' }, estado: 'abierta', ts: 1 }] } }; } }); });
-  await page.goto(url); await page.waitForTimeout(1500);
+  await page.goto(url); await page.waitForTimeout(1500); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
   await expect(page.locator('#view')).toContainText('acción para comprobar');
   await page.locator('#view button', { hasText: 'Comprobar' }).first().click(); await page.waitForTimeout(300);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('Revisar refrigeración'); await expect(d).toContainText('Desde que se apuntó');
@@ -1380,7 +1380,7 @@ test('Barras rotas: guardar para recuperar con el tornillo, mandar al taller, vu
 test('Pestaña Consumo con un pistón: pide motivo y destino, se guarda como cambio de pistón y sin pistonwax pregunta la avería con la causa puesta', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.locator('#tabs button', { hasText: 'Consumo' }).click(); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click()); await page.waitForTimeout(300); await page.locator('#view button', { hasText: /^Consumo/ }).first().click(); await page.waitForTimeout(300); await page.waitForTimeout(300);
   const pa = await page.$eval('#mArt', s => [...s.options].find(o => /Pistón/.test(o.text)).value); await page.selectOption('#mArt', pa); await page.waitForTimeout(300);
   await expect(page.locator('#mMot')).toHaveCount(1); await expect(page.locator('#mDestP')).toHaveCount(1);
   await page.fill('#mCant', '1');
@@ -1405,7 +1405,7 @@ test('Cambios de horno de Limpieza: llegan con motivo y quién, se revisan en Ho
       const f = new Date(); f.setDate(f.getDate() - 1); const fs = f.toISOString().slice(0, 10);
       v.mov[k].items.push({ id: 'hor_ot1_1', f: fs, tipo: 'salida', art: a.id, alm: 'gen', cant: 1, maq: m.id, nota: 'Horno H-' + m.cod + ': cambio tolva', motivo: 'ATASCO', motOrig: 'Tolva atascada', resp: 'Juan José Guerrero', ts: 1 });
       v.mov[k].items.push({ id: 'hor_ot2_1', f: fs, tipo: 'salida', art: a.id, alm: 'gen', cant: 1, maq: m.id, nota: 'Horno H-' + m.cod + ': cambio juntas', motivo: 'PREVENTIVO', motOrig: 'Cambio preventivo', resp: 'Juan José Guerrero', ts: 2 }); } }); });
-  await page.goto(url); await page.waitForTimeout(1500);
+  await page.goto(url); await page.waitForTimeout(1500); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
   await expect(page.locator('#view')).toContainText('1 cambio de horno de Limpieza por revisar');
   await page.locator('#view .it', { hasText: 'cambio de horno de Limpieza por revisar' }).locator('button', { hasText: /^Revisar$/ }).first().click(); await page.waitForTimeout(300);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('Tolva atascada'); await expect(d).toContainText('Juan José Guerrero');
@@ -1636,9 +1636,9 @@ test('Consultas de valor: cantidades en palabras, x2, IVA, ¿tengo para?, con un
 test('Paneles de mosaicos en Almacén: Catálogo abre cada ventana con la lista al lado y vuelve; Hoy deja «Qué hacer hoy» arriba', async ({ page }) => {
   const err = await vigila(page);
   await page.setViewportSize({ width: 1300, height: 850 });
-  await page.goto(url); await page.waitForTimeout(1500);
-  await expect(page.locator('#view .card', { hasText: 'Qué hacer hoy' }).first()).toBeVisible();
-  await expect(page.locator('.pv-grid .pv-t').first()).toBeVisible();
+  await page.goto(url); await page.waitForTimeout(1500); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
+  await expect(page.locator('#view .card', { hasText: 'Lo urgente' }).first()).toBeVisible();
+  await expect(page.locator('.hoy-masdatos')).toBeVisible();
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(400);
   for (const t of ['Copia de seguridad', 'Artículos', 'Proveedores']) await expect(page.locator('.pv-grid .pv-t', { hasText: t })).toHaveCount(1);
@@ -1796,7 +1796,7 @@ test('Albaranes: lo aprendido de cada proveedor (CIF, nº, fecha, cantidad y pun
 
 test('Qué hacer hoy: un aviso informativo se puede ocultar y volver a ver', async ({ page }) => {
   const err = await vigila(page);
-  await page.goto(url); await page.waitForTimeout(1200);
+  await page.goto(url); await page.waitForTimeout(1200); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
   const n0 = await page.locator('.av-ocultar').count();
   if (n0) {
     await page.locator('.av-ocultar').first().click(); await page.waitForTimeout(300);
@@ -1809,10 +1809,10 @@ test('Qué hacer hoy: un aviso informativo se puede ocultar y volver a ver', asy
 
 test('Hoy: presupuesto de gasto del mes (poner, cómo vas, previsión y aviso)', async ({ page }) => {
   const err = await vigila(page);
-  await page.goto(url); await page.waitForTimeout(1200);
-  const abre = async () => { const t = page.locator('.pv-grid .pv-t', { hasText: 'Presupuesto del mes' }); if (await t.count()) { await t.first().click(); await page.waitForTimeout(400); } };
-  await expect(page.locator('.pv-grid .pv-t', { hasText: 'Presupuesto del mes' })).toHaveCount(1);
+  await page.goto(url); await page.waitForTimeout(1200); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
+  const abre = async () => { await page.evaluate(() => { const d = document.querySelector('.hoy-masdatos'); if (d) d.open = true; }); await page.waitForTimeout(300); };
   await abre();
+  await expect(page.locator('#presu')).toHaveCount(1);
   const c = page.locator('#presu');
   await expect(c).toContainText('Pon cuánto quieres gastar');
   await c.locator('button', { hasText: 'Poner presupuesto' }).click(); await page.waitForTimeout(300);
@@ -1830,7 +1830,7 @@ test('Hoy: presupuesto de gasto del mes (poner, cómo vas, previsión y aviso)',
   expect(await c.innerText()).not.toMatch(/undefined|NaN/);
   /* con 1 € al mes seguro que se ha pasado (si hay gasto): sale el aviso en «Qué hacer hoy» */
   const gasto = await c.locator('.pre-tot .num').innerText();
-  if (!/^0 €/.test(gasto)) { await expect(c).toContainText('Ya te has pasado'); await expect(page.locator('.card', { hasText: 'Qué hacer hoy' })).toContainText('Presupuesto superado'); }
+  if (!/^0 €/.test(gasto)) { await expect(c).toContainText('Ya te has pasado'); await expect(page.locator('.card', { hasText: 'Lo urgente' })).toContainText('Presupuesto superado'); }
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
@@ -1929,7 +1929,7 @@ test('Reglas automáticas: montar una regla como una frase, ver lo que salta y q
   await expect(page.locator('.card', { hasText: 'Tus reglas' })).toContainText('salta ahora');
   await expect(page.locator('.card', { hasText: 'Lo que salta ahora' })).toContainText('días sin cambiar pistón');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Hoy')).click()); await page.waitForTimeout(500);
-  await expect(page.locator('.card', { hasText: 'Qué hacer hoy' }).first()).toContainText('días sin cambiar pistón');
+  await expect(page.locator('.card', { hasText: 'Lo urgente' }).first()).toContainText('días sin cambiar pistón');
   expect(await desbordes(page)).toEqual([]); expect(err).toEqual([]);
 });
 
@@ -2076,7 +2076,7 @@ test('Menú lateral: lo de «Más» sale desplegado (en el ordenador) y en el m�
 test('Pérdidas e incidencias: un robo con material del almacén y una línea a mano, cargado a Nave 1, baja el stock, suma en euros y sale en Consultas', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.evaluate(() => document.querySelector('#tabs [data-t="consu"]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click()); await page.waitForTimeout(300); await page.locator('#view button', { hasText: /^Consumo/ }).first().click(); await page.waitForTimeout(300); await page.waitForTimeout(400);
   const card = page.locator('#incCard'); await expect(card).toBeVisible();
   await expect(card).toContainText('No hay ninguna incidencia');
   const movAntes = await page.evaluate(() => Object.values(window.__D.mov || {}).reduce((s, m) => s + ((m.items || []).length), 0));
@@ -2251,7 +2251,7 @@ test('Que todo cuadre: un eje con dos reparaciones abiertas sale en Hoy y se arr
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
     v.rep[k].items.push({ id: 'rv1', eje: '2.8.J-2', desp: 'POSTIZO ROTO', alta: '2026-05-27', env: '2026-05-27', rec: null, res: null }); } }); });
-  await page.goto(url); await page.waitForTimeout(1200);
+  await page.goto(url); await page.waitForTimeout(1200); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
   await expect(page.locator('#view')).toContainText('no cuadra');
   await page.locator('.it', { hasText: 'de ejes no cuadra' }).locator('button', { hasText: 'Revisar' }).click(); await page.waitForTimeout(300);
   let d;

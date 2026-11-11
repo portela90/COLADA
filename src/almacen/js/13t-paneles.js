@@ -3,7 +3,7 @@
    panel con un mosaico por tarjeta (su título, su dato y su color). Al pulsar uno se abre su ventana:
    en el ordenador con la lista de mosaicos a la izquierda; en el móvil a pantalla completa con «← Panel».
    No cambia lo de dentro: se recolocan las mismas tarjetas que pinta cada pantalla. */
-const PANEL_TABS={res:{fijos:1},repo:{},aver:{fijos:1},cat:{}};
+const PANEL_TABS={repo:{},aver:{fijos:1},cat:{}};/* Hoy ya no: tiene su propio orden (lo urgente arriba) */
 const PANA={};
 const pnHd=n=>n&&n.querySelector?n.querySelector(":scope > .hd, :scope > summary.hd, :scope > summary"):null;
 const pnEsCard=n=>n&&n.classList&&n.classList.contains("card")&&pnHd(n)&&pnHd(n).querySelector("h2");

@@ -390,3 +390,50 @@ input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;bord
 .g-x{color:var(--mut)}
 .g-lst{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
 .op-nc{margin-left:auto;font-size:13px}
+
+/* ===== Hoy (rediseño): cifras de colores, lo urgente con icono de su área y un botón, al lado lo de hoy y el mes ===== */
+.hoy-cifras{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.hoy-cif{appearance:none;font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;
+  background:var(--as);border:1px solid color-mix(in srgb,var(--ac) 22%,var(--line));color:var(--ad);min-width:0}
+.hoy-cif b{font-size:28px;line-height:1;font-weight:700;color:var(--ad)}
+.hoy-cif.bad b{color:#B91C1C}.hoy-cif.warn b{color:#B45309}
+.hoy-cif span{font-size:13px;line-height:1.25;color:var(--ad)}
+.hoy-cif.solo-ancho{display:none}
+.hoy-g{display:grid;gap:14px;align-items:start;margin-bottom:14px}
+.hoy-g>.card,.hoy-lado>.card{margin:0}
+.hoy-lado{display:grid;gap:14px;align-content:start}
+.hoy-urg .hoy-it{cursor:default;gap:12px;align-items:center;flex-wrap:nowrap}
+.hoy-urg .hoy-it .ppal{min-width:0}
+.hoy-urg .hoy-it .stripe{display:none}
+.hoy-b{flex:none;min-height:40px;background:var(--surf)!important;color:var(--ac)!important;border:1px solid color-mix(in srgb,var(--ac) 35%,var(--line))!important;box-shadow:none!important}
+.hoy-b.lleno{background:var(--ac)!important;color:#fff!important;border-color:var(--ac)!important}
+.hoy-urg:not(.ab) .hoy-it.m4{display:none}
+.hoy-mas{appearance:none;width:100%;min-height:46px;border:0;border-top:1px solid var(--line2);background:var(--surf2);color:var(--ink2);font:500 14px/1 inherit;cursor:pointer}
+.hoy-mas .md,.hoy-mas .mn{display:none}
+.hoy-urg.ab .hoy-mas .mm,.hoy-urg.ab .hoy-mas .md{display:none!important}.hoy-urg.ab .hoy-mas .mn{display:inline}
+.hoy-ap .bd{padding:14px 16px}
+.hoy-fila{gap:12px;align-items:center}
+.hoy-fila>b{font-size:17px;font-weight:700}.hoy-fila>b.bad{color:#B91C1C}.hoy-fila>b.warn{color:#B45309}
+.hoy-masdatos{margin:0 0 14px}
+.hoy-masdatos>summary{cursor:pointer;list-style:none;padding:14px 16px;border-radius:12px;background:var(--surf);border:1px solid var(--line);font-weight:600;color:var(--ink2)}
+.hoy-masdatos>summary::-webkit-details-marker{display:none}
+.hoy-masdatos>summary::before{content:"▸ ";color:var(--mut)}.hoy-masdatos[open]>summary::before{content:"▾ "}
+.hoy-masdatos-c{display:grid;gap:14px;margin-top:14px}
+.hoy-masdatos-c>.card{margin:0}
+@media (min-width:800px) and (min-height:560px){
+  .hoy-cifras{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .hoy-cif.solo-ancho{display:flex}
+  .hoy-cif b{font-size:30px}
+  .hoy-g{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .hoy-urg:not(.ab) .hoy-it.m4{display:flex}
+  .hoy-urg:not(.ab) .hoy-it.m6{display:none}
+  .hoy-mas.sin-d{display:none}
+  .hoy-mas .mm{display:none}.hoy-mas .md{display:inline}
+  .hoy-masdatos-c{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+}
+@media (min-width:1200px) and (min-height:560px){
+  .hoy-g{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hoy-g>.hoy-urg{grid-column:span 2}
+  .hoy-masdatos-c{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.hoy-urg .hoy-it .t2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}

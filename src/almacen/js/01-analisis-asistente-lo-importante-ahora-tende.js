@@ -179,59 +179,90 @@ function tareasHoy(){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA
   try{const vj=trepAbiertas().filter(r=>dias(r.env,hy)>30);if(vj.length)T("warn","Tolvas más de 30 días en el taller",vj.map(r=>(+r.cant-trepVuelta(r))+" "+(art(r.art)||{desc:"?"}).desc.toLowerCase()+" desde el "+fmtF(r.env)).join(", "),"Ver",ir("bth"));}catch(e){}
   const nN=(typeof notas!=="undefined"&&notas)?notas.length:0;if(nN)T("info",nN+" notas sin procesar","Apuntadas durante el día","Procesar",ir("rap"));
   try{evalReglas().forEach(x=>T(x.niv,x.txt,x.det,x.btn,x.fn));}catch(e){}
-  presuAvisos().forEach(x=>T(x.niv,x.txt,x.det,"Ver",()=>{PANA.res="Presupuesto del mes";if(tab!=="res")irA("res");else render(true);}));
+  presuAvisos().forEach(x=>T(x.niv,x.txt,x.det,"Ver",()=>{try{localStorage.setItem("alm.hoyMas","1");}catch(e){}if(tab!=="res")irA("res");else render(true);setTimeout(()=>{const p=$("presu");if(p)p.scrollIntoView({block:"start"});},120);}));
   const ord={bad:0,warn:1,info:2};tareas.sort((a,b)=>ord[a.niv]-ord[b.niv]);
   return{hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ejP,prevP,nN};}
+/* área de cada aviso de Hoy: su color y su icono, los mismos que en el resto de la app.
+   Primero por el título (p. ej. «no cuadran» es de stock aunque nombre pistones), luego por el detalle. */
+const AREA_HOY=[[/\bejes?\b|taller|cuarentena/i,"indigo","ejes"],[/no cuadr|negativo|recuento|contar|presupuesto|regla/i,"gris","stock"],[/pist[oó]n|desviaci/i,"naranja","pist"],
+  [/bajar|a planta|reponer/i,"morado","repo"],[/aceite|contador|lectura|glicol|agua|taladrin/i,"turquesa","quim"],[/barra|tornillo/i,"azul","btb"],[/horno|tolva|limpieza/i,"granate","bth"],[/contenedor/i,"marron","cont"],[/aver[ií]a/i,"acero","aver"]];
+function areaHoy(t){for(const k of ["txt","det"])for(const [re,c,ic] of AREA_HOY)if(re.test(t[k]||""))return{c,ic};return{c:"gris",ic:"stock"};}
+/* iconos de cada área (los de las pestañas de abajo ya están en ICO) */
+const ICO_AR={pist:'<rect x="7" y="3" width="10" height="11" rx="2"/><path d="M12 14v7M9 21h6"/>',ejes:'<path d="M3 12h13"/><circle cx="5" cy="12" r="2"/><rect x="16" y="8" width="5" height="8" rx="1"/>',
+  quim:'<path d="M12 3c3 4 5 6.5 5 10a5 5 0 0 1-10 0c0-3.5 2-6 5-10z"/>',btb:'<path d="M4 20 20 4"/><path d="M15 4h5v5"/>',bth:'<path d="M12 3c2 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z"/>',
+  cont:'<path d="M4 8h16v12H4z"/><path d="M3 4h18v4H3zM10 12h4"/>',aver:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'};
+function icoArea(a,niv){const s=el("span",{class:"ar-ico","aria-hidden":"true"});s.innerHTML=svgPg(ICO_AR[a.ic]||ICO[a.ic]||ICO.stock);if(niv==="bad"||niv==="warn")s.appendChild(el("span",{class:"ar-punto "+niv}));return s;}
+let hoyAb=false;/* «Ver más» de lo urgente sigue abierto al repintar */
 function vRes(v){const {hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ejP,prevP,nN}=tareasHoy();
   /* los avisos informativos se pueden ocultar (✕) en este dispositivo; vuelven solos si cambian (p. ej. otro número) */
   let ocu=[];try{ocu=JSON.parse(localStorage.getItem("alm.avOcultos")||"[]");}catch(e){}
   const vis=tareas.filter(t=>!(t.niv==="info"&&ocu.includes(t.txt))),nOc=tareas.length-vis.length;
   const ocultar=t=>{try{const L=ocu.filter(x=>tareas.some(y=>y.txt===x)).concat([t.txt]);localStorage.setItem("alm.avOcultos",JSON.stringify(L));}catch(e){}toast("Aviso ocultado");render(true);};
-  v.appendChild(el("section",{class:"card"+(vis.some(t=>t.niv==="bad")?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Qué hacer hoy"}),el("span",{class:"der sub",text:fmtF(hy)})]),
-    vis.length?el("div",{class:"lst"},vis.map(t=>el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(t.niv==="info"?"":t.niv)}),el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),
-      el("button",{type:"button",class:"btn peq"+(t.niv==="info"?" sec":""),text:t.btn,onclick:t.fn}),t.niv==="info"?el("button",{type:"button",class:"btn txt peq av-ocultar","aria-label":"Ocultar este aviso",title:"Ocultar este aviso",text:"✕",onclick:()=>ocultar(t)}):null,t.extra?el("div",{style:"flex-basis:100%;min-width:0"},t.extra):null]))):el("div",{class:"empty",text:"Todo en orden. No hay nada urgente."}),
-    nOc?el("div",{class:"bd",style:"padding-top:4px"},el("button",{type:"button",class:"btn txt peq",text:"Ver "+(nOc===1?"1 aviso oculto":nOc+" avisos ocultos"),onclick:()=>{try{localStorage.removeItem("alm.avOcultos");}catch(e){}render(true);}})):null]));
-  /* --- cifras clave --- */
+  /* --- cifras de arriba (cada una del color de su área; el número en rojo o ámbar solo si hay que actuar) --- */
+  const tot=ejes.length,enPl=ejes.filter(e=>e.estado==="planta").length-pend.length,tall=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto");
+  let nNeg=0;try{nNeg=negativos().length;}catch(e){}
+  const cifra=(c,val,t,niv,fn,cls)=>el("button",{type:"button",class:"hoy-cif ar-"+c+(niv?" "+niv:"")+(cls?" "+cls:""),onclick:fn},[el("b",{class:"num",text:val}),el("span",{text:t})]);
+  v.appendChild(el("div",{class:"hoy-cifras"},[
+    cifra("naranja",String(crit.length+pedir.length),"para pedir"+(crit.length?" · "+crit.length+" bajo mínimo":""),crit.length?"bad":"",ir("stock")),
+    cifra("morado",String(bajar.length),"para bajar a planta","",ir("repo",()=>{draft.rv="hoy";render(true);})),
+    cifra("gris",String(nNeg),nNeg===1?"artículo no cuadra":"artículos no cuadran",nNeg?"warn":"",ir("stock")),
+    cifra("indigo",tot?enPl+" / "+tot:"—","ejes en planta",tot&&enPl/tot<0.7?"warn":"",ir("ejes"),"solo-ancho")]));
+  /* --- lo urgente: 4 en el móvil y 6 en pantallas grandes; el resto, al tocar «Ver más» --- */
+  const fil=vis.map((t,i)=>{const a=areaHoy(t);return el("div",{class:"it hoy-it ar-"+a.c+(i>=4?" m4":"")+(i>=6?" m6":"")},[icoArea(a,t.niv),
+    el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),
+    el("button",{type:"button",class:"btn peq hoy-b"+(i===0&&t.niv==="bad"?" lleno":""),text:t.btn,onclick:t.fn}),
+    t.niv==="info"?el("button",{type:"button",class:"btn txt peq av-ocultar","aria-label":"Ocultar este aviso",title:"Ocultar este aviso",text:"✕",onclick:()=>ocultar(t)}):null]);});
+  const urg=el("section",{class:"card hoy-urg"+(vis.some(t=>t.niv==="bad")?" alerta":"")+(hoyAb?" ab":"")},[el("div",{class:"hd"},[el("h2",{text:"Lo urgente"}),el("span",{class:"der sub",text:fmtF(hy)})]),
+    vis.length?el("div",{class:"lst"},fil):el("div",{class:"empty",text:"Todo en orden. No hay nada urgente."})]);
+  if(vis.length>4){const b=el("button",{type:"button",class:"hoy-mas"+(vis.length<=6?" sin-d":""),onclick:()=>{const ab=!urg.classList.contains("ab");hoyAb=ab;urg.classList.toggle("ab",ab);b.setAttribute("aria-expanded",String(ab));}},[
+    el("span",{class:"mm",text:"Ver "+(vis.length-4)+(vis.length-4===1?" aviso más":" avisos más")}),vis.length>6?el("span",{class:"md",text:"Ver "+(vis.length-6)+(vis.length-6===1?" aviso más":" avisos más")}):null,el("span",{class:"mn",text:"Ver menos"})]);
+    b.setAttribute("aria-expanded",String(hoyAb));urg.appendChild(b);}
+  if(nOc)urg.appendChild(el("div",{class:"bd",style:"padding-top:4px"},el("button",{type:"button",class:"btn txt peq",text:"Ver "+(nOc===1?"1 aviso oculto":nOc+" avisos ocultos"),onclick:()=>{try{localStorage.removeItem("alm.avOcultos");}catch(e){}render(true);}})));
+  /* --- al lado: lo apuntado hoy y cómo va el mes --- */
   const mes=hy.slice(0,7),mesAnt=sumaDias(mes+"-01",-1).slice(0,7),dmes=+hy.slice(8,10);
   const ps=todosPist(),pMes=ps.filter(p=>p.f.startsWith(mes)).reduce((t,p)=>t+(+p.cant||1),0),pAnt=ps.filter(p=>p.f.startsWith(mesAnt)).reduce((t,p)=>t+(+p.cant||1),0);
   const diasAnt=+sumaDias(mes+"-01",-1).slice(8,10),ritmo=dmes?pMes/dmes:0,ritmoAnt=diasAnt?pAnt/diasAnt:0;
-  const tot=ejes.length,enPl=ejes.filter(e=>e.estado==="planta").length-pend.length,tall=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto");
   const fuera=tall.map(e=>{const ab=abiertaDe(e.cod);return ab&&ab.env?dias(ab.env,hy):0;});const dMed=fuera.length?Math.round(fuera.reduce((a,b)=>a+b,0)/fuera.length):0;
   const C=datosIC("mes");const sinPr=!(cat.modelos||[]).some(m=>+m.precioRep>0);
-  const kpi=(t,val,sub,niv,fn)=>el(fn?"button":"div",Object.assign({class:"rk"+(niv?" "+niv:"")},fn?{type:"button",onclick:fn}:{}),[el("div",{class:"rk-t",text:t}),el("div",{class:"rk-v num",text:val}),sub?el("div",{class:"rk-s",text:sub}):null]);
-  const flecha=ritmoAnt&&dmes>=7?(ritmo>ritmoAnt*1.15?"▲ más que ":ritmo<ritmoAnt*0.85?"▼ menos que ":"≈ igual que "):"";
-  v.appendChild(el("div",{class:"rks"},[
-    kpi("Pistones este mes",String(pMes),flecha?flecha.replace("más que","más ritmo que").replace("menos que","menos ritmo que")+cap(MESES[+mesAnt.slice(5,7)-1])+" ("+pAnt+")":cap(MESES[+mesAnt.slice(5,7)-1])+": "+pAnt,flecha.startsWith("▲")?"warn":"",ir("pist")),
-    kpi("Ejes en planta",tot?Math.round(enPl/tot*100)+" %":"—",enPl+" en planta · "+tall.length+" en taller",tot&&enPl/tot<0.7?"warn":"",ir("ejes")),
-    kpi("Días medios en taller",String(dMed),tall.length?"de los "+tall.length+" que están fuera":"ninguno fuera","",ir("ejes")),
-    kpi("Artículos en rojo",String(crit.length),pedir.length+" para pedir · "+artsActivos().length+" en total",crit.length?"bad":"",ir("stock")),
-    kpi("Coste taller "+MESES[+mes.slice(5,7)-1],sinPr?"—":eur(C.coste),sinPr?"Pon los precios de reparación":C.recib.length+" reparados"+(C.ahorro?" · ahorro "+eur(C.ahorro):""),"",ir("ejes",()=>{draft.icOpen=true;render(true);})),
-    kpi("En taller (a pagar)",sinPr?"—":eur(C.costeTaller),C.taller.length+" ejes","",ir("ejes",()=>{draft.icOpen=true;render(true);}))]));
-  /* --- presupuesto de gasto del mes --- */
-  {const cp=cardPresupuesto();if(cp)v.appendChild(cp);}
-  /* --- pistones: cuántos días cubre el stock --- */
+  const hoyM=todosMov().filter(m=>m.f===hy&&(m.tipo==="salida"||m.tipo==="entrada")).length+ps.filter(p=>p.f===hy).length;
+  const apunt=el("section",{class:"card hoy-ap ar-rosa"},el("div",{class:"bd",style:"display:flex;align-items:center;gap:12px"},[icoArea({ic:"consu"}),
+    el("div",{style:"flex:1;min-width:0"},[el("div",{class:"t1",style:"font-weight:700",text:"Apuntado hoy"}),el("div",{class:"t2",text:hoyM?hoyM+(hoyM===1?" apunte":" apuntes"):"Nada todavía"})]),
+    el("button",{type:"button",class:"btn hoy-b lleno",text:"+ Apuntar",onclick:()=>irA("rap")})]));
+  const flecha=ritmoAnt&&dmes>=7?(ritmo>ritmoAnt*1.15?"▲":ritmo<ritmoAnt*0.85?"▼":"≈"):"";
+  const fila=(c,t,val,sub,fn,niv)=>el("button",{type:"button",class:"it hoy-fila",onclick:fn},[el("span",{class:"ar-cuad ar-"+c,"aria-hidden":"true"}),
+    el("div",{class:"ppal"},[el("div",{class:"t1",text:t}),sub?el("div",{class:"t2",text:sub}):null]),el("b",{class:"num"+(niv?" "+niv:""),text:val})]);
+  const mesC=el("section",{class:"card hoy-mes"},[el("div",{class:"hd"},[el("h2",{text:"Este mes"}),el("span",{class:"der sub",text:cap(MESES[+mes.slice(5,7)-1])})]),el("div",{class:"lst"},[
+    fila("naranja","Cambios de pistón",String(pMes),(flecha?flecha+" ":"")+cap(MESES[+mesAnt.slice(5,7)-1])+": "+pAnt,ir("pist"),flecha==="▲"?"warn":""),
+    fila("indigo","Ejes en planta",tot?Math.round(enPl/tot*100)+" %":"—",enPl+" en planta · "+tall.length+" en taller",ir("ejes")),
+    fila("indigo","Días medios en taller",String(dMed),tall.length?"de los "+tall.length+" que están fuera":"ninguno fuera",ir("ejes")),
+    fila("gris","Artículos en rojo",String(crit.length),pedir.length+" para pedir",ir("stock"),crit.length?"bad":""),
+    sinPr?null:fila("indigo","Coste del taller",eur(C.coste),C.recib.length+" reparados"+(C.ahorro?" · ahorro "+eur(C.ahorro):""),ir("ejes",()=>{draft.icOpen=true;render(true);})),
+    sinPr?null:fila("indigo","En el taller (a pagar)",eur(C.costeTaller),C.taller.length+" ejes",ir("ejes",()=>{draft.icOpen=true;render(true);}))].filter(Boolean))]);
+  /* --- más datos (plegado): presupuesto, días de pistones, máquinas que más gastan, modelos de eje justos --- */
+  const mas=[];
+  {const cp=cardPresupuesto();if(cp)mas.push(cp);}
   const pis=artsActivos().filter(a=>a.fam==="piston").sort((a,b)=>DIAM.indexOf(a.diam)-DIAM.indexOf(b.diam));
   if(pis.length){const filas=pis.map(a=>{const s=S.art[a.id],r=s?s.rate:0,st=stockDe(a.id);const d=r>0?Math.floor(st/r):null;return{a,st,r,d};});
-    const max=60;v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pistones · días que aguanta el stock"}),el("span",{class:"der sub",text:"al ritmo actual"})]),
+    const max=60;mas.push(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pistones · días que aguanta el stock"}),el("span",{class:"der sub",text:"al ritmo actual"})]),
       el("div",{class:"bd",style:"display:grid;gap:8px"},filas.map(f=>{const niv=f.d==null?"":f.d<14?"bad":f.d<30?"warn":"ok";const w=f.d==null?0:Math.min(100,f.d/max*100);
         return el("div",{class:"cob"},[el("span",{class:"cob-n",text:f.a.diam||f.a.desc}),el("div",{class:"cob-b"},el("div",{class:"cob-f "+niv,style:"width:"+w+"%"})),
-          el("span",{class:"cob-d num",text:f.d==null?(f.st?"sin consumo":"0"):f.d>=365?"+1 año":f.d+" d"}),el("span",{class:"cob-s num",text:fmtN(f.st)+" ud"})]);})),
-      el("p",{class:"hint",style:"padding:0 14px 10px",text:"Rojo: menos de 2 semanas · ámbar: menos de un mes. La barra llega hasta 60 días."})]));}
-  /* --- máquinas que más pistones gastan (30 días) --- */
+          el("span",{class:"cob-d num",text:f.d==null?(f.st?"sin consumo":"0"):f.d>=365?"+1 año":f.d+" d"}),el("span",{class:"cob-s num",text:fmtN(f.st)+" ud"})]);}))]));}
   const d30=sumaDias(hy,-30),pm={};ps.filter(p=>p.f>=d30).forEach(p=>{const k=maqN(p.maq);const x=pm[k]=pm[k]||{n:0,mot:{}};x.n+=(+p.cant||1);x.mot[p.motivo]=(x.mot[p.motivo]||0)+1;});
   const top=Object.entries(pm).sort((a,b)=>b[1].n-a[1].n).slice(0,6);
-  if(top.length){const mx=top[0][1].n;v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Máquinas que más pistones gastan"}),el("span",{class:"der sub",text:"últimos 30 días"})]),
+  if(top.length){const mx=top[0][1].n;mas.push(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Máquinas que más pistones gastan"}),el("span",{class:"der sub",text:"últimos 30 días"})]),
     el("div",{class:"bd",style:"display:grid;gap:8px"},top.map(([k,x])=>{const mo=Object.entries(x.mot).sort((a,b)=>b[1]-a[1]).map(([m,n])=>cap(m)+" "+n).join(" · ");const m=cat.maquinas.find(z=>z.cod===k);
-      return el("button",{type:"button",class:"cob",style:"appearance:none;border:0;background:none;padding:0;text-align:left;font:inherit;color:inherit;cursor:"+(m?"pointer":"default"),onclick:()=>{if(m)fichaIny(m);}},[el("span",{class:"cob-n",text:k}),el("div",{class:"cob-b"},el("div",{class:"cob-f "+(x.n>=mx*0.75&&x.n>=4?"warn":"ok"),style:"width:"+Math.round(x.n/mx*100)+"%"})),el("span",{class:"cob-d num",text:String(x.n)}),el("span",{class:"cob-s",text:mo})]);})),
-    el("p",{class:"hint",style:"padding:0 14px 10px",text:"Toca una máquina para ver su ficha. Si una gasta mucho más que las demás, conviene revisarla."})]));}
-  /* --- ejes: modelos más justos --- */
+      return el("button",{type:"button",class:"cob",style:"appearance:none;border:0;background:none;padding:0;text-align:left;font:inherit;color:inherit;cursor:"+(m?"pointer":"default"),onclick:()=>{if(m)fichaIny(m);}},[el("span",{class:"cob-n",text:k}),el("div",{class:"cob-b"},el("div",{class:"cob-f "+(x.n>=mx*0.75&&x.n>=4?"warn":"ok"),style:"width:"+Math.round(x.n/mx*100)+"%"})),el("span",{class:"cob-d num",text:String(x.n)}),el("span",{class:"cob-s",text:mo})]);}))]));}
   const ej=R.E.L.filter(x=>x.lam>0||x.pend).map(x=>Object.assign({marg:x.pl-x.min},x)).sort((a,b)=>a.marg-b.marg||b.lam-a.lam).slice(0,6);
-  if(ej.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes · modelos más justos"}),el("span",{class:"der sub",text:"repuestos sobre el mínimo"})]),
+  if(ej.length)mas.push(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Ejes · modelos más justos"}),el("span",{class:"der sub",text:"repuestos sobre el mínimo"})]),
     el("div",{class:"lst"},ej.map(x=>{const niv=x.marg<0?"bad":x.marg===0?"warn":"ok";return el("button",{type:"button",class:"it",onclick:()=>detEje(x,R.P)},[el("span",{class:"stripe "+niv}),
       el("div",{class:"ppal"},[el("div",{class:"t1",text:x.nom}),el("div",{class:"t2",text:x.rep+" de repuesto · "+x.tal+" en taller · "+fmtN(Math.round(x.lam*304)/10)+" a reparar/mes"})]),
       el("div",{class:"cant num"},[el("b",{text:(x.marg>0?"+":"")+x.marg}),el("small",{text:x.marg<0?"bajo mínimo":x.marg===0?"en el mínimo":"sobre mínimo"})])]);}))]));
-  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Generar informe",onclick:()=>generarInforme()})]));
-  v.appendChild(el("p",{class:"hint",text:"Se actualiza solo con cada movimiento. Toca cualquier recuadro para ir al detalle."}));}
+  mas.push(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Generar informe",onclick:()=>generarInforme()})]));
+  const det=el("details",{class:"hoy-masdatos"},[el("summary",{text:"Más datos: pistones, máquinas y ejes"}),el("div",{class:"hoy-masdatos-c"},mas)]);
+  try{if(localStorage.getItem("alm.hoyMas")==="1")det.open=true;}catch(e){}
+  det.addEventListener("toggle",()=>{try{localStorage.setItem("alm.hoyMas",det.open?"1":"0");}catch(e){}});
+  v.appendChild(el("div",{class:"hoy-g"},[urg,el("div",{class:"hoy-lado"},[apunt,mesC])]));
+  v.appendChild(det);}
 
 /* qué investigar al pulsar un aviso de «Lo importante ahora» */
 function invAlerta(a){const h=hoy(),q=a.q||{};

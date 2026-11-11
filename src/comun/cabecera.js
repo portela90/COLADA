@@ -2,7 +2,7 @@
    una frase de qué es y los botones principales de esa pantalla. Pone el color del apartado en toda la página
    (html[data-sec]) y, al cambiar de pantalla, hace entrar el contenido con una pequeña animación.
    Uso: vista.appendChild(cabeceraPg({ruta:["Coladas"],titulo:"Consumo",sub:"…",color:"naranja",icono:"<svg…>",acciones:[{t,fn,sec}],vista}))
-   Colores: azul, naranja, verde, morado, turquesa, ambar, indigo, rosa, gris. */
+   Colores: azul, naranja, verde, morado, turquesa, ambar, indigo, rosa, gris, granate, marron, acero. */
 (function(){
   let ultima=null;
   function nodo(t,cls,txt){const e=document.createElement(t);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
@@ -15,7 +15,11 @@
       r.appendChild(nodo("b",null,o.titulo||""));h.appendChild(r);}
     const f=nodo("div","pg-fila");
     if(o.icono){const i=nodo("span","pg-ico");i.innerHTML=o.icono;i.setAttribute("aria-hidden","true");f.appendChild(i);}
-    const tt=nodo("div","pg-tit");tt.appendChild(nodo("h1","pg-h",o.titulo||""));if(o.sub)tt.appendChild(nodo("p","pg-sub",o.sub));f.appendChild(tt);
+    /* la frase de qué es la pantalla no ocupa sitio: sale al tocar «?» */
+    const tt=nodo("div","pg-tit"),tl=nodo("div","pg-tit-l");tl.appendChild(nodo("h1","pg-h",o.titulo||""));tt.appendChild(tl);
+    if(o.sub){const sp=nodo("p","pg-sub",o.sub),q=nodo("button","pg-q","?");q.type="button";q.setAttribute("aria-label","Qué es esta pantalla");q.setAttribute("aria-expanded","false");
+      q.onclick=()=>{const v=!h.classList.contains("ver-sub");h.classList.toggle("ver-sub",v);q.setAttribute("aria-expanded",String(v));};tl.appendChild(q);tt.appendChild(sp);}
+    f.appendChild(tt);
     const acc=(o.acciones||[]).filter(Boolean);
     if(acc.length){const a=nodo("div","pg-acc");acc.forEach(x=>{const b=nodo("button","btn"+(x.sec?" sec":""),x.t);b.type="button";if(x.id)b.id=x.id;b.onclick=x.fn;a.appendChild(b);});f.appendChild(a);}
     h.appendChild(f);
