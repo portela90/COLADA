@@ -162,6 +162,14 @@ function vRepaso(){if(typeof huecos!=="function")return null;
   /* entradas sin el peso de la báscula todavía */
   {const PB=pendBascula();it.push({ok:!PB.length,t:PB.length?PB.length+(PB.length===1?" entrada pendiente de pesar":" entradas pendientes de pesar"):"Todas las entradas tienen su peso de báscula (o no se pesan)",
     det:PB.length?"Pon el peso de la báscula de la fábrica para que el cierre compare con el albarán.":null,chips:PB.map(({r,l})=>({t:(l.nombre||"?")+" · "+dmy(r.f)+" · "+fmt(r.kg)+" kg",fn:()=>ponerBascula(r,l)}))});}
+  /* camiones previstos unidos a una entrada que no es suya (otra nave o material) o dos camiones con la misma entrada */
+  {const P=(cfg&&cfg.plan)||{},mal=[],usa={};Object.keys(P).forEach(m=>((P[m]||{}).entradas||[]).forEach(x=>{if(!x.rec||!x.rec.l)return;(usa[x.rec.l]=usa[x.rec.l]||[]).push({m,x});}));
+   Object.values(usa).forEach(L=>L.forEach(({m,x},i)=>{const l=lotes.find(z=>z.id===x.rec.l);
+     const mot=!l?"su entrada ya no existe":(x.k&&x.k!==key(l.nave,l.material))?"está unido a "+(l.nombre||"?")+" de "+etiqLinea(key(l.nave,l.material)):L.length>1&&i>0?"la entrada "+(l.nombre||"?")+" también está unida a otro camión":null;
+     if(mot)mal.push({m,x,mot});}));
+   it.push({ok:!mal.length,t:mal.length?mal.length+(mal.length===1?" camión unido a una entrada que no es suya":" camiones unidos a una entrada que no es suya"):"Cada camión recibido está unido a su entrada",
+     det:mal.length?"Toca uno y elige con qué entrada llegó de verdad («Ya está metido»).":null,
+     chips:mal.map(({m,x,mot})=>({t:dmy(x.f)+" · "+(x.k?etiqLinea(x.k):"?")+": "+mot,fn:()=>yaMetido(Object.assign({mes:m},x))}))});}
   /* fardos pendientes de etiqueta con más de una semana */
   {const PV=pendientesEt().filter(r=>r.f<fMas(hoy(),-7));
    it.push({ok:!PV.length,t:PV.length?PV.length+(PV.length===1?" fardo pendiente de etiqueta":" fardos pendientes de etiqueta")+" desde hace más de una semana":"Ningún fardo lleva más de una semana sin etiqueta",

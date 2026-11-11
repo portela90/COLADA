@@ -1407,7 +1407,7 @@ test('Cambios de horno de Limpieza: llegan con motivo y quién, se revisan en Ho
       v.mov[k].items.push({ id: 'hor_ot2_1', f: fs, tipo: 'salida', art: a.id, alm: 'gen', cant: 1, maq: m.id, nota: 'Horno H-' + m.cod + ': cambio juntas', motivo: 'PREVENTIVO', motOrig: 'Cambio preventivo', resp: 'Juan José Guerrero', ts: 2 }); } }); });
   await page.goto(url); await page.waitForTimeout(1500);
   await expect(page.locator('#view')).toContainText('1 cambio de horno de Limpieza por revisar');
-  await page.locator('#view button', { hasText: /^Revisar$/ }).first().click(); await page.waitForTimeout(300);
+  await page.locator('#view .it', { hasText: 'cambio de horno de Limpieza por revisar' }).locator('button', { hasText: /^Revisar$/ }).first().click(); await page.waitForTimeout(300);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('Tolva atascada'); await expect(d).toContainText('Juan José Guerrero');
   await d.getByRole('button', { name: 'Es avería', exact: true }).click(); await page.waitForTimeout(700);
   d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
@@ -2244,5 +2244,24 @@ test('Ejes en el mínimo: si ya está pedido al taller lo suficiente, no vuelve 
   it = await ver();
   await expect(it.locator('.mod-ped')).toContainText('1 llegado del taller, por revisar');
   await expect(it.locator('button', { hasText: 'Pedir al taller' })).toHaveCount(0);
+  expect(err).toEqual([]);
+});
+
+test('Que todo cuadre: un eje con dos reparaciones abiertas sale en Hoy y se arregla', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
+    v.rep[k].items.push({ id: 'rv1', eje: '2.8.J-2', desp: 'POSTIZO ROTO', alta: '2026-05-27', env: '2026-05-27', rec: null, res: null }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await expect(page.locator('#view')).toContainText('no cuadra');
+  await page.locator('.it', { hasText: 'de ejes no cuadra' }).locator('button', { hasText: 'Revisar' }).click(); await page.waitForTimeout(300);
+  let d;
+  d = page.locator('.dlg').last();
+  await expect(d).toContainText('El eje 2.8.J-2 tiene 2 reparaciones abiertas');
+  await d.locator('.it', { hasText: '2.8.J-2' }).locator('button', { hasText: 'Arreglar' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last();
+  await expect(d).toContainText('Sigue abierta la del');
+  await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const r = await page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).find(x => x.id === 'rv1'));
+  expect(r.res).toBe('ok'); expect(r.rec).toBeTruthy();
   expect(err).toEqual([]);
 });

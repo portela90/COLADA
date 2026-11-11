@@ -217,7 +217,7 @@ function yaMetido(ref){const E=todosMovs().filter(r=>r.t==="E"&&!r.h&&r.f).map(r
   const elegir=async x=>{const c=Object.assign({},cfg.plan||{});let hecho=false;
     Object.keys(c).forEach(m=>{const p=Object.assign({},c[m]);p.entradas=(p.entradas||[]).map(e=>{
       if(e.rec&&e.rec.l===x.l.id&&!(m===ref.mes&&e.f===ref.f&&(e.k||"")===(ref.k||"")&&e.fa===ref.fa&&e.o===ref.o)){const n=Object.assign({},e);delete n.rec;return n;}
-      if(!hecho&&m===ref.mes&&!e.rec&&e.f===ref.f&&(e.k||"")===(ref.k||"")&&e.fa===ref.fa&&e.o===ref.o){hecho=true;return Object.assign({},e,{rec:{f:x.r.f,k:key(x.l.nave,x.l.material),l:x.l.id}});}
+      if(!hecho&&m===ref.mes&&e.f===ref.f&&(e.k||"")===(ref.k||"")&&e.fa===ref.fa&&e.o===ref.o){hecho=true;return Object.assign({},e,{rec:{f:x.r.f,k:key(x.l.nave,x.l.material),l:x.l.id}});}
       return e;});c[m]=p;});
     if(!hecho){toast("No se ha encontrado ese camión en el plan");return;}
     try{cfg.plan=c;await saveCfg();cerrar();if(draft.ent)delete draft.ent.plan;toast("Camión marcado como recibido con la entrada de "+(x.l.nombre||"?"));render();}catch(e){toast("No se pudo guardar");}};

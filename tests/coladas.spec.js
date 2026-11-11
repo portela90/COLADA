@@ -91,6 +91,27 @@ test('Camión con retraso que ya se metió a mano: «Ya está metido» lo une a 
   expect(err).toEqual([]);
 });
 
+test('Repaso: un camión unido a la entrada de otra nave sale para arreglarlo y se vuelve a unir bien', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-11T07:00:00+01:00'));
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.lotes.lx = { nombre: 'C26200', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: '2026-11-10' };
+    v.lotes.ly = { nombre: 'C26201', material: 'L-2630', nave: 'Nave 1', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: '2026-11-10' };
+    (v.mov['2026-11'] = v.mov['2026-11'] || { items: [] }).items.push({ i: 'e1', t: 'E', f: '2026-11-10', d: 'lx', fa: 33, kg: 24000 }, { i: 'e2', t: 'E', f: '2026-11-10', d: 'ly', fa: 35, kg: 25000 });
+    const pl = v.cfg.app.plan = v.cfg.app.plan || {}; pl['2026-11'] = { camiones: [], consumo: {}, entradas: [
+      { f: '2026-11-10', k: 'Nave 1|L-2630', o: 'C', p: 'BEFESA', fa: 37, rec: { f: '2026-11-10', k: 'Nave 2|L-2630', l: 'lx' } }] }; } }); });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.locator('.stk-t', { hasText: 'Repaso de la semana' }).first().click(); await page.waitForTimeout(400);
+  const rep = page.locator('.card', { hasText: 'Repaso de la semana' }).last();
+  await expect(rep).toContainText('1 camión unido a una entrada que no es suya');
+  await rep.locator('button, .chip', { hasText: 'unido a C26200' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.dlg').last().locator('.ym-it', { hasText: 'C26201' }).click(); await page.waitForTimeout(600);
+  const P = await page.evaluate(() => window.__D.cfg.app.plan['2026-11'].entradas);
+  expect(P[0].rec).toMatchObject({ l: 'ly' });
+  expect(err).toEqual([]);
+});
+
 test('entrada sin albarán: se mete con kilos estimados y se completa después', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
