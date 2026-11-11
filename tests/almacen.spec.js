@@ -339,6 +339,27 @@ test('Consultas por relevo y por gestor: cambios y roturas de pistones y barras'
   expect(err).toEqual([]);
 });
 
+test('Consultas: qué gestor está en cada relevo un día, una semana o cuándo le toca', async ({ page }) => {
+  const err = await vigila(page);
+  await page.clock.setFixedTime(new Date('2026-11-11T05:30:00+01:00'));
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.gest = { lista: [{ id: 'g1', n: 'Gorka Aretxaga' }, { id: 'g2', n: 'Josu' }, { id: 'g3', n: 'Antonio Hidalgo' }, { id: 'g4', n: '707' }, { id: 'g5', n: '708' }, { id: 'g6', n: 'Acracio' }],
+      sem: { '2026-11-09': { 'Mañana': ['g1', 'g2'], 'Tarde': ['g3', 'g4'], 'Noche': ['g5', 'g6'] } }, dia: { '2026-11-12|Tarde': ['g1', 'g4'] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(350); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  expect(await resp('quién está de mañana esta semana')).toContain('De mañana esta semana: Gorka Aretxaga y Josu');
+  expect(await resp('qué gestor está de noche la semana que viene')).toContain('De noche la semana que viene: Gorka Aretxaga y Josu');
+  expect(await resp('qué gestores están esta semana')).toContain('tarde Antonio Hidalgo y 707');
+  expect(await resp('en qué turno está Josu esta semana')).toContain('Josu está de mañana esta semana (con Gorka Aretxaga)');
+  expect(await resp('quién está de tarde el 12/11')).toContain('Tarde: Gorka Aretxaga y 707');
+  expect(await resp('qué gestores hay mañana')).toContain('Tarde: Gorka Aretxaga y 707');
+  expect(await resp('cuándo le toca de noche a Josu')).toContain('A Josu le toca de noche la semana del 16/11/26');
+  expect(await resp('gestores del lunes')).toContain('lunes 16/11/26');
+  expect(err).toEqual([]);
+});
+
 test('Borrar la salida de un cambio de pistón borra también el cambio (no sale en el informe para Beatriz)', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);

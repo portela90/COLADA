@@ -68,3 +68,53 @@ function pintaRelQ(I,P,ctx){const {add,frase,nota,ent,lista,it}=ctx;const h=hoy(
     if(o.porMaq){const M={};E.forEach(e=>{if(!e.rel)return;const k=e.maq?maqN(e.maq):"sin máquina";const g=M[k]=M[k]||{Mañana:0,Tarde:0,Noche:0,t:0};g[e.rel]+=e.cant;g.t+=e.cant;});
       lista("Por máquina y relevo",Object.entries(M).sort((a,b)=>b[1].t-a[1].t).slice(0,25).map(([k,g])=>it(k,"Mañana "+g.Mañana+" · Tarde "+g.Tarde+" · Noche "+g.Noche,String(g.t))));}}
   if(sinRel.length)nota(qty(sinRel)+" sin relevo: se apuntaron sin la casilla «Relevo» y otro día. Al apuntar, elige el gestor o el relevo para que cuenten.");}
+/* ===== ¿QUIÉN ESTÁ? Gestores de un relevo, un día o una semana ===== */
+const DIAS_Q=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
+function fechaGQ(q){const h=hoy();let m;
+  if((m=q.match(/\b(\d{1,2})[ .-](\d{1,2})(?:[ .-](\d{2,4}))?\b/))&&+m[2]>=1&&+m[2]<=12&&+m[1]>=1&&+m[1]<=31){const y=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):+h.slice(0,4);return y+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0");}
+  if((m=q.match(new RegExp("\\b(\\d{1,2}) de ("+MESES_Q.join("|")+")\\b"))))return h.slice(0,4)+"-"+String(MESES_Q.indexOf(m[2])+1).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0");
+  if(/\bpasado manana\b/.test(q))return sumaDias(h,2);
+  if(/\bayer\b/.test(q))return sumaDias(h,-1);
+  /* «mañana» es el día de mañana salvo que sea el relevo («de mañana», «turno de mañana») */
+  if(/\b(para|y|el dia de|hay|quien esta|quienes estan|estan|esta|gestores) manana\b|^manana\b|\bmanana (por la|de|a la|en)\b/.test(q.replace(/\b(de|turno de|relevo de|el de) manana\b/g,"")))return sumaDias(h,1);
+  for(let i=0;i<7;i++)if(new RegExp("\\b(el |este |el proximo |)"+DIAS_Q[i]+"\\b").test(q)){const dw=new Date(h+"T12:00:00").getDay();let k=(i-dw+7)%7;if(/\b(pasado|anterior)\b/.test(q)&&k>0)k-=7;return sumaDias(h,k);}
+  if(/\b(hoy|ahora)\b/.test(q))return h;
+  return null;}
+function semanaGQ(q){const h=hoy(),l=lunesG(h);
+  if(/\b(semana que viene|proxima semana|siguiente semana)\b/.test(q))return semMasG(l,1);
+  if(/\bsemana pasada\b/.test(q))return semMasG(l,-1);
+  if(/\b(dentro de|en) (\d+) semanas\b/.test(q))return semMasG(l,+q.match(/\b(?:dentro de|en) (\d+) semanas\b/)[1]);
+  return null;}
+function intencionGQ(q){if(typeof gCfg!=="function"||!gCfg().lista.length)return null;
+  const G=gCfg().lista.filter(x=>{const w=norm(x.n);return w&&new RegExp("(^|\\s)"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(\\s|$)").test(q);});
+  const gw=/\bgestor(es)?\b/.test(q)||(/\bquien(es)? (esta|estan|trabaja|trabajan|toca|tocan|le toca|les toca|hay|va|van)\b/.test(q)&&/\b(de (manana|tarde|noche)|relevos?|turnos?)\b/.test(q));
+  if(!gw&&!G.length)return null;
+  if(/\b(piston\w*|barras?|tornillos?|tolvas?|cambios?|roturas?|rompe\w*|agarrot\w*|averias?|consumo|gasto|apunt\w*)\b/.test(q))return null;
+  if(!gw&&!/\b(esta|estan|toca|tocan|trabaja|trabajan|turno|relevo|de (manana|tarde|noche)|semana|hoy|manana|cuando)\b/.test(q))return null;
+  const R=(q.match(/\b(?:de|el de|turno de|relevo de|la) (manana|tarde|noche)\b/)||q.match(/\b(tarde|noche)\b/)||[])[1];
+  return{gests:G.map(x=>x.id),relevo:R?{manana:"Mañana",tarde:"Tarde",noche:"Noche"}[R]:null,f:fechaGQ(q),lun:semanaGQ(q),cuando:/\bcuando\b/.test(q)};}
+function pintaGQ(I,ctx){const {frase,nota,ent,lista,it}=ctx;const o=I.gq,h=hoy();const N=ids=>ids.length?ids.map(nomGest).join(" y "):"nadie";
+  const sinSem=!Object.keys(gCfg().sem).length;if(sinSem){ent("gestores y relevos");frase("Todavía no está puesto qué gestores hay en cada relevo.");nota("Ponlo en Más › Gestión › Gestores y relevos.");return;}
+  /* cuándo le toca a un gestor un relevo: las próximas 8 semanas */
+  if(o.cuando&&o.gests.length){const id=o.gests[0];ent("gestores y relevos",[nomGest(id),o.relevo?o.relevo.toLowerCase():null]);
+    const L=[];for(let k=0;k<8;k++){const l=semMasG(lunesG(h),k),u=RELEVOS_A.find(x=>(semanaGest(l).g[x]||[]).includes(id));if(!o.relevo||u===o.relevo)L.push({l,u});}
+    if(!L.length){frase(nomGest(id)+" no está "+(o.relevo?"de "+o.relevo.toLowerCase()+" ":"")+"en las próximas 8 semanas.");return;}
+    frase(o.relevo?"A "+nomGest(id)+" le toca de "+o.relevo.toLowerCase()+" la semana del "+fmtF(L[0].l)+".":nomGest(id)+" esta semana está de "+(L[0].u||"—").toLowerCase()+".");
+    lista("Próximas semanas",L.map(x=>it("Semana del "+fmtF(x.l)+" al "+fmtF(sumaDias(x.l,6)),x.l===lunesG(h)?"esta semana":null,x.u||"—")));
+    nota("Sale de la rotación; los cambios de un día (bajas y sustituciones) se ven preguntando por ese día.");return;}
+  /* un día concreto */
+  if(o.f&&!o.lun){const f=o.f,dn=DIAS_Q[new Date(f+"T12:00:00").getDay()];ent("gestores y relevos",[dn+" "+fmtF(f),o.relevo?o.relevo.toLowerCase():null]);
+    const us=o.relevo?[o.relevo]:RELEVOS_A;
+    if(o.gests.length){const id=o.gests[0],u=relevoDeGest(id,f);frase(u?nomGest(id)+" está de "+u.toLowerCase()+" el "+dn+" "+fmtF(f)+".":nomGest(id)+" no está en ningún relevo el "+dn+" "+fmtF(f)+".");return;}
+    frase(us.map(u=>u+": "+N(gestEn(f,u))).join(" · ")+" ("+dn+" "+fmtF(f)+").");
+    const ch=us.filter(u=>gCfg().dia[f+"|"+u]);if(ch.length)nota("Ese día hay cambio (baja o sustitución) en "+ch.map(u=>u.toLowerCase()).join(" y ")+".");return;}
+  /* una semana (esta si no se dice) */
+  const l=o.lun||(o.f?lunesG(o.f):lunesG(h)),S=semanaGest(l),tS=l===lunesG(h)?"esta semana":l===semMasG(lunesG(h),1)?"la semana que viene":l===semMasG(lunesG(h),-1)?"la semana pasada":"la semana del "+fmtF(l);
+  ent("gestores y relevos",[tS,o.relevo?o.relevo.toLowerCase():null,o.gests.length?o.gests.map(nomGest).join(", "):null]);
+  if(o.gests.length){const id=o.gests[0],u=RELEVOS_A.find(x=>(S.g[x]||[]).includes(id));frase(u?nomGest(id)+" está de "+u.toLowerCase()+" "+tS+(u?" (con "+N((S.g[u]||[]).filter(x=>x!==id))+")":"")+".":nomGest(id)+" no está en ningún relevo "+tS+".");}
+  else if(o.relevo)frase("De "+o.relevo.toLowerCase()+" "+tS+": "+N(S.g[o.relevo]||[])+".");
+  else frase(cap(tS)+": "+RELEVOS_A.map(u=>u.toLowerCase()+" "+N(S.g[u]||[])).join(" · ")+".");
+  lista("Semana del "+fmtF(l)+" al "+fmtF(sumaDias(l,6)),RELEVOS_A.map(u=>it(u,N(S.g[u]||[]))));
+  const ch=Object.keys(gCfg().dia).filter(k=>{const f=k.split("|")[0];return f>=l&&f<=sumaDias(l,6);}).sort();
+  if(ch.length)lista("Cambios de un día",ch.map(k=>{const[f,u]=k.split("|");return it(fmtF(f)+" · "+u,N(gCfg().dia[k]));}));
+  if(!S.de)nota("Esa semana no tiene gestores puestos ni hay una semana anterior de la que salga la rotación.");}
