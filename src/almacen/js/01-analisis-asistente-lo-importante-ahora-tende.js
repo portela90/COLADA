@@ -206,7 +206,7 @@ function vRes(v){const {hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ej
     cifra("naranja",String(crit.length+pedir.length),"para pedir"+(crit.length?" · "+crit.length+" bajo mínimo":""),crit.length?"bad":"",ir("stock")),
     cifra("morado",String(bajar.length),"para bajar a planta","",ir("repo",()=>{draft.rv="hoy";render(true);})),
     cifra("gris",String(nNeg),nNeg===1?"artículo no cuadra":"artículos no cuadran",nNeg?"warn":"",ir("stock")),
-    cifra("indigo",tot?enPl+" / "+tot:"—","ejes en planta",tot&&enPl/tot<0.7?"warn":"",ir("ejes"),"solo-ancho")]));
+    cifra("indigo",tot?enPl+" / "+tot:"—","ejes en planta",tot&&enPl/tot<0.7?"warn":"",ir("ejes"),"hoy-ancho")]));
   /* --- lo urgente: 4 en el móvil y 6 en pantallas grandes; el resto, al tocar «Ver más» --- */
   const fil=vis.map((t,i)=>{const a=areaHoy(t);return el("div",{class:"it hoy-it ar-"+a.c+(i>=4?" m4":"")+(i>=6?" m6":"")},[icoArea(a,t.niv),
     el("div",{class:"ppal"},[el("div",{class:"t1",text:t.txt}),t.det?el("div",{class:"t2",text:t.det}):null]),

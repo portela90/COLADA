@@ -1,5 +1,5 @@
 /* ===== CADA PIEZA CON LAS MISMAS PESTAÑAS =====
-   Resumen (la pantalla de siempre) · Cambios · Por máquina · Gasto · Referencias · Añadir
+   Resumen (la pantalla de siempre) · Historial (los cambios) · Gasto, y en «⋯»: Por máquina · Referencias · Añadir
    «Añadir» sirve para ir añadiendo lo que se nos ocurra sin tocar el programa:
    avisos fijos, documentos y fotos, enlaces, listas de comprobación e ideas para la app.
    Se guarda en cat.secc[pieza] = {avisos:[], docs:[], enlaces:[], listas:[]} y cat.ideas = []. */
@@ -42,7 +42,12 @@ const desdePer=k=>k==="todo"?"0000":sumaDias(hoy(),-(+k));
 const maqTxt=e=>e.maq?maqN(e.maq):e.nave?e.nave+" (general)":"Sin máquina";
 
 function vSecc(id,v){const S=SECC[id];draft.st=draft.st||{};const t=draft.st[id]||"res";
-  v.appendChild(el("div",{class:"op-tabs secc-tabs",role:"tablist","aria-label":S.nom},SECC_T.map(([k,n])=>el("button",{type:"button",role:"tab","aria-selected":String(t===k),text:n+(k==="mas"&&nExtras(id)?" ("+nExtras(id)+")":""),onclick:()=>{draft.st[id]=k;render(true);}}))));
+  /* a la vista: Resumen, Historial y Gasto; «Por máquina», «Referencias» y «Añadir» en «⋯» (sale su nombre si estás en una de ellas) */
+  const VIS=[["res","Resumen"],["cam","Historial"],["gas","Gasto"]],OTRAS=SECC_T.filter(([k])=>!VIS.some(x=>x[0]===k)),enOtra=OTRAS.find(([k])=>k===t);
+  const nomO=k=>{const x=SECC_T.find(z=>z[0]===k);return x[1]+(k==="mas"&&nExtras(id)?" ("+nExtras(id)+")":"");};
+  v.appendChild(el("div",{class:"op-tabs secc-tabs secc-4",role:"tablist","aria-label":S.nom},VIS.map(([k,n])=>el("button",{type:"button",role:"tab","aria-selected":String(t===k),text:n,onclick:()=>{draft.st[id]=k;render(true);}}))
+    .concat([el("button",{type:"button",role:"tab",class:"tab-mas","aria-selected":String(!!enOtra),"aria-label":"Más vistas de "+S.nom,text:enOtra?nomO(enOtra[0])+" ▾":"⋯",onclick:()=>{
+      dlg("Más vistas de "+S.nom.toLowerCase(),[el("div",{class:"acc-menu"},OTRAS.map(([k])=>el("button",{type:"button",class:"btn sec",text:nomO(k),onclick:()=>{cerrarDlgs();draft.st[id]=k;render(true);}})))],[{t:"Cerrar",cls:"sec"}]);}})])));
   const sc=seccDe(id);
   if(t==="res"){sc.avisos.forEach(a=>v.appendChild(el("div",{class:"banner"+(a.nivel==="bad"?" b":a.nivel==="warn"?" w":""),text:a.txt})));return S.base(v);}
   if(t==="mas")return vExtras(id,v);

@@ -142,6 +142,14 @@ function dlg(title,body,actions){const ov=el("div",{class:"dlg-ov",role:"dialog"
     const b=el("button",{type:"button",class:"btn "+(a.cls||""),text:a.t});b.onclick=async()=>{if(a.fn){b.disabled=true;let r;try{r=await a.fn();}catch(e){r=false;}b.disabled=false;if(r===false)return;}close();};return b;}))]));
   ov.appendChild(box);ov.addEventListener("click",e=>{if(e.target===ov)close();});document.addEventListener("keydown",esc);document.body.appendChild(ov);
   const f=box.querySelector("input:not([type=checkbox]),select,textarea");if(f)setTimeout(()=>f.focus(),30);return close;}
+/* «⋯ Más» : las acciones que no son las principales, en una lista al tocarlo */
+function menuAcc(titulo,L,txt){return el("button",{type:"button",class:"btn sec acc-mas","aria-label":titulo,text:txt||"⋯ Más",onclick:()=>{
+  dlg(titulo,[el("div",{class:"acc-menu"},L.map(([t,fn,id])=>el("button",Object.assign({type:"button",class:"btn sec",text:t,onclick:()=>{cerrarDlgs();setTimeout(fn,0);}},id?{id}:{}))))],[{t:"Cerrar",cls:"sec"}]);}});}
+/* lo que se consulta de vez en cuando, plegado (se recuerda si lo dejas abierto) */
+function masDatos(k,nodos,txt){const L=(nodos||[]).filter(Boolean);if(!L.length)return el("div");
+  const d=el("details",{class:"mas-datos"},[el("summary",{text:txt||"Más datos"}),el("div",{class:"mas-datos-c"},L)]);
+  try{if(localStorage.getItem("alm.md."+k)==="1")d.open=true;}catch(e){}
+  d.addEventListener("toggle",()=>{try{localStorage.setItem("alm.md."+k,d.open?"1":"0");}catch(e){}});return d;}
 function confirmar(t,msg,btn,fn){dlg(t,el("p",{text:msg}),[{t:"Cancelar",cls:"sec"},{t:btn,cls:"peligro",fn}]);}
 function lightbox(src){const o=el("div",{class:"lightbox",role:"dialog","aria-label":"Foto del albarán",onclick:()=>o.remove()},el("img",{src,alt:"Foto del albarán"}));document.body.appendChild(o);}
 function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id;}

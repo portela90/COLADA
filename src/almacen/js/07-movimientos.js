@@ -262,16 +262,20 @@ function textoUsados(){const E=puEstado();if(!E)return"PISTONES USADOS: sin recu
 function vPist(v){const d=draft.p;
   {const u=(cat.ajustes||{}).ultInfPist;const pend=pistPend();if(pend.length)v.appendChild(el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:180px",text:pend.reduce((a,p)=>a+(+p.cant||1),0)+" pistones consumidos sin informar a "+destPist().nom.split(" ")[0]+(u?" desde el "+fmtF(sumaDias(u,1)):"")}),el("button",{type:"button",class:"btn peq",text:"Preparar informe",onclick:informePist})]));}
   const S=statsPist();
-  v.appendChild(el("div",{class:"acciones acc2",id:"pAcc"},[pistPend().length?null:el("button",{type:"button",class:"btn sec",text:"Informe diario para "+destPist().nom.split(" ")[0],onclick:informePist}),
-    el("button",{type:"button",class:"btn sec",text:"Repartir por almacén",onclick:formReparto}),
-    el("button",{type:"button",class:"btn sec",text:"Recuento de fin de mes",onclick:formRecuento}),
-    el("button",{type:"button",class:"btn sec",text:"Entrada de pistones",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:(pistArt("Ø 80")||{}).id||"",cant:""});irA("mov");}})]));
+  /* una acción principal (abre el formulario), entrada y el resto en «⋯ Más» */
+  const abrirF=()=>{draft.pAb=true;render(true);setTimeout(()=>{const x=$("pFormCard");if(x)x.scrollIntoView({block:"start",behavior:"smooth"});},60);};
+  v.appendChild(el("div",{class:"acc-pri",id:"pAcc"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:abrirF}),
+    el("button",{type:"button",class:"btn sec",text:"Entrada de pistones",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:(pistArt("Ø 80")||{}).id||"",cant:""});irA("mov");}}),
+    menuAcc("Más acciones de pistones",[pistPend().length?null:["Informe diario para "+destPist().nom.split(" ")[0],informePist],["Repartir por almacén",formReparto],["Recuento de fin de mes",formRecuento]].filter(Boolean))]));
   v.appendChild(el("section",{class:"card",id:"pStockCard"},[el("div",{class:"hd"},[el("h2",{text:"Stock de pistones"}),el("span",{class:"der sub",text:"Consumo: últimos 60 días"})]),
-    el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:"Total"})].concat(almPist().map(l=>el("th",{class:"r",text:l.nom}))).concat([el("th",{class:"r",text:"Mín."}),el("th",{text:"Estado"}),el("th",{class:"r",text:"Cons./mes"}),el("th",{class:"r",text:"Cobertura"}),el("th",{text:"Se agota"}),el("th",{class:"r",text:"Mín. sugerido"}),el("th",{class:"r",text:"Usados"}),el("th",{class:"r",text:"En eje"})]))),
+    el("div",{class:"lst solo-movil"},DIAM.map(x=>{const s=S[x];return el("button",{type:"button",class:"it",onclick:()=>{if(s.a)ficha(s.a);}},[el("span",{class:"stripe "+(s.niv==="bad"?"bad":s.niv==="warn"?"warn":"")}),
+      el("div",{class:"ppal"},[el("div",{class:"t1",text:x}),el("div",{class:"t2",text:["mín "+fmtN(s.min),s.cob!=null?"para "+Math.round(s.cob)+" d":null].filter(Boolean).join(" · ")})]),
+      el("div",{class:"cant num"},[el("b",{class:s.st<0?"neg":"",text:fmtN(s.st)}),el("small",{text:NIVP[s.niv]})])]);})),
+    el("div",{class:"tw solo-ancho"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:"Total"})].concat(almPist().map(l=>el("th",{class:"r",text:l.nom}))).concat([el("th",{class:"r",text:"Mín."}),el("th",{text:"Estado"}),el("th",{class:"r",text:"Cons./mes"}),el("th",{class:"r",text:"Cobertura"}),el("th",{text:"Se agota"}),el("th",{class:"r",text:"Mín. sugerido"}),el("th",{class:"r",text:"Usados"}),el("th",{class:"r",text:"En eje"})]))),
       el("tbody",{},DIAM.map(x=>{const s=S[x];return el("tr",{},[el("td",{},el("b",{text:x})),el("td",{class:"r num"+(s.st<0?" neg":"")},el("b",{text:fmtN(s.st)}))].concat(almPist().map(l=>{const q=s.a?stockDe(s.a.id,l.id):0;return el("td",{class:"r num"+(q<0?" neg":""),text:q?fmtN(q):"·"});})).concat([el("td",{class:"r num",text:fmtN(s.min)}),
         el("td",{},el("span",{class:"pill "+s.niv,text:NIVP[s.niv]})),el("td",{class:"r num",text:s.mes?fmtN(Math.round(s.mes*10)/10):"—"}),el("td",{class:"r num",text:s.cob!=null?Math.round(s.cob)+" d":"—"}),
         el("td",{class:"num",text:s.agot?fmtF(s.agot):"—"}),el("td",{class:"r num",text:s.sug!=null?s.sug:"—"}),el("td",{class:"r num",text:s.usados||"—"}),el("td",{class:"r num",text:s.agarr||"—"})]));}))])),
-    el("p",{class:"hint",style:"padding:0 14px 12px",text:"Desliza la tabla a la derecha para ver cada almacén y el consumo. En rojo, lo que sale en negativo: no cuadra, hay que contarlo. Mínimo sugerido: consumo durante el plazo de entrega del proveedor (4 semanas si no está puesto) + 50 % de margen. Usados y En eje cuentan desde el último recuento."})]));
+    el("p",{class:"hint",style:"padding:0 14px 12px",class:"solo-ancho",text:"En rojo, lo que sale en negativo: no cuadra, hay que contarlo. Mínimo sugerido: consumo durante el plazo de entrega del proveedor (4 semanas si no está puesto) + 50 % de margen. Usados y En eje cuentan desde el último recuento."})]));
   if(!cat.maquinas.length)v.appendChild(el("div",{class:"banner",text:"Añade las inyectoras en Catálogo para registrar cambios de pistón."}));
   const pa=pistArt(d.diam);if(pa&&!d.alm)d.alm=almPara(d.maq,pa.id);
   const resp=inp("pResp",d.resp,x=>d.resp=x,{autocomplete:"off",list:"lOper",placeholder:"Nº o nombre"});
@@ -286,10 +290,11 @@ function vPist(v){const d=draft.p;
         fld("De almacén",sel("pAlm",almOpts(),d.alm,x=>d.alm=x))]):(d.diam?el("p",{class:"hint",text:"No hay artículo de pistón "+d.diam+" en el catálogo, así que no se descuenta stock."}):null),
     el("button",{type:"submit",class:"btn",id:"pBtn",text:"Registrar cambio"})]);
   form.addEventListener("submit",e=>{e.preventDefault();guardarPist();});
-  v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Cambio de pistón"})),el("div",{class:"bd"},form)]));
+  if(draft.pAb||d.maq)v.appendChild(el("section",{class:"card",id:"pFormCard"},[el("div",{class:"hd"},[el("h2",{text:"Cambio de pistón"}),el("button",{type:"button",class:"btn txt peq der",text:"Cerrar",onclick:()=>{draft.pAb=false;render(true);}})]),el("div",{class:"bd"},form)]));
   ["#pAcc","#pStockCard"].forEach(q=>{const sc=v.querySelector(q);if(sc)v.appendChild(sc);});
   if(typeof cardPistSAP==="function")v.appendChild(cardPistSAP(()=>render(true)));
   v.appendChild(cardUsados());
+  const k0=v.children.length;/* lo de después (por inyectora, compras, consumo por mes, últimos cambios), plegado */
   const all=todosPist(),hy=hoy();
   /* análisis por inyectora, últimos 3 meses */
   const d3=sumaDias(hy,-91);const cnt={};all.filter(p=>p.f>=d3).forEach(p=>{cnt[p.maq]=(cnt[p.maq]||0)+(+p.cant||1);});
@@ -324,7 +329,8 @@ function vPist(v){const d=draft.p;
       el("tbody",{},ult.map(p=>el("tr",{},[el("td",{class:"num",text:fmtF(p.f)}),el("td",{text:maqN(p.maq)}),el("td",{text:p.diam+((+p.cant||1)>1?" ×"+p.cant:"")}),
         el("td",{},[el("div",{text:cap(p.motivo)}),(p.dest||p.nota)?el("div",{class:"sub",text:[p.dest?cap(p.dest):null,p.nota].filter(Boolean).join(" · ")}):null]),
         el("td",{text:p.resp||"—"}),
-        el("td",{},el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)+(p.movId?". El pistón vuelve al stock.":".")+(typeof avisoSAPBorrar==="function"?avisoSAPBorrar(p):""),"Borrar",async()=>{await delPist(p);toast("Cambio borrado");})}))])))]))]));}
+        el("td",{},el("button",{type:"button",class:"btn txt peq",text:"Borrar",onclick:()=>confirmar("¿Borrar este cambio?","Cambio de "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)+(p.movId?". El pistón vuelve al stock.":".")+(typeof avisoSAPBorrar==="function"?avisoSAPBorrar(p):""),"Borrar",async()=>{await delPist(p);toast("Cambio borrado");})}))])))]))]));
+  {const resto=[...v.children].slice(k0);resto.forEach(x=>x.remove());v.appendChild(masDatos("pist",resto,"Más datos: por inyectora, compras, consumo por mes y últimos cambios"));}}
 function responsables(){const s=new Set();(cat.operarios||[]).forEach(o=>{if(o.nom&&o.num)s.add(o.num+" "+o.nom);else if(o.nom)s.add(o.nom);else if(o.num)s.add(String(o.num));});todosPist().forEach(p=>{if(p.resp)s.add(String(p.resp));});return Array.from(s).sort();}
 function ultimoPist(maq){const ps=todosPist().filter(p=>p.maq===maq);return ps[ps.length-1];}
 async function guardarPist(){const d=draft.p;if(!db){toast("No se puede guardar en esta vista");return;}

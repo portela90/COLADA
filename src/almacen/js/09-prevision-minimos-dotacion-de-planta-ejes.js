@@ -195,21 +195,15 @@ const diasAb=r=>r.env?laborables(r.env,hoy()):null;
 function pillDias(n){if(n==null)return el("span",{class:"pill info",text:"Sin enviar"});return el("span",{class:"pill na",text:n+" días"});}
 function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length;
   const disp=tot?Math.round(c("planta")/tot*100):0;
-  v.appendChild(el("dl",{class:"kpis num"},[["Total",tot],["En planta",c("planta")],["En reparación",c("reparacion")],["Preparados",c("preparado")],["Devueltos",c("devuelto")],["Por revisar",c("revisar")],["Disponible",disp+" %"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  {const pl=c("planta"),pend=ejePend().length,chips=[[c("reparacion"),"en el taller"],[c("devuelto"),"devueltos NO-OK"],[c("preparado"),"preparados"],[c("revisar"),"por revisar"],[pend,"en cuarentena"]].filter(x=>x[0]>0);
+   v.appendChild(el("section",{class:"card ej-res"},el("div",{class:"bd"},[el("div",{class:"ej-big"},[el("b",{class:"num",text:String(pl)}),el("span",{text:"de "+tot+" ejes en planta"})]),
+     el("div",{class:"ej-barra","aria-hidden":"true"},el("div",{style:"width:"+disp+"%"})),
+     el("div",{class:"ej-chips"},chips.length?chips.map(([n,t])=>el("span",{text:n+" "+t})):[el("span",{text:"Todos en planta"})])])));}
   const prep=ejes.filter(e=>e.estado==="preparado"),fuera=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto"),rv=ejes.filter(e=>e.estado==="revisar");
   {const cr=cardRevisar();if(cr)v.appendChild(cr);}
   {const LP=listaPedir();if(LP.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Para pedir al taller ("+LP.length+")"})]),
     el("div",{class:"lst"},LP.map(e=>el("button",{type:"button",class:"it",onclick:()=>fichaEje(e)},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod+" · "+ejeRef(e)}),el("div",{class:"t2",text:"En el taller desde el "+fmtF((abiertaDe(e.cod)||{}).env)})])]))),
     el("div",{class:"bd"},el("button",{type:"button",class:"btn",style:"width:100%",text:"Enviar WhatsApp al taller",onclick:dlgListaPedir}))]));}
-  v.appendChild(el("div",{class:"acciones acc2"},[prep.length?el("button",{type:"button",class:"btn",text:"Enviar preparados ("+prep.length+")",onclick:envioMultiple}):null,
-    fuera.length?el("button",{type:"button",class:"btn sec",text:"Pedir al taller que traiga",onclick:pedirTraer}):null,
-    fuera.length||rv.length?el("button",{type:"button",class:"btn sec",text:"Recibir de reparación",onclick:recepcionMultiple}):null,
-    fuera.length?(()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"eLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranEjes(x);});
-      return el("span",{style:"display:contents"},[fi,el("button",{type:"button",class:"btn sec",text:"Leer albarán del taller",onclick:()=>fi.click()})]);})():null,
-    el("button",{type:"button",class:"btn sec",text:"Poner eje en cuarentena",onclick:()=>formCuarentena()}),el("button",{type:"button",class:"btn sec",text:"Revisar ejes",onclick:()=>revisionEjes()}),
-    el("button",{type:"button",class:"btn sec",text:"Nuevo eje",onclick:()=>formEje()})]));
-  const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
-  v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
   const tp=tarjetaPend();if(tp)v.appendChild(tp);
   /* modelos bajo mínimo */
   const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m)})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
@@ -223,12 +217,13 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
         cub?el("span",{class:"pill info mod-ped",style:"margin-top:4px",text:[lle.length?(lle.length===1?"1 llegado del taller":lle.length+" llegados del taller")+", por revisar":null,
           ped.length?(ped.length===1?"1 pedido":ped.length+" pedidos")+" esperando que lleguen (desde el "+fmtF(ped.map(e=>abiertaDe(e.cod).traer).sort()[0])+")":null].filter(Boolean).join(" · ")}):
         sinPed.length?el("button",{type:"button",class:"btn peq",style:"width:100%;margin-top:4px",text:"Pedir al taller ("+Math.min(sinPed.length,faltaG(m)-ped.length-lle.length)+")",onclick:()=>pedirTraer(m.cod)}):null]);}))]));
-  /* sin marcar */
-  const sinM=ejes.filter(e=>!e.marcado).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
-  if(sinM.length)v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Sin el código grabado ("+sinM.length+")"}),el("span",{class:"der sub",text:"Toca para ver"})]),
-    el("p",{class:"hint",style:"padding:8px 14px 0;margin:0",text:"Cuando le grabes el código a un eje, pulsa «Ya grabado»."}),
-    el("div",{class:"lst"},sinM.map(e=>{const[t,c]=EST_E[e.estado]||["—","na"];return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod}),el("div",{class:"t2",text:ejeRef(e)+" · "+t})]),
-      el("button",{type:"button",class:"btn sec peq",text:"Ya grabado",onclick:async ev=>{ev.target.disabled=true;try{await updEje(e,{marcado:true});toast(e.cod+": código grabado");}catch(er){ev.target.disabled=false;toast("No se pudo guardar");}}})]);}))]));
+  {const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"eLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranEjes(x);});
+   const L=[prep.length?["Enviar preparados ("+prep.length+")",envioMultiple]:null,fuera.length||rv.length?["Recibir de reparación",recepcionMultiple]:null,fuera.length?["Leer albarán del taller",()=>fi.click()]:null,
+     fuera.length?["Pedir al taller que traiga",pedirTraer]:null,["Poner eje en cuarentena",()=>formCuarentena()],["Revisar ejes",()=>revisionEjes()],["Nuevo eje",()=>formEje()]].filter(Boolean);
+   v.appendChild(el("div",{class:"acc-pri"},[fi].concat(L.slice(0,2).map(([t,fn],k)=>el("button",{type:"button",class:"btn"+(k?" sec":""),text:t,onclick:fn})),
+     L.length>2?[menuAcc("Más acciones de ejes",L.slice(2))]:[])));}
+  const bus=inp("eBus",draft.eb,x=>{draft.eb=x;pintaBus();},{type:"search",placeholder:"Buscar eje (p. ej. 2.3.C-3)",autocomplete:"off"});
+  v.appendChild(bus);v.appendChild(el("div",{id:"eRes"}));
   /* pendientes */
   const ab=todasRep().filter(r=>!r.res&&ejes.some(e=>e.cod===r.eje)).map(r=>({r,n:diasAb(r)})).sort((a,b)=>(b.n==null?-1:b.n)-(a.n==null?-1:a.n));
   const enviadas=ab.filter(x=>x.r.env),sinEnv=ab.filter(x=>!x.r.env);
@@ -236,10 +231,10 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
     el("div",{class:"t2",text:[r.desp,r.env?"Enviado "+fmtF(r.env):null,r.nook?"NO-OK, devuelto "+fmtF(r.dev):null].filter(Boolean).join(" · ")})]),el("div",{style:"display:flex;flex-direction:column;align-items:flex-end;gap:4px"},[pillDias(n),r.traer?el("span",{class:"pill info",text:"Pedido "+fmtF(r.traer)}):null])]);
   const pedidos=enviadas.filter(x=>x.r.traer).map(x=>({r:x.r,n:diasPedido(x.r),ped:true})).sort((a,b)=>b.n-a.n),sinPedir=enviadas.filter(x=>!x.r.traer),lim=limPedido(),PT=plazoTaller();
   const filaP=x=>{const f=fila(x);const pl=f.querySelector(".pill");if(pl){pl.className="pill "+(x.n>lim?"bad":x.n>lim*0.7?"warn":"info");pl.textContent="Pedido hace "+x.n+" d";}return f;};
-  v.appendChild(el("section",{class:"card"+(pedidos.some(x=>x.n>lim)?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Pedidos al taller, esperando a que vuelvan ("+pedidos.length+")"}),el("span",{class:"der sub",text:PT.n>=5?"Suelen tardar "+PT.med+" días laborables":"Plazo aún sin datos (se calcula solo)"})]),
+  if(pedidos.length)v.appendChild(el("section",{class:"card"+(pedidos.some(x=>x.n>lim)?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Pedidos al taller, esperando a que vuelvan ("+pedidos.length+")"}),el("span",{class:"der sub",text:PT.n>=5?"Suelen tardar "+PT.med+" días laborables":"Plazo aún sin datos (se calcula solo)"})]),
     pedidos.length?el("div",{class:"lst"},pedidos.map(filaP)):el("div",{class:"empty",text:"No hay ningún eje pedido al taller."}),
     pedidos.some(x=>x.n>lim)?el("p",{class:"hint",style:"padding:6px 14px;margin:0",text:"En rojo: más de "+Math.round(lim)+" días laborables desde que se pidió. Conviene reclamarlos."}):null]));
-  v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"En el taller sin pedir ("+sinPedir.length+")"}),el("span",{class:"der sub",text:"Tu reserva allí · toca para ver"})]),
+  if(sinPedir.length)v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"En el taller sin pedir ("+sinPedir.length+")"}),el("span",{class:"der sub",text:"Tu reserva allí · toca para ver"})]),
     sinPedir.length?el("div",{class:"lst"},sinPedir.map(fila)):el("div",{class:"empty",text:"Ninguno."})]));
   v.appendChild(el("section",{class:"card",style:sinEnv.length?"":"display:none"},[
     sinEnv.length?el("div",{class:"gh",text:"Preparados para enviar ("+sinEnv.length+")"}):null,sinEnv.length?el("div",{class:"lst"},sinEnv.map(fila)):null]));
@@ -250,8 +245,13 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
       return el("button",{type:"button",class:"it",onclick:()=>fichaModelo(m)},[el("span",{class:"stripe "+niv}),el("div",{class:"ppal"},[el("div",{class:"t1",text:m.ref}),
         el("div",{class:"t2",text:[m.cod,m.iny,es.filter(e=>e.estado!=="planta").length?es.filter(e=>e.estado!=="planta").length+" fuera":null].filter(Boolean).join(" · ")})]),
         el("div",{class:"cant num"},[el("b",{text:p+"/"+es.length}),el("small",{text:"en planta"+(+m.min>0?" · mín "+m.min:"")})])]);})):el("div",{class:"empty",text:"Sin modelos. Añádelos en Catálogo."})]));
-  v.appendChild(informeCostes());
-  v.appendChild(analisisEjes());
+  /* sin marcar */
+  const sinM=ejes.filter(e=>!e.marcado).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
+  if(sinM.length)v.appendChild(el("details",{class:"card plg"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Sin el código grabado ("+sinM.length+")"}),el("span",{class:"der sub",text:"Toca para ver"})]),
+    el("p",{class:"hint",style:"padding:8px 14px 0;margin:0",text:"Cuando le grabes el código a un eje, pulsa «Ya grabado»."}),
+    el("div",{class:"lst"},sinM.map(e=>{const[t,c]=EST_E[e.estado]||["—","na"];return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod}),el("div",{class:"t2",text:ejeRef(e)+" · "+t})]),
+      el("button",{type:"button",class:"btn sec peq",text:"Ya grabado",onclick:async ev=>{ev.target.disabled=true;try{await updEje(e,{marcado:true});toast(e.cod+": código grabado");}catch(er){ev.target.disabled=false;toast("No se pudo guardar");}}})]);}))]));
+  v.appendChild(masDatos("ej",[informeCostes(),analisisEjes()],"Más datos: costes del taller y análisis"));
   pintaBus();}
 function pintaBus(){const box=$("eRes");if(!box)return;box.textContent="";const q=(draft.eb||"").trim().toLowerCase();if(!q)return;
   const arr=ejes.filter(e=>(e.cod+" "+ejeRef(e)).toLowerCase().includes(q)).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).slice(0,30);

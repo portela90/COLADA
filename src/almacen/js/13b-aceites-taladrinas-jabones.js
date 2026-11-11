@@ -10,7 +10,7 @@ function vQuim(v){const hy=hoy(),d30=sumaDias(hy,-30);
   v.appendChild(cardContadores());v.appendChild(cardAgua());v.appendChild(cardPrevAceites());
   v.appendChild(el("dl",{class:"kpis num"},[["Productos",String(A.length)],["Gastado en 30 días",fmtN(Math.round(C30.reduce((s,c)=>s+c.cant,0)))+" kg"],["Bajo mínimo",String(bajos.length)],["Pedidos",String(pedidos.length)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   if(bajos.length)v.appendChild(el("div",{class:"banner w",text:"Bajo mínimo: "+bajos.map(a=>a.desc).join(", ")+"."}));
-  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Apuntar consumo",onclick:()=>irA("rap")}),
+  v.appendChild(el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Apuntar consumo",onclick:()=>irA("rap")}),
     el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}})]));
   GRUPOS_Q.forEach(g=>{const L=A.filter(a=>grupoDe(a)===g).sort((a,b)=>a.desc.localeCompare(b.desc,"es",{numeric:true}));if(!L.length)return;
     v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:GRUPO_N[g]}),el("span",{class:"der sub",text:L.length+" producto"+(L.length>1?"s":"")})]),

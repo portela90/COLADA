@@ -146,15 +146,17 @@ test('Cada pieza con las mismas pestañas y «Añadir» para avisos, listas e id
   const mas = async () => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(200); };
   for (const p of ['Pistones', 'Ejes', 'Contenedores', 'Barras expulsoras', 'Tornillos tope', 'Horno', 'Aceites, taladrinas y jabones']) {
     await mas(); await page.locator('.tile .tt', { hasText: new RegExp('^' + p + '$') }).click(); await page.waitForTimeout(250);
-    for (const t of ['Cambios', 'Por máquina', 'Gasto', 'Referencias', 'Añadir', 'Resumen']) {
-      await page.locator('.secc-tabs').getByRole('tab', { name: new RegExp('^' + t) }).click(); await page.waitForTimeout(150);
+    for (const t of ['Historial', 'Por máquina', 'Gasto', 'Referencias', 'Añadir', 'Resumen']) {
+      if (['Por máquina', 'Referencias', 'Añadir'].includes(t)) { await page.locator('.secc-tabs .tab-mas').click(); await page.locator('.dlg .acc-menu button', { hasText: new RegExp('^' + t) }).click(); }
+      else await page.locator('.secc-tabs').getByRole('tab', { name: new RegExp('^' + t) }).click();
+      await page.waitForTimeout(150);
       expect(await desbordes(page), p + ' › ' + t).toEqual([]);
     }
   }
   // en Contenedores: un aviso fijo, una lista y una idea
   await mas(); await page.locator('.tile .tt', { hasText: /^Contenedores$/ }).click();
   const addExtra = async (tipo, rellena) => {
-    await page.locator('.secc-tabs').getByRole('tab', { name: /^Añadir/ }).click();
+    if (!(await page.locator('.secc-tabs .tab-mas', { hasText: 'Añadir' }).count())) { await page.locator('.secc-tabs .tab-mas').click(); await page.locator('.dlg .acc-menu button', { hasText: /^Añadir/ }).click(); await page.waitForTimeout(150); }
     await page.getByRole('button', { name: '＋ Añadir' }).click();
     await page.locator('.dlg').last().locator('.it', { hasText: tipo }).click();
     const d = page.locator('.dlg').last(); await rellena(d); await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(200);
@@ -289,7 +291,7 @@ test('Gestores y relevos: rotan por semanas, se cambian y al apuntar un pistón 
   // en el cambio de pistón: el gestor pone el relevo
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  await expect(page.locator('#pGest option', { hasText: 'Josu (mañana)' })).toHaveCount(1);
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } await expect(page.locator('#pGest option', { hasText: 'Josu (mañana)' })).toHaveCount(1);
   await page.selectOption('#pGest', 'g6'); await expect(page.locator('#pRel')).toHaveValue('Noche');
   await page.selectOption('#pGest', 'g3'); await expect(page.locator('#pRel')).toHaveValue('Tarde');
   const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
@@ -365,7 +367,7 @@ test('Borrar la salida de un cambio de pistón borra también el cambio (no sale
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
   await page.selectOption('#pMaq', maq);
   const diam = await page.locator('#pDiam option').nth(2).getAttribute('value');
   await page.selectOption('#pDiam', diam);
@@ -584,7 +586,7 @@ test('Contadores: empezar a contar de nuevo un contador con lecturas mal', async
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
-  await page.locator('#bReini').click(); await page.waitForTimeout(200);
+  await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('#bReini').click(); await page.waitForTimeout(200);
   const d = page.locator('.dlg').last();
   await d.locator('#riK').selectOption('e220'); await d.getByRole('button', { name: 'Empezar de nuevo' }).click(); await page.waitForTimeout(500);
   const ini = await page.evaluate(() => window.__D.cat.app.contIni);
@@ -645,7 +647,7 @@ test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores'
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#view')).toContainText('Térmico: desfase de -30 %');
-  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/870 kg ≈ 1000 l · abajo 900 l/); expect(t).toMatch(/-300 l \(-30 %\)/); expect(t).not.toMatch(/-30 %\) aprox/); expect(t).toMatch(/quedan arriba ≈ 900 l/);
   await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
@@ -668,7 +670,7 @@ test('Contadores: el primer día se apunta el nivel de arriba y abajo y el cotej
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
-  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   // 600 arriba + 1000 abajo − 950 abajo al cambiar = 650 l; los contadores marcan 640 → -10 l, exacto
   expect(t).toMatch(/arriba 600 l · abajo 1000 l/); expect(t).toMatch(/-10 l \(-2 %\)(?! aprox)/); expect(t).toMatch(/800 kg ≈ 1000 l · abajo 950 l/);
@@ -718,12 +720,12 @@ test('Glicol: el depósito se coteja con los contadores de las dos naves y con e
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#view')).toContainText('el nivel no sube lo que dice el albarán');
-  await page.locator('button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
+  await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   // 2000 − 1150 = 850 l; los contadores de las dos naves marcan 300 + 500 = 800 → -50 l
   expect(t).toMatch(/Glicol · depósito/); expect(t).toMatch(/-50 l \(-6 %\)/); expect(t).toMatch(/quedan ≈ 1900 l/); expect(t).toMatch(/el albarán dice 954 kg ≈ 900 l y el nivel subió 850 l/);
   await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
-  await page.locator('button', { hasText: 'Recarga de glicol' }).click(); await page.waitForTimeout(300);
+  await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Recarga de glicol' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
   await d.locator('#glKg').fill('1060'); await d.locator('#glDens').fill('1,06'); await expect(d).toContainText('≈ 1000 l'); await d.locator('#glA').fill('900'); await d.locator('#glD').fill('1880');
   await d.locator('button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(800);
@@ -1158,7 +1160,7 @@ test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', asy
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
   const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
   const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
   await page.locator('#pBtn').click(); await page.waitForTimeout(200); await page.locator('#pBtn').click(); await page.waitForTimeout(500);
@@ -1296,7 +1298,7 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   await expect(page.locator('#view')).toContainText('avería sin causa');
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
   const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
   await page.selectOption('#pMot', 'ROTURA');
   const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
@@ -1453,7 +1455,7 @@ test('Cuarentena a mano y luego el cambio de pistón de esa máquina: se juntan 
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
   const mq = await page.evaluate(() => window.__D.cat.app.maquinas[1]);
-  const vals = await page.locator('#pMaq option').evaluateAll(o => o.map(x => x.value));
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const vals = await page.locator('#pMaq option').evaluateAll(o => o.map(x => x.value));
   await page.selectOption('#pMaq', vals.find(x => x === mq.id || x === mq.cod));
   const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
   await page.selectOption('#pMot', 'ROTURA');
@@ -1744,7 +1746,7 @@ test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page })
   await page.goto(url); await page.waitForTimeout(1200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
   await page.selectOption('#pMaq', maq);
   await page.selectOption('#pDiam', await page.locator('#pDiam option').nth(2).getAttribute('value'));
   await page.selectOption('#pDest', await page.locator('#pDest option').nth(1).getAttribute('value'));

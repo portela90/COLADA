@@ -17,13 +17,12 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   if(f==="barra"&&typeof cardBrec==="function"){const cb=cardBrec();if(cb)v.appendChild(cb);}
   if(f==="horno"&&typeof limpPorRevisar==="function"){const G=limpPorRevisar();if(G.length)v.appendChild(el("div",{class:"banner w",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{text:G.length+(G.length===1?" cambio de horno de Limpieza por revisar":" cambios de horno de Limpieza por revisar")+" (rotura, atasco, fallo o fuga)."}),el("button",{type:"button",class:"btn peq",text:"Revisar",onclick:revisarLimpieza})]));}
   v.appendChild(el("dl",{class:"kpis num"},[["Referencias",String(A.length)],["En stock",fmtN(A.reduce((t,a)=>t+stockDe(a.id),0))+" ud"],["Para pedir",String(bajo.length)],["Cambios 30 días",fmtN(C30.reduce((t,m)=>t+(+m.cant||0),0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
-  v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>cambioBT(f)}),
-    el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}}),
-    (()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"btLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranIAGratis(x,[f]);});
-      return el("span",{style:"display:contents"},[fi,el("button",{type:"button",class:"btn sec",text:"Leer albarán",title:"Haz una foto al albarán: la app ve qué "+N.nom.toLowerCase()+" han llegado y las suma al stock",onclick:()=>fi.click()})]);})(),
-    el("button",{type:"button",class:"btn sec",text:"Contar",onclick:()=>{const al=(A[0]&&ppalDe(A[0]))||(cat.almacenes[0]||{}).id;formInventario({fam:f,alm:al});}}),
-    el("button",{type:"button",class:"btn sec",text:"Pedido al proveedor",onclick:()=>pedidoBT(f)}),
-    el("button",{type:"button",class:"btn sec",text:"Nueva referencia",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})]));
+  /* una acción principal, la entrada y el resto en «⋯ Más» (el lector de albaranes sigue aquí, escondido) */
+  {const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"btLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranIAGratis(x,[f]);});
+   v.appendChild(el("div",{class:"acc-pri"},[fi,el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>cambioBT(f)}),
+     el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}}),
+     menuAcc("Más acciones de "+N.nom.toLowerCase(),[["Leer albarán (foto)",()=>fi.click()],["Contar",()=>{const al=(A[0]&&ppalDe(A[0]))||(cat.almacenes[0]||{}).id;formInventario({fam:f,alm:al});}],
+       ["Pedido al proveedor",()=>pedidoBT(f)],["Nueva referencia",()=>formArticulo(null,{fam:f,ud:"ud"})]])]));}
   /* referencias */
   v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:N.nom+" ("+A.length+")"}),el("span",{class:"der sub",text:"stock y dónde van"})]),
     A.length?el("div",{class:"lst"},[].concat(...(f==="horno"?gruposH(A):[[null,A]]).map(([gN,GA])=>[gN?el("div",{class:"gh",text:gN+" ("+GA.length+")"}):null].concat(GA.map(a=>{const st=stockDe(a.id),n=nivel(a),ms=maqsArt(a),c90=cambiosBT(f,sumaDias(hy,-90)).filter(m=>m.art===a.id).reduce((t,m)=>t+(+m.cant||0),0);
