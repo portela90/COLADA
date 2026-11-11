@@ -1171,3 +1171,21 @@ test('Consumo: la pestaña abre la vista general y el botón naranja lleva al re
   await expect(page.locator('.stk-t', { hasText: 'Por relevo' }).first()).toBeVisible();
   expect(err).toEqual([]);
 });
+
+test('«¿No cuadra?» al pie de cada pantalla y en la ficha de una colada', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__NC_MOCK = []; });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.locator('#ncPie').click(); await page.waitForTimeout(200);
+  await page.fill('#ncTxt', 'en Nave 1 salen 12 fardos y hay 10');
+  await page.locator('#ncEnviar').click(); await page.waitForTimeout(200);
+  let nc = await page.evaluate(() => window.__NC_MOCK);
+  expect(nc[0].t).toContain('12 fardos'); expect(nc[0].ctx.tipo).toBe('Pantalla'); expect(nc[0].ctx.ve.length).toBeGreaterThan(10);
+  const nom = await page.evaluate(() => { const [id, l] = Object.entries(window.__D.lotes)[0]; window.abrirFicha(id); return l.nombre; }); await page.waitForTimeout(400);
+  await page.locator('#ncFicha').click(); await page.waitForTimeout(200);
+  await page.fill('#ncTxt', 'la colada pone 0 kg');
+  await page.locator('#ncEnviar').click(); await page.waitForTimeout(200);
+  nc = await page.evaluate(() => window.__NC_MOCK);
+  expect(nc[1].ctx.tipo).toBe('Colada'); expect(nc[1].ctx.titulo).toBe('Colada ' + nom);
+  expect(err).toEqual([]);
+});

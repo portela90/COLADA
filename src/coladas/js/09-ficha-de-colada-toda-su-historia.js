@@ -77,7 +77,8 @@ function abrirFicha(id){
   const tec=e=>{if(e.key==="Escape"&&!document.querySelector(".dlg-ov,.lightbox"))cerrar();};
   const ov=el("div",{class:"ficha-ov",role:"dialog","aria-modal":"true","aria-label":"Ficha de colada"},[
     el("div",{class:"ficha-top"},[el("button",{type:"button",class:"btn sec",style:"font-size:14px;padding:9px 14px",text:"← Volver",onclick:cerrar}),tit]),body]);
-  const pinta2=()=>{pinta();const l=lotes.find(x=>x.id===id),w=body.querySelector(".wrap");if(l&&w&&typeof cardCertColada==="function")w.appendChild(cardCertColada(l,pinta2));if(l&&w&&typeof cardIncidColada==="function")w.appendChild(cardIncidColada(l,pinta2));};
+  const pinta2=()=>{pinta();const l=lotes.find(x=>x.id===id),w=body.querySelector(".wrap");if(l&&w&&typeof cardCertColada==="function")w.appendChild(cardCertColada(l,pinta2));if(l&&w&&typeof cardIncidColada==="function")w.appendChild(cardIncidColada(l,pinta2));
+    const top=ov.querySelector(".ficha-top");if(l&&top&&!top.querySelector("#ncFicha")&&typeof botonNoCuadraFicha==="function")top.appendChild(botonNoCuadraFicha(l,body));};
   document.addEventListener("keydown",tec);document.body.appendChild(ov);fichaRefresca=pinta2;pinta2();
 }
 /* ---------- Ficha de albarán: qué coladas trajo y cuánto queda ---------- */
@@ -235,3 +236,4 @@ function abrirBuscador(){
 }
 /* Al redibujar se recrean los campos; guardamos cuál tenía el foco, el cursor
    y el scroll para devolverlos y que se pueda seguir escribiendo sin cortes. */
+window.abrirFicha=abrirFicha;

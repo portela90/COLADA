@@ -463,3 +463,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 .ca-t th,.ca-t td{padding:6px 8px;border-bottom:1px solid var(--line2);text-align:left}
 .ca-t td.num{text-align:right}
 .ca-t tr.mal td{color:var(--bad);font-weight:600}
+.nc-pie{display:flex;justify-content:center;margin:6px 0 2px}

@@ -139,6 +139,7 @@ function render(){
   let s0=null,s1=null;if(fid){try{s0=a.selectionStart;s1=a.selectionEnd;}catch(e){}}
   const sc=mn?mn.scrollTop:0;
   pinta();
+  try{pieNoCuadra();}catch(e){}
   if(fichaRefresca){try{fichaRefresca();}catch(e){}}
   if(albRefresca){try{albRefresca();}catch(e){}}
   if(mn)mn.scrollTop=sc;
