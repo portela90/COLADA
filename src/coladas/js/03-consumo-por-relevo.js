@@ -216,13 +216,16 @@ function llegaCamion(x){
   tab="entrada";try{localStorage.setItem("colada.tab",tab);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;
 }
 /* Leer el albarán de la foto con IA (función leer-albaran de Supabase) y rellenar el formulario */
+/* leer la foto de un albarán con la función leer-albaran (Claude): devuelve los datos tal cual */
+async function leerAlbFoto(file){if(window.__ALBC_MOCK)return window.__ALBC_MOCK;
+  const bl=await comprimir(file,1800);
+  const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]);fr.onerror=rej;fr.readAsDataURL(bl);});
+  const r=await window.sbColada.functions.invoke("leer-albaran",{body:{image:b64,mime:bl.type||"image/jpeg",proveedores:cfg.proveedores||[],hoy:hoy()}});
+  let err=r.error?(r.error.message||"error"):null;if(r.error&&r.error.context&&r.error.context.json){try{const j=await r.error.context.json();err=j.error||err;}catch(e){}}
+  if(err)throw new Error(err);
+  return(r.data&&r.data.datos)||{};}
 async function leerAlbaran(d){const b=$("e-leer");if(b){b.disabled=true;b.textContent="Leyendo el albarán…";}
-  try{const bl=await comprimir(d.foto,1800);
-    const b64=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]);fr.onerror=rej;fr.readAsDataURL(bl);});
-    const r=await window.sbColada.functions.invoke("leer-albaran",{body:{image:b64,mime:bl.type||"image/jpeg",proveedores:cfg.proveedores||[],hoy:hoy()}});
-    let err=r.error?(r.error.message||"error"):null;if(r.error&&r.error.context&&r.error.context.json){try{const j=await r.error.context.json();err=j.error||err;}catch(e){}}
-    if(err)throw new Error(err);
-    const x=(r.data&&r.data.datos)||{};
+  try{const x=await leerAlbFoto(d.foto);
     const prov=(cfg.proveedores||[]).find(p=>nrm(p)===nrm(x.proveedor||""));if(prov)d.prov=prov;
     if(x.albaran)d.alb=String(x.albaran);
     if(x.fecha&&/^\d{4}-\d{2}-\d{2}$/.test(x.fecha))d.fecha=x.fecha;

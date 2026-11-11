@@ -456,3 +456,10 @@ button.cc-prov:hover{border-color:var(--cc)}
 #cons-mes .tspk{max-width:360px}
 .stk-volver-m{white-space:nowrap;flex:none}
 .hint.neg,.sub.neg{color:var(--bad);font-weight:600}
+
+/* Completar con el albarán: cotejo con lo apuntado al llegar */
+.ca-cot{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.ca-t{width:100%;border-collapse:collapse;font-size:14px}
+.ca-t th,.ca-t td{padding:6px 8px;border-bottom:1px solid var(--line2);text-align:left}
+.ca-t td.num{text-align:right}
+.ca-t tr.mal td{color:var(--bad);font-weight:600}

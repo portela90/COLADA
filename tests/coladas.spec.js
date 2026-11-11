@@ -45,6 +45,31 @@ test('Entrada sin peso de báscula: queda pendiente de pesar y se pone después 
   expect(err).toEqual([]);
 });
 
+test('entrada sin albarán: al llegar el albarán se lee la foto y se coteja con lo apuntado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__ALBC_MOCK = { albaran: '20261206', fecha: '2026-11-10', fecha_albaran: '2026-11-09', proveedor: 'Estrella', aleacion: 'AlSi9Cu3', nave: 'Nave 1', kg: 24269, fardos: 35, coladas: [{ colada: '19094', kg: 24269, fardos: 35 }], sap: '5005385417', confianza: 'alta' }; });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Entrada').click()); await page.waitForTimeout(300);
+  await page.click('.chk-sa'); await page.waitForTimeout(200);
+  await page.fill('#e-col', '19094'); await pulsa(page, 'Nave 1'); await pulsa(page, 'AlSi9');
+  await page.fill('#e-fa', '34'); await page.waitForTimeout(200);
+  await page.click('#e-go'); await page.waitForTimeout(800);
+  await pulsa(page, 'Completar');
+  const d = page.locator('.dlg').last();
+  await expect(d.locator('#ca-leer')).toBeHidden();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+  await d.locator('#ca-foto').setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: png });
+  await d.locator('#ca-leer').click(); await page.waitForTimeout(500);
+  await expect(d.locator('[data-k="a"]')).toHaveValue('20261206'); await expect(d.locator('[data-k="kg"]')).toHaveValue('24269'); await expect(d.locator('[data-k="fa"]')).toHaveValue('35');
+  await expect(d.locator('.ca-cot')).toContainText('no coincide en 1 cosa');
+  await expect(d.locator('.ca-t tr.mal')).toContainText('Fardos');
+  await expect(d.locator('[data-k="obs"]')).toHaveValue(/SAP 5005385417 · Albarán del 09\/11\/2026/);
+  await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(800);
+  const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(r => r.a === '20261206'));
+  expect(m).toMatchObject({ kg: 24269, fa: 35 }); expect(m.sa).toBeUndefined();
+  expect(err).toEqual([]);
+});
+
 test('entrada sin albarán: se mete con kilos estimados y se completa después', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
