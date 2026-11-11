@@ -2265,3 +2265,30 @@ test('Que todo cuadre: un eje con dos reparaciones abiertas sale en Hoy y se arr
   expect(r.res).toBe('ok'); expect(r.rec).toBeTruthy();
   expect(err).toEqual([]);
 });
+
+test('Cantidades raras: el albarán avisa antes de guardar; «¿No cuadra?» en una ficha', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { window.__NC_MOCK = []; window.__ALB_CF_MOCK = { datos: { proveedor: 'Meyusa', albaran: 'RR-1', fecha: '2026-10-30', tipo: 'compra', confianza: 'alta', lineas: [{ texto: 'BARRA EXPULSORA BE-16', cantidad: 800, unidad: 'ud', art: 'b1' }] } }; });
+  await page.goto(url); await page.waitForTimeout(1200);
+  const png = { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64') };
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Barras expulsoras$/ }).click(); await page.waitForTimeout(300);
+  await page.locator('#btLeerAlb').setInputFiles(png); await page.waitForTimeout(1200);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#laRaros')).toContainText('800 ud de Barra expulsora BE-16');
+  const n = () => page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(m => m.alb === 'RR-1').length);
+  expect(await n()).toBe(0);
+  await page.locator('.dlg').last().locator('button', { hasText: 'Están bien, guardar' }).click(); await page.waitForTimeout(1200);
+  expect(await n()).toBe(1);
+  // ficha: ¿No cuadra?
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('input[placeholder^="Buscar eje"]', '2.8.J-1'); await page.waitForTimeout(300);
+  await page.locator('#eRes button').first().click(); await page.waitForTimeout(400);
+  await page.locator('.op-nc').last().click(); await page.waitForTimeout(200);
+  await page.fill('#ncTxt', 'dice que está en planta y está en el taller');
+  await page.locator('.dlg').last().locator('button', { hasText: 'Enviar' }).click(); await page.waitForTimeout(300);
+  const nc = await page.evaluate(() => window.__NC_MOCK);
+  expect(nc[0].t).toContain('en el taller'); expect(nc[0].ctx.titulo).toBe('2.8.J-1');
+  expect(err).toEqual([]);
+});

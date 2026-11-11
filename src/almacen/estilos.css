@@ -389,3 +389,4 @@ input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;bord
 .g-ed,.g-x{appearance:none;border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0 2px}
 .g-x{color:var(--mut)}
 .g-lst{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
+.op-nc{margin-left:auto;font-size:13px}

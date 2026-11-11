@@ -57,6 +57,7 @@ async function guardarMov(){const d=draft.m,a=art(d.art),q=parseN(d.cant);
     if(d.sMot==="OTRO"&&!String(d.sMotO||"").trim()){toast("Escribe cuál es el motivo");return;}
     if(!d.sMot&&!d.mOk){d.mOk=true;toast("Falta el motivo. Si no se sabe, pulsa Guardar otra vez y quedará «sin motivo».");return;}}
   if(d.tipo==="salida"&&!String(d.resp||"").trim()&&!d.rOk){d.rOk=true;toast("Falta el operario que lo ha cogido. Si no se sabe, pulsa Guardar otra vez.");const r=$("mResp");if(r)r.focus();return;}
+  if((d.tipo==="entrada"||d.tipo==="salida")&&d.qOk!==d.tipo+"|"+a.id+"|"+d.alm+"|"+q){const m=cantRara(a,q,d.tipo,d.alm);if(m){d.qOk=d.tipo+"|"+a.id+"|"+d.alm+"|"+q;toast("Ojo: "+fmtN(q)+" "+(a.ud||"ud")+" "+m+". Si es correcto, pulsa Guardar otra vez.");const c=$("mCant");if(c)c.focus();return;}}
   const rec={f:d.f,tipo:d.tipo,art:a.id,alm:d.alm,cant:q,nota:d.nota.trim()||null};
   if(d.tipo==="ajuste"){const st=stockA(a.id,d.alm,d.f);rec.cant=Math.round((q-st)*1000)/1000;rec.contado=q;rec.teorico=st;if(rec.cant===0){rec.nota=rec.nota||"Recuento sin diferencias";}}
   if(d.tipo==="traslado")rec.dest=d.dest;

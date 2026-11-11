@@ -41,6 +41,10 @@ function revisarAlbaran(D,blob){const recup=D.tipo==="recuperacion"||(D.lineas||
   dlg("Albarán leído",[box],[{t:"Cancelar",cls:"sec"},{t:"Guardar entradas",fn:async()=>{
     const S=L.filter(r=>r.ok);if(!S.length){toast("No hay ninguna línea marcada");return false;}if(!v.alm){toast("Elige el almacén");return false;}
     for(const r of S){const q=parseN(r.cant);if(!art(r.art)){toast("Elige el artículo de «"+(r.texto||"línea "+(r.i+1))+"»");return false;}if(!(q>0)){toast("Cantidad no válida en «"+(r.texto||"línea "+(r.i+1))+"»");return false;}}
+    /* cantidades raras (la IA o el lector pueden leer mal): se avisa una vez antes de guardar */
+    {const R=S.map(r=>{const a=art(r.art),q=parseN(r.cant),m=cantRara(a,q,"entrada",v.alm);return m?{r,a,q,m}:null;}).filter(Boolean),k=R.map(x=>x.r.i+":"+x.q).join("|");
+     if(R.length&&v.raroOk!==k){dlg("Revisa estas cantidades",[el("p",{class:"hint",text:"Antes de guardar: puede que se hayan leído mal."}),el("ul",{id:"laRaros"},R.map(x=>el("li",{},[el("b",{text:fmtN(x.q)+" "+(x.a.ud||"ud")+" de "+x.a.desc}),": "+x.m+"."])))],
+       [{t:"Corregir",cls:"sec"},{t:"Están bien, guardar",fn:()=>{v.raroOk=k;setTimeout(()=>{const b=[...document.querySelectorAll(".dlg button")].find(z=>z.textContent==="Guardar entradas");if(b)b.click();},50);}}]);return false;}}
     let foto=null;try{if(blob&&assets){const u=await assets.upload(blob);foto=u.id;}}catch(e){}
     const movs=S.map(r=>{const a=art(r.art),m={tipo:"entrada",f:v.f,art:a.id,alm:v.alm,cant:parseN(r.cant)};if(v.prov)m.prov=v.prov;if(String(v.alb).trim())m.alb=String(v.alb).trim();if(foto)m.foto=foto;
       if(a.pedido)m.ped=a.pedido;
