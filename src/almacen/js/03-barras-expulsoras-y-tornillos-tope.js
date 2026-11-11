@@ -19,6 +19,8 @@ function vBT(v,fijo){if(fijo&&draft.bt!==fijo){draft.bt=fijo;draft.btMaq="";}dra
   v.appendChild(el("dl",{class:"kpis num"},[["Referencias",String(A.length)],["En stock",fmtN(A.reduce((t,a)=>t+stockDe(a.id),0))+" ud"],["Para pedir",String(bajo.length)],["Cambios 30 días",fmtN(C30.reduce((t,m)=>t+(+m.cant||0),0))]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
   v.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Registrar cambio",onclick:()=>cambioBT(f)}),
     el("button",{type:"button",class:"btn sec",text:"Entrada",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:A[0]?A[0].id:"",cant:""});irA("mov");}}),
+    (()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"btLeerAlb"});fi.addEventListener("change",()=>{const x=fi.files[0];fi.value="";leerAlbaranIAGratis(x,[f]);});
+      return el("span",{style:"display:contents"},[fi,el("button",{type:"button",class:"btn sec",text:"Leer albarán",title:"Haz una foto al albarán: la app ve qué "+N.nom.toLowerCase()+" han llegado y las suma al stock",onclick:()=>fi.click()})]);})(),
     el("button",{type:"button",class:"btn sec",text:"Contar",onclick:()=>{const al=(A[0]&&ppalDe(A[0]))||(cat.almacenes[0]||{}).id;formInventario({fam:f,alm:al});}}),
     el("button",{type:"button",class:"btn sec",text:"Pedido al proveedor",onclick:()=>pedidoBT(f)}),
     el("button",{type:"button",class:"btn sec",text:"Nueva referencia",onclick:()=>formArticulo(null,{fam:f,ud:"ud"})})]));

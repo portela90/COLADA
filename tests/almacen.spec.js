@@ -2179,3 +2179,37 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   await expect(page.locator('#bdRes')).toContainText('12,5');
   expect(err).toEqual([]);
 });
+
+test('Leer albarán en Barras expulsoras (suma al stock) y albarán del taller en Ejes (vuelven a planta)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.rep)[0];
+    v.rep[k].items.push({ id: 'ra', eje: '2.8.J-2', desp: 'ROSCA', alta: '2026-10-10', env: '2026-10-10', rec: null, res: null }, { id: 'rb', eje: '2.8.J-4', desp: 'ROTURA', alta: '2026-10-12', env: '2026-10-12', rec: null, res: null }); } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  const png = { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64') };
+  const ir = async t => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+    await page.locator('.tile .tt', { hasText: new RegExp('^' + t + '$') }).click(); await page.waitForTimeout(300); };
+  // barras
+  await page.evaluate(() => { window.__ALB_CF_MOCK = { datos: { proveedor: 'Meyusa', albaran: 'BE-77', fecha: '2026-11-10', tipo: 'compra', confianza: 'alta', lineas: [{ texto: 'BARRA EXPULSORA BE-16', cantidad: 8, unidad: 'ud', art: 'b1' }] } }; });
+  await ir('Barras expulsoras');
+  await page.locator('#btLeerAlb').setInputFiles(png); await page.waitForTimeout(1200);
+  let d = page.locator('.dlg').last();
+  await expect(d.locator('#laA0')).toHaveValue('b1'); await expect(d.locator('#laC0')).toHaveValue('8');
+  await d.locator('button', { hasText: 'Guardar entradas' }).click(); await page.waitForTimeout(900);
+  const M = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).filter(m => m.alb === 'BE-77'));
+  expect(M.map(m => [m.tipo, m.art, m.cant])).toEqual([['entrada', 'b1', 8]]);
+  // ejes
+  await page.evaluate(() => { window.__ALB_CF_MOCK = { datos: { albaran: 'T-55', fecha: '2026-11-10', lineas: [{ texto: 'REPARACION EJE 2.8.J-4 CAMBIO CASQUILLO', cantidad: 1 }, { texto: 'EJE PISTON 2.8 J', cantidad: 1, art: 'eje:e2' }, { texto: 'PORTES', cantidad: 1 }] } }; });
+  await ir('Ejes');
+  await page.locator('#eLeerAlb').setInputFiles(png); await page.waitForTimeout(1200);
+  d = page.locator('.dlg').last();
+  await expect(d.locator('#leAlb')).toHaveValue('T-55');
+  await expect(d.locator('.le-fila')).toHaveCount(2); await expect(d).not.toContainText('PORTES');
+  await expect(d.locator('#leE0')).toHaveValue('e4'); await expect(d.locator('#leE1')).toHaveValue('e2');
+  await expect(d).toContainText('lo ha elegido la IA');
+  await d.locator('button', { hasText: 'Recibir OK' }).click(); await page.waitForTimeout(900);
+  const E = await page.evaluate(() => [window.__D.ejes.e2.estado, window.__D.ejes.e4.estado]);
+  expect(E).toEqual(['planta', 'planta']);
+  const R = await page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).filter(r => r.alb === 'T-55').map(r => r.eje).sort());
+  expect(R).toEqual(['2.8.J-2', '2.8.J-4']);
+  expect(err).toEqual([]);
+});
