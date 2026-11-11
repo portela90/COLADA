@@ -15,7 +15,7 @@ concurrency:
 jobs:
   pruebas:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: tests
@@ -32,7 +32,7 @@ jobs:
           git status --porcelain
           if [ -n "$(git status --porcelain -- ':!tests')" ]; then echo "::error::Las páginas subidas no coinciden con src/. Ejecuta node build.mjs y súbelas."; git diff --stat; exit 1; fi
       - run: npm install --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium || npx playwright install chromium
+      - run: timeout 180 npx playwright install --with-deps chromium || npx playwright install chromium
       - run: npx playwright test
         env:
           CI: "1"
