@@ -137,7 +137,7 @@ function textoPedido(s){s=s||incluirSel("pedido",OPS_PED);const hy=hoy();const a
       L.push("PROVEEDOR: "+k.toUpperCase()+(pv&&pv.plazo?" (plazo "+pv.plazo+" días)":""));g[k].forEach(a=>{
     L.push("- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+fmtN(cantPedir(a))+" "+a.ud+(s.calc?" (stock "+fmtN(stockDe(a.id))+", mínimo "+fmtN(+a.min||0)+(consPlazo(a)>0?", consumo en "+plazoArt(a)+" días de plazo: "+fmtN(Math.round(consPlazo(a)*10)/10):"")+")":"")+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""));});L.push("");});}
   const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m),f:ejes.filter(e=>grupoEje(m).some(g=>g.cod===e.mod)&&e.estado!=="planta").length})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
-  if(s.eje&&bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>L.push("- "+grupoNom(m)+": "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")));L.push("");}
+  if(s.eje&&bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>{const pd=pedidosG(m).length;L.push("- "+grupoNom(m)+": "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")+(pd?" · "+pd+" ya pedido"+(pd>1?"s":"")+" al taller":""));});L.push("");}
   if((!s.art||!arts.length)&&(!s.eje||!bajos.length))L.push(!arts.length&&!bajos.length?"Todo por encima del mínimo. No hace falta pedir nada.":"No has elegido nada que incluir.");
   return{txt:L.join("\n").trim(),arts};}
 function listaPedido(){const{txt,arts}=textoPedido();const aj=cat.ajustes||{};
