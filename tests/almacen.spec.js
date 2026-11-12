@@ -2247,6 +2247,10 @@ test('Ejes en el mínimo: si ya está pedido al taller lo suficiente, no vuelve 
   it = await ver();
   await expect(it.locator('.mod-ped')).toContainText('1 llegado del taller, por revisar');
   await expect(it.locator('button', { hasText: 'Pedir al taller' })).toHaveCount(0);
+  // en el móvil el aviso va en su línea y el nombre del modelo no se aplasta (salía letra a letra)
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200);
+  const anchoNombre = await it.locator('.ppal').evaluate(n => n.getBoundingClientRect().width);
+  expect(anchoNombre).toBeGreaterThan(150);
   expect(err).toEqual([]);
 });
 

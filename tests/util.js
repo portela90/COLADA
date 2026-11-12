@@ -61,6 +61,15 @@ async function desbordes(page) {
       const r = e.getBoundingClientRect();
       if (r.width && r.right > W + 1) out.push(e.tagName + '.' + e.className + ' «' + (e.textContent || '').trim().slice(0, 30) + '»');
     });
+    /* texto aplastado: una caja tan estrecha que el texto sale en columna, letra a letra */
+    document.querySelectorAll('main *, .dlg *, header *').forEach(e => {
+      if (!e.offsetParent) return;
+      const propio = [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').replace(/\s+/g, '');
+      if (propio.length < 4) return;
+      const r = e.getBoundingClientRect(), cs = getComputedStyle(e), fs = parseFloat(cs.fontSize) || 14;
+      if (cs.writingMode && cs.writingMode.startsWith('vertical')) return;
+      if (r.width > 0 && r.width < fs * 2.6 && r.height > fs * 4.5) out.push('texto aplastado ' + e.tagName + '.' + e.className + ' «' + propio.slice(0, 30) + '» (' + Math.round(r.width) + ' px de ancho)');
+    });
     return out.slice(0, 5);
   });
 }

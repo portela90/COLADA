@@ -41,7 +41,7 @@ details.card>summary::-webkit-details-marker{display:none}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:12px auto}
 .pad button{font-size:24px;font-weight:700;padding:14px 0;border-radius:12px;border:1px solid var(--line);background:var(--surf);cursor:pointer}
 .dots{display:flex;justify-content:center;gap:12px;margin:10px 0}.dots span{width:16px;height:16px;border-radius:50%;border:2px solid var(--acc)}.dots span.on{background:var(--acc)}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 12px}.kpis div{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:10px;text-align:center}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}.kpis div{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:10px;text-align:center}
 .kpis b{display:block;font-size:22px}.kpis small{color:var(--mut);font-size:12px}
 .datebar{display:flex;align-items:center;gap:8px;margin:0 0 12px}.datebar b{flex:1;text-align:center;font-size:17px}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
@@ -153,3 +153,5 @@ input::placeholder,textarea::placeholder{color:var(--mut);opacity:1}
 .card .row:has(>input)>.btn{flex:0 0 auto;white-space:nowrap}
 /* Productos de limpieza: campos con el mismo aspecto que los demás */
 .prod-l input,.prod-l select{font:inherit;font-size:16px;min-height:42px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;box-sizing:border-box}
+/* móviles estrechos: las cifras de 2 en 2 para que no se salgan de la pantalla */
+@media (max-width:480px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}

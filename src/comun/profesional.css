@@ -620,3 +620,6 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
 .filtro-pl[open]>summary{border-bottom:1px solid var(--line2)}
 .filtro-pl>:not(summary){padding:12px 14px}
 .vistas[hidden]{display:none!important}
+/* que el nombre de una fila nunca se aplaste (salía letra a letra): si no cabe, lo de al lado baja de línea */
+.lst .it>.ppal{min-width:min(150px,45%)}
+.lst .it>.pill{white-space:normal;max-width:100%}
