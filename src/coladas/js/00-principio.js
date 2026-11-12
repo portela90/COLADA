@@ -1,7 +1,7 @@
 
 (function(){
 "use strict";
-const TABS=[["stock","Stock"],["consumo","Consumo"],["entrada","Entrada"],["lotes","Lotes"],["hist","Consultas"],["precios","Precios"],["plan","Plan"]];
+const TABS=[["stock","Stock"],["consumo","Consumo"],["entrada","Entrada"],["lotes","Lotes"],["hist","Informes"],["precios","Precios"],["plan","Plan"]];
 const MAT={"L-2630":{nom:"AlSi9",al:"blanca blanco",col:"var(--blanca)"},"L-2521-B":{nom:"AlSi12",al:"azul",col:"var(--azul)"}};
 const NAVES=["Nave 1","Nave 2"];
 const TURNOS=["Mañana","Tarde","Noche"];

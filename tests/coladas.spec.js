@@ -101,7 +101,7 @@ test('Repaso: un camión unido a la entrada de otra nave sale para arreglarlo y 
     const pl = v.cfg.app.plan = v.cfg.app.plan || {}; pl['2026-11'] = { camiones: [], consumo: {}, entradas: [
       { f: '2026-11-10', k: 'Nave 1|L-2630', o: 'C', p: 'BEFESA', fa: 37, rec: { f: '2026-11-10', k: 'Nave 2|L-2630', l: 'lx' } }] }; } }); });
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Repaso de la semana' }).first().click(); await page.waitForTimeout(400);
   const rep = page.locator('.card', { hasText: 'Repaso de la semana' }).last();
   await expect(rep).toContainText('1 camión unido a una entrada que no es suya');
@@ -138,7 +138,7 @@ test('entrada sin albarán: se mete con kilos estimados y se completa después',
 test('Consultas: gráficos de aluminio por mes', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click());
   await page.waitForTimeout(1500);
   await page.locator('.stk-t', { hasText: 'Aluminio por mes' }).first().click(); await page.waitForTimeout(800);
   await expect(page.locator('.stk-det h2', { hasText: 'Aluminio por mes' }).last()).toBeVisible();
@@ -186,7 +186,7 @@ test('Consultas: el buscador responde preguntas con palabras normales', async ({
       { i: 'm2', t: 'C', f: '2026-10-21', u: 'Noche', o: 'l4', fa: 3, kg: 2100 },
       { i: 'm3', t: 'C', f: '2026-10-22', u: 'Tarde', o: 'l4', fa: 1, kg: 700 }] });
   });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click());
   await page.waitForTimeout(400);
   const pregunta = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(150); return (await page.locator('.bq-res').textContent()); };
   // consumo de una nave en un mes, repartido por relevo
@@ -252,7 +252,7 @@ test('Consultas: preguntas de dinero, planificación, lo que falta, coladas y m�
       precios: { [mes]: { prov: { IDALSA: 2900, BEFESA: 2800 } } }, plan: { [mes]: { camiones: [{ p: 'IDALSA', m: 'L-2630', n: 3 }], consumo: {}, entradas: [] } } });
     await db.doc('cfg/app').set(app);
   });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click());
   await page.waitForTimeout(400);
   const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(200); return (await page.locator('.bq-res').textContent()); };
   expect(await resp('qué hay que revisar')).toMatch(/que revisar|Todo en orden/);
@@ -284,7 +284,7 @@ test('Consultas: «todo sobre la colada», relevos raros, coste previsto y cruce
   await page.evaluate(async () => { const h=new Date(),f=d=>{const x=new Date(h);x.setDate(x.getDate()+d);return x.toISOString().slice(0,10);},mes=f(0).slice(0,7);
     await db.doc('mov/'+mes).set({items:[{i:'c1',t:'C',f:f(-2),u:'Mañana',o:'l3',fa:4},{i:'c2',t:'C',f:f(-1),u:'Tarde',o:'l1',fa:5},{i:'a1',t:'A',f:f(-1),o:'l2',fa:-1}]});
     await db.doc('maq/'+mes).set({items:[{i:'q1',f:f(-20),u:'Mañana',m:'F55',on:false}]}); });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(400); return (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); };
   expect(await resp('todo sobre la colada C25001')).toMatch(/La colada C25001 \(AlSi9, Nave 1\)/);
   expect(await resp('qué relevo gasta más de lo normal')).toMatch(/Fardos por máquina/);
@@ -305,7 +305,7 @@ test('Consultas: «lo que tengo, lo que ha entrado y lo que ha consumido cada na
   await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
     await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2521-B', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA' });
     await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'A1' }, { i: 'c1', t: 'C', f: f(-2), u: 'Mañana', o: 'l4', fa: 4 }] }); });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'dime lo que tengo en cada nave de aluminio lo que ha entrado a cada nave y lo que ha consumido cada nave este mes'); await page.waitForTimeout(300);
   const t = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/Nave 2: tiene 18\.?200 kg \(26 fardos\) en la nave; este mes han entrado 21\.?000 kg \(30 f\) y ha consumido 2\.?800 kg \(4 f\)/);
@@ -319,7 +319,7 @@ test('Consultas: «cuántos camiones han entrado en cada nave, del proveedor y d
   await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
     await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA' });
     await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'A1' }, { i: 't1', t: 'T', f: f(-2), o: 'l1', d: 'l1', kg: 0, fa: 0, n: 'Subida entera del almacén externo (24 fardos)' }] }); });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'cuántos camiones han entrado en nave 1 y nave 2 y cuántos del almacén externo y cuántos del proveedor'); await page.waitForTimeout(300);
   const t = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/han llegado a las naves 2 camiones: 1 del proveedor y 1 del almacén externo/);
@@ -335,7 +335,7 @@ const stubAprende = () => { const T = { sinonimos: [], consultas_log: [] }; let 
   window.__T = T; window.sbColada = { from: q }; };
 test('Consultas: el buscador aprende (enseñar una palabra, guardar la pregunta y «¿te ha servido?»)', async ({ page }) => { const err = await vigila(page); await page.addInitScript(stubAprende);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'stock de las blanquitas'); await page.waitForTimeout(300);
   await expect(page.locator('.ba-ens')).toContainText('«blanquitas»');
   await page.locator('.ba-ens .ba-b', { hasText: 'AlSi9' }).click(); await page.waitForTimeout(300);
@@ -360,7 +360,7 @@ test('Consultas: preguntas de la revisión semanal (fechas, camiones, albaranes,
     await db.doc('mov/' + mm).set({ items: [{ i: 'e1', t: 'E', f: F.iso, d: 'k1', fa: 30, kg: 21000, a: 'CEVA2601688' }, { i: 'c1', t: 'C', f: F.iso, u: 'Mañana', o: 'k1', fa: 3, kg: 2100 }] });
     await db.doc('maq/' + mm).set({ items: [{ i: 'q1', f: F.iso, u: 'Mañana', m: 'CARG|Nave 2', on: false }, { i: 'q2', f: F.iso, u: 'Noche', m: 'CARG|Nave 2', on: true }] });
   }, F);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(400);
   const pregunta = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(200); const r = (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); expect(r, t).not.toMatch(/undefined|NaN/); return r; };
   const dm = F.dd + '/' + F.mm, dmy = dm + '/' + F.yy;
   // un día suelto, con nave y aunque sobre «este año»
@@ -394,7 +394,7 @@ test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }
   await page.evaluate(async () => { const h = new Date(), f = d => { const x = new Date(h); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }, mes = f(0).slice(0, 7);
     await db.doc('lotes/l4').set({ nombre: 'C25010', material: 'L-2630', nave: 'Nave 2', donde: 'nave', kgInv: 0, fardosInv: 0, entrada: f(-3), proveedor: 'IDALSA', albaran: 'ALB-7788' });
     await db.doc('mov/' + mes).set({ items: [{ i: 'e1', t: 'E', f: f(-3), d: 'l4', fa: 30, kg: 21000, a: 'ALB-7788' }] }); });
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'albarán ALB-7788'); await page.waitForTimeout(300);
   await page.locator('.bq-res button', { hasText: 'Abrir el albarán ALB-7788' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.alb-ov')).toBeVisible();
@@ -408,7 +408,7 @@ test('Consultas: al buscar un albarán se puede abrir su ficha', async ({ page }
 test('Consultas: tocar una fila de la respuesta abre la colada', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'coladas en externo'); await page.waitForTimeout(300);
   await page.locator('.bq-res tr.fila-link td[data-l="Aleación"]').first().click(); await page.waitForTimeout(400);
   await expect(page.locator('.ficha-ov').last()).toContainText('C2500');
@@ -418,7 +418,7 @@ test('Consultas: tocar una fila de la respuesta abre la colada', async ({ page }
 test('Cierre de mes: «Antes de cerrar», recuento de cierre guardado aunque cuadre y comparar con la fábrica', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
   const card = page.locator('.card', { hasText: 'Antes de cerrar' }).last();
   await expect(card).toContainText(/recuento de cierre/i);
@@ -529,7 +529,7 @@ test('Consumo, Consultas y Plan: panel de mosaicos que abre cada ventana', async
   for (const t of ['Por relevo', 'Por kilos', 'Apunte suelto', 'Falta por apuntar']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
   await page.locator('.stk-grid .stk-t', { hasText: 'Por relevo' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.stk-det')).toContainText('Consumo del relevo');
-  await ir('Consultas'); await page.waitForTimeout(600);
+  await ir('Informes'); await page.waitForTimeout(600);
   for (const t of ['Cierre de mes', 'Movimientos', 'Copia de seguridad']) await expect(page.locator('.stk-grid .stk-t', { hasText: t })).toHaveCount(1);
   await page.locator('.stk-grid .stk-t', { hasText: 'Movimientos' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.stk-det')).toContainText('Consultar movimientos');
@@ -890,7 +890,7 @@ test('Horneros: semana con rotación, cambio de un día y consultas por hornero'
   await page.locator('.dlg input').fill('Luis M.'); await page.locator('.dlg button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('button[aria-label="Quién está Nave 1 Tarde"]')).toContainText('Luis M.');
   // consultas
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   const resp = async t => { await page.fill('#bqQ', t); await page.waitForTimeout(500); return (await page.locator('.bq-res').innerText()).replace(/\s+/g, ' '); };
   let r = await resp('consumo por hornero este mes');
   expect(r).toMatch(/Quien más aluminio gasta en este mes: Juan 3 f por relevo/); expect(r).toMatch(/Consumo por persona/);
@@ -911,7 +911,7 @@ test('Cierre de mes: consumo como lo calcula la fábrica, partiendo del final de
   await page.addInitScript(() => { let v; Object.defineProperty(window, '__D', { configurable: true, get() { return v; }, set(x) {
     if (x && x.cfg && x.cfg.app) x.cfg.app.fab = { '2026-09': { 'Nave 1|L-2630': { ini: 1, ent: 0, con: 0, fin: 5000 } } }; v = x; } }); });
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
   const c = page.locator('.card', { hasText: 'Consumo como lo calcula la fábrica' }).last();
   await expect(c).toContainText('Inicio fábrica 5000');
@@ -943,7 +943,7 @@ test('Cierre: con el mes cerrado (candado) no se puede apuntar nada de ese mes; 
   await expect(page.locator('#toast')).toContainText('está cerrado');
   expect(await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).length)).toBe(n0);
   // en el cierre sale cerrado y se puede reabrir
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
   await expect(page.locator('.banner', { hasText: 'Octubre 2026 cerrado' })).toBeVisible();
   await page.locator('.banner', { hasText: 'Octubre 2026 cerrado' }).getByRole('button', { name: 'Reabrir' }).click();
@@ -951,7 +951,7 @@ test('Cierre: con el mes cerrado (candado) no se puede apuntar nada de ese mes; 
   expect(await page.evaluate(() => (window.__D.cfg.app.candado || {})['2026-10'])).toBeFalsy();
   // repaso de la semana
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Repaso de la semana' }).first().click(); await page.waitForTimeout(400);
   const rep = page.locator('.card', { hasText: 'Repaso de la semana' }).last();
   await expect(rep).toContainText('relevo');
@@ -963,7 +963,7 @@ test('Cierre: con el mes cerrado (candado) no se puede apuntar nada de ese mes; 
 test('Cierre: recuento de cierre guiado, un sitio detrás de otro', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Cierre de mes' }).first().click(); await page.waitForTimeout(500);
   await page.locator('.chip', { hasText: 'Empezar el recuento de cierre guiado' }).click(); await page.waitForTimeout(400);
   const ov = page.locator('.rc-ov');
@@ -979,7 +979,7 @@ test('Cierre: recuento de cierre guiado, un sitio detrás de otro', async ({ pag
 test('Consultas: al tocar un mes se abre su ficha completa (camiones, consumo, ajustes, coladas) y Todo vuelve al panel', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await expect(page.locator('.meses-tabs .mes-tab').first()).toHaveText('Todo');
   await page.locator('.mes-tab', { hasText: 'Octubre 2026' }).click(); await page.waitForTimeout(500);
   await expect(page.locator('.mes-tab', { hasText: 'Octubre 2026' })).toHaveAttribute('aria-selected', 'true');
@@ -1001,7 +1001,7 @@ test('Consultas: al tocar un mes se abre su ficha completa (camiones, consumo, a
 test('Consultas: informe del año y registro de cambios', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(500);
   await page.locator('.stk-t', { hasText: 'Informe del año' }).first().click(); await page.waitForTimeout(300);
   await expect(page.locator('#inf-ano')).toHaveValue('2026');
   await expect(page.locator('#inf-ano-xlsx')).toBeVisible();
@@ -1017,7 +1017,7 @@ test('Consultas: informe del año y registro de cambios', async ({ page }) => {
 test('Incidencias: se apuntan desde la ficha de la colada y salen en Consultas; proveedores del año', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.fill('#bqQ', 'coladas en externo'); await page.waitForTimeout(300);
   await page.locator('.bq-res tr.fila-link td[data-l="Aleación"]').first().click(); await page.waitForTimeout(400);
   const fi = page.locator('.ficha-ov').last();
@@ -1044,7 +1044,7 @@ test('Incidencias: se apuntan desde la ficha de la colada y salen en Consultas; 
 test('Trazabilidad: qué colada se usaba un día y nave; certificado en la ficha de la colada', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(300);
   await page.locator('.stk-t', { hasText: '¿Qué colada se usaba ese día?' }).first().click(); await page.waitForTimeout(300);
   await page.fill('#tz-f', '2026-10-13'); await page.locator('#tz-f').dispatchEvent('change'); await page.waitForTimeout(300);
   const c = page.locator('.card', { hasText: '¿Qué colada se usaba ese día?' }).last();
@@ -1079,7 +1079,7 @@ test('Consumo: mosaico «Consumo del mes» con comparativa frente al mes pasado 
 test('Reglas automáticas en Coladas: se monta una regla, se guarda en los ajustes y sale en la campana', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click());
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click());
   await page.waitForTimeout(1500);
   await page.locator('.stk-t', { hasText: 'Reglas automáticas' }).first().click(); await page.waitForTimeout(600);
   await page.locator('button', { hasText: '+ Nueva regla' }).last().click(); await page.waitForTimeout(300);
@@ -1115,7 +1115,7 @@ test('Aprobaciones en Coladas: un ajuste grande queda pendiente, se aprueba y lo
   await page.locator('.campana').click(); await page.waitForTimeout(200);
   await expect(page.locator('.campana-pan')).toContainText('1 apunte pendiente de aprobar');
   await page.locator('.campana-pan .campana-x').click();
-  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consultas').click()); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(1500);
   await page.locator('.stk-t', { hasText: 'Por aprobar' }).first().click(); await page.waitForTimeout(600);
   const c = page.locator('.card.apr').last();
   await expect(c.locator('.apr-it')).toHaveCount(1);
@@ -1139,7 +1139,7 @@ test('Enlace para compartir: desde un informe se crea un enlace que caduca, se c
     window.sbColada = { from: () => t(), rpc: async () => ({ data: [] }) }; });
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(900);
-  await page.locator('button', { hasText: 'Generar informe' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('#hInf').click(); await page.waitForTimeout(300);
   await page.locator('.inf-it').first().click(); await page.waitForTimeout(400);
   await page.locator('.inf-acc button', { hasText: 'Enlace para compartir' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.cmp-ov');

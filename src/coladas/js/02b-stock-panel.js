@@ -32,14 +32,13 @@ function stockPanel(c){const {B,P,ud,g,parte,alertaN,hint,gk,gm,gst}=c;
   {const bajo=LINEAS.filter(([n,m])=>{const b=B[key(n,m)];return b&&estado(b,cfg.minimos[key(n,m)]||{})[0]==="bad";}).length;
    tiles.push({v:"min",st:bajo?"bad":"na",t:"Mínimos",big:bajo?String(bajo):"",u:bajo?(bajo===1?"por debajo":"por debajo"):"",sub:bajo?"líneas bajo el mínimo":"fardos mínimos en nave",fn:()=>irVistaStk("min")});}
 
-  const tile=(x,compact)=>el("button",{type:"button",class:"stk-t s-"+x.st+(compact?" mini":"")+(stkVista===x.v&&compact?" on":""),onclick:x.fn,"aria-label":x.t},[
+  const tile=(x,compact)=>el("button",{type:"button",class:"stk-t s-"+x.st+(compact?" mini":"")+(stkVista===x.v&&compact?" on":"")+(/^(l-|gran)/.test(x.id||"")?" stk-lin":""),onclick:x.fn,"aria-label":x.t},[
     el("div",{class:"stk-t-hd"},[x.dot?el("span",{class:"dot",style:"background:"+x.dot}):null,el("span",{class:"stk-t-t",text:x.t}),x.pill&&!compact?el("span",{class:"pill "+(x.st==="na"?"na":x.st),text:x.pill}):null]),
     x.big!==""?el("div",{class:"stk-t-big"},[el("b",{class:"num",text:x.big}),x.u?el("span",{text:" "+x.u}):null]):null,
     el("div",{class:"stk-t-sub",text:x.sub})]);
   const VISTAS={stock:"Stock",maq:"Máquinas",huecos:"Falta por apuntar",parte:"Parte del día",dia:"Stock de un día",prev:"Previsión de gasto",min:"Mínimos"};
   if(!stkVista||!VISTAS[stkVista]){
-    return [avisoCierre(),el("div",{class:"stk-grid"},tiles.map(x=>tile(x,false))),alertaN,
-      el("p",{class:"hint",text:"Pulsa un mosaico para abrir su ventana."})].filter(Boolean);}
+    return [avisoCierre(),alertaN,el("div",{class:"stk-grid"},tiles.map(x=>tile(x,false)))].filter(Boolean);}
   let det=[];
   if(stkVista==="stock")det=[filtroStock(B),g,alertaN,coladasStock(),hint];
   else if(stkVista==="maq"){maqAbierto=true;det=[vMaquinas()];}

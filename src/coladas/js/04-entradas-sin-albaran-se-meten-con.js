@@ -179,7 +179,7 @@ function vEntrada(){
         el("div",{class:"bd hueco-chips"},pend.map(x=>el("button",{type:"button",class:"chip"+(x.f<hoy()?" tarde":""),onclick:()=>llegaCamion(x),
           text:dmy(x.f)+" · "+(x.k?etiqLinea(x.k):"por decidir")+" · "+fmt(x.fa)+" f"+(x.f<hoy()?" · retrasado":"")})))]);})(),
     el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Registrar entrada"})]),el("div",{class:"bd"},[form])]),
-    el("p",{class:"hint",text:"Si el albarán trae varias coladas se crea un solo lote con todas (C25058-C25066) y el desglose va en observaciones. BP o BASQUEPACK significa almacén externo. La fecha es la que escribes a boli."}),
+    el("details",{class:"ayuda"},[el("summary",{text:"¿Varias coladas en un albarán? ¿Qué es BP?"}),el("p",{class:"hint",text:"Si el albarán trae varias coladas se crea un solo lote con todas (C25058-C25066) y el desglose va en observaciones. BP o BASQUEPACK significa almacén externo. La fecha es la que escribes a boli."})]),
     granCard("E")
   ];
 }

@@ -188,10 +188,10 @@ function campanaCol(){if(!window.campana)return;clearTimeout(_cmpT);_cmpT=setTim
   try{if(typeof APRC==="function"){APRC().campana(go("hist")).forEach(x=>L.push(x));APRC().avisaNuevos();}}catch(e){}
   campana.pon("coladas",L);},1500);}
 /* color, título y frase de cada apartado (cabecera de la pantalla) */
-const SEC_COL={stock:["azul","Stock","Lo que hay de cada aleación, en la nave y fuera"],consumo:["naranja","Consumo","Lo que gastan los hornos, relevo a relevo"],
-  entrada:["verde","Entrada","Camiones y albaranes de aluminio que llegan"],lotes:["morado","Lotes","Cada colada: de dónde viene, dónde está y cuánto queda"],
-  hist:["turquesa","Consultas","Cierres de mes, movimientos, informes y auditoría"],precios:["ambar","Precios","Precio de cada proveedor y nº de pedido del mes"],
-  plan:["indigo","Plan","Camiones previstos y pedido del mes que viene"]};
+const SEC_COL={stock:["acero","Stock","Lo que hay de cada aleación, en la nave y fuera"],consumo:["rosa","Consumo","Lo que gastan los hornos, relevo a relevo"],
+  entrada:["verde","Entrada","Camiones y albaranes de aluminio que llegan"],lotes:["acero","Lotes","Cada colada: de dónde viene, dónde está y cuánto queda"],
+  hist:["gris","Informes","Cierres de mes, movimientos, informes y auditoría"],precios:["gris","Precios","Precio de cada proveedor y nº de pedido del mes"],
+  plan:["morado","Plan","Camiones previstos y pedido del mes que viene"]};
 function pinta(){
   const v=$("view");v.textContent="";v.classList.toggle("estrecha",tab==="consumo"||tab==="entrada"||tab==="precios");
   if(!ready){v.appendChild(el("div",{class:"card"},[el("div",{class:"empty",text:"Cargando…"})]));return;}
@@ -201,12 +201,19 @@ function pinta(){
   $("tKg").textContent=fmt(k);$("tFa").textContent=fmt(f);kpiInicio();prodAlmacen();campanaCol();
   {const C=SEC_COL[tab]||SEC_COL.stock;
     v.appendChild(cabeceraPg({ruta:["Coladas"],titulo:C[1],sub:C[2],color:C[0],icono:svgPg(ICO_T[tab]||""),vista:v,
-      acciones:[tab==="stock"||tab==="hist"?{t:"Generar informe",fn:()=>generarInforme()}:null,
+      acciones:[
         tab==="consumo"?{t:"+ Recuento diario",fn:()=>irPanel("consumo","rdiario")}:null]}));}
   (tab==="stock"?vStock():tab==="consumo"?vConsumo():tab==="entrada"?vEntrada():tab==="lotes"?vLotes():tab==="hist"?vConsultas():tab==="precios"?vPrecios():vPlan()).forEach(n=>n&&v.appendChild(n));
 }
-function tabsUI(){const n=$("tabs");n.textContent="";
-  TABS.forEach(([id,t])=>{const b=el("button",{type:"button","aria-selected":String(tab===id),onclick:()=>{tab=id;if(id==="consumo")PANV.consumo="";try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}});
+/* «Generar informe»: un icono en la barra de arriba (antes era un botón grande en Stock y Consultas) */
+function botonInforme(){const g=x=>document.getElementById(x);if(g("hInf"))return;const l=g("lupa");if(!l||!l.parentNode)return;
+  const b=el("button",{type:"button",id:"hInf",class:"lupa hinf","aria-label":"Generar informe",title:"Generar informe",onclick:()=>generarInforme()});
+  b.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>';
+  l.parentNode.insertBefore(b,l);}
+/* en el móvil Precios no cabe en la barra de abajo: está dentro de Plan (y Plan sale marcado estando en Precios) */
+const movilC=()=>{try{return matchMedia("(max-width:799px), (max-height:559px)").matches;}catch(e){return false;}};
+function tabsUI(){const n=$("tabs");n.textContent="";botonInforme();
+  TABS.forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||(id==="plan"&&tab==="precios"&&movilC())),onclick:()=>{tab=id;if(id==="consumo")PANV.consumo="";try{localStorage.setItem("colada.tab",id);}catch(e){}tabsUI();render();document.querySelector("main").scrollTop=0;}});
     b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO_T[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);});}
 /* iconos de las pestañas */
 const ICO_T={stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',consumo:'<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.3 3 2.5 3 0-3-1-5.5 0-8z"/>',
@@ -236,3 +243,4 @@ $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carg
   db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg=Object.assign({},c,{minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{},cargador:c.cargador||{},cierres:c.cierres||{},informes:c.informes||[],recuentos:c.recuentos||[],fab:c.fab||{}});}render();},()=>{});
 })();
 })();
+

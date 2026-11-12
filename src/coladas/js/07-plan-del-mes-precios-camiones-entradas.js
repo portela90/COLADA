@@ -119,7 +119,10 @@ const eur=n=>(Math.round((n||0)*100)/100).toLocaleString("es-ES",{minimumFractio
 const nomMes=mes=>{const[y,mo]=mes.split("-");return["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+mo-1]+" "+y;};
 const etiqLinea=k=>{const[n,m]=k.split("|");return n+" · "+MAT[m].nom;};
 
-function vPlan(){const a=vPlan0().filter(Boolean);return autoPanel("plan",a.slice(1),{},[a[0]]);}
+function vPlan(){const a=vPlan0().filter(Boolean);
+  /* Precios del mes: en el móvil se entra desde aquí (en la barra de abajo no cabe) */
+  const ap=el("button",{type:"button",class:"fila-ir solo-movil-c",onclick:()=>{tab="precios";try{localStorage.setItem("colada.tab","precios");}catch(e){}tabsUI();render();try{document.querySelector("main").scrollTop=0;}catch(e){}}},[el("span",{text:"Precios y pedidos del mes"}),el("span",{class:"fila-ir-f","aria-hidden":"true",text:"›"})]);
+  return autoPanel("plan",a.slice(1),{},[a[0],ap]);}
 function vPlan0(){
   const m=mesPlan(),PL=plmes(),bl=bloques(),B=bl.B,S=bl.S;
   const provs=(cfg.proveedores||[]).slice().sort((a,b)=>a.localeCompare(b,"es"));

@@ -17,7 +17,7 @@ function tileGen(x,compact,activo,onclick){
     x.sub?el("div",{class:"stk-t-sub",text:x.sub}):null]);}
 /* tiles: [{v,t,sub,big,u,st,pill,dot,nodes:()=>[...]}] · arriba: nodos fijos que van siempre encima */
 function panelGen(sec,tiles,arriba){const cur=PANV[sec],T=tiles.find(x=>x.v===cur);arriba=(arriba||[]).filter(Boolean);
-  if(!T)return arriba.concat([el("div",{class:"stk-grid"},tiles.map(x=>tileGen(x,false,false,()=>irPanel(sec,x.v)))),el("p",{class:"hint",text:"Pulsa un mosaico para abrir su ventana."})]);
+  if(!T)return arriba.concat([el("div",{class:"stk-grid"},tiles.map(x=>tileGen(x,false,false,()=>irPanel(sec,x.v))))]);
   const det=T.nodes().filter(Boolean);det.forEach(n=>{if(n.tagName==="DETAILS")n.open=true;});
   return arriba.concat([el("div",{class:"stk-pan"},[
     el("aside",{class:"stk-side","aria-label":"Ventanas"},[el("button",{type:"button",class:"stk-volver",text:"← Panel",onclick:()=>irPanel(sec,"")})].concat(tiles.map(x=>tileGen(x,true,x.v===cur,()=>irPanel(sec,x.v))))),
