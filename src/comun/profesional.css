@@ -438,7 +438,7 @@ a.act-it:hover{background:var(--surf2)}
    arriba y la fila por la que pasas. Si una pantalla no tiene color propio se usa el azul de la app. */
 html:has(script[data-app="toolbox"]){--sc:#0D9488;--sd:#115E59;--ss:#F0FDFA}
 /* 1 · cabecera de cada tarjeta, teñida del color del apartado */
-.card>.hd{background:var(--ss,var(--surf2));border-bottom-color:color-mix(in srgb,var(--sc,var(--acc)) 22%,var(--line))}
+.card>.hd{background:transparent;border-bottom-color:var(--line2)}
 .card>.hd h2,.card>.hd>h2{color:var(--sd,var(--ink))}
 .card{border-color:color-mix(in srgb,var(--sc,var(--acc)) 14%,var(--line))}
 /* 2 · el campo que estás rellenando: borde, fondo y sombra del color; su etiqueta también se marca */
@@ -587,3 +587,36 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
   #app>header>.campana,#app>header>.hinf,#app>header>.lupa{width:40px!important;min-width:40px!important;height:38px!important;padding:0!important;display:inline-flex!important;align-items:center;justify-content:center}
   #app>header>.tot,#app>header>.chips2{order:9!important;flex:1 1 100%!important;width:100%!important;margin:0!important}
 }
+
+/* ===== Pasada de limpieza ===== */
+/* textos de ayuda largos: una sola línea con ⓘ; al tocar se leen enteros */
+.h-pleg{display:-webkit-box!important;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;color:var(--mut)}
+.h-pleg::before{content:"ⓘ ";font-weight:700;color:var(--sd,var(--acc))}
+.h-pleg.h-abierta{display:block!important;-webkit-line-clamp:unset}
+/* tarjetas con menos marco y más aire */
+.card{box-shadow:none!important;border-color:var(--line2)!important}
+.card+.card,.card+section,section+.card{margin-top:14px}
+.card>.hd h2,.card>.hd>h2{color:var(--ink)!important;font-size:16px}
+/* tablas en el móvil: 3 datos por fila; el resto al tocar */
+@media (max-width:600px){
+  table.tm tr.tm-mas:not(.tm-ab){grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 14px!important;align-items:center;cursor:pointer}
+  table.tm tr.tm-mas:not(.tm-ab) td:first-child{grid-column:auto!important}
+  table.tm tr.tm-mas:not(.tm-ab) td:nth-child(n+4):not(.tm-acc){display:none!important}
+  table.tm tr.tm-mas:not(.tm-ab) td.tm-acc{grid-column:1/-1!important;justify-self:end}
+  table.tm tr.tm-mas:not(.tm-ab) td.tm-acc::before{display:none}
+  table.tm tr.tm-mas::after{content:"›";font-size:20px;line-height:1;color:var(--mut);justify-self:end;align-self:center}
+  table.tm tr.tm-mas.tm-ab::after{content:"⌃";grid-column:1/-1;justify-self:center;font-size:14px}
+  table.tm tr.tm-mas.tm-ab{background:var(--surf2)}
+}
+/* filtros plegados en una línea: «Nave 1 · AlSi9 … Cambiar» */
+.filtro-pl{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surf)}
+.filtro-pl>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 14px}
+.filtro-pl>summary::-webkit-details-marker{display:none}
+.filtro-ic{flex:none;width:18px;height:18px;background:var(--mut);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 6h16M7 12h10M10 18h4'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 6h16M7 12h10M10 18h4'/%3E%3C/svg%3E") center/contain no-repeat}
+.filtro-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.filtro-tx b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filtro-tx small{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filtro-ca{flex:none;font-size:13px;font-weight:600;color:var(--sd,var(--acc))}
+.filtro-pl[open]>summary{border-bottom:1px solid var(--line2)}
+.filtro-pl>:not(summary){padding:12px 14px}
+.vistas[hidden]{display:none!important}

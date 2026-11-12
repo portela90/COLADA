@@ -258,12 +258,10 @@ function filtroStock(B){
   const mezcla=!fStk.mat&&new Set(ls.filter(b=>b.fa>0).map(b=>b.mat)).size>1;
   const resumen=mezcla?"":fStk.ubi==="nave"?": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg)":fStk.ubi==="externo"?": en externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg)":
     ": en nave "+fmt(t.faN)+" f ("+fmt(t.kgN)+" kg) · externo "+fmt(t.faE)+" f ("+fmt(t.kgE)+" kg) · total "+fmt(t.faN+t.faE)+" f ("+fmt(t.kgN+t.kgE)+" kg)";
-  return el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:10px"},[
-    el("div",{class:"row"},[
+  return filtroPlegado(el("div",{class:"row"},[
       el("label",{text:"Nave"},[grupo("nave",[["","Todas"]].concat(NAVES.map(n=>[n,n])))]),
       el("label",{text:"Aleación"},[grupo("mat",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom])))]),
-      el("label",{text:"Dónde"},[grupo("ubi",[["","Todo"],["nave","En nave"],["externo","Externo"]])])]),
-    (fStk.nave||fStk.mat||fStk.ubi)?el("p",{class:"hint",style:"margin:0",text:(fStk.nave||"Las dos naves")+" · "+(fStk.mat?MAT[fStk.mat].nom:"todas las aleaciones")+(fStk.ubi?" · "+(fStk.ubi==="nave"?"en nave":"en externo"):"")+resumen}):null])]);
+      el("label",{text:"Dónde"},[grupo("ubi",[["","Todo"],["nave","En nave"],["externo","Externo"]])])]),(fStk.nave||fStk.mat||fStk.ubi)&&resumen?resumen.replace(/^: /,""):"");
 }
 /* coladas con existencias, filtradas por nave, aleación y dónde están; la más antigua primero (FIFO) */
 function coladasStock(){

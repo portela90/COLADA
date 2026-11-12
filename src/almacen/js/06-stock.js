@@ -1,6 +1,8 @@
 /* ===== STOCK ===== */
+let fsAb=false;/* el filtro de Stock, abierto o plegado (se recuerda mientras no recargues) */
 function vStock(v){
-  v.appendChild(el("div",{class:"acc3"},[el("button",{type:"button",class:"btn peq",text:"Lista de pedido",onclick:listaPedido}),el("button",{type:"button",class:"btn sec peq",text:"Informe",onclick:()=>generarInforme()}),el("button",{type:"button",class:"btn sec peq",text:"Inventario",onclick:formInventario})]));
+  v.appendChild(el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Lista de pedido",onclick:listaPedido}),
+    menuAcc("Más acciones de stock",[["Informe",()=>generarInforme()],["Inventario",formInventario]])]));
   const enCurso=artsActivos().filter(a=>a.pedido).sort((a,b)=>(a.prevista||"9").localeCompare(b.prevista||"9"));
   if(enCurso.length){const hy=hoy();v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pedidos en curso ("+enCurso.length+")"}),el("span",{class:"der sub",text:enCurso.filter(a=>a.prevista&&a.prevista<hy).length+" retrasados"})]),
     el("div",{class:"lst"},enCurso.map(a=>{const ret=a.prevista&&a.prevista<hy?dias(a.prevista,hy):0;
@@ -20,11 +22,15 @@ function vStock(v){
         el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud+" · "+NIV[n]})])]);}))]));}
   const f=draft.fs;
   const buscar=inp("fsTxt",f.txt,x=>{f.txt=x;pintarLista();},{type:"search",placeholder:"Buscar artículo o código",autocomplete:"off"});
-  v.appendChild(el("div",{class:"frm",style:"gap:10px"},[buscar,
+  /* la búsqueda a la vista; familia, almacén y etiqueta, plegados en una línea («Cambiar») */
+  const resF=[f.fam?FAM[f.fam]:"Todos los artículos",f.alm?almN(f.alm):cat.almacenes.length>1?"todos los almacenes":null,f.tag?(etiquetas().find(e=>e.id===f.tag)||{}).nom:null].filter(Boolean).join(" · ");
+  const caF=el("span",{class:"filtro-ca",text:fsAb?"Cerrar":"Cambiar"});
+  const plF=el("details",{class:"filtro-pl"},[el("summary",{},[el("span",{class:"filtro-ic","aria-hidden":"true"}),el("span",{class:"filtro-tx"},[el("b",{text:resF})]),caF]),el("div",{class:"frm",style:"gap:10px"},[
     el("div",{class:"chips"},[["","Todos"]].concat(Object.entries(FAM)).map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.fam===k),text:t,onclick:()=>{f.fam=k;render(true);}}))),
     cat.almacenes.length>1?el("div",{class:"chips"},[["","Todos los almacenes"]].concat(almOpts()).map(([k,t])=>el("button",{type:"button",class:"chip","aria-pressed":String(f.alm===k),text:t,onclick:()=>{f.alm=k;render(true);}}))):null,
-    artsActivos().some(a=>(a.tags||[]).length)?el("div",{class:"chips"},[el("button",{type:"button",class:"chip","aria-pressed":String(!f.tag),text:"Cualquier etiqueta",onclick:()=>{f.tag="";render(true);}})].concat(etiquetas().map(e=>el("button",{type:"button",class:"chip etq-chip "+e.c,"aria-pressed":String(f.tag===e.id),text:e.nom,onclick:()=>{f.tag=f.tag===e.id?"":e.id;render(true);}})))):null,
-    barraVistas(f)]));
+    artsActivos().some(a=>(a.tags||[]).length)?el("div",{class:"chips"},[el("button",{type:"button",class:"chip","aria-pressed":String(!f.tag),text:"Cualquier etiqueta",onclick:()=>{f.tag="";render(true);}})].concat(etiquetas().map(e=>el("button",{type:"button",class:"chip etq-chip "+e.c,"aria-pressed":String(f.tag===e.id),text:e.nom,onclick:()=>{f.tag=f.tag===e.id?"":e.id;render(true);}})))):null])]);
+  plF.open=fsAb;plF.addEventListener("toggle",()=>{fsAb=plF.open;caF.textContent=plF.open?"Cerrar":"Cambiar";});
+  v.appendChild(el("div",{class:"frm",style:"gap:10px"},[buscar,plF,barraVistas(f)]));
   const card=el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Existencias"+(f.alm?" · "+almN(f.alm):"")})]),el("div",{class:"lst",id:"lstStock"})]);
   v.appendChild(card);pintarLista();}
 function pintarLista(){const box=$("lstStock");if(!box)return;box.textContent="";const f=draft.fs,q=tokQ(f.txt);
@@ -134,7 +140,9 @@ function vRepo(v){draft.rv=draft.rv||"hoy";
   if(!ls.length){v.appendChild(el("div",{class:"banner",text:"Marca al menos un almacén como «de producción» en Catálogo > Almacenes."}));return;}
   const todas=[];ls.forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)todas.push(Object.assign({l},f));}));
   const uds=todas.reduce((s,f)=>s+f.falta,0);
-  v.appendChild(el("dl",{class:"kpis num"},[["Para bajar",todas.length+" art."],["Unidades",fmtN(uds)]].concat(ls.filter(l=>faltas(l.id).length).map(l=>[corto(l)+" · a bajar",faltas(l.id).filter(f=>f.falta>0&&f.org).length+" de "+faltas(l.id).length])).map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))));
+  /* un solo dato grande (lo que hay que bajar) y debajo, en pequeño, cómo va cada almacén */
+  v.appendChild(el("section",{class:"card ej-res rp-res"},el("div",{class:"bd"},[el("div",{class:"ej-big"},todas.length?[el("b",{class:"num",text:String(todas.length)}),el("span",{text:(todas.length===1?"artículo":"artículos")+" para bajar · "+fmtN(uds)+" ud"})]:[el("span",{text:"Hoy no hay nada que bajar"})]),
+    el("div",{class:"ej-chips"},ls.filter(l=>faltas(l.id).length).map(l=>{const fl=faltas(l.id),n=fl.filter(f=>f.falta>0&&f.org).length;return el("span",{text:corto(l)+": "+(n?n+" de "+fl.length:"completo")});}))])));
   /* hoja de carga, agrupada por almacén de origen */
   if(todas.length){const porO={};todas.forEach(f=>{const g=porO[f.org]=porO[f.org]||{};const k=f.a.id;(g[k]=g[k]||{a:f.a,tot:0,det:[]});g[k].tot+=f.falta;g[k].det.push(corto(f.l)+" "+fmtN(f.falta));});
     const T=["BAJAR · "+fmtF(hoy())];const secs=[];

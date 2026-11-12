@@ -1985,6 +1985,7 @@ test('Etiquetas y vistas guardadas: poner «Urgente» en un artículo, filtrar p
   const pg = page.locator('.op-pg'); await pg.locator('.etq-ed .etq', { hasText: 'Urgente' }).click(); await page.waitForTimeout(500);
   expect(await page.evaluate(id => window.__D.cat.app.articulos.find(a => a.id === id).tags, a0.id)).toEqual(['urg']);
   await pg.locator('.op-back').click(); await page.waitForTimeout(300); await stock(); await page.waitForTimeout(400);
+  await page.locator('#view .filtro-pl > summary').click(); await page.waitForTimeout(200);
   await page.locator('.chip.etq-chip', { hasText: 'Urgente' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#lstStock .it')).toHaveCount(1); await expect(page.locator('#lstStock .it .etq')).toHaveText('Urgente');
   await page.locator('button', { hasText: '+ Guardar esta vista' }).click(); await page.locator('#vNom').fill('Lo urgente');

@@ -68,6 +68,12 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
     .concat(gran!=null?[el("div",{class:"card"},[el("div",{class:"hd"},[el("span",{class:"tagm",style:"background:var(--cobre)"}),el("h2",{text:"Granalla de cobre"}),el("span",{class:"sub num",style:"margin-left:auto",text:fmt(gran)+" kg"})])])]:[]);}
 
 /* elegir nave y aleación sin salir de la ventana (es el mismo filtro que Stock, se queda guardado) */
+/* los filtros (nave, aleación, dónde) en una sola línea: «Nave 1 · AlSi9 · en nave  Cambiar»; al tocarla se despliegan */
+let fAbierto=false;
+const resumenF=()=>[fStk.nave||"Las dos naves",fStk.mat?MAT[fStk.mat].nom:"todas las aleaciones",fStk.ubi==="nave"?"en nave":fStk.ubi==="externo"?"en externo":"nave y externo"].join(" · ");
+function filtroPlegado(cont,extra){const ca=el("span",{class:"filtro-ca",text:fAbierto?"Cerrar":"Cambiar"});
+  const d=el("details",{class:"filtro-pl"},[el("summary",{},[el("span",{class:"filtro-ic","aria-hidden":"true"}),el("span",{class:"filtro-tx"},[el("b",{text:resumenF()}),extra?el("small",{text:extra}):null]),ca]),cont]);
+  d.open=fAbierto;d.addEventListener("toggle",()=>{fAbierto=d.open;ca.textContent=d.open?"Cerrar":"Cambiar";});return d;}
 function filtroLineas(){const pon=(k,v)=>{fStk[k]=v;try{localStorage.setItem("colada.fstk",JSON.stringify(fStk));}catch(e){}render();};
   const g=(k,lab,ops)=>el("div",{class:"sd-fg"},[el("span",{class:"sub",text:lab}),el("div",{class:"seg",role:"group","aria-label":lab},ops.map(([v,t])=>el("button",{type:"button","aria-pressed":String((fStk[k]||"")===v),text:t,onclick:()=>pon(k,v)})))]);
-  return el("div",{class:"sd-filtro"},[g("nave","Nave",[["","Todas"]].concat(NAVES.map(n=>[n,n]))),g("mat","Aleación",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom]))),g("ubi","Dónde",[["","Todo"],["nave","En nave"],["externo","Externo"]])]);}
+  return filtroPlegado(el("div",{class:"sd-filtro"},[g("nave","Nave",[["","Todas"]].concat(NAVES.map(n=>[n,n]))),g("mat","Aleación",[["","Todas"]].concat(Object.keys(MAT).map(m=>[m,MAT[m].nom]))),g("ubi","Dónde",[["","Todo"],["nave","En nave"],["externo","Externo"]])]));}

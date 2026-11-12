@@ -20,8 +20,29 @@
       }
     }
     t.classList.add("tm");
+    /* filas con más de 3 datos: se ven los 3 primeros y el resto al tocar la fila */
+    for (var b2 = 0; b2 < t.tBodies.length; b2++) for (var r2 = 0; r2 < t.tBodies[b2].rows.length; r2++) {
+      var tr = t.tBodies[b2].rows[r2];
+      if (tr.cells.length > 3 && !tr.querySelector(".tm-ancha") && !tr.classList.contains("tm-mas") && !t.closest(".dlg")) {
+        tr.classList.add("tm-mas");
+        /* las celdas con botones (borrar, abrir…) siguen a la vista */
+        for (var k = 3; k < tr.cells.length; k++) if (tr.cells[k].querySelector("button,a,input,select")) tr.cells[k].classList.add("tm-acc");
+        tr.addEventListener("click", function (e) { if (e.target.closest("button,a,input,select,textarea,label")) return; this.classList.toggle("tm-ab"); });
+      }
+    }
+  }
+  function ayudas() {
+    var H = document.querySelectorAll("#view .hint:not(.h-ok), main .hint:not(.h-ok)");
+    for (var i = 0; i < H.length; i++) {
+      var x = H[i]; x.classList.add("h-ok");
+      if (x.closest(".dlg,.banner,.op-pg,label,.fld,button") || x.querySelector("button,a,input,select")) continue;
+      if ((x.textContent || "").trim().length < 90) continue;
+      x.classList.add("h-pleg"); x.setAttribute("title", "Toca para leer entero");
+      x.addEventListener("click", function () { this.classList.toggle("h-abierta"); });
+    }
   }
   function revisa() {
+    try { ayudas(); } catch (e) {}
     var movil = MQ ? MQ.matches : window.innerWidth <= 600;
     var T = document.querySelectorAll(".tw > table");
     for (var i = 0; i < T.length; i++) {

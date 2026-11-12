@@ -485,3 +485,4 @@ button.cc-prov:hover{border-color:var(--cc)}
 @media (max-width:799px), (max-height:559px){nav#tabs button[data-t="precios"]{display:none!important}}
 .lupa.hinf{margin-right:6px}
 details.ayuda{margin:4px 0 10px}details.ayuda>summary{cursor:pointer;color:var(--sd,var(--acc));font-size:14px;font-weight:600;padding:6px 0}
+/* filtros en una línea */

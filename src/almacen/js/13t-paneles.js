@@ -23,7 +23,7 @@ function panelizar(v){const P=PANEL_TABS[tab];if(!P)return;
   const tile=(x,mini)=>el("button",{type:"button",class:"pv-t s-"+x.st+(mini?" mini":"")+(cur&&cur.k===x.k&&mini?" on":""),onclick:()=>ir(x.k),"aria-label":x.t},[
     el("div",{class:"pv-t-t",text:x.t}),x.big?el("div",{class:"pv-t-big num",text:x.big}):null,x.sub?el("div",{class:"pv-t-sub",text:x.sub}):null]);
   v.textContent="";arriba.forEach(n=>v.appendChild(n));
-  if(!cur){v.appendChild(el("div",{class:"pv-grid"},tiles.map(x=>tile(x,false))));v.appendChild(el("p",{class:"hint",text:"Pulsa un mosaico para abrir su ventana."}));return;}
+  if(!cur){v.appendChild(el("div",{class:"pv-grid"},tiles.map(x=>tile(x,false))));return;}
   cur.ns.forEach(n=>{if(n.tagName==="DETAILS")n.open=true;});
   v.appendChild(el("div",{class:"pv-pan"},[
     el("aside",{class:"pv-side","aria-label":"Ventanas"},[el("button",{type:"button",class:"pv-volver",text:"← Panel",onclick:()=>ir("")})].concat(tiles.map(x=>tile(x,true)))),

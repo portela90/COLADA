@@ -782,7 +782,8 @@ test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo c
   await expect(card.locator('.sd-seg.sel')).toHaveCount(1);
   await expect(card.locator('tr.sd-tr.sel')).toContainText('C25003');
   await expect(card.locator('.sd-info')).toContainText('C25003 · 8 f');
-  // filtro de nave sin salir de la ventana
+  // filtro de nave sin salir de la ventana (está plegado en una línea: «Cambiar»)
+  await page.locator('.filtro-pl > summary').first().click(); await page.waitForTimeout(200);
   await page.locator('.sd-filtro button', { hasText: 'Nave 2' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('.card', { hasText: 'Nave 1 · AlSi9' })).toHaveCount(0);
   await page.locator('.sd-filtro .seg[aria-label="Nave"] button', { hasText: 'Todas' }).click(); await page.waitForTimeout(300);

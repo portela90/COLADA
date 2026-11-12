@@ -93,14 +93,14 @@ function vConsumo(){
   const RS=typeof coladasConResto==="function"?coladasConResto():[];
   const rd=cfg.rdiario&&cfg.rdiario.f?cfg.rdiario:null,SS=saldos(),nT=NAVES.filter(n=>LINEAS.some(([a,m])=>a===n&&fifoLista(a,m,SS).length)).length||1,nH2=NAVES.filter(n=>rdHoyN(n)).length,rdHoy=nH2>0;
   const tiles=[tileConsumoMes(),
-    {v:"rdiario",t:"Recuento diario",big:rdHoy?(nH2>=nT?"Hecho":nH2+" de "+nT):"",st:rdHoy?(nH2>=nT?"ok":"warn"):"na",pill:rdHoy?(nH2>=nT?"Hoy":"Falta una nave"):"",sub:(rd?"último: "+dmy(rd.f)+" "+(rd.hora||""):"fardos de las hojas + lo que cuentas")+" · parte para compras",nodes:()=>vRecuentoDiario()},
-    {v:"relevo",t:"Por relevo",sub:"Total de fardos de cada línea, reparto por FIFO"+(ult?" · último: "+dmy(ult.f)+" "+ult.u.toLowerCase():""),nodes:()=>{consModo="relevo";return vRelevo();}},
-    {v:"kilos",t:"Por kilos",sub:"Los kilos de cada fardo, copiados de la hoja del hornero",nodes:()=>{consModo="kilos";return vKilos();}},
-    {v:"suelto",t:"Apunte suelto",sub:"Una colada, un relevo",nodes:()=>{consModo="suelto";return vConsumo0().slice(1);}},
+    {v:"rdiario",t:"Recuento diario",big:rdHoy?(nH2>=nT?"Hecho":nH2+" de "+nT):"",st:rdHoy?(nH2>=nT?"ok":"warn"):"na",pill:rdHoy?(nH2>=nT?"Hoy":"Falta una nave"):"",sub:rd?"último: "+dmy(rd.f)+" "+(rd.hora||""):"aún sin hacer",nodes:()=>vRecuentoDiario()},
+    {v:"relevo",t:"Por relevo",sub:ult?"último: "+dmy(ult.f)+" "+ult.u.toLowerCase():"fardos de cada línea",nodes:()=>{consModo="relevo";return vRelevo();}},
+    {v:"kilos",t:"Por kilos",sub:"kilos de cada fardo",nodes:()=>{consModo="kilos";return vKilos();}},
+    {v:"suelto",t:"Apunte suelto",sub:"una colada, un relevo",nodes:()=>{consModo="suelto";return vConsumo0().slice(1);}},
     {v:"huecos",t:"Falta por apuntar",big:String(nH),u:nH===1?"relevo":"relevos",st:nH?"bad":"ok",pill:nH?"Revisar":"OK",sub:nH?"sin consumo apuntado":"todo apuntado",
       nodes:()=>[vHuecos()||el("div",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Falta por apuntar"}),el("span",{class:"pill ok",style:"margin-left:auto",text:"Todo apuntado"})]),el("div",{class:"empty",text:"Todos los relevos de las dos últimas semanas tienen consumo apuntado."})])]}];
   {const H=hornCfg(),ids=TURNOS.map(u=>NAVES.map(n=>quienEn(hoy(),n,u).length)).flat().filter(Boolean).length;
-   tiles.push({v:"horn",t:"Horneros",big:H.lista.length?String(H.lista.length):"",u:H.lista.length?"horneros":"",st:H.lista.length&&!ids?"warn":"na",sub:H.lista.length?(ids?"quién está en cada relevo esta semana":"falta poner los de esta semana"):"quién está en cada relevo (para Consultas)",nodes:()=>vHorneros()});}
+   tiles.push({v:"horn",t:"Horneros",big:H.lista.length?String(H.lista.length):"",u:H.lista.length?"horneros":"",st:H.lista.length&&!ids?"warn":"na",sub:H.lista.length?(ids?"esta semana, puestos":"falta poner los de esta semana"):"quién está en cada relevo",nodes:()=>vHorneros()});}
   if(RS.length)tiles.push({v:"restos",t:"Diferencias de peso",big:String(RS.length),u:RS.length===1?"colada":"coladas",st:"warn",sub:"acabadas con kilos de más o de menos",nodes:()=>[cardRestos()]});
   return panelGen("consumo",tiles.filter(Boolean));
 }

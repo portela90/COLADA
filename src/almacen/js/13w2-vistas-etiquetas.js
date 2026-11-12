@@ -39,5 +39,5 @@ function barraVistas(f){const box=el("div",{class:"vistas"});
     if(hay&&!L.some(igual))box.appendChild(el("button",{type:"button",class:"btn sec peq",text:"+ Guardar esta vista",onclick:()=>{let nom="";
       dlg("Guardar vista",[fld("Nombre de la vista",inp("vNom","",x=>{nom=x;},{placeholder:"p. ej. Pistones de la N2"}))],[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{if(!nom.trim()){toast("Pon un nombre");return false;}
         VISTAS=(VISTAS||[]).concat([{nom:nom.trim(),txt:f.txt||"",fam:f.fam||"",alm:f.alm||"",tag:f.tag||""}]);await guardaVistas();toast("Vista guardada");render(true);}}]);}}));
-    if(!L.length&&!hay)box.appendChild(el("span",{class:"sub",text:"elige un filtro y guárdalo para tenerlo a mano"}));};
+    box.hidden=!L.length&&!hay;/* sin vistas guardadas ni filtro puesto, no se pinta nada */};
   if(VISTAS)pinta();else cargaVistas().then(pinta);return box;}
