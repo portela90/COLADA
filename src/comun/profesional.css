@@ -573,3 +573,17 @@ html:has(script[data-app="encargado"]) #nav button[aria-selected=true]{backgroun
 .ar-punto{position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:6px;border:2px solid var(--surf);background:var(--mut)}
 .ar-punto.bad{background:#DC2626}.ar-punto.warn{background:#D97706}
 .ar-cuad{flex:none;width:10px;height:10px;border-radius:3px;background:var(--ac)}
+
+/* ===== Barra de arriba en el móvil: nombre a la izquierda y los iconos juntos a la derecha, todos del mismo tamaño
+   (avisos · informe · buscar · usuario); los kilos y fardos en su propia línea debajo ===== */
+@media (max-width:520px){
+  #app>header{display:flex!important;flex-wrap:wrap!important;align-items:center!important;column-gap:8px!important;row-gap:6px!important}
+  #app>header>h1{order:0!important;flex:1 1 auto!important;min-width:0!important;margin:0!important}
+  #app>header>.campana{order:1!important;margin:0!important}
+  #app>header>.hinf{order:2!important;margin:0!important}
+  #app>header>.lupa{order:3!important;margin:0!important}
+  #app>header>.usr-av{order:4!important;margin:0!important;width:38px!important;height:38px!important}
+  #app>header>.usr-nom{display:none!important}
+  #app>header>.campana,#app>header>.hinf,#app>header>.lupa{width:40px!important;min-width:40px!important;height:38px!important;padding:0!important;display:inline-flex!important;align-items:center;justify-content:center}
+  #app>header>.tot,#app>header>.chips2{order:9!important;flex:1 1 100%!important;width:100%!important;margin:0!important}
+}
