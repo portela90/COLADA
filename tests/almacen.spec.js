@@ -1344,6 +1344,39 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   expect(err).toEqual([]);
 });
 
+test('Avería: el eje que espera para ir al taller ya cuenta y se puede quitar un cambio que no es de la avería', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const f = n => { const m = new Date(); m.setDate(m.getDate() - n); return m.toISOString().slice(0, 10); };
+      const a = v.cat.app, M = a.maquinas[1], kr = Object.keys(v.rep)[0];
+      a.articulos.find(x => x.id === 'pist-60').precio = '100';
+      v.pist = v.pist || {}; v.pist['2026'] = v.pist['2026'] || { items: [] };
+      v.pist['2026'].items.push({ id: 'pr1', f: f(1), u: 'Mañana', maq: M.id, diam: 'Ø 60', cant: 1, motivo: 'ROTURA', ts: 1 },
+        { id: 'pd1', f: f(1), u: 'Mañana', maq: M.id, diam: 'Ø 60', cant: 1, motivo: 'DESGASTE', ts: 2 });
+      v.rep[kr].items.push({ id: 'rq1', eje: '3.2.B-9', desp: 'ROTURA DE PISTÓN', alta: f(1), env: null, maq: M.cod, pend: 'qq1', pendPist: 'pr1' });
+      v.aver = { lista: { items: [{ id: 'avx', n: 7, maq: M.id, f: f(1), t: 'Pistón roto', causa: 'Trabajando sin pistonwax', evit: true, estado: 'abierta',
+        links: [{ k: 'p', id: 'pr1', f: f(1) }, { k: 'p', id: 'pd1', f: f(1) }], ts: 1 }] } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Averías$/ }).click(); await page.waitForTimeout(400);
+  const v = page.locator('#view');
+  await v.locator('button.it', { hasText: 'Pistón roto' }).first().click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last();
+  await expect(d).toContainText('Eje 3.2.B-9'); await expect(d).toContainText('pendiente de enviar al taller');
+  // 2 pistones a 100 € + el eje al precio de reparación de su modelo (220 €)
+  await expect(d.locator('dd', { hasText: '€' }).first()).toContainText('420');
+  expect(await desbordes(page)).toEqual([]);
+  // el pistón de desgaste no es de esta avería: se quita
+  await d.locator('.it', { hasText: 'DESGASTE' }).or(d.locator('.it', { hasText: 'Desgaste' })).first().getByRole('button', { name: 'Quitar' }).click(); await page.waitForTimeout(300);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('¿Quitar de la avería?');
+  await d.getByRole('button', { name: 'Quitar', exact: true }).click(); await page.waitForTimeout(700);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.aver.lista.items[0].links))).not.toContain('pd1');
+  d = page.locator('.dlg').last(); await expect(d.locator('dd', { hasText: '€' }).first()).toContainText('320');
+  const t = (await d.innerText()).replace(/\s+/g, ' '); expect(t).not.toContain('undefined'); expect(t).not.toContain('NaN');
+  expect(err).toEqual([]);
+});
+
 test('Barras rotas: guardar para recuperar con el tornillo, mandar al taller, vuelven convertidas y suman a la avería', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1500);

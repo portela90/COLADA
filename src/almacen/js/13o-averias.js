@@ -12,13 +12,16 @@ async function avGuarda(fn){AVER=await listaGuarda("aver/lista",fn);}
 const avCambia=(id,fn)=>avGuarda(L=>L.map(a=>a.id===id?fn(Object.assign({},a)):a));
 /* lo que cuelga de cada avería, con su coste */
 function avLinks(a){const E=evInv(),out=[];(a.links||[]).forEach(l=>{
-    if(l.k==="q"){const rs=E.filter(e=>e.k==="r"&&e.r.pend===l.id);if(rs.length)rs.forEach(e=>out.push(e));else{const x=ejeSinTaller({pend:l.id});if(x)out.push(x);else{const p=ejePend().find(z=>z.id===l.id);out.push(ejeEstim(p,l));}}return;}
+    if(l.k==="q"){const rs=E.filter(e=>e.k==="r"&&e.r.pend===l.id);if(rs.length)rs.forEach(e=>out.push(e));else{const x=ejeSinTaller({pend:l.id})||repSinEnviar("pend",l.id);if(x)out.push(x);else{const p=ejePend().find(z=>z.id===l.id);out.push(ejeEstim(p,l));}}return;}
     const e=E.find(x=>x.k===l.k&&x.r.id===l.id);if(e)out.push(e);
     if(l.k==="m"&&typeof BREC!=="undefined")BREC.filter(b=>b.mov===l.id).forEach(b=>{const a0=art(b.art),nm=a0?nomBT(a0):"barra";(b.vuelta||[]).forEach(v=>{const a1=art(v.art);out.push({k:"b",f:v.f,ref:"Recuperada "+nm+" → "+(a1?nomBT(a1):"?")+" × "+v.cant+(+v.eur>0?" por "+eur(+v.eur):"")+" (vuelve al stock)",cant:v.cant,ud:"ud",eur:0,info:true,mot:"",quien:""});});
       const pd=brecPend(b);if(pd.guard)out.push({k:"b",f:b.f,ref:nm+" × "+pd.guard+" guardada para recuperar",cant:pd.guard,ud:"ud",eur:0,mot:"",quien:""});if(pd.taller)out.push({k:"b",f:b.env.f,ref:nm+" × "+pd.taller+" en "+(provN(b.env.prov)||"el taller")+" recuperándose",cant:pd.taller,ud:"ud",eur:0,mot:"",quien:""});});
-    if(l.k==="p"){const R=E.filter(x=>x.k==="r"&&x.r.pendPist===l.id);R.forEach(x=>out.push(x));if(!R.length){const x=ejeSinTaller({pist:l.id});if(x)out.push(x);else{const p=ejePend().find(z=>z.pist===l.id);if(p)out.push(ejeEstim(p,{f:p.f}));}}}});
+    if(l.k==="p"){const R=E.filter(x=>x.k==="r"&&x.r.pendPist===l.id);R.forEach(x=>out.push(x));if(!R.length){const x=ejeSinTaller({pist:l.id})||repSinEnviar("pendPist",l.id);if(x)out.push(x);else{const p=ejePend().find(z=>z.pist===l.id);if(p)out.push(ejeEstim(p,{f:p.f}));}}}});
   out.forEach(e=>{if(e.k==="r"&&!(e.eur>0)){const c=costeRep(e.r).v;if(c){e.eur=c;e.aprox=!(+e.r.imp>0);}else e.sinP=true;}});
   const vis=new Set();return out.filter(e=>{const k=e.k+":"+(e.r?e.r.id:e.ref+e.f);if(vis.has(k))return false;vis.add(k);return true;});}
+/* eje que ya tiene número y reparación apuntada pero aún no ha salido al taller: ya cuenta (al precio de reparación de su modelo) */
+function repSinEnviar(campo,id){const r=todasRep().find(x=>x[campo]===id&&!x.env&&x.res!=="anulada"&&!x.recuento);
+  return r?{k:"r",r,f:r.alta,maq:r.maq||null,a:null,ref:"Eje "+r.eje,eje:r.eje,fam:"Reparación de ejes",cant:1,ud:"eje",eur:0,mot:String(r.desp||"").trim()?motivoRep(r.desp):"",quien:r.por||"",por:r.por||"",nota:r.obs||""}:null;}
 /* eje que al final no fue al taller: recuperado en planta, «no hay que repararlo» o reparación anulada → no cuesta reparación */
 function ejeSinTaller(q){const k=q.pend?"pend":"pist",id=q.pend||q.pist;
   const rc=(cat.ejeRecup||[]).find(x=>x[k]===id);if(rc){const pr=(rc.mods||[]).map(c=>precioMod(c)).find(x=>x>0)||0;return{k:"q",f:rc.f,ref:"Eje recuperado en planta el "+fmtF(rc.f)+" (no fue al taller"+(pr?"; se ahorró unos "+eur(pr):"")+")",cant:1,ud:"eje",eur:0,info:true,mot:"",quien:""};}
@@ -53,7 +56,7 @@ function fichaAveria(a0){const a=Object.assign({},AVER.find(x=>x.id===a0.id)||a0
     if(v.causa)box.appendChild(el("div",{style:"display:grid;gap:6px;justify-items:start"},[el("span",{class:"sub",text:"¿Se podía haber evitado?"}),el("div",{class:"seg",role:"group","aria-label":"Evitable"},[[true,"Sí"],[false,"No"],[null,"No sé"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(v.evit===k),text:t,onclick:()=>{v.evit=k;pinta();}})))]));
     box.appendChild(el("div",{class:"row"},[fld("Turno o responsable (opcional)",inp("avR",v.resp,x=>v.resp=x,{autocomplete:"off",list:"lOperAv"})),el("datalist",{id:"lOperAv"},responsables().map(r=>el("option",{value:r}))),fld("Nota",inp("avN",v.nota,x=>v.nota=x,{autocomplete:"off"}))]));
     box.appendChild(el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Lo que se ha cambiado por esta avería"}),
-      L.length?el("div",{class:"lst"},L.map(e=>el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe "+(e.sinP?"warn":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:e.ref}),el("div",{class:"t2",text:[fmtF(e.f),e.mot?cap(e.mot):null,e.quien||null,e.k==="r"?(e.r.res==="ok"&&e.r.rec?"volvió el "+fmtF(e.r.rec):"en el taller"):null].filter(Boolean).join(" · ")})]),el("div",{class:"num",style:"font-weight:600;white-space:nowrap",text:e.info?"":e.eur?eur(e.eur)+(e.aprox?" (precio de reparación)":""):"—"})]))):el("p",{class:"hint",style:"margin:0",text:"Nada todavía."}),
+      L.length?el("div",{class:"lst"},L.map(e=>el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe "+(e.sinP?"warn":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:e.ref}),el("div",{class:"t2",text:[fmtF(e.f),e.mot?cap(e.mot):null,e.quien||null,e.k==="r"?(e.r.res==="ok"&&e.r.rec?"volvió el "+fmtF(e.r.rec):e.r.env?"en el taller":"pendiente de enviar al taller"):null].filter(Boolean).join(" · ")})]),el("div",{class:"num",style:"font-weight:600;white-space:nowrap",text:e.info?"":e.eur?eur(e.eur)+(e.aprox?" (precio de reparación)":""):"—"}),quitarDeAv(a,e)]))):el("p",{class:"hint",style:"margin:0",text:"Nada todavía."}),
       el("button",{type:"button",class:"btn sec peq",style:"justify-self:start",text:"Añadir un cambio de la "+(m?m.cod:"máquina"),onclick:()=>{cierraDlgs();elegirParaAveria(a);}})]));
     const rep=AVER.filter(x=>x.id!==a.id&&x.maq===a.maq&&Math.abs(dias(x.f,a.f))<=60&&nq(x.t)===nq(a.t));if(rep.length)box.appendChild(el("div",{class:"banner w",style:"margin:0",text:"Se repite: la "+(m?m.cod:"máquina")+" tuvo «"+a.t+"» también el "+rep.map(x=>fmtF(x.f)).join(", ")+"."}));};
   pinta();
@@ -62,6 +65,12 @@ function fichaAveria(a0){const a=Object.assign({},AVER.find(x=>x.id===a0.id)||a0
     {t:"Apuntar acción",cls:"sec",fn:async()=>{await guarda();setTimeout(()=>formConclusion(F,datosInv(F),{sug:(v.causa||"Avería")+" · "+v.t}),0);}},
     a.estado==="abierta"?{t:"Cerrar avería",cls:"sec",fn:()=>{if(!v.causa&&!a._ok){a._ok=true;toast("No tiene causa. Si quieres cerrarla igual, pulsa otra vez «Cerrar avería» (la causa se puede poner después).");return false;}return guarda({estado:"cerrada",fc:h});}}:{t:"Abrir de nuevo",cls:"sec",fn:()=>guarda({estado:"abierta",fc:null})},
     {t:"Guardar",fn:()=>guarda()}]);}
+/* botón para sacar de la avería un cambio que no es de ella (lo que cuelga de él, como su eje, sale con él) */
+function quitarDeAv(a,e){if(window.SOLO_CONSULTA||!e.r)return null;const l=(a.links||[]).find(x=>x.k===e.k&&x.id===e.r.id);if(!l)return null;
+  return el("button",{type:"button",class:"btn sec peq",text:"Quitar",title:"No es de esta avería",onclick:()=>{cierraDlgs();
+    dlg("¿Quitar de la avería?",[el("p",{style:"margin:0",text:e.ref+" ("+fmtF(e.f)+") deja de contar en la avería "+avNom(a)+". No se borra el apunte: sigue en el historial y se puede volver a añadir."})],
+      [{t:"Cancelar",cls:"sec",fn:()=>{setTimeout(()=>fichaAveria(a),0);}},{t:"Quitar",fn:async()=>{try{await avCambia(a.id,x=>{x.links=(x.links||[]).filter(z=>!(z.k===l.k&&z.id===l.id));return x;});}catch(er){toast("No se pudo guardar");return false;}
+        toast("Quitado de la avería");render(true);setTimeout(()=>fichaAveria(a),0);}}]);}});}
 /* añadir a mano un cambio de esa máquina (últimos 60 días, que no esté ya en otra avería) */
 function elegirParaAveria(a){const m=avMaq(a),S=avLinkSet(),h=hoy(),d0=sumaDias(a.f,-15);
   const L=evInv().filter(e=>e.r&&e.r.id&&maqInv(e)&&m&&maqInv(e).id===m.id&&e.f>=d0&&e.f<=h&&!S[e.k+":"+e.r.id]).sort((x,y)=>y.f.localeCompare(x.f)).slice(0,40);
