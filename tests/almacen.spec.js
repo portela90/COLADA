@@ -359,6 +359,9 @@ test('Consultas: qué gestor está en cada relevo un día, una semana o cuándo 
   expect(await resp('qué gestores hay mañana')).toContain('Tarde: Gorka Aretxaga y 707');
   expect(await resp('cuándo le toca de noche a Josu')).toContain('A Josu le toca de noche la semana del 16/11/26');
   expect(await resp('gestores del lunes')).toContain('lunes 16/11/26');
+  // preguntas reales del 11/11 que no se entendían
+  expect(await resp('Gestor turno de mañana')).toContain('Gorka Aretxaga y Josu');
+  expect(await resp('Que gestor está del turno de mañana esta semana')).toContain('De mañana esta semana: Gorka Aretxaga y Josu');
   expect(err).toEqual([]);
 });
 
