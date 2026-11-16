@@ -15,7 +15,7 @@ function toast(t){const d=el("div",{class:"toast",text:t});document.body.appendC
 /* ---------- sin conexión ----------
    Lecturas: se guarda la última respuesta en el móvil y se usa si no hay red.
    Acciones de los operarios (empezar, pausar, terminar, registrar en el horno…): sin red se guardan y se envían al volver. */
-const LEER=new Set(["ots_dia","ots_rango","semana","elementos","elemento_ficha","lista_trabajadores","avisos_activos","avisos_todos","festivos_listar","horas_dia_leer","horas_rango","tareas","habituales","zonas","lugares","consumos_dia","horno_gasto","prl_pendientes","resp_hornos_yo","resp_hornos_admin","sust_lista","yo","extra_lista","extra_ver","cal_pendientes","check_ot_puntos","check_el_puntos","fotos_ot","enc_resumen","auto_estado","ot_historial","trabajadores_admin","trabajadores_gestor"]);
+const LEER=new Set(["ots_dia","ots_rango","semana","elementos","elemento_ficha","lista_trabajadores","avisos_activos","avisos_todos","festivos_listar","horas_dia_leer","horas_rango","tareas","habituales","zonas","lugares","consumos_dia","horno_gasto","prl_pendientes","resp_hornos_yo","resp_hornos_admin","sust_lista","sust_rango","yo","extra_lista","extra_ver","cal_pendientes","check_ot_puntos","check_el_puntos","fotos_ot","enc_resumen","auto_estado","ot_historial","trabajadores_admin","trabajadores_gestor"]);
 const EN_COLA={estado_ot:"Cambio de estado de un trabajo",ot_pausa:"Pausa de un trabajo",checklist_ot:"Checklist de un trabajo",terminar_ot:"Trabajo terminado",horno_registrar:"Registro en un horno",limpieza_abrir:"Limpieza apuntada",ot_abrir:"Trabajo nuevo",consumo_nave:"Nave de un consumo"};
 OFF.ambito="limpieza";
 const claveR=(fn,a)=>"r:"+fn+":"+JSON.stringify(Object.assign({},a||{},{p_tok:undefined}));
@@ -221,11 +221,11 @@ function tarjeta(o,re){const [et,ec]=EST[o.estado]||["?",""];const admin=esAdm()
     acc.length=0;acc.push(...f);}
   return el("div",{class:"ot"+(o.estado==="en_curso"?" curso":"")},[el("button",{class:"tit",onclick:()=>{detalle(o);avisoJornada(o,re);}},[el("span",{class:"t",text:o.titulo}),el("span",{class:"pill "+ec,text:et}),el("span",{class:"mas","aria-hidden":"true",text:"›"})]),
     o.descripcion?el("div",{class:"d",text:o.descripcion}):null,
-    el("div",{class:"meta"},[pillPet(o),o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
+    el("div",{class:"meta"},[pillPet(o),o.no_se_hace?el("span",{class:"pill info",title:"Quien lo tiene asignado está cubriendo a otra persona: ese día hace solo los trabajos del que falta",text:"No se hace: "+o.no_se_hace}):null,o.fecha!==S.fecha?el("span",{class:"pill bad",text:"Atrasada · "+fCorta(o.fecha)}):null,o.prioridad==="alta"?el("span",{class:"pill bad",text:"Urgente"}):null,
       sinAsignar(o)?el("span",{class:"pill warn",text:"Sin asignar"}):null,
       o.orig_n&&o.orig_n.length?el("span",{class:"pill info",title:"La app lo ha pasado automáticamente porque esa persona no está",text:"Era de "+o.orig_n.map(n=>n.split(" ")[0]).join(", ")}):null,
       o.auto_motivo==="sin_nadie"&&o.estado==="pendiente"&&admin?el("span",{class:"pill bad",text:"Nadie disponible para hacerlo"}):null,
-      admin&&S.plant&&o.fecha===S.fecha?(o.nombres||[]).filter(n=>S.plant[n]&&!S.plant[n].length&&!(o.cubre||[]).some(c=>c.ausente===n&&c.sustituto)).map(n=>el("span",{class:"pill bad",text:n.split(" ")[0]+" libra hoy"})):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
+      admin&&S.plant&&o.fecha===S.fecha&&!o.no_se_hace?(o.nombres||[]).filter(n=>S.plant[n]&&!S.plant[n].length&&!(o.cubre||[]).some(c=>c.ausente===n&&c.sustituto)).map(n=>el("span",{class:"pill bad",text:n.split(" ")[0]+" libra hoy"})):null,sinCubrir&&admin?el("span",{class:"pill bad",text:"Falta alguien"}):null,
       o.lugar?el("span",{text:o.lugar}):null,o.turno?el("span",{text:"Turno: "+o.turno}):null,quien?el("span",{text:quien}):null,
       o.origen==="rapida"&&o.creado_por_n?el("span",{text:"Abierta por "+o.creado_por_n.split(" ")[0]+" a las "+hora(o.creado)}):null,
       o.resultado?el("span",{class:"pill "+(o.resultado==="OK"?"ok":"bad"),text:"Checklist "+o.resultado}):null,

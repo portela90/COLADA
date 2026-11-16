@@ -7,14 +7,17 @@ function planSemana(R,lun){const dias=[0,1,2,3,4,5,6].map(i=>sumaD(lun,i));
   const sust=(aid,f)=>{const s=R.faltas.find(x=>x.ausente===aid&&x.sustituto&&enRango(x,f));return s?s.sustituto:null;};
   const P={};R.gente.forEach(w=>{P[w.id]={w,d:{}};dias.forEach(f=>{const tr=(w.horario||{})[diaClave(f)];const fal=R.faltas.find(x=>x.ausente===w.id&&x.motivo!=="Horas extra"&&enRango(x,f));
     const ex=R.extras.find(x=>x.trabajador===w.id&&x.fecha===f);
-    P[w.id].d[f]={tr,fal,ex,jor:fal?0:jornadaMin(tr)+(ex&&ex.horas?Math.round(ex.horas*60):0),carga:0,n:0,sinT:0,hechas:0,ots:[]};});});
+    /* si cubre a alguien (no «Horas extra»), hace la jornada del que falta si es más larga que la suya */
+    const cu=R.faltas.filter(x=>x.sustituto===w.id&&x.motivo!=="Horas extra"&&enRango(x,f)).map(x=>R.gente.find(g=>g.id===x.ausente)).filter(Boolean);
+    const jCu=cu.reduce((m,a)=>Math.max(m,jornadaMin((a.horario||{})[diaClave(f)])),0);
+    P[w.id].d[f]={tr,fal,ex,cub:cu.map(a=>a.nombre.split(" ")[0]).join(", "),jor:fal?0:Math.max(jornadaMin(tr),jCu)+(ex&&ex.horas?Math.round(ex.horas*60):0),carga:0,n:0,sinT:0,hechas:0,ots:[]};});});
   const libre={},equipo={};dias.forEach(f=>{libre[f]={n:0,min:0,ots:[]};equipo[f]={n:0,min:0,ots:[]};});
-  R.ots.forEach(o=>{const f=o.fecha;if(!libre[f])return;
+  R.ots.forEach(o=>{const f=o.fecha;if(!libre[f]||o.no_se_hace)return;
     if(o.todo_equipo){equipo[f].n++;equipo[f].min+=o.minutos_est||0;equipo[f].ots.push(o);return;}
     if(!(o.asignados||[]).length){libre[f].n++;libre[f].min+=o.minutos_est||0;libre[f].ots.push(o);return;}
     o.asignados.forEach(aid=>{const id=sust(aid,f)||aid;const c=P[id]&&P[id].d[f];if(!c)return;c.n++;c.ots.push(o);if(o.estado==="hecha")c.hechas++;if(o.minutos_est)c.carga+=o.minutos_est;else c.sinT++;});});
   return{dias,P,libre,equipo};}
-function nivelCelda(c){if(c.fal)return c.n?"bad":"falta";if(c.tr&&!c.tr.length&&!c.ex)return c.n?"bad":"libra";if(!c.jor)return c.n?"sinh":"vacio";const r=c.carga/c.jor;return r>1?"bad":r>=.8?"warn":"ok";}
+function nivelCelda(c){if(c.fal)return c.n?"bad":"falta";if(c.tr&&!c.tr.length&&!c.ex&&!c.cub)return c.n?"bad":"libra";if(!c.jor)return c.n?"sinh":"vacio";const r=c.carga/c.jor;return r>1?"bad":r>=.8?"warn":"ok";}
 async function vSemana(v){S.semP=S.semP||lunesDe(hoyISO());const lun=S.semP;const re=()=>pinta();
   v.appendChild(el("div",{class:"datebar"},[el("button",{class:"btn sec peq","aria-label":"Semana anterior",text:"◀",onclick:()=>{S.semP=sumaD(lun,-7);pinta();}}),
     el("b",{style:"text-transform:none",text:"Semana "+numSemana(lun)+" · "+fDM(lun)+" al "+fDM(sumaD(lun,6))}),
@@ -40,7 +43,7 @@ async function vSemana(v){S.semP=S.semP||lunesDe(hoyISO());const lun=S.semP;cons
 function listaOTs(tit,L,re){dlg(tit,el("div",null,L.length?L.map(o=>el("div",{class:"linea"},[el("span",{style:"flex:1"},[el("b",{text:o.titulo}),el("small",{class:"hint",style:"display:block;margin:0",text:[(EST[o.estado]||[o.estado])[0],o.minutos_est?""+durTxt(o.minutos_est):"sin tiempo",quienTxt(o)].filter(Boolean).join(" · ")})]),
   o.estado==="hecha"?null:el("button",{class:"btn sec peq",text:"Cambiar",onclick:()=>{document.querySelectorAll(".ov").forEach(x=>x.remove());formOT(o,re);}})])):el("p",{class:"empty",text:"Nada."})));}
 function diaPersona(w,f,c,re){const L=c.ots;
-  dlg(w.nombre+" · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:c.fal?"Falta este día ("+(c.fal.motivo||"falta")+")"+(L.length?": pasa sus trabajos a otra persona o pon quién le cubre en «＋ Falta».":"."):(c.tr==null?"Sin horario puesto para este día.":!c.tr.length?"Libra este día.":"Jornada: "+horTxt(c.tr)+(c.ex?" + horas extra":""))+(c.jor&&!c.fal?" · Trabajo asignado: "+durTxt(c.carga)+" de "+durTxt(c.jor)+(c.carga>c.jor?" (se pasa "+durTxt(c.carga-c.jor)+")":" (le quedan "+durTxt(c.jor-c.carga)+")"):"")}),
+  dlg(w.nombre+" · "+fLarga(f),el("div",null,[el("p",{class:"hint",text:c.fal?"Falta este día ("+(c.fal.motivo||"falta")+")"+(L.length?": pasa sus trabajos a otra persona o pon quién le cubre en «＋ Falta».":"."):(c.cub?"Cubre a "+c.cub+": hace solo sus trabajos y su jornada ("+durTxt(c.jor)+"). Los suyos ese día no se hacen.":c.tr==null?"Sin horario puesto para este día.":!c.tr.length?"Libra este día.":"Jornada: "+horTxt(c.tr)+(c.ex?" + horas extra":""))+(c.jor&&!c.fal?" · Trabajo asignado: "+durTxt(c.carga)+" de "+durTxt(c.jor)+(c.carga>c.jor?" (se pasa "+durTxt(c.carga-c.jor)+")":" (le quedan "+durTxt(c.jor-c.carga)+")"):"")}),
     L.length?el("div",null,L.map(o=>el("div",{class:"linea"},[el("span",{style:"flex:1"},[el("b",{text:o.titulo}),el("small",{class:"hint",style:"display:block;margin:0",text:[(EST[o.estado]||[o.estado])[0],o.minutos_est?""+durTxt(o.minutos_est):"sin tiempo estimado",o.origen==="fija"?"tarea fija":null].filter(Boolean).join(" · ")})]),
       o.estado==="hecha"?null:el("button",{class:"btn sec peq",text:"Pasar a otro",onclick:()=>{document.querySelectorAll(".ov").forEach(x=>x.remove());formOT(o,re);}})]))):el("p",{class:"empty",text:"No tiene trabajos asignados."})]),
     [{t:"＋ Darle trabajo",fn:()=>{setTimeout(()=>formOT({fecha:f,equipo:finde(f)?"Finde":"Semana",asignados:[w.id]},re),0);}},{t:"Ver el día",cls:"sec",fn:()=>{S.fecha=f;S.tab="hoy";S.fil={quien:w.nombre};pinta();}},{t:"Cerrar",cls:"sec"}]);}

@@ -32,7 +32,7 @@ const abrirWA=(tel,txt)=>window.open(waLink(tel,txt),"_blank");
 const lineaOT=o=>"• "+o.titulo+(o.lugar?" ("+o.lugar+")":"")+(o.turno?" · "+o.turno:"")+(o.prioridad==="alta"?" URGENTE":"");
 /* quién tiene que hacer cada trabajo ese día (contando sustituciones y «todo el equipo») */
 function repartoDia(D,L){const P={};const add=(id,o)=>{(P[id]=P[id]||[]).push(o);};
-  D.filter(o=>o.estado==="pendiente"||o.estado==="en_curso").forEach(o=>{
+  D.filter(o=>(o.estado==="pendiente"||o.estado==="en_curso")&&!o.no_se_hace).forEach(o=>{
     if(o.todo_equipo){L.filter(w=>w.activo&&w.rol!=="admin"&&(w.equipos||[]).includes(o.equipo)).forEach(w=>add(w.id,o));return;}
     (o.nombres||[]).forEach(n=>{const w=L.find(x=>x.nombre===n);const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);const s=c&&L.find(x=>x.nombre===c.sustituto);const t=s||w;if(t)add(t.id,o);});});
   return P;}
@@ -106,7 +106,7 @@ const durPDF=m=>m==null||m===""?"":durTxt(m);
 /* reparte cada trabajo hecho a quien lo hizo; los demás, a quien le tocaba */
 function quienDe(o){if((o.estado==="hecha"||o.estado==="no_hecha")&&o.hecho_por_n)return[o.hecho_por_n];if(o.todo_equipo)return["Equipo "+(o.equipo||"")];
   return(o.nombres&&o.nombres.length?o.nombres.map(n=>{const c=(o.cubre||[]).find(x=>x.ausente===n&&x.sustituto);return c?c.sustituto:n;}):["Sin asignar"]);}
-function datosInforme(O){const hechas=O.filter(o=>o.estado==="hecha"),noh=O.filter(o=>o.estado==="no_hecha"),sin=O.filter(o=>o.estado==="pendiente"||o.estado==="en_curso");
+function datosInforme(O){O=O.filter(o=>!o.no_se_hace);/* los que no se hicieron porque su persona cubría a otra no cuentan */const hechas=O.filter(o=>o.estado==="hecha"),noh=O.filter(o=>o.estado==="no_hecha"),sin=O.filter(o=>o.estado==="pendiente"||o.estado==="en_curso");
   const P={};O.forEach(o=>quienDe(o).forEach(n=>{const p=P[n]=P[n]||{t:0,h:0,no:0,min:0,nm:0};p.t++;if(o.estado==="hecha"){p.h++;if(o.minutos!=null){p.min+=o.minutos;if(!o.tiempo_auto)p.nm++;}}if(o.estado==="no_hecha")p.no++;}));
   const T={};O.filter(o=>o.origen==="fija").forEach(o=>{const t=T[o.titulo]=T[o.titulo]||{n:0,h:0,s:0,nm:0,est:null};t.n++;if(o.estado==="hecha"){t.h++;if(o.minutos!=null&&!o.tiempo_auto){t.s+=o.minutos;t.nm++;}}if(o.minutos_est)t.est=o.minutos_est;});
   const D={};O.forEach(o=>{const d=D[o.fecha]=D[o.fecha]||{t:0,h:0};d.t++;if(o.estado==="hecha")d.h++;});
@@ -115,22 +115,22 @@ function achica(src,M,q){return new Promise(ok=>{const im=new Image();if(/^https
   c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok({src:c.toDataURL("image/jpeg",q),w:c.width,h:c.height});};im.onerror=()=>ok(null);im.src=src;});}
 /* Horas de la semana para el PDF: horas trabajadas, extra a mano, fuera de presupuesto y bolsa, con motivos y trabajos de cada día */
 async function horasSemana(desde,hasta,O){
-  let W,R,FE;try{[W,R,FE]=await Promise.all([trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta}),rpc("festivos_listar",{p_tok:S.tok})]);}catch(e){return null;}
+  let W,R,FE,SU;try{[W,R,FE,SU]=await Promise.all([trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:desde,p_hasta:hasta}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(desde,hasta)]);}catch(e){return null;}
   const FES=new Set(FE.map(x=>x.fecha));const RH={};R.forEach(x=>RH[x.trabajador+"|"+x.fecha]=x);
   const dias=[];for(let f=desde<BOLSA_DESDE?BOLSA_DESDE:desde;f<=hasta;f=sumaD(f,1))dias.push(f);
   const cerrada=hasta<=hoyISO();const filas=[],fueraL=[];
   W.filter(w=>w.activo&&w.rol!=="admin"&&w.jornada!=="externo").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const c=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:35;
-    let Wt=0,paid=0,exc=0,fu=0;
-    dias.forEach(f=>{const x=RH[w.id+"|"+f];const esF=FES.has(f);const esp=horasTramos((w.horario||{})[diaClave(f)]||[]);
-      const def=esF?0:esp;const fa=x?x.falta:null;const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);
+    let Wt=0,paid=0,exc=0,fu=0,sjT=0;
+    dias.forEach(f=>{const x=RH[w.id+"|"+f];const esF=FES.has(f);const esp=horasTramos((w.horario||{})[diaClave(f)]||[]);const su=sustDe(SU,W,w.id,f);
+      const def=esF?0:Math.max(esp,su?su.h:0);const fa=x?x.falta:null;const h=fa?0:(x&&x.trabajadas!=null?+x.trabajadas:def);const sj=horasPorSust(esp,su,esF,h);sjT+=sj;
       const em=x&&x.extra_mano!=null?Math.min(h,+x.extra_mano):0;const fz=x?(+x.fuera||0):0;
       if(fa==="baja"||fa==="vacaciones"||(esF&&h===0))exc+=esp;
       Wt+=h;paid+=em;fu+=fz;
-      if(fz>0||em>0){const tr=O.filter(o=>o.fecha===f&&o.estado==="hecha"&&o.hecho_por_n===w.nombre).map(o=>o.titulo+(o.minutos!=null?" ("+durTxt(o.minutos)+")":"")).join(" · ");
-        fueraL.push([fCorta(f),w.nombre,dec(fz),dec(em),(x&&x.nota)||"",tr||"—"]);}});
+      if(fz>0||em>0||sj>0){const tr=O.filter(o=>o.fecha===f&&o.estado==="hecha"&&o.hecho_por_n===w.nombre).map(o=>o.titulo+(o.minutos!=null?" ("+durTxt(o.minutos)+")":"")).join(" · ");
+        fueraL.push([fCorta(f),w.nombre,dec(fz),dec(em),dec(sj),[sj?sustTxt(su):"",(x&&x.nota)||""].filter(Boolean).join(" · "),tr||"—"]);}});
     const dl=(w.jornada==="completa"&&cerrada&&dias.length&&desde>=BOLSA_INICIO)?dec(Wt-paid-(c*dias.length/7-exc)):"—";
-    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",dec(Wt),dec(paid),dec(fu),dl]);});
+    filas.push([w.nombre,w.jornada==="parcial"?"Parcial":w.jornada==="completa"?"Completa":"Sin poner",dec(Wt),dec(paid),dec(fu),dec(sjT),dl]);});
   return{filas,fueraL};}
 async function hacerPDF(O,X,desde,hasta,pr){await libPDF();const H=await horasSemana(desde,hasta,O);const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14;let y=0;
   const AZ=[31,78,121],GR=[92,107,122];
@@ -147,8 +147,8 @@ async function hacerPDF(O,X,desde,hasta,pr){await libPDF();const H=await horasSe
     doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(...(k[0]==="No se pudieron"&&X.noh.length||k[0]==="Sin hacer"&&X.sin.length?[179,38,30]:[22,33,44]));doc.text(pdfTxt(k[1]),cx+bw/2,cy+8,{align:"center"});
     doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...GR);doc.text(k[0],cx+bw/2,cy+13.5,{align:"center"});});doc.setTextColor(0);y+=44;
   titulo("Por persona");tabla(["Persona","Trabajos","Hechos","No se pudo","Tiempo total","Tiempo medio"],Object.keys(X.P).sort().map(n=>{const p=X.P[n];return[n,p.t,p.h,p.no,durPDF(p.min)||"-",p.nm?durTxt(p.min/p.nm):"-"];}));
-  if(H){titulo("Horas de la semana");tabla(["Persona","Jornada","Horas trabajadas","Extra a mano","Fuera de presupuesto","Bolsa de la semana (h)"],H.filas);
-    if(H.fueraL.length){titulo("Horas fuera de presupuesto y extra, con motivo y trabajos");tabla(["Día","Persona","Fuera (h)","Extra a mano (h)","Motivo","Trabajos hechos ese día"],H.fueraL);}
+  if(H){titulo("Horas de la semana");tabla(["Persona","Jornada","Horas trabajadas","Extra a mano","Fuera de presupuesto","Por sustitución (justificadas)","Bolsa de la semana (h)"],H.filas);
+    if(H.fueraL.length){titulo("Horas fuera de presupuesto, extra y por sustitución, con motivo y trabajos");tabla(["Día","Persona","Fuera (h)","Extra a mano (h)","Por sustitución (h)","Motivo","Trabajos hechos ese día"],H.fueraL);}
     else{doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(pdfTxt("Esta semana no hay horas fuera de presupuesto ni extra a mano."),M,y);y+=8;}}
   titulo("Por día");tabla(["Día","Trabajos","Hechos","Cumplimiento"],Object.keys(X.D).sort().map(f=>{const d=X.D[f];return[fCorta(f),d.t,d.h,(d.t?Math.round(d.h*100/d.t):0)+" %"];}));
   if(Object.keys(X.T).length){titulo("Tareas fijas");tabla(["Tarea","Veces","Hechas","Tiempo estimado","Tiempo medio real"],Object.keys(X.T).sort().map(k=>{const t=X.T[k];return[k,t.n,t.h,t.est?durTxt(t.est):"-",t.nm?durTxt(t.s/t.nm):"-"];}));}
