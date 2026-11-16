@@ -74,7 +74,8 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
     if(!E){frase("Todavía no se ha hecho el primer recuento de pistones usados. Se hace en Pistones › Pistones usados › «Contar pistones usados».");return;}
     const ds=DIAM.filter(d=>!I.d||nq(d)===nq("Ø "+I.d)),t=b=>ds.reduce((s,d)=>s+(E.S[d][b]||0),0),lin=b=>ds.filter(d=>E.S[d][b]).map(d=>d+": "+E.S[d][b]).join(" · ");
     const Z=t("Z"),Rr=t("R"),Mm=t("M"),C=t("C");
-    frase(Z?"En la zona de pistones usados debe haber "+Z+(Z===1?" pistón":" pistones")+(I.d?"":" ("+lin("Z")+")")+".":"La zona de pistones usados debería estar vacía"+(I.d?" de Ø "+I.d:"")+".");
+    const zn=k=>ds.reduce((s,d)=>s+(E.ZN[k][d]||0),0);
+    frase(Z?"En la zona de pistones usados debe haber "+Z+(Z===1?" pistón":" pistones")+(I.d?"":" ("+lin("Z")+")")+": "+PU_NAV.map(([k,n])=>n+" "+zn(k)).join(", ")+".":"La zona de pistones usados debería estar vacía"+(I.d?" de Ø "+I.d:"")+".");
     lista(null,[it("En la zona de usados (sin seleccionar)",Z?lin("Z"):null,String(Z),"uds"),it("Seleccionados para recuperar",Rr?lin("R"):null,String(Rr),"uds"),
       it("En "+PU_REC+" (recuperándose)",Mm?lin("M"):null,String(Mm),"uds"),it("En el cajón de chatarra",C?lin("C"):null,String(C),"uds")]);
     nota("Sale de los cambios de pistón apuntados desde la última retirada de la zona"+(puCambiosZona().length?" ("+puCambiosZona().length+" cambios)":"")+". Si al contar no cuadra, haz un recuento en Pistones › Pistones usados.");

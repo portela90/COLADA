@@ -1777,6 +1777,44 @@ test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y to
   expect(err).toEqual([]);
 });
 
+test('Pistones usados: la zona se lleva por nave y se retira solo la de una nave', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const f = n => { const m = new Date(); m.setDate(m.getDate() - n); return m.toISOString().slice(0, 10); };
+      const Z0 = {}; ['Ø 50', 'Ø 60', 'Ø 70', 'Ø 70 esp', 'Ø 80', 'Ø 90', 'Ø 90 esp', 'Ø 100', 'Ø 100 esp'].forEach(x => Z0[x] = 0);
+      // como en la planta: un recuento antiguo (solo «Z») y una retirada antigua de toda la zona (sin nave)
+      v.cat.app.pusados = { ev: [{ id: 'c0', t: 'cuenta', f: f(20), ts: 1, b: { Z: Z0 } },
+        { id: 'r0', t: 'clasif', f: f(10), ts: 2, esp: { 'Ø 80': 1 }, enc: { 'Ø 80': 1 }, falta: {}, rec: { 'Ø 80': 1 }, des: {} }] };
+      const Z = 'ZONA DE PISTONES USADOS';
+      v.pist = { '2026': { items: [] } }; v.pist['2026'].items.push({ id: 'u0', f: f(15), maq: 'F22', diam: 'Ø 80', cant: 1, motivo: 'DESGASTE', dest: Z, ts: 1 },
+        { id: 'u1', f: f(3), maq: 'F22', diam: 'Ø 80', cant: 1, motivo: 'DESGASTE', dest: Z, ts: 3 },
+        { id: 'u2', f: f(2), maq: 'F25', diam: 'Ø 80', cant: 1, motivo: 'ROTURA', dest: Z, ts: 4 },
+        { id: 'u3', f: f(2), maq: 'F51', diam: 'Ø 70', cant: 1, motivo: 'DESGASTE', dest: Z, ts: 5 }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(400);
+  const card = page.locator('section.card', { has: page.locator('h2', { hasText: /^Pistones usados$/ }) });
+  await expect(card).toContainText('Nave 1: Ø 80: 2 · Total 2'); await expect(card).toContainText('Nave 2: Ø 70: 1 · Total 1');
+  expect(await desbordes(page)).toEqual([]);
+  // retirar solo la Nave 2
+  await card.getByRole('button', { name: 'Retirar de la zona' }).click(); await page.waitForTimeout(300);
+  let d = page.locator('.dlg').last(); await expect(d).toContainText('¿De qué nave');
+  await d.locator('button.it', { hasText: 'Nave 2' }).click(); await page.waitForTimeout(400);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Retirar de la Nave 2 · 1/2 contar'); await expect(d).toContainText('F51'); await expect(d).not.toContainText('F22');
+  await d.locator('tr', { has: page.locator('td b', { hasText: /^Ø 70$/ }) }).locator('input').fill('1');
+  for (const x of await d.locator('input[id^="puh"]').all()) if (!(await x.inputValue())) await x.fill('0');
+  await d.getByRole('button', { name: 'Siguiente' }).click(); await page.waitForTimeout(400);
+  d = page.locator('.dlg').last(); await expect(d).toContainText('Retirar de la Nave 2 · 2/2 separar'); await expect(d).toContainText('Cuadra');
+  await d.getByRole('button', { name: 'Guardar retirada' }).click(); await page.waitForTimeout(800);
+  const ev = await page.evaluate(() => window.__D.cat.app.pusados.ev);
+  const ret = ev.find(e => e.t === 'clasif' && e.nave); expect(ret.nave).toBe('N2'); expect(ret.esp).toEqual({ 'Ø 70': 1 });
+  await expect(card).toContainText('Nave 1: Ø 80: 2 · Total 2'); await expect(card).toContainText('Nave 2: nada (vacía)');
+  await expect(card).toContainText('Retirada de la zona de la Nave 2');
+  const t = (await card.innerText()).replace(/\s+/g, ' '); expect(t).not.toMatch(/undefined|NaN/);
+  expect(err).toEqual([]);
+});
+
 test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
