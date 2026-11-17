@@ -73,7 +73,7 @@ const esAdm=()=>!!(S.yo&&S.yo.rol==="admin"&&!S.verOp);
 /* encargado (segundo): ve todos los trabajos, crea/asigna trabajos y pone faltas; no borra ni ve datos personales */
 const esEnc=()=>!!(S.yo&&S.yo.encargado&&S.yo.rol!=="admin");
 const esGes=()=>esAdm()||esEnc();
-try{const ir=new URLSearchParams(location.search).get("ir");if(ir&&S.yo&&esAdm()&&["resumen","equipo","tareas","avisos","semana"].includes(ir))S.tab=ir;}catch(e){}
+try{const ir=new URLSearchParams(location.search).get("ir");if(ir&&S.yo&&esAdm()&&["resumen","equipo","tareas","avisos","semana","investigar"].includes(ir))S.tab=ir;}catch(e){}
 function salir(sinAviso){const tk=S.tok;if(tk&&!sinAviso)(async()=>{try{const s=await subActual();if(s)await rpc("push_baja",{p_tok:tk,p_endpoint:s.endpoint});}catch(e){}rpc("salir",{p_tok:tk}).catch(()=>{});})();else if(tk)rpc("salir",{p_tok:tk}).catch(()=>{});S.tok=null;S.yo=null;ls.set("limp.tok",null);ls.set("limp.yo",null);if(!sinAviso)toast("Sesión cerrada");pinta();}
 $("bsalir").onclick=()=>dlg("¿Cerrar sesión?",el("p",{style:"margin:0",text:"Para volver a entrar tendrás que poner tu PIN, y este móvil dejará de recibir avisos hasta que entres de nuevo."}),[{t:"Cancelar",cls:"sec"},{t:"Cerrar sesión",cls:"bad",fn:()=>salir()}]);
 function confirma(t,txt,bt,fn,cls){dlg(t,el("p",{style:"margin:0",text:txt}),[{t:"Cancelar",cls:"sec"},{t:bt,cls:cls||"bad",fn}]);}

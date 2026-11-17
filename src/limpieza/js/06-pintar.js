@@ -1,10 +1,10 @@
 /* ---------- pintar ---------- */
-const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"]];
-const ICL={hoy:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',semana:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',tareas:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',equipo:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/>',avisos:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',resumen:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',toolbox:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/>',encargado:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',calendario:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3"/>'};
+const TABS_ADMIN=[["hoy","Día"],["semana","Semana"],["tareas","Tareas"],["equipo","Equipo"],["avisos","Avisos"],["resumen","Resumen"],["investigar","Investigar"]];
+const ICL={hoy:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',semana:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',tareas:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',equipo:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/>',avisos:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',resumen:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',investigar:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',toolbox:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/>',encargado:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',calendario:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3"/>'};
 const svgI=k=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICL[k]||"")+'</svg>';
 /* color y frase de cada pantalla (cabecera) */
 const SEC_LIM={hoy:["azul","Los trabajos del día, quién los hace y cómo van"],semana:["indigo","Lo planificado para la semana y las horas de cada uno"],tareas:["morado","Trabajos habituales y cada cuánto se hacen"],
-  equipo:["verde","Quién trabaja, turnos, faltas y permisos"],avisos:["ambar","Avisos al móvil y problemas que se repiten"],resumen:["turquesa","Cómo va el mes: trabajos, horas, consumos e informes"]};
+  equipo:["verde","Quién trabaja, turnos, faltas y permisos"],avisos:["ambar","Avisos al móvil y problemas que se repiten"],resumen:["turquesa","Cómo va el mes: trabajos, horas, consumos e informes"],investigar:["granate","Saturación del equipo y problemas que se repiten"]};
 function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   if(!S.tok||!S.yo){$("who").textContent="";$("bsalir").hidden=true;nav.hidden=true;vEntrar(v);return;}
   $("who").textContent=S.yo.nombre.split(" ")[0]+(S.verOp?" (prueba: operario)":"");$("bsalir").hidden=false;
@@ -15,7 +15,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   if(esAdm()){nav.hidden=false;nav.textContent="";
     /* barra de abajo: en el móvil solo 4 pestañas + «Más»; en pantallas anchas, todas */
     const ir=k=>()=>{S.tab=k;pinta();window.scrollTo(0,0);},pag=u=>()=>{location.href=u+"?v="+Date.now();};
-    const T={hoy:["hoy","Día"],semana:["semana","Semana"],tareas:["tareas","Tareas"],equipo:["equipo","Equipo"],avisos:["avisos","Avisos"],resumen:["resumen","Resumen"]};
+    const T={hoy:["hoy","Día"],semana:["semana","Semana"],tareas:["tareas","Tareas"],equipo:["equipo","Equipo"],avisos:["avisos","Avisos"],resumen:["resumen","Resumen"],investigar:["investigar","Investigar"]};
     const EXT=[["toolbox","Toolbox","toolbox.html"],["encargado","Encargado","encargado.html"],["calendario","Calendario","calendario.html"]];
     const bot=(ic,t,sel,fn)=>{const i=el("span",{class:"ic"});i.innerHTML=svgI(ic);return el("button",{"aria-selected":String(!!sel),onclick:fn},[i,el("span",{text:t})]);};
     const ancho=window.innerWidth>=760,prin=ancho?Object.keys(T):["hoy","semana","tareas","equipo"];
@@ -24,7 +24,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
     else{const resto=Object.keys(T).filter(k=>!prin.includes(k));
       nav.appendChild(bot("mas","Más",resto.includes(S.tab),()=>{let cerrar=()=>{};
         const fila=(ic,t,sub,fn)=>el("button",{type:"button",class:"btn sec",style:"display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin:0 0 8px",onclick:()=>{cerrar();fn();}},[ic?el("span",{style:"font-size:24px",text:ic}):null,el("span",{style:"flex:1"},[el("b",{text:t}),sub?el("small",{style:"display:block;font-weight:400;color:var(--mut)",text:sub}):null])]);
-        const EM={avisos:"",resumen:""};cerrar=dlg("Más secciones",el("div",null,[...resto.map(k=>fila(EM[k]||"",T[k][1],null,ir(k))),
+        const EM={avisos:"",resumen:"",investigar:""};cerrar=dlg("Más secciones",el("div",null,[...resto.map(k=>fila(EM[k]||"",T[k][1],null,ir(k))),
           fila("","Toolbox y prevención","Toolbox, formación, EPIs y fichas",pag("toolbox.html")),
           fila("","Encargado","Instrucciones, checklist e incidencias",pag("encargado.html")),
           fila("","Calendario laboral","Festivos, vacaciones y firmas",pag("calendario.html")),
@@ -39,7 +39,7 @@ function pinta(){const v=$("v");v.textContent="";const nav=$("nav");
   {const C=SEC_LIM[S.tab]||SEC_LIM.hoy;const ttl=esAdm()?((TABS_ADMIN.find(x=>x[0]===S.tab)||[])[1]||"Día"):"Mi día";
     v.appendChild(cabeceraPg({ruta:["Limpieza CIE"],titulo:ttl,sub:esAdm()||esEnc()?C[1]:"Los trabajos que tienes hoy, en orden",color:C[0],icono:svgI(S.tab),vista:v}));}
   if(S.tab==="hoy"&&esSencillo())return vSencillo(v);
-  ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen})[S.tab](v);}
+  ({hoy:vHoy,semana:vSemana,tareas:vTareas,equipo:vEquipo,avisos:vAvisos,resumen:vResumen,investigar:vInvestigar})[S.tab](v);}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.tok&&S.tab==="hoy"&&!document.querySelector(".ov")){if(S.fecha<hoyISO())S.fecha=hoyISO();pinta();}});
 try{const c=new URLSearchParams(location.search).get("el");if(c){S.elPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
 try{const c=new URLSearchParams(location.search).get("pet");if(c){S.petPend=c;history.replaceState(null,"",location.pathname);}}catch(e){}
