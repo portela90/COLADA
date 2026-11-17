@@ -36,6 +36,7 @@ function cardIncidencias(){const h=hoy(),mes=h.slice(0,7),y0=h.slice(0,4)+"-01-0
 
 /* ---------- apuntar o corregir ---------- */
 function incForm(x0){const ed=!!x0;const s=ed?JSON.parse(JSON.stringify(x0)):{f:hoy(),tipo:"robo",tipoO:"",cargo:"N1",t:"",nota:"",fotos:[],lin:[]};
+  s.lin.forEach(l=>{if(l.sap)l.cant0=l.cant;});
   if(!s.lin.some(l=>l.k==="a"))s.lin.push({k:"a",art:"",alm:"",cant:""});
   if(!s.lin.some(l=>l.k==="m"))s.lin.push({k:"m",desc:"",cant:"",pu:""});
   let files=[];const cuerpo=el("div",{class:"inc-form",style:"display:flex;flex-direction:column;gap:12px"});const totEl=el("div",{class:"inc-tot"});
@@ -79,7 +80,9 @@ function incForm(x0){const ed=!!x0;const s=ed?JSON.parse(JSON.stringify(x0)):{f:
     const lin=[];for(const l of s.lin){
       if(l.k==="a"){if(!l.art&&!String(l.cant||"").trim())continue;const a=art(l.art),q=parseN(l.cant);if(!a){toast("Elige el artículo de cada línea");return false;}
         if(!(q>0)){toast("Pon la cantidad de "+a.desc);return false;}if(!l.alm){toast("Elige de qué almacén sale "+a.desc);return false;}
-        lin.push({k:"a",art:a.id,alm:l.alm,cant:q,pu:precioDe(a)||0});}
+        /* si ya estaba metida en SAP, la marca se queda (y si cambia la cantidad, avisa para corregirla también en SAP) */
+        const sap=l.sap&&l.art===a.id?l.sap:null;if(sap&&l.cant0!=null&&+l.cant0!==q)toast("Ojo: "+a.desc+" ya estaba metido en SAP con "+l.cant0+": corrígelo también en SAP");
+        lin.push(Object.assign({k:"a",art:a.id,alm:l.alm,cant:q,pu:precioDe(a)||0},sap?{sap}:{}));}
       else{const d=String(l.desc||"").trim();if(!d&&!String(l.cant||"").trim()&&!String(l.pu||"").trim())continue;const q=parseN(l.cant),p=parseN(l.pu);
         if(!d){toast("Escribe qué es cada línea escrita a mano");return false;}if(!(q>0)){toast("Pon la cantidad de «"+d+"»");return false;}
         lin.push({k:"m",desc:d,cant:q,pu:isFinite(p)&&p>0?p:0});}}

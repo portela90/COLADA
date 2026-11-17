@@ -4,6 +4,15 @@
    SAP registra el consumo con la fecha del día en que se mete, así que se guarda esa fecha
    (sap:{f,ts,por}) dentro del propio cambio de pistón. Desmarcar deja sap:null. */
 const enSAP=p=>!!(p&&p.sap&&p.sap.f);
+/* Pistones perdidos sin gastarse en una máquina (robos, roturas por mala manipulación, caducados…), apuntados en
+   «Pérdidas e incidencias». En SAP se meten como consumo, para que su stock cuadre con el recuento. Salen junto a los
+   cambios de pistón para SAP e informe; la marca de SAP se guarda en la línea de la incidencia (lin[i].sap).
+   No cuentan como consumo de las máquinas (Desviaciones, Investigar, previsión): eso sigue usando todosPist(). */
+function pistInc(){const out=[];(typeof INC!=="undefined"&&INC||[]).forEach(x=>(x.lin||[]).forEach((l,i)=>{if(l.k!=="a")return;const a=art(l.art);if(!a||a.fam!=="piston"||!(+l.cant>0))return;
+  const ti=incTipo(x);out.push({id:"inc:"+x.id+":"+i,inc:{id:x.id,i},f:x.f,ts:+x.ts||0,diam:a.diam,cant:+l.cant,maq:null,motivo:ti,lugar:ti+" · "+incCargo(x),nave:incCargo(x),nota:x.t||"",resp:null,dest:"",alm:l.alm,sap:l.sap||null,por:x.por||""});}));return out;}
+const pistSAP=()=>todosPist().concat(pistInc());
+/* dónde: la inyectora del cambio, o «Robo · Nave 2» si es de una incidencia */
+const dondePist=p=>p.inc?p.lugar:maqN(p.maq);
 const sapTxt=p=>enSAP(p)?"metido en SAP el "+fmtF(p.sap.f)+(p.sap.por?" por "+String(p.sap.por).split(" ")[0]:""):"";
 /* aviso para los diálogos de borrar */
 const avisoSAPBorrar=p=>enSAP(p)?" Ojo: este cambio ya está "+sapTxt(p)+". Si lo borras aquí, hay que anularlo también en SAP.":"";
@@ -13,29 +22,32 @@ async function patchPists(list){const g={};list.forEach(([p,pt])=>{const y=p.f.s
     await ref.set({items:(sn.data().items||[]).map(x=>m.has(x.id)?Object.assign({},x,m.get(x.id)):x)});}}
 async function marcaSAP(L,si){if(!db||!db.doc&&!db.itemsPatchId){toast("No se puede guardar en esta vista");return false;}
   const sap=si?{f:hoy(),ts:Date.now(),por:(window.yoNombre&&window.yoNombre())||""}:null;
-  try{await patchPists(L.map(p=>[p,{sap}]));L.forEach(p=>{p.sap=sap;});return true;}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));return false;}}
+  try{const Lp=L.filter(p=>!p.inc),Li=L.filter(p=>p.inc);if(Lp.length)await patchPists(Lp.map(p=>[p,{sap}]));
+    if(Li.length)await incGuarda(LL=>LL.map(x=>{const mias=Li.filter(p=>p.inc.id===x.id);if(!mias.length)return x;
+      return Object.assign({},x,{lin:(x.lin||[]).map((l,i)=>mias.some(p=>p.inc.i===i)?Object.assign({},l,{sap}):l)});}));
+    L.forEach(p=>{p.sap=sap;});return true;}catch(e){toast("No se pudo guardar: "+(e&&e.message||"error"));return false;}}
 function cardPistSAP(re){const h=hoy();const F=draft.psap=draft.psap||{d0:h.slice(0,7)+"-01",d1:h,t:"este mes",est:"pend",maq:"",diam:""};
-  const all=todosPist();const enPer=p=>p.f>=F.d0&&p.f<=F.d1;
+  const all=pistSAP();const enPer=p=>p.f>=F.d0&&p.f<=F.d1;
   const base=all.filter(p=>enPer(p)&&(!F.maq||p.maq===F.maq)&&(!F.diam||p.diam===F.diam));
   const L=base.filter(p=>F.est==="todo"||(F.est==="sap")===enSAP(p)).sort((a,b)=>(b.f+"|"+b.ts).localeCompare(a.f+"|"+a.ts));
   const pend=base.filter(p=>!enSAP(p)),nP=pend.reduce((s,p)=>s+(+p.cant||1),0),nT=base.reduce((s,p)=>s+(+p.cant||1),0);
   const fuera=all.filter(p=>!enSAP(p)&&!enPer(p));
-  const maqs=[...new Set(all.filter(enPer).map(p=>p.maq))].map(id=>[id,maqN(id)]).sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es",{numeric:true}));
+  const maqs=[...new Set(all.filter(enPer).filter(p=>p.maq).map(p=>p.maq))].map(id=>[id,maqN(id)]).sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es",{numeric:true}));
   const box=el("section",{class:"card",id:"pSapCard"});
   const per=selPeriodo(F.d0,F.d1,(d0,d1,t)=>{Object.assign(F,{d0,d1,t});re();});
   const seg=el("div",{class:"seg",role:"group","aria-label":"Qué ver"},[["pend","Pendientes de SAP"],["sap","Ya en SAP"],["todo","Todos"]].map(([k,t])=>
     el("button",{type:"button","aria-pressed":String(F.est===k),text:t,onclick:()=>{F.est=k;re();}})));
   const porD={};L.forEach(p=>{porD[p.diam]=(porD[p.diam]||0)+(+p.cant||1);});
-  const fila=p=>{const cb=el("input",{type:"checkbox","aria-label":"En SAP: "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)});cb.checked=enSAP(p);
-    cb.addEventListener("change",async()=>{const si=cb.checked;if(!si){cb.checked=true;confirmar("¿Quitar la marca de SAP?","El cambio de "+p.diam+" en "+maqN(p.maq)+" del "+fmtF(p.f)+" volverá a salir como pendiente de meter en SAP.","Quitar marca",async()=>{if(await marcaSAP([p],false)){toast("Vuelve a estar pendiente de SAP");re();}});return;}
+  const fila=p=>{const cb=el("input",{type:"checkbox","aria-label":"En SAP: "+p.diam+" en "+dondePist(p)+" del "+fmtF(p.f)});cb.checked=enSAP(p);
+    cb.addEventListener("change",async()=>{const si=cb.checked;if(!si){cb.checked=true;confirmar("¿Quitar la marca de SAP?",(p.inc?"El "+p.diam+" ("+dondePist(p)+")":"El cambio de "+p.diam+" en "+maqN(p.maq))+" del "+fmtF(p.f)+" volverá a salir como pendiente de meter en SAP.","Quitar marca",async()=>{if(await marcaSAP([p],false)){toast("Vuelve a estar pendiente de SAP");re();}});return;}
       cb.disabled=true;if(await marcaSAP([p],true)){toast("Marcado como metido en SAP");re();}else{cb.checked=false;cb.disabled=false;}});
-    return el("tr",{},[el("td",{},el("label",{class:"chk",style:"margin:0"},[cb,el("span",{class:"sub",text:" SAP"})])),el("td",{class:"num",text:fmtF(p.f)}),el("td",{},el("b",{text:maqN(p.maq)})),
-      el("td",{text:p.diam+((+p.cant||1)>1?" ×"+p.cant:"")}),el("td",{text:cap(p.motivo||"")||"—"}),
+    return el("tr",{},[el("td",{},el("label",{class:"chk",style:"margin:0"},[cb,el("span",{class:"sub",text:" SAP"})])),el("td",{class:"num",text:fmtF(p.f)}),el("td",{},p.inc?el("span",{class:"pill bad",title:"Apuntado en Pérdidas e incidencias: en SAP se mete como consumo",text:dondePist(p)}):el("b",{text:maqN(p.maq)})),
+      el("td",{text:p.diam+((+p.cant||1)>1?" ×"+p.cant:"")}),el("td",{text:p.inc?(p.nota||"—"):(cap(p.motivo||"")||"—")}),
       el("td",{},enSAP(p)?el("span",{class:"pill ok",text:"En SAP "+fmtF(p.sap.f)+(p.sap.por?" · "+String(p.sap.por).split(" ")[0]:"")}):el("span",{class:"pill warn",text:"Pendiente"}))]);};
   const vistosPend=L.filter(p=>!enSAP(p));
   const acc=el("div",{class:"acciones"},[vistosPend.length?el("button",{type:"button",class:"btn",id:"pSapTodos",text:"Marcar "+(vistosPend.length===1?"este cambio":"los "+vistosPend.length+" cambios")+" como metidos en SAP",
       onclick:()=>confirmar("¿Marcar como metidos en SAP?",vistosPend.length+(vistosPend.length===1?" cambio":" cambios")+" de pistón ("+vistosPend.reduce((s,p)=>s+(+p.cant||1),0)+" pistones) quedan como metidos en SAP con fecha de hoy, "+fmtF(hoy())+". Si alguno no lo has metido, desmárcalo luego.","Marcar",async()=>{if(await marcaSAP(vistosPend,true)){toast("Marcados como metidos en SAP");re();}})}):null,
-    L.length?el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel("Pistones "+F.t,L.map(p=>({"Fecha":p.f,"Máquina":maqN(p.maq),"Diámetro":p.diam,"Cantidad":+p.cant||1,"Motivo":cap(p.motivo||""),"Responsable":p.resp||"","Relevo":p.u||"","Pistón usado":p.dest?cap(p.dest):"","Nota":p.nota||"","En SAP":enSAP(p)?"Sí":"No","Fecha SAP":enSAP(p)?p.sap.f:"","Metido por":enSAP(p)?(p.sap.por||""):""})),e.currentTarget)}):null].filter(Boolean));
+    L.length?el("button",{type:"button",class:"btn sec",text:"Descargar Excel",onclick:e=>cExcel("Pistones "+F.t,L.map(p=>({"Fecha":p.f,"Máquina":dondePist(p),"Diámetro":p.diam,"Cantidad":+p.cant||1,"Motivo":cap(p.motivo||""),"Responsable":p.resp||"","Relevo":p.u||"","Pistón usado":p.dest?cap(p.dest):"","Tipo":p.inc?"Pérdida ("+p.motivo+")":"Cambio en máquina","Nota":p.nota||"","En SAP":enSAP(p)?"Sí":"No","Fecha SAP":enSAP(p)?p.sap.f:"","Metido por":enSAP(p)?(p.sap.por||""):""})),e.currentTarget)}):null].filter(Boolean));
   box.append(el("div",{class:"hd"},[el("h2",{text:"Consumo de pistones y SAP"}),el("span",{class:"der sub",text:nT+(nT===1?" pistón":" pistones")+" "+F.t+" · "+nP+" sin meter en SAP"})]),
     el("div",{class:"bd frm",style:"display:grid;gap:10px"},[per,
       el("div",{class:"row"},[fld("Máquina",sel("pSapMaq",maqs,F.maq,x=>{F.maq=x;re();},"Todas")),fld("Diámetro",sel("pSapDiam",DIAM.map(x=>[x,x]),F.diam,x=>{F.diam=x;re();},"Todos"))]),seg,

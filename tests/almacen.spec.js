@@ -1815,6 +1815,35 @@ test('Pistones usados: la zona se lleva por nave y se retira solo la de una nave
   expect(err).toEqual([]);
 });
 
+test('Pistones robados: salen para SAP como consumo, se marcan como metidos y van en el informe de Beatriz', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const h = new Date().toISOString().slice(0, 10), k = Object.keys(v.mov)[0];
+      v.inc = { lista: { items: [{ id: 'ir1', f: h, tipo: 'robo', cargo: 'N2', t: 'Robo en la zona de pistones', fotos: [], por: 'Ana', ts: Date.now(),
+        lin: [{ k: 'a', art: 'pist-60', alm: 'n1', cant: 2, pu: 0, movId: 'mr1' }, { k: 'm', desc: 'Candado', cant: 1, pu: 5 }] }] } };
+      v.mov[k].items.push({ id: 'mr1', f: h, ts: Date.now(), alm: 'n1', art: 'pist-60', cant: 2, tipo: 'salida', inc: 'ir1', nota: 'Incidencia: Robo · Robo en la zona de pistones' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(400);
+  const card = page.locator('#pSapCard');
+  const fila = card.locator('tr', { hasText: 'Robo · Nave 2' });
+  await expect(fila).toContainText('Ø 60 ×2'); await expect(fila).toContainText('Pendiente'); await expect(fila).toContainText('Robo en la zona de pistones');
+  expect(await desbordes(page)).toEqual([]);
+  // el informe para Beatriz lo lleva como consumo
+  await page.locator('.banner button', { hasText: 'Preparar informe' }).click(); await page.waitForTimeout(400);
+  const txt = await page.locator('#ipTxt').inputValue();
+  expect(txt).toContain('de ellos 2 perdidos o robados'); expect(txt).toContain('ROBO (Nave 2) · dar como consumido'); expect(txt).toMatch(/Pistón Ø 60.*2 ud/);
+  await page.locator('.dlg').last().getByRole('button', { name: 'Cerrar' }).click(); await page.waitForTimeout(300);
+  // Beatriz lo marca como metido en SAP: la marca queda en la línea de la incidencia
+  await fila.locator('input[type=checkbox]').click(); await page.waitForTimeout(800);
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.__D.inc.lista.items[0].lin[0].sap || null))).toContain('"f":"');
+  await expect(card.locator('tr', { hasText: 'Robo · Nave 2' })).toHaveCount(0); // con «Pendientes de SAP» ya no sale
+  // el robo no cuenta como consumo de máquinas
+  const enMaq = await page.evaluate(() => JSON.stringify(window.__D.pist || {})); expect(enMaq).not.toContain('ir1');
+  expect(err).toEqual([]);
+});
+
 test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);

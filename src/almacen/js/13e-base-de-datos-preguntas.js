@@ -83,7 +83,7 @@ function pintaIntA(I,res,pon){const h=hoy(),q=I.q;
   if(I.modo==="beatriz"){const L=pistPend(),aj=cat.ajustes||{};ent("cambios de pistón para el informe de "+destPist().nom.split(" ")[0]);
     frase(L.length?"Faltan por mandar "+L.length+(L.length===1?" cambio de pistón":" cambios de pistón")+(aj.ultInfPist?" (el último informe llegaba hasta el "+fmtF(aj.ultInfPist)+")":"")+".":"No falta ningún cambio de pistón por mandar"+(aj.ultInfPist?": el último informe llegaba hasta el "+fmtF(aj.ultInfPist):"")+".");
     if(L.length){const G={};L.forEach(p=>{G[p.diam]=(G[p.diam]||0)+(+p.cant||1);});nota("Por Ø: "+Object.entries(G).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),"es",{numeric:true})).map(([d,n])=>d+": "+n).join(" · "));
-      lista(null,L.slice().reverse().map(p=>it(p.diam+" · "+maqN(p.maq),[dSem(p.f)+(p.motivo?" · "+cap(p.motivo):""),p.resp?"Lo hizo "+respTxt(p.resp):null],String(+p.cant||1),"ud")));
+      lista(null,L.slice().reverse().map(p=>it(p.diam+" · "+dondePist(p),[dSem(p.f)+(p.motivo?" · "+cap(p.motivo):""),p.resp?"Lo hizo "+respTxt(p.resp):null],String(+p.cant||1),"ud")));
       add(el("button",{type:"button",class:"btn",style:"margin-top:8px",text:"Preparar el informe",onclick:()=>informePist()}));}return;}
 
   if(I.modo==="molde"){const m=I.maq;if(I.cod&&!m){ent("molde puesto",[I.cod]);frase("No encuentro la máquina "+I.cod+".");return;}if(m){const x=moldeDe(hoyDe(m).molde);ent("molde puesto",[m.cod]);frase(x?m.cod+" lleva el molde "+moldeTxt(x)+".":m.cod+" no tiene molde apuntado.");if(x)add(el("button",{type:"button",class:"btn sec",text:"Ver el molde",onclick:()=>formMolde(x)}));return;}

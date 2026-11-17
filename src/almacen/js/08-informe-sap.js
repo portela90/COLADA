@@ -10,7 +10,7 @@ function incluirChips(id,ops,onch,titulo){return{node:document.createElement("sp
   return{node:box,sel:s};}
 const OPS_PIST=[["res","Resumen por diámetro"],["det","Detalle de cada cambio"],["#","En el detalle"],["mot","Motivo"],["resp","Responsable"],["dest","Pistón usado"],["alm","Almacén de salida"],["obs","Observaciones"]];
 
-function datosInforme(desde,hasta){const en=f=>f>=desde&&f<=hasta;const cam=todosPist().filter(p=>en(p.f));
+function datosInforme(desde,hasta){const en=f=>f>=desde&&f<=hasta;const cam=pistSAP().filter(p=>en(p.f)).sort((a,b)=>(a.f+"|"+(a.ts||0)).localeCompare(b.f+"|"+(b.ts||0)));
   const pids=DIAM.map(pistArt).filter(Boolean);const ids=pids.map(a=>a.id);
   const aj=todosMov().filter(m=>m.tipo==="ajuste"&&ids.includes(m.art)&&en(m.f)&&m.cant);const ent=todosMov().filter(m=>m.tipo==="entrada"&&ids.includes(m.art)&&en(m.f));
   const porD={};cam.forEach(p=>{porD[p.diam]=(porD[p.diam]||0)+(+p.cant||1);});return{cam,aj,ent,porD,pids};}
@@ -20,11 +20,16 @@ function textoInforme(desde,hasta,s,u){const t=textoInforme0(desde,hasta,s);retu
 function textoInforme0(desde,hasta,s){s=s||incluirSel("pist",OPS_PIST);const{cam,porD}=datosInforme(desde,hasta);const tot=Object.values(porD).reduce((a,b)=>a+b,0);
   const L=["CAMBIOS DE PISTÓN · MAPRI",desde===hasta?"Día "+fmtF(desde):"Del "+fmtF(desde)+" al "+fmtF(hasta),""];
   if(!cam.length){L.push("No se ha cambiado ningún pistón en este periodo.");return L.join("\n");}
-  if(s.res){L.push("RESUMEN ("+tot+" pistones):");DIAM.forEach(x=>{if(porD[x]){const a=pistArt(x);L.push("- "+(a&&a.cod?"["+a.cod+"] ":"")+"Pistón "+x+": "+porD[x]+" ud");}});}
-  else L.push("Total: "+tot+" pistones");
+  const nInc=cam.filter(p=>p.inc).reduce((a,p)=>a+(+p.cant||1),0);
+  if(s.res){L.push("RESUMEN ("+tot+" pistones"+(nInc?", de ellos "+nInc+" perdidos o robados":"")+"):");DIAM.forEach(x=>{if(porD[x]){const a=pistArt(x);L.push("- "+(a&&a.cod?"["+a.cod+"] ":"")+"Pistón "+x+": "+porD[x]+" ud");}});}
+  else L.push("Total: "+tot+" pistones"+(nInc?" (de ellos "+nInc+" perdidos o robados)":""));
+  if(nInc)L.push("","Los robados o perdidos (apuntados en Pérdidas e incidencias) también se meten en SAP como consumo, para que el stock cuadre con el recuento.");
   if(!s.det)return L.join("\n");
   L.push("","DETALLE DE CADA CAMBIO:");
   cam.forEach((p,i)=>{const mq=cat.maquinas.find(z=>z.id===p.maq);const a=pistArt(p.diam);
+    if(p.inc){L.push("",""+(i+1)+". "+fmtF(p.f)+" · "+p.motivo.toUpperCase()+" ("+p.nave+") · dar como consumido");
+      L.push("   Pistón "+p.diam+(a&&a.cod?" ["+a.cod+"]":"")+" · "+(+p.cant||1)+" ud");if(p.nota)L.push("   "+p.nota);
+      const al=s.alm&&p.alm?almN(p.alm):"";if(al)L.push("   Salió de: "+al);return;}
     L.push("",""+(i+1)+". "+fmtF(p.f)+" · Inyectora "+maqN(p.maq)+(mq&&mq.nave?" ("+mq.nave+")":""));
     L.push("   Pistón "+p.diam+(a&&a.cod?" ["+a.cod+"]":"")+" · "+(+p.cant||1)+" ud");
     if(s.mot)L.push("   Motivo: "+cap(p.motivo||"—"));
@@ -40,7 +45,7 @@ function formDestPist(despues){const x=destPist();
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{infP:{nom:(x.nom||"").trim()||"Beatriz Arrizabalaga",email:(x.email||"").trim(),tel:(x.tel||"").trim()}});try{await saveCat();toast("Guardado");}catch(e){return false;}render(true);if(despues)setTimeout(despues,0);}}]);}
 /* Cambios de pistón sin informar: con fecha posterior al último informe, o apuntados después de enviarlo
    aunque lleven una fecha anterior (p. ej. un cambio de ayer que se apunta hoy). */
-function pistPend(){const aj=cat.ajustes||{},u=aj.ultInfPist,uts=+aj.ultInfPistTs||0;return todosPist().filter(p=>!u||p.f>u||(uts&&(+p.ts||0)>uts));}
+function pistPend(){const aj=cat.ajustes||{},u=aj.ultInfPist,uts=+aj.ultInfPistTs||0;return pistSAP().filter(p=>!u||p.f>u||(uts&&(+p.ts||0)>uts));}
 function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj.ultInfPist&&aj.ultInfPist<hy?sumaDias(aj.ultInfPist,1):hy,hasta:hy};
   const tarde=pistPend().filter(p=>aj.ultInfPist&&p.f<=aj.ultInfPist);if(tarde.length){const mn=tarde.map(p=>p.f).sort()[0];if(mn<f.desde)f.desde=mn;}
   const D=destPist(),pn=(D.nom||"").split(" ")[0];
@@ -67,7 +72,7 @@ function informePist(){const aj=cat.ajustes||{};const hy=hoy();const f={desde:aj
 async function excelInforme(desde,hasta){try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const{cam,porD}=datosInforme(desde,hasta);
   const res=DIAM.filter(x=>porD[x]).map(x=>{const a=pistArt(x);return{"Código material":a&&a.cod||"","Descripción":"Pistón "+x,"Cantidad":porD[x],"Unidad":"ud","Desde":desde,"Hasta":hasta};});
   X.utils.book_append_sheet(wb,X.utils.json_to_sheet(res.length?res:[{"Sin consumos":""}]),"Consumo por material");
-  X.utils.book_append_sheet(wb,X.utils.json_to_sheet(cam.length?cam.map(p=>{const a=pistArt(p.diam);const mq=cat.maquinas.find(z=>z.id===p.maq);return{"Fecha":p.f,"Código material":a&&a.cod||"","Descripción":"Pistón "+p.diam,"Cantidad":+p.cant||1,"Unidad":"ud","Inyectora":maqN(p.maq),"Nave":mq&&mq.nave||"","Motivo":cap(p.motivo),"Responsable":p.resp?respTxt(p.resp):"","Pistón usado":cap(p.dest||""),"Salió de":almDeCambio(p),"Observaciones":p.nota||""};}):[{"Sin consumos":""}]),"Detalle");
+  X.utils.book_append_sheet(wb,X.utils.json_to_sheet(cam.length?cam.map(p=>{const a=pistArt(p.diam);const mq=cat.maquinas.find(z=>z.id===p.maq);return{"Fecha":p.f,"Código material":a&&a.cod||"","Descripción":"Pistón "+p.diam,"Cantidad":+p.cant||1,"Unidad":"ud","Tipo":p.inc?"Pérdida: dar como consumido":"Cambio en máquina","Inyectora":p.inc?"":maqN(p.maq),"Nave":p.inc?p.nave:mq&&mq.nave||"","Motivo":p.inc?p.motivo+(p.nota?" · "+p.nota:""):cap(p.motivo),"Responsable":p.resp?respTxt(p.resp):"","Pistón usado":cap(p.dest||""),"Salió de":almDeCambio(p),"Observaciones":p.nota||""};}):[{"Sin consumos":""}]),"Detalle");
   await downloads.save({filename:"Consumo_pistones_"+desde+(desde!==hasta?"_a_"+hasta:"")+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Excel descargado");
 }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el Excel");}}
 
