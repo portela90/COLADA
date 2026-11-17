@@ -128,7 +128,8 @@ async function gastoHorno(e,box,per){if(!hornoCerrado(e))return;per=per||"ano";l
       el("tbody",null,P.map(p=>el("tr",null,[el("td",{text:p.nombre}),el("td",{text:String(+p.cant)})].concat(V?[el("td",{text:p.precio==null?"sin precio":eur(p.importe)})]:[]))))]):el("p",{class:"hint",text:"Ningún cambio apuntado en este periodo."}),
     V&&G.sin_precio?el("p",{class:"hint",text:G.sin_precio+" pieza"+(G.sin_precio>1?"s":"")+" sin precio en el Almacén: no suman en el gasto. Pon el precio en el Almacén y se actualiza solo (cada hora)."}):null,
     U.length?el("div",null,[el("b",{style:"display:block;margin-top:8px",text:"Últimos cambios"}),el("ol",{class:"hist"},U.map(u=>el("li",null,[el("b",{text:fCorta(diaDe(u.cuando))+" · "+(ACC_HORNO[u.accion]||u.accion)}),
-      " · "+(u.quien||"")+" · "+u.piezas.map(p=>(p.cant>1?p.cant+" × ":"")+p.nombre+(p.envio==="enviado"?"":p.envio==="pendiente"?" (enviando…)":" (no ha llegado"+(p.info?": "+p.info:"")+")")).join(", ")+(V&&u.importe!=null?" · "+eur(u.importe):"")])))]):null,
+      " · "+(u.quien||"")+" · "+u.piezas.map(p=>(p.cant>1?p.cant+" × ":"")+p.nombre+(p.envio==="enviado"?"":p.envio==="pendiente"?" (enviando…)":" (no ha llegado"+(p.info?": "+p.info:"")+")")).join(", ")+(V&&u.importe!=null?" · "+eur(u.importe):""),
+      u.ot_id&&(esAdm()||esEnc()||S.resp)?el("button",{class:"btn sec peq",style:"margin:4px 0 0 6px",text:"Corregir",title:"Quitar lo que no se cambió o está repetido",onclick:()=>corregirMaterial({id:u.ot_id,titulo:(ACC_HORNO[u.accion]||u.accion)+" · "+e.nombre+" · "+fCorta(diaDe(u.cuando))},()=>gastoHorno(e,box,per))}):null])))]):null,
     mal&&esAdm()?el("button",{class:"btn sec peq",style:"margin-top:8px",text:"Reintentar envío al Almacén",onclick:async ev=>{ev.target.disabled=true;try{const n=await rpc("consumos_horno_reenviar",{p_tok:S.tok});toast(n?"Reenviados "+n:"Nada que reenviar");setTimeout(()=>gastoHorno(e,box,per),2500);}catch(er){toast(er.message);ev.target.disabled=false;}}}):null]));}
 /* ranking de gasto de todos los hornos */
 async function gastoHornos(per){per=per||"ano";let G;try{G=await rpc("horno_gasto",{p_tok:S.tok,p_el:null,p_desde:desdeG(per)});}catch(er){toast(er.message);return;}
@@ -349,20 +350,25 @@ function selJuntas(e,f){f.jc=f.jc||{};const J=(e.recambios.juntas_cono||[]).map(
   rpc("horno_gasto",{p_tok:S.tok,p_el:e.id,p_desde:null}).then(G=>{const N={};((G.recambios||{}).cambio_cono||[]).forEach(x=>N[x.art]=x.nombre);J.forEach(j=>{if(N[j.art])j.nombre=N[j.art];});pl();}).catch(()=>{});
   return box;}
 function juntasDe(f){return f.juntasSi===true?Object.entries(f.jc||{}).filter(([a,c])=>c>0).map(([art,cant])=>({art,cant})):null;}
+/* Las juntas se cuentan UNA vez por trabajo: si se cambia el cono, ya llevan sus juntas (no se suman con la tolva ni con
+   «Cambio de juntas»); si no, van en «Cambio de juntas» si está marcado, y si no, con la tolva. */
+const accsHorno=accs=>accs.includes("cambio_cono")||accs.includes("cambio_tolva_cono")?accs.filter(a=>a!=="cambio_juntas"):accs;
+const juntasPara=(acc,accs,f)=>acc==="cambio_juntas"?juntasDe(f):acc==="cambio_tolva"&&!accs.includes("cambio_juntas")&&!accs.includes("cambio_cono")?juntasDe(f):null;
+const avisoJuntasCono=accs=>(accs.includes("cambio_cono")&&accs.includes("cambio_juntas"))?el("p",{class:"hint",text:"Las juntas ya van con el cambio de cono: no se cuentan dos veces."}):null;
 function juntasMal(e,accs,f){if(accs.includes("cambio_juntas")&&!(juntasDe(f)||[]).length)return"Pon cuántas juntas se han cambiado";if(!soloTolva(e,accs))return null;if(f.juntasSi==null)return"Dime si se cambia también alguna junta";if(f.juntasSi&&!juntasDe(f).length)return"Pon cuántas juntas se han gastado (o marca «No»)";return null;}
 function elegirTipoOT(e,re){const sel=new Set();const box=el("div",null);
   const pb=()=>{box.textContent="";accsDe(e).forEach(k=>box.appendChild(el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0"+(sel.has(k)?";background:var(--acc);color:#fff":""),"aria-pressed":String(sel.has(k)),text:(sel.has(k)?"":"")+TXT_HORNO[k],onclick:()=>{sel.has(k)?sel.delete(k):sel.add(k);pb();}})));};
   pb();
   dlg("Abrir trabajo en "+e.nombre,el("div",null,[el("p",{class:"hint",text:"Marca todo lo que se va a hacer en este horno."}),box]),
     [{t:"Cancelar",cls:"sec"},{t:"Siguiente",cls:"ok",fn:()=>{if(!sel.size){toast("Marca al menos una acción");return false;}const accs=accsDe(e).filter(k=>sel.has(k));cerrarTodo();setTimeout(()=>formAbrirOTsHorno(e,accs,re),0);}}]);}
-function formAbrirOTsHorno(e,accs,re){const f={motivo:"",nota:"",accs};let asg=(S.resp&&S.resp.operarios[0])?S.resp.operarios[0].id:null;
+function formAbrirOTsHorno(e,accs0,re){const aviso=avisoJuntasCono(accs0);const accs=accsHorno(accs0);const f={motivo:"",nota:"",accs};let asg=(S.resp&&S.resp.operarios[0])?S.resp.operarios[0].id:null;
   /* el responsable de hornos elige a qué operario de hornos se asigna */
   const opsR=S.resp?el("div",null,[el("p",{class:"hint",text:"¿Quién lo hace?"}),(()=>{const c=el("div",{class:"chips"});const pc=()=>{c.textContent="";S.resp.operarios.forEach(o=>c.appendChild(el("button",{type:"button",class:"chip","aria-pressed":String(asg===o.id),text:o.nombre,onclick:()=>{asg=o.id;pc();}})));};pc();return c;})()]):null;const tols=accs.some(a=>a.indexOf("cambio")===0);const mots=el("div",{class:"seg sel"});
   const pm=()=>{mots.textContent="";motivosDe(accs).forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tols)pm();
   const tv=llevaTolva(e,accs);
-  dlg("Abrir "+accs.length+" trabajos en "+e.nombre,el("div",null,[el("p",{class:"hint",text:accs.map(a=>ACC_HORNO[a]).join(" + ")}),opsR,tols?fld("¿Por qué se cambia?",mots):null,tv?selTolva(f):null,soloTolva(e,accs)?selJuntas(e,f):accs.includes("cambio_juntas")?(f.juntasSi=true,selJuntas(e,f)):null,selCantPiezas(e,accs,f),selOtras(e,f),fld("Nota (opcional)",area("",x=>f.nota=x))]),
+  dlg("Abrir "+accs.length+" trabajos en "+e.nombre,el("div",null,[el("p",{class:"hint",text:accs.map(a=>ACC_HORNO[a]).join(" + ")}),aviso,opsR,tols?fld("¿Por qué se cambia?",mots):null,tv?selTolva(f):null,soloTolva(e,accs)?selJuntas(e,f):accs.includes("cambio_juntas")?(f.juntasSi=true,selJuntas(e,f)):null,selCantPiezas(e,accs,f),selOtras(e,f),fld("Nota (opcional)",area("",x=>f.nota=x))]),
     [{t:"Cancelar",cls:"sec"},{t:"Abrir",cls:"ok",fn:async()=>{if(tols&&!f.motivo){toast("Elige el motivo");return false;}if(tv&&!f.tolva){toast("Elige si la tolva es de hierro o refractaria");return false;}{const m=juntasMal(e,accs,f)||otrasMal(accs,f);if(m){toast(m);return false;}}
-      try{for(const acc of accs){const tol=acc.indexOf("cambio")===0;await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:ACC_HORNO[acc]+" · "+e.nombre,lugar:e.lugar||null,descripcion:f.nota.trim()||null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,accion_horno:acc,motivo:tol?f.motivo:null,tolva:(acc==="cambio_tolva"||acc==="cambio_tolva_cono")?(f.tolva||null):null,juntas:acc==="cambio_tolva"?juntasDe(f):acc==="cambio_otra"?otrasDe(f):acc==="cambio_juntas"?juntasDe(f):piezasDe(e,acc,f),hecha:false,auto:false,asignados:asg?[asg]:null}});}
+      try{for(const acc of accs){const tol=acc.indexOf("cambio")===0;await rpc("ot_abrir",{p_tok:S.tok,p:{titulo:ACC_HORNO[acc]+" · "+e.nombre,lugar:e.lugar||null,descripcion:f.nota.trim()||null,urgente:false,yo:true,habitual_id:null,elemento_id:e.id,accion_horno:acc,motivo:tol?f.motivo:null,tolva:(acc==="cambio_tolva"||acc==="cambio_tolva_cono")?(f.tolva||null):null,juntas:acc==="cambio_tolva"||acc==="cambio_juntas"?juntasPara(acc,accs,f):acc==="cambio_otra"?otrasDe(f):piezasDe(e,acc,f),hecha:false,auto:false,asignados:asg?[asg]:null}});}
         toast(accs.length===1?"Trabajo abierto: dale a Empezar cuando empieces":accs.length+" trabajos abiertos: dale a Empezar en cada uno cuando empieces");re();}catch(er){toast(er.message);return false;}}}]);}
 function linUltHorno(e,re,k,t){const U=(e&&e.ult)||{};let u=U[k];const j=U.cambio_tolva_cono;/* los registros antiguos de «tolva y cono» cuentan para los dos */
   let esJ=false;if((k==="cambio_tolva"||k==="cambio_cono")&&j&&(!u||String(j.fin||"")>String(u.fin||""))){u=j;esJ=true;}
@@ -378,10 +384,10 @@ function elegirAccionHorno(e,re){const sel=new Set();const box=el("div",null);
     el("button",{type:"button",class:"btn grande sec",style:"width:100%;margin:6px 0",text:"Limpieza ya hecha",onclick:()=>{cerrarTodo();setTimeout(()=>yaLimpio(e,re),0);}}),
     el("p",{class:"hint",text:"Marca todo lo que se ha hecho en este horno (es un único trabajo y un único tiempo)."}),box]),
     [{t:"Cancelar",cls:"sec"},{t:"Siguiente",cls:"ok",fn:()=>{if(!sel.size){toast("Marca al menos una acción");return false;}const accs=accsDe(e).filter(k=>sel.has(k));cerrarTodo();setTimeout(()=>formHornoAcciones(e,accs,re),0);}}]);}
-function formHornoAcciones(e,accs,re){const f={fecha:hoyISO(),motivo:"",nota:"",accs};const tols=accs.some(a=>a!=="vaciado");const mots=el("div",{class:"seg sel"});const w=preguntaTiempo({minutos_est:null,inicio:null});
+function formHornoAcciones(e,accs0,re){const aviso=avisoJuntasCono(accs0);const accs=accsHorno(accs0);const f={fecha:hoyISO(),motivo:"",nota:"",accs};const tols=accs.some(a=>a!=="vaciado");const mots=el("div",{class:"seg sel"});const w=preguntaTiempo({minutos_est:null,inicio:null});
   const pm=()=>{mots.textContent="";motivosDe(accs).forEach(m=>mots.appendChild(el("button",{type:"button","aria-pressed":String(f.motivo===m),text:m,onclick:()=>{f.motivo=m;pm();}})));};if(tols)pm();
   dlg(accs.map(a=>ACC_HORNO[a]).join(" + ")+" · "+e.nombre,el("div",null,[
-    fld("¿Qué día se hizo?",inp(f.fecha,v=>f.fecha=v,{type:"date",max:hoyISO()})),
+    aviso,fld("¿Qué día se hizo?",inp(f.fecha,v=>f.fecha=v,{type:"date",max:hoyISO()})),
     tols?fld("¿Por qué se cambió?",mots):null,
     llevaTolva(e,accs)?selTolva(f):null,
     soloTolva(e,accs)?selJuntas(e,f):accs.includes("cambio_juntas")?(f.juntasSi=true,selJuntas(e,f)):null,
@@ -390,7 +396,7 @@ function formHornoAcciones(e,accs,re){const f={fecha:hoyISO(),motivo:"",nota:"",
     w,
     fld("Nota (opcional)",area("",x=>f.nota=x))]),
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"ok",fn:async()=>{if(!w.val()){toast("Marca cuánto has tardado");return false;}if(tols&&!f.motivo){toast("Elige el motivo");return false;}if(llevaTolva(e,accs)&&!f.tolva){toast("Elige si la tolva es de hierro o refractaria");return false;}{const m=juntasMal(e,accs,f)||otrasMal(accs,f);if(m){toast(m);return false;}}
-      try{for(let i=0;i<accs.length;i++){const acc=accs[i];await rpc("horno_registrar",{p_tok:S.tok,p_el:e.id,p_accion:acc,p_fecha:f.fecha||null,p_motivo:acc!=="vaciado"?f.motivo:null,p_nota:f.nota.trim()||null,p_minutos:i===0?w.val():null,p_tolva:(acc==="cambio_tolva"||acc==="cambio_tolva_cono")?(f.tolva||null):null,p_juntas:acc==="cambio_tolva"?juntasDe(f):acc==="cambio_otra"?otrasDe(f):acc==="cambio_juntas"?juntasDe(f):piezasDe(e,acc,f)});}
+      try{for(let i=0;i<accs.length;i++){const acc=accs[i];await rpc("horno_registrar",{p_tok:S.tok,p_el:e.id,p_accion:acc,p_fecha:f.fecha||null,p_motivo:acc!=="vaciado"?f.motivo:null,p_nota:f.nota.trim()||null,p_minutos:i===0?w.val():null,p_tolva:(acc==="cambio_tolva"||acc==="cambio_tolva_cono")?(f.tolva||null):null,p_juntas:acc==="cambio_tolva"||acc==="cambio_juntas"?juntasPara(acc,accs,f):acc==="cambio_otra"?otrasDe(f):piezasDe(e,acc,f)});}
         toast(accs.map(a=>ACC_HORNO[a]).join(" + ")+" apuntado en "+e.nombre);re();}catch(er){toast(er.message);return false;}}}]);}
 
 /* administración */

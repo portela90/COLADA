@@ -42,6 +42,39 @@ test('cambio solo de tolva: pregunta por las juntas', async ({ page }) => {
   expect(err).toEqual([]);
 });
 
+test('tolva, cono y juntas a la vez: las juntas no se mandan repetidas', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
+  await pulsa(page, 'Registrar en el horno'); await pulsa(page, 'Cambio de tolva'); await pulsa(page, 'Cambio de cono'); await pulsa(page, 'Cambio de juntas'); await pulsa(page, 'Siguiente');
+  await expect(page.locator('.ov').last()).toContainText('Las juntas ya van con el cambio de cono');
+  await pulsa(page, 'Cambio preventivo');
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^\d+\s*min/.test(x.textContent.trim())); b.click(); });
+  await pulsa(page, 'De hierro'); await pulsa(page, 'Guardar'); await page.waitForTimeout(500);
+  const r = llamadas.filter(c => c[0] === 'horno_registrar').map(c => [c[1].p_accion, c[1].p_juntas]);
+  expect(r).toEqual([['cambio_tolva', null], ['cambio_cono', null]]);
+  expect(err).toEqual([]);
+});
+
+test('tolva y juntas (sin cono): las juntas van una sola vez, en «Cambio de juntas»', async ({ page }) => {
+  const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
+  await pulsa(page, 'Registrar en el horno'); await pulsa(page, 'Cambio de tolva'); await pulsa(page, 'Cambio de juntas'); await pulsa(page, 'Siguiente');
+  await pulsa(page, 'Cambio preventivo');
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^\d+\s*min/.test(x.textContent.trim())); b.click(); });
+  await pulsa(page, 'De hierro'); await pulsa(page, 'Sí'); await pulsa(page, 'Guardar'); await page.waitForTimeout(500);
+  const r = llamadas.filter(c => c[0] === 'horno_registrar').map(c => [c[1].p_accion, c[1].p_juntas]);
+  expect(r).toEqual([['cambio_tolva', null], ['cambio_juntas', [{ art: 'hr-jpc375', cant: 2 }, { art: 'hr-jpf365', cant: 1 }]]]);
+  expect(err).toEqual([]);
+});
+
+test('ficha del horno: «Corregir» en los últimos cambios abre el material de ese cambio', async ({ page }) => {
+  R.horno_piezas_ot = [{ art: 'hr-jpc375', nombre: 'Junta cono Krown JPC-375', cant: 2 }];
+  const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
+  await page.getByRole('button', { name: 'Corregir', exact: true }).first().click(); await page.waitForTimeout(400);
+  const d = page.locator('.ov').last(); await expect(d).toContainText('Corregir material'); await expect(d).toContainText('Junta cono Krown JPC-375 × 2');
+  await d.locator('input[type=checkbox]').uncheck(); await pulsa(page, 'Guardar'); await page.waitForTimeout(400);
+  const c = llamadas.find(x => x[0] === 'horno_corregir_material'); expect(c[1].p_ot).toBe('x'); expect(c[1].p_piezas).toEqual([]);
+  expect(err).toEqual([]);
+});
+
 test('cambio de resistencias: pregunta cuántas y descuenta la del horno', async ({ page }) => {
   const { err, llamadas } = await abre(page, ADMIN, '?el=H-F29');
   await pulsa(page, 'Registrar en el horno'); await pulsa(page, 'Cambio de resistencia'); await pulsa(page, 'Siguiente');
