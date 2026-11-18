@@ -63,6 +63,53 @@ test('Investigar: saturación = tiempo en trabajos / horas de jornada', async ({
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
 });
 
+test('Investigar: huecos cortos cuentan como desplazamiento y los tiempos que no cuadran se ajustan', async ({ page }) => {
+  const r = (f, t, q, ini, fin, extra) => Object.assign(ot(f, t, 'Nave 1', q, (Date.parse(f + 'T' + fin + ':00Z') - Date.parse(f + 'T' + ini + ':00Z')) / 60000,
+    { inicio: f + 'T' + ini + ':00Z', fin: f + 'T' + fin + ':00Z', origen: 'fija' }), extra || {});
+  R.ots_rango = [
+    // miércoles 14/10, Ahmed: 1 h, hueco de 20 min (cuenta), 40 min, hueco de 1 h (no cuenta), 30 min
+    r('2026-10-14', 'Basuras Nave 1', 'Ahmed El Hait', '06:00', '07:00'), r('2026-10-14', 'Fregar pasillo', 'Ahmed El Hait', '07:20', '08:00'),
+    r('2026-10-14', 'Vaciar viruta', 'Ahmed El Hait', '09:00', '09:30'),
+    // jueves 15/10, Ahmed: se quedó abierto 10 h (previsto 30 min)
+    r('2026-10-15', 'Fregar comedor', 'Ahmed El Hait', '06:00', '16:00', { minutos_est: 30 }),
+    // viernes 16/10, Abdoul: dos bloques de 8 h del Excel del fin de semana
+    r('2026-10-16', 'Suelo taller', 'Abdoul kader Maiga', '06:00', '14:00', { origen: 'excel' }), r('2026-10-16', 'Cámaras de inyección', 'Abdoul kader Maiga', '06:00', '14:00', { origen: 'excel' }),
+    // domingo 18/10, Josefa: no tiene jornada
+    r('2026-10-18', 'Limpieza F19', 'Josefa Ruiz', '06:00', '07:00')];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const ah = page.locator('#invSat tr', { hasText: 'Ahmed El Hait' });
+  await expect(ah).toContainText('2 h 40 min'); // 1 h + 40 min + 30 min + 30 min (el abierto cuenta lo previsto)
+  await expect(ah).toContainText('20 min');     // desplazamiento y preparación
+  const ab = page.locator('#invSat tr', { hasText: 'Abdoul kader Maiga' });
+  await expect(ab).toContainText('16 h'); // apuntado
+  await page.locator('#invRaros summary').click();
+  const raros = page.locator('#invRaros');
+  await expect(raros.locator('tr', { hasText: 'Fregar comedor' })).toContainText('más de 8 h abierto: se cuenta lo previsto');
+  await expect(raros.locator('tr', { hasText: 'Abdoul kader Maiga' })).toContainText('del Excel del fin de semana');
+  await expect(raros.locator('tr', { hasText: 'Josefa Ruiz' })).toContainText('día sin horas de jornada');
+  // Abdoul: el viernes cuenta su jornada (8 h), no 16 h
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Excel', exact: true }).click()]);
+  const wb = XLSX.read(fs.readFileSync(await dl.path()));
+  const S = XLSX.utils.sheet_to_json(wb.Sheets['Saturación']);
+  const fa = S.find(x => x['Persona'] === 'Abdoul kader Maiga'), fh = S.find(x => x['Persona'] === 'Ahmed El Hait');
+  expect(fa['Saturación (%)']).toBe(Math.round(480 * 100 / (176 * 60)));
+  expect(fh['Desplazamiento y preparación (h)']).toBe(0.3);
+  expect(XLSX.utils.sheet_to_json(wb.Sheets['No cuadran']).length).toBe(3);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});
+
+test('Investigar: avisa de quien no tiene ningún trabajo a su nombre y da la saturación de quien apunta', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 240)]; R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const av = page.locator('#invSat .aviso');
+  await expect(av).toContainText('2 personas no tienen ningún trabajo apuntado a su nombre: Abdoul kader Maiga, Josefa Ruiz');
+  await expect(av).toContainText('la de quien sí apunta es 2 %'); // 4 h de 176 h
+  await expect(page.locator('.kpis')).toContainText('De quien apunta sus trabajos');
+  expect(err).toEqual([]);
+});
+
 test('Investigar: el operario no la tiene', async ({ page }) => {
   const { err } = await abre(page, OPER, '?ir=investigar');
   await expect(page.locator('#invSat')).toHaveCount(0);

@@ -23,6 +23,11 @@ function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");let 
 const invClave=o=>sinAcento(String(o.titulo||"").replace(/\s*·.*$/,"")).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(w=>w&&!VACIAS.has(w)).join(" ");
 const invMin=o=>o.estado!=="hecha"?0:(o.minutos!=null&&+o.minutos>=0?+o.minutos:(+o.minutos_est||0));
 const invReal=o=>o.estado==="hecha"&&o.minutos!=null&&!o.tiempo_auto;
+/* hueco entre dos trabajos seguidos de la misma persona que cuenta como desplazamiento y preparación (ir a por material,
+   cambiar de nave, recoger…); más largo, queda como tiempo sin justificar */
+const INV_HUECO=30;
+/* tiempo real que no puede ser (trabajo que se quedó abierto): se cuenta lo previsto y sale para revisar */
+const invDudosa=o=>{if(!invReal(o))return null;const m=+o.minutos,e=+o.minutos_est||0;if(m>480)return"más de 8 h abierto";if(e&&m>3*e&&m>120)return"el triple de lo previsto ("+invH(e)+")";return null;};
 const invDias=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
 const invH=m=>{m=Math.round(m||0);const h=Math.floor(m/60),r=m%60;return h?(r?h+" h "+r+" min":h+" h"):r+" min";};
 const invPct=(a,b)=>b?Math.round(a*100/b):null;
@@ -49,11 +54,22 @@ function invJornadas(W,R,FE,SU,d0,d1){const FES=new Set((FE||[]).map(x=>x.fecha)
 function invDatos(O,J,d0,d1,Oant){
   const en=o=>o.fecha>=d0&&o.fecha<=d1&&!o.borrado;const L=O.filter(en);
   const H=L.filter(o=>o.estado==="hecha");
-  /* saturación */
-  const per={};Object.keys(J).forEach(n=>per[n]={n,jor:J[n].min,dias:J[n].dias,faltas:J[n].faltas,min:0,prob:0,plan:0,otros:0,nt:0,real:0});
-  H.forEach(o=>{const n=o.hecho_por_n;if(!n||!per[n])return;const p=per[n],m=invMin(o);p.min+=m;p.nt++;if(invReal(o))p.real++;
-    if(invCat(o))p.prob+=m;else if(o.origen==="fija")p.plan+=m;else p.otros+=m;});
-  const sat=Object.values(per).filter(p=>p.jor>0||p.nt>0).sort((a,b)=>(invPct(b.min,b.jor)||0)-(invPct(a.min,a.jor)||0));
+  /* saturación, día a día: trabajos + huecos cortos entre trabajos (desplazamiento y preparación), como mucho su jornada de ese día */
+  const per={};Object.keys(J).forEach(n=>per[n]={n,jor:0,dias:J[n].dias,faltas:J[n].faltas,min:0,desp:0,cont:0,sin:0,prob:0,plan:0,otros:0,nt:0,real:0,sinJor:0});
+  const PD={},raros=[];H.forEach(o=>{const n=o.hecho_por_n;if(!n||!per[n])return;(PD[n+"|"+o.fecha]=PD[n+"|"+o.fecha]||[]).push(o);});
+  Object.keys(per).forEach(n=>{const p=per[n],Jd=J[n].D,dias=new Set(Object.keys(Jd).filter(f=>Jd[f]>0));
+    Object.keys(PD).forEach(k=>{if(k.indexOf(n+"|")===0)dias.add(k.slice(n.length+1));});
+    [...dias].sort().forEach(f=>{if(f<d0||f>d1)return;const L=PD[n+"|"+f]||[],jor=Jd[f]||0;let reg=0;
+      L.forEach(o=>{const du=invDudosa(o);let m=invMin(o);if(du){m=+o.minutos_est||0;raros.push({f,n,t:o.titulo,min:+o.minutos,motivo:du+(m?": se cuenta lo previsto":": no se cuenta")});}
+        reg+=m;p.nt++;if(invReal(o))p.real++;if(invCat(o))p.prob+=m;else if(o.origen==="fija")p.plan+=m;else p.otros+=m;});
+      const R=L.filter(o=>invReal(o)&&!invDudosa(o)&&o.inicio&&o.fin).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));let desp=0,finAnt=null;
+      R.forEach(o=>{const ini=Date.parse(o.inicio),fin=Date.parse(o.fin);if(finAnt!=null){const g=(ini-finAnt)/60000;if(g>0&&g<=INV_HUECO)desp+=g;}finAnt=finAnt==null?fin:Math.max(finAnt,fin);});
+      if(!jor){if(reg>0){p.sinJor+=reg;raros.push({f,n,t:L.length+(L.length===1?" trabajo":" trabajos"),min:reg,motivo:"trabajo en un día sin horas de jornada: no cuenta en la saturación"});}return;}
+      const tot=reg+desp;p.jor+=jor;p.min+=reg;p.desp+=desp;p.cont+=Math.min(tot,jor);
+      if(tot>jor*1.15)raros.push({f,n,t:L.length+(L.length===1?" trabajo":" trabajos"),min:tot,motivo:"más tiempo apuntado que su jornada ("+invH(jor)+")"+(L.some(o=>o.origen==="excel")?", del Excel del fin de semana (puede ser trabajo de todo el equipo)":"")+": se cuenta su jornada"});});
+    p.sin=Math.max(0,p.jor-p.cont);});
+  raros.sort((a,b)=>b.f.localeCompare(a.f)||a.n.localeCompare(b.n));
+  const sat=Object.values(per).filter(p=>p.jor>0||p.nt>0).sort((a,b)=>(invPct(b.cont,b.jor)||0)-(invPct(a.cont,a.jor)||0));
   /* problemas */
   const P=L.filter(o=>invCat(o));const Pant=(Oant||[]).filter(o=>invCat(o));
   const tipos=INV_CAT.map(([k,t])=>{const X=P.filter(o=>invCat(o)===k);return{k,t,n:X.length,min:X.reduce((s,o)=>s+invMin(o),0),ant:Pant.filter(o=>invCat(o)===k).length,
@@ -71,8 +87,10 @@ function invDatos(O,J,d0,d1,Oant){
   const trab=Object.values(T).map(t=>Object.assign(t,{t:Object.entries(t.nom).sort((a,b)=>b[1]-a[1])[0][0].replace(/\s*·.*$/,"")})).sort((a,b)=>b.min-a.min);
   /* cuándo pasan los problemas */
   const dia=[0,0,0,0,0,0,0];P.forEach(o=>{dia[new Date(o.fecha+"T12:00:00").getDay()]++;});
-  const tot={jor:sat.reduce((s,p)=>s+p.jor,0),min:sat.reduce((s,p)=>s+p.min,0),prob:P.reduce((s,o)=>s+invMin(o),0),np:P.length,nt:H.length,real:H.filter(invReal).length};
-  return{L,H,sat,tipos,rep,trab,dia,tot,P};}
+  const sum=k=>sat.reduce((s,p)=>s+p[k],0);
+  const ap=sat.filter(p=>p.nt>0);/* los que apuntan sus trabajos */
+  const tot={jorAp:ap.reduce((s,p)=>s+p.jor,0),contAp:ap.reduce((s,p)=>s+p.cont,0),sinNada:sat.filter(p=>!p.nt&&p.jor>0),jor:sum("jor"),min:sum("min"),desp:sum("desp"),cont:sum("cont"),sin:sum("sin"),prob:P.reduce((s,o)=>s+invMin(o),0),np:P.length,nt:H.length,real:H.filter(invReal).length};
+  return{L,H,sat,tipos,rep,trab,dia,tot,P,raros};}
 
 const invNivel=p=>p==null?"":p>=85?"bad":p>=60?"ok":"warn";
 const invNivelTxt=p=>p==null?"":p>=85?"muy cargado":p>=60?"normal":"poco registrado";
@@ -91,17 +109,24 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
   const J=invJornadas(W,R,FE,SU,F.d0,F.d1);const Oant=O.filter(o=>o.fecha>=A.d0&&o.fecha<=A.d1&&!o.borrado);
   const X=invDatos(O,J,F.d0,F.d1,Oant);S.invX={X,F,A};box.textContent="";
   const T=X.tot;
-  box.appendChild(el("div",{class:"kpis"},[["Saturación del equipo",T.jor?invPct(T.min,T.jor)+" %":"—"],["Horas de jornada",invH(T.jor)],["Horas en trabajos",invH(T.min)],["Perdidas en problemas",invH(T.prob)]].map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
+  box.appendChild(el("div",{class:"kpis"},[["Saturación del equipo",T.jor?invPct(T.cont,T.jor)+" %":"—"]].concat(T.sinNada.length&&T.jorAp?[["De quien apunta sus trabajos",invPct(T.contAp,T.jorAp)+" %"]]:[]).concat([["Horas de jornada",invH(T.jor)],["En trabajos",invH(T.min)],["Desplazamiento y preparación",invH(T.desp)],["Sin justificar",invH(T.sin)],["Perdidas en problemas",invH(T.prob)]]).map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
   box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"Informe PDF",onclick:async e=>{e.target.disabled=true;try{bajar(await invPDF(X,F,A),"investigacion-limpieza-"+F.d0+"_"+F.d1+".pdf");}catch(er){toast(er.message);}e.target.disabled=false;}}),
     el("button",{class:"btn sec",text:"Excel",onclick:async e=>{e.target.disabled=true;try{bajar(await invXLSX(X,F),"investigacion-limpieza-"+F.d0+"_"+F.d1+".xlsx");}catch(er){toast(er.message);}e.target.disabled=false;}})]));
   /* saturación */
   box.appendChild(el("div",{class:"card",id:"invSat"},[el("div",{class:"hd"},[el("h2",{text:"Saturación de cada trabajador"}),el("span",{class:"der sub",text:F.t})]),el("div",{class:"bd"},[
-    el("p",{class:"hint",style:"margin-top:0",text:"Tiempo registrado en trabajos (de «Empezar» a «Terminar») frente a sus horas de jornada. Por debajo del 60 % suele ser que no se apunta todo (desplazamientos, preparar material, trabajos sin abrir), no que no se trabaje."}),
-    X.sat.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Persona","Jornada","En trabajos","Saturación","En problemas","Trabajos"].map(h=>el("th",{text:h})))),
-      el("tbody",null,X.sat.map(p=>{const pc=invPct(p.min,p.jor);return el("tr",null,[el("td",null,[el("b",{text:p.n}),el("div",{class:"bar"+(pc>=85?" llena":""),style:"margin-top:4px"},el("i",{style:"width:"+Math.min(100,pc||0)+"%"}))]),
-        el("td",{text:invH(p.jor)}),el("td",{text:invH(p.min)}),el("td",null,pc==null?"—":el("span",{class:"pill "+invNivel(pc),text:pc+" %"})),el("td",{text:p.prob?invH(p.prob):"—"}),
-        el("td",{text:p.nt+(p.nt&&p.real<p.nt?" ("+invPct(p.real,p.nt)+" % con tiempo real)":"")})]);}))]):el("p",{class:"hint",text:"Nadie tiene horas ni trabajos en este periodo."}),
-    el("p",{class:"hint",text:"Rojo: 85 % o más (muy cargado). Los trabajos sin «Empezar» cuentan con su tiempo estimado."})])]));
+    el("p",{class:"hint",style:"margin-top:0",text:"Saturación = (tiempo en trabajos + desplazamiento y preparación) / horas de jornada. «Desplazamiento y preparación» son los huecos de hasta "+INV_HUECO+" min entre un trabajo y el siguiente (ir a por material, cambiar de nave, recoger). Lo que queda es tiempo sin justificar."}),
+    X.tot.sinNada.length?el("div",{class:"aviso",style:"margin:0 0 10px"},[(X.tot.sinNada.length===1?"1 persona no tiene":X.tot.sinNada.length+" personas no tienen")+" ningún trabajo apuntado a su nombre: "+X.tot.sinNada.map(p=>p.n).join(", "),
+      el("small",{text:"Toda su jornada ("+invH(X.tot.sinNada.reduce((s,p)=>s+p.jor,0))+") sale sin justificar y baja la saturación del equipo. Si sus trabajos los apunta otra persona (el encargado, el Excel del fin de semana…) o no pueden entrar en la app, la saturación real es más alta: la de quien sí apunta es "+(X.tot.jorAp?invPct(X.tot.contAp,X.tot.jorAp)+" %":"—")+"."})]):null,
+    X.sat.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Persona","Jornada","Trabajos","Despl. y prep.","Sin justificar","Saturación"].map(h=>el("th",{text:h})))),
+      el("tbody",null,X.sat.map(p=>{const pc=invPct(p.cont,p.jor);return el("tr",null,[el("td",null,[el("b",{text:p.n}),el("div",{class:"bar"+(pc>=85?" llena":""),style:"margin-top:4px"},el("i",{style:"width:"+Math.min(100,pc||0)+"%"})),
+          el("small",{class:"hint",style:"display:block;margin:2px 0 0",text:p.nt+(p.nt===1?" trabajo":" trabajos")+(p.nt&&p.real<p.nt?" · "+invPct(p.real,p.nt)+" % con tiempo real":"")})]),
+        el("td",{text:invH(p.jor)}),el("td",{text:invH(p.min)}),el("td",{text:p.desp?invH(p.desp):"—"}),el("td",{text:invH(p.sin)}),el("td",null,pc==null?"—":el("span",{class:"pill "+invNivel(pc),text:pc+" %"}))]);}))]):el("p",{class:"hint",text:"Nadie tiene horas ni trabajos en este periodo."}),
+    el("p",{class:"hint",text:"Rojo: 85 % o más (muy cargado). Los trabajos sin «Empezar» cuentan con su tiempo estimado y no dan huecos: pulsar «Empezar» y «Terminar» sube la saturación real. Un día nunca cuenta más que su jornada."})])]));
+  /* tiempos que no cuadran */
+  if(X.raros.length)box.appendChild(el("details",{class:"card",id:"invRaros"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Tiempos que no cuadran"}),el("span",{class:"pill warn",text:String(X.raros.length)})]),el("div",{class:"bd"},[
+    el("p",{class:"hint",style:"margin-top:0",text:"No deforman la saturación (ya están ajustados), pero conviene revisarlos: trabajos que se quedaron abiertos, días con más trabajo apuntado que horas y trabajo en días sin horas."}),
+    el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Día","Persona","Qué","Tiempo","Por qué"].map(h=>el("th",{text:h})))),
+      el("tbody",null,X.raros.slice(0,60).map(r=>el("tr",null,[el("td",{text:fCorta(r.f)}),el("td",{text:r.n}),el("td",{text:r.t}),el("td",{text:invH(r.min)}),el("td",{text:r.motivo})])))])])]));
   /* tiempo perdido por tipo */
   box.appendChild(el("div",{class:"card",id:"invTipos"},[el("div",{class:"hd"},[el("h2",{text:"Tiempo perdido en problemas"}),el("span",{class:"der sub",text:X.P.length+" avisos"})]),el("div",{class:"bd"},[
     X.tipos.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Problema","Veces","Tiempo","Media","Sitios","Antes"].map(h=>el("th",{text:h})))),
@@ -149,10 +174,12 @@ async function invDoc(tit,sub){await libPDF();const {jsPDF}=window.jspdf;const d
     headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,248,251]}},opt||{}));o.y=doc.lastAutoTable.finalY+9;};
   return o;}
 async function invPDF(X,F,A){const o=await invDoc("Investigación de Limpieza","Limpieza CIE · "+fDMA(F.d0)+" al "+fDMA(F.d1));const T=X.tot;
-  o.texto("Horas de jornada del equipo: "+invH(T.jor)+". Tiempo registrado en trabajos: "+invH(T.min)+(T.jor?" ("+invPct(T.min,T.jor)+" % de saturación)":"")+". Tiempo empleado en problemas (fugas, derrames, agua, roturas…): "+invH(T.prob)+" en "+T.np+" avisos.");
+  o.texto("Horas de jornada del equipo: "+invH(T.jor)+". En trabajos: "+invH(T.min)+". Desplazamiento y preparación entre trabajos: "+invH(T.desp)+". Sin justificar: "+invH(T.sin)+"."+(T.jor?" Saturación: "+invPct(T.cont,T.jor)+" %.":"")+" Tiempo empleado en problemas (fugas, derrames, agua, roturas…): "+invH(T.prob)+" en "+T.np+" avisos.");
   o.titulo("Saturación de cada trabajador");
-  o.tabla(["Persona","Jornada","En trabajos","Saturación","En problemas","Planificado","Otros","Trabajos","Días trabajados"],X.sat.map(p=>[p.n,invH(p.jor),invH(p.min),p.jor?invPct(p.min,p.jor)+" %":"—",invH(p.prob),invH(p.plan),invH(p.otros),p.nt,p.dias]));
-  o.texto("Saturación = tiempo registrado en trabajos (de «Empezar» a «Terminar», sin pausas) / horas de jornada. Los trabajos sin tiempo real cuentan con su tiempo estimado.");
+  o.tabla(["Persona","Jornada","En trabajos","Desplaz. y preparación","Sin justificar","Saturación","En problemas","Trabajos"],X.sat.map(p=>[p.n,invH(p.jor),invH(p.min),invH(p.desp),invH(p.sin),p.jor?invPct(p.cont,p.jor)+" %":"—",invH(p.prob),p.nt]));
+  o.texto("Saturación = (tiempo en trabajos + desplazamiento y preparación) / horas de jornada, día a día y sin pasar nunca de la jornada del día. Tiempo en trabajos: de «Empezar» a «Terminar», sin pausas; los trabajos sin tiempo real cuentan con su tiempo estimado. Desplazamiento y preparación: huecos de hasta "+INV_HUECO+" min entre un trabajo y el siguiente de la misma persona.");
+  if(T.sinNada.length)o.texto("Sin ningún trabajo apuntado a su nombre: "+T.sinNada.map(p=>p.n).join(", ")+" ("+invH(T.sinNada.reduce((s,p)=>s+p.jor,0))+" de jornada). Saturación de quien sí apunta sus trabajos: "+(T.jorAp?invPct(T.contAp,T.jorAp)+" %":"—")+".");
+  if(X.raros.length){o.titulo("Tiempos que no cuadran (ajustados)");o.tabla(["Día","Persona","Qué","Tiempo","Por qué"],X.raros.slice(0,40).map(r=>[fDMA(r.f),r.n,r.t,invH(r.min),r.motivo]));}
   if(X.tipos.length){o.titulo("Tiempo perdido en problemas");o.tabla(["Problema","Veces","Tiempo","Media por vez","Sitios distintos","Periodo anterior"],X.tipos.map(t=>[t.t,t.n,invH(t.min),t.n?invH(t.min/t.n):"—",t.sitios,t.ant]));}
   if(X.rep.length){o.titulo("Máquinas y zonas donde se repite");o.tabla(["Sitio","Problema","Veces","Tiempo","Cada (días)","Primera","Última","Sigue"],X.rep.map(g=>[g.sitio,invCatN(g.cat),g.n,invH(g.min),g.cada!=null?String(Math.round(g.cada*10)/10).replace(".",","):"—",fDMA(g.pri),fDMA(g.ult),g.sigue?"Sí":"No"]));
     X.rep.slice(0,5).forEach(g=>o.texto("· "+invFrase(g)));}
@@ -169,7 +196,8 @@ const invLibro=()=>XLSX.utils.book_new();
 const invHoja=(wb,nom,filas)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filas.length?filas:[{"":"Nada en este periodo"}]),nom);
 const invHd=m=>Math.round((m||0)/6)/10;
 async function invXLSX(X,F){await libXLSX();const wb=invLibro();
-  invHoja(wb,"Saturación",X.sat.map(p=>({"Persona":p.n,"Jornada (h)":invHd(p.jor),"En trabajos (h)":invHd(p.min),"Saturación (%)":p.jor?invPct(p.min,p.jor):null,"En problemas (h)":invHd(p.prob),"Planificado (h)":invHd(p.plan),"Otros (h)":invHd(p.otros),"Trabajos":p.nt,"Con tiempo real":p.real,"Días trabajados":p.dias,"Faltas":p.faltas})));
+  invHoja(wb,"Saturación",X.sat.map(p=>({"Persona":p.n,"Jornada (h)":invHd(p.jor),"En trabajos (h)":invHd(p.min),"Desplazamiento y preparación (h)":invHd(p.desp),"Sin justificar (h)":invHd(p.sin),"Saturación (%)":p.jor?invPct(p.cont,p.jor):null,"En problemas (h)":invHd(p.prob),"Planificado (h)":invHd(p.plan),"Otros (h)":invHd(p.otros),"Trabajos":p.nt,"Con tiempo real":p.real,"Días trabajados":p.dias,"Faltas":p.faltas})));
+  invHoja(wb,"No cuadran",X.raros.map(r=>({"Día":r.f,"Persona":r.n,"Qué":r.t,"Minutos":Math.round(r.min),"Por qué":r.motivo})));
   invHoja(wb,"Problemas",X.tipos.map(t=>({"Problema":t.t,"Veces":t.n,"Tiempo (h)":invHd(t.min),"Media (min)":t.n?Math.round(t.min/t.n):null,"Sitios":t.sitios,"Periodo anterior":t.ant})));
   invHoja(wb,"Repetidos",X.rep.map(g=>({"Sitio":g.sitio,"Problema":invCatN(g.cat),"Veces":g.n,"Tiempo (h)":invHd(g.min),"Cada (días)":g.cada!=null?Math.round(g.cada*10)/10:null,"Primera":g.pri,"Última":g.ult,"Sigue pasando":g.sigue?"Sí":"No","Periodo anterior":g.ant})));
   invHoja(wb,"Avisos de problemas",X.P.map(o=>({"Fecha":o.fecha,"Hora":o.creado?hora(o.creado):"","Sitio":invSitio(o),"Problema":invCatN(invCat(o)),"Trabajo":o.titulo,"Descripción":o.descripcion||"","Quién lo atendió":o.hecho_por_n||"","Estado":o.estado,"Minutos":o.estado==="hecha"?Math.round(invMin(o)):null,"Tiempo real":invReal(o)?"Sí":"Estimado"})));
