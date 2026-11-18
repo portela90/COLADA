@@ -28,7 +28,9 @@ function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   const tt=[o.titulo,o.descripcion].filter(Boolean).join(" ");m=tt.match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);
   /* ronda 4: sin lugar, la nave que diga el título («Limpieza pasillo Nave 2» → Nave 2; «las 2 naves» → Nave 1 y 2) */
   const tn=sinAcento(tt).toLowerCase();if(/\b(las (2|dos) naves|ambas naves|nave 1 y 2)\b/.test(tn))return"Nave 1 y 2";
-  m=tn.match(/\bnave\s*(1|2)\b/);if(m)return"Nave "+m[1];return o.nave||"Sin lugar";}
+  /* ronda 5: también «Nave II», «N2», «N-1B» (N1 y N-1B son la Nave 1); si nombra las dos, Nave 1 y 2 */
+  const nv=new Set();for(const x of tn.matchAll(/\b(?:nave\s*(1|2|ii|i)|n-?(1|2)[ab]?)\b/g)){const v=x[1]||x[2];nv.add(v==="ii"?"2":v==="i"?"1":v);}
+  if(nv.size>1)return"Nave 1 y 2";if(nv.size)return"Nave "+[...nv][0];return o.nave||"Sin lugar";}
 /* para juntar el mismo trabajo escrito de formas distintas («Derrame taladrina» = «Derrame de taladrina») */
 const invClave=o=>sinAcento(String(o.titulo||"").replace(/\s*·.*$/,"")).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(w=>w&&!VACIAS.has(w)).join(" ");
 const invMin=o=>o.estado!=="hecha"?0:(o.minutos!=null&&+o.minutos>=0?+o.minutos:(+o.minutos_est||0));

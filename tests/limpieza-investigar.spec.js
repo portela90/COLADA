@@ -251,3 +251,111 @@ test('Ronda 4: la nave del título, «las 2 naves» cuentan en las dos y el grup
     expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.inv_dic_listar = g; }
 });
+
+test('Ronda 5: bandejas de escoria al horno de fusión, Rebabax aparte, «Nave II» / «N-1B» y el grupo «zonas comunes»', async ({ page }) => {
+  const g = R.inv_dic_listar;
+  R.inv_dic_listar = [{ id: 'p1', tipo: 'lugar', palabra: 'bandejas escoria', valor: 'Horno fusión Nave 1' },
+    { id: 'p2', tipo: 'lugar', palabra: 'rebabax', valor: 'Rebabax (empresa externa)' },
+    { id: 'p3', tipo: 'grupo', palabra: 'zonas comunes', valor: 'cafe, taller, almacen, moldes' }];
+  try {
+    R.ots_rango = [ot('2026-10-05', 'Vaciar bandejas escoria ', '', 'Ahmed El Hait', 20), ot('2026-10-06', 'Pasar la fregadora en Rebabax ', '', 'Ahmed El Hait', 60),
+      ot('2026-10-07', 'Limpieza carros de viruta de nave II y N-1B', '', 'Ahmed El Hait', 30), ot('2026-10-08', 'Suelo Taller mecánico, zona SW nueva  y cinta Bebederos N2', '', 'Ahmed El Hait', 40),
+      ot('2026-10-09', 'Limpiar zona de café', '', 'Ahmed El Hait', 15), ot('2026-10-12', 'Limpiar almacén', '', 'Ahmed El Hait', 25)];
+    R.horas_rango = []; R.sust_rango = [];
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    // Nave 2: carros de viruta (nave II y N-1B → las dos) y el taller (N2); ni escoria ni Rebabax
+    let r = await pregunta('trabajos en la nave 2');
+    await expect(r).toContainText('2 veces');
+    r = await pregunta('trabajos en la nave 1');
+    await expect(r).toContainText('1 vez');
+    r = await pregunta('trabajos en el horno de fusión de la nave 1');
+    await expect(r).toContainText('1 vez');
+    r = await pregunta('zonas comunes');
+    await expect(r).toContainText('Grupo: Zonas comunes'); await expect(r).toContainText('3 veces');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.inv_dic_listar = g; }
+});
+
+test('«¿Dónde se pierde más tiempo?» es el tiempo en problemas que se repiten (no lo que más tiempo lleva)', async ({ page }) => {
+  // la F19 pierde aceite 3 veces (1 h 30 en total); en la F5 2 derrames largos (2 h); un trabajo normal larguísimo no cuenta
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30), ot('2026-10-12', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30),
+    ot('2026-10-20', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30), ot('2026-10-06', 'Derrame de taladrina', 'F5', 'Ahmed El Hait', 60),
+    ot('2026-10-22', 'Derrame de taladrina', 'F5', 'Ahmed El Hait', 60), ot('2026-10-07', 'Fuga de agua', 'F30', 'Ahmed El Hait', 90),
+    ot('2026-10-08', 'Limpieza pasillo Nave 1', 'Nave 1', 'Ahmed El Hait', 400)];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('¿dónde se pierde más tiempo?');
+  await expect(r).toContainText('Donde más tiempo se pierde repitiendo el mismo trabajo');
+  await expect(r).toContainText('F5 (fugas y derrames de taladrina), 2 veces y 2 h');
+  await expect(r).toContainText('En total se han ido 3 h 30 min en 5 trabajos por 2 problemas que se repiten');
+  await expect(r).not.toContainText('Limpieza pasillo');
+  r = await pregunta('qué problemas no se arreglan en la F19');
+  await expect(r).toContainText('F19 (fugas y derrames de aceite), 3 veces');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});
+
+test('«¿Qué trabajador tiene menos carga de trabajo?» ordena por saturación y avisa de quien no apunta', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 240), ot('2026-10-06', 'Derrame de aceite', 'F19', 'Josefa Ruiz', 60)];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('¿qué trabajador tiene menos carga de trabajo?');
+  await expect(r).toContainText('Quien menos carga de trabajo tiene este mes: Abdoul kader Maiga, 0 %');
+  await expect(r).toContainText('Quien más: Ahmed El Hait');
+  await expect(r).toContainText('Ojo: Abdoul kader Maiga no tiene ningún trabajo apuntado');
+  await expect(r.locator('tbody tr').nth(1)).toContainText('Josefa Ruiz');
+  r = await pregunta('¿quién está más cargado?');
+  await expect(r).toContainText('Quien más carga de trabajo tiene este mes: Ahmed El Hait');
+  await expect(r).not.toContainText('Ojo:');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});
+
+test('Preguntas nuevas: naves, ahorro, ¿ha vuelto?, sin hacer, empeorado, resumen, hora, semana del mes, turno y media', async ({ page }) => {
+  const e0 = R.elementos; R.elementos = [];
+  const c = (f, h) => ({ creado: f + 'T' + h + ':00Z' });
+  try {
+    R.ots_rango = [
+      ot('2026-09-05', 'Derrame de aceite', 'Nave 2', 'Ahmed El Hait', 30), ot('2026-09-12', 'Derrame de aceite', 'Nave 2', 'Ahmed El Hait', 30),
+      ot('2026-09-19', 'Derrame de aceite', 'Nave 2', 'Ahmed El Hait', 30),
+      ot('2026-10-02', 'Derrame de aceite', 'Nave 1', 'Ahmed El Hait', 30, c('2026-10-02', '06:10')), ot('2026-10-03', 'Derrame de aceite', 'Nave 1', 'Ahmed El Hait', 30, c('2026-10-03', '06:40')),
+      ot('2026-10-20', 'Derrame de aceite', 'Nave 2', 'Ahmed El Hait', 60, c('2026-10-20', '13:00')),
+      ot('2026-10-21', 'Limpieza pasillo Nave 2', '', 'Ahmed El Hait', 40, { origen: 'fija', turno: 'Tarde' }),
+      ot('2026-10-22', 'Limpieza pasillo Nave 1', '', null, 20, { origen: 'fija', estado: 'pendiente' }),
+      ot('2026-10-23', 'Limpieza pasillo Nave 1', '', null, 20, { origen: 'fija', estado: 'no_hecha' }),
+      ot('2026-10-05', 'Fuga de taladrina', 'F19', 'Ahmed El Hait', 45), ot('2026-10-25', 'Fuga de taladrina', 'F19', 'Ahmed El Hait', 45)];
+    R.horas_rango = []; R.sust_rango = [];
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    let r = await pregunta('compara la nave 1 con la nave 2');
+    await expect(r).toContainText('Compara: Nave 1 y Nave 2'); await expect(r).toContainText('la Nave 1 4 veces'); await expect(r).toContainText('En la Nave 2 se va 40 min más');
+    r = await pregunta('¿cuánto ahorraríamos si arreglan la F19?');
+    await expect(r).toContainText('Periodo: los últimos 3 meses'); await expect(r).toContainText('Si se arregla la F19, se ahorrarían unas'); await expect(r).toContainText('2 problemas');
+    r = await pregunta('¿ha vuelto a perder taladrina la F19 desde el 10/10?');
+    await expect(r).toContainText('Sí, ha vuelto a pasar'); await expect(r).toContainText('La última, el 25/10');
+    r = await pregunta('¿ha vuelto a perder taladrina la F19 desde el 26/10?');
+    await expect(r).toContainText('No ha vuelto a pasar'); await expect(r).toContainText('Lo último fue el 25/10');
+    r = await pregunta('¿qué se ha quedado sin hacer este mes?');
+    await expect(r).toContainText('Sin hacer este mes: 2 trabajos (1 pendientes, 1 marcados como no hechos');
+    await expect(r).toContainText('«Limpieza pasillo Nave 1» (2 veces)');
+    r = await pregunta('¿qué ha empeorado este mes?');
+    await expect(r).toContainText('Lo que más ha empeorado este mes respecto al periodo anterior: F19 (fugas y derrames de taladrina), de 0 a 2 veces');
+    r = await pregunta('¿qué ha mejorado este mes?');
+    await expect(r).toContainText('Lo que más ha mejorado este mes respecto al periodo anterior: Nave 2 (fugas y derrames de aceite), de 3 a 1 vez');
+    r = await pregunta('resumen del mes');
+    await expect(r).toContainText('Resumen este mes: se han hecho 6 trabajos'); await expect(r).toContainText('Ha habido 5 problemas');
+    r = await pregunta('¿a qué hora hay más derrames?');
+    await expect(r).toContainText('El que más: 08–10 h (3');
+    r = await pregunta('¿qué semana del mes hay más derrames?');
+    await expect(r).toContainText('El que más: 1.ª semana (días 1–7) (3');
+    r = await pregunta('trabajos del turno de tarde');
+    await expect(r).toContainText('Turno: tarde'); await expect(r).toContainText('1 vez');
+    r = await pregunta('¿cuánto tardamos de media en limpiar el pasillo?');
+    await expect(r.locator('tbody').first()).toContainText('Limpieza pasillo Nave 2');
+    // lo de antes sigue igual
+    r = await pregunta('Derrames de aceite en la Nave 2 comparado con el mes anterior');
+    await expect(r).not.toContainText('Compara: Nave 1 y Nave 2');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.elementos = e0; }
+});
