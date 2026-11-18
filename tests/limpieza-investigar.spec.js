@@ -145,3 +145,38 @@ test('Pregúntale: entiende la pregunta y contesta con la cifra, la tabla y los 
   expect(XLSX.utils.sheet_to_json(wb.Sheets['Respuesta'], { header: 1 })[0]).toEqual(['Pregunta', '¿Quién no pulsa Empezar?']);
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
 });
+
+test('Enséñale: el diccionario cambia cómo entiende las preguntas, favoritas y «No es lo que quería»', async ({ page }) => {
+  R.ots_rango = datos().concat([ot('2026-10-09', 'Derrame de taladrina', 'PUNTO DE CONSUMO JUNTO A M3', 'Josefa Ruiz', 20), ot('2026-10-16', 'Derrame de taladrina', 'Punto de consumo junto a M3', 'Josefa Ruiz', 20),
+    ot('2026-10-23', 'Derrame de taladrina', 'M3', 'Josefa Ruiz', 20)]);
+  R.horas_rango = []; R.sust_rango = [];
+  const g = R.inv_dic_listar;
+  R.inv_dic_listar = [{ id: 'd1', tipo: 'persona', palabra: 'jose', valor: 'Josefa Ruiz' }, { id: 'd2', tipo: 'lugar', palabra: 'punto de consumo junto a m3', valor: 'Punto de consumo M3' },
+    { id: 'd3', tipo: 'problema', palabra: 'pringue', valor: 'aceite' }, { id: 'd4', tipo: 'favorita', palabra: 'saturación de cada uno este mes' }];
+  try {
+    const { err, llamadas } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    let r = await pregunta('derrames en el punto de consumo de la m3');
+    await expect(r).toContainText('Dónde: Punto de consumo M3'); await expect(r).toContainText('2 veces');
+    r = await pregunta('derrames de taladrina en la m3');
+    await expect(r).toContainText('Dónde: M3'); await expect(r).toContainText('1 vez');
+    r = await pregunta('cuánto pringue en la F19');
+    await expect(r).toContainText('Problema: Fugas y derrames de aceite'); await expect(r).toContainText('4 veces');
+    r = await pregunta('cuántos derrames ha limpiado jose');
+    await expect(r).toContainText('Persona: Josefa Ruiz');
+    // el sitio sale con su nombre enseñado
+    await expect(page.locator('#invRep')).toContainText('Punto de consumo M3 · Fugas y derrames de taladrina');
+    // favorita como botón
+    await expect(page.locator('#invPreg .chip', { hasText: '☆ saturación de cada uno este mes' })).toBeVisible();
+    // no es lo que quería
+    await r.getByRole('button', { name: 'No es lo que quería' }).click(); await page.waitForTimeout(200);
+    await page.locator('.ov').last().locator('textarea').fill('Quería solo los de aceite'); await page.locator('.ov').last().getByRole('button', { name: 'Enviar' }).click(); await page.waitForTimeout(300);
+    const pg = llamadas.filter(x => x[0] === 'inv_preg_guardar');
+    expect(pg.map(x => x[1].p.q)).toContain('cuántos derrames ha limpiado jose'); expect(pg.some(x => x[1].p.ok === false && x[1].p.queria === 'Quería solo los de aceite')).toBe(true);
+    // el diccionario se ve y se puede ampliar
+    await page.locator('#invPreg').getByRole('button', { name: 'Enséñale' }).click(); await page.waitForTimeout(300);
+    await expect(page.locator('.ov').last()).toContainText('«pringue» → Fugas y derrames de aceite');
+    expect(await desbordes(page)).toEqual([]);
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.inv_dic_listar = g; }
+});

@@ -77,14 +77,34 @@ async function invCarga(d0,d1){const A=invAnterior(d0,d1),k=A.d0+"|"+d1;if(INV_C
     rpc("festivos_listar",{p_tok:S.tok}),sustRango(d0,d1),rpc("elementos",{p_tok:S.tok}).catch(()=>[])]);
   return INV_CACHE[k]={O:O.filter(o=>!o.borrado),W,R,FE,SU,EL:EL||[],A};}
 
+/* ===== lo que Cristian le enseña (tabla inv_dic): persona, lugar, problema, frase y favorita ===== */
+let INV_DIC=[];
+async function invDicCarga(){try{INV_DIC=(await rpc("inv_dic_listar",{p_tok:S.tok}))||[];}catch(e){INV_DIC=[];}return INV_DIC;}
+const INV_CATW={aceite:"aceite",taladrina:"taladrina",agua:"agua",desborde:"desborde",resbala:"resbaladizo",rotura:"rotura"};
+const invRe=w=>new RegExp("(^|\\s)"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=\\s|$)","g");
+/* aplica el diccionario a la pregunta ya en minúsculas y sin tildes; devuelve el texto y las personas que nombra */
+function invAplicaDic(t){const pers=[];
+  INV_DIC.filter(d=>d.tipo==="frase").forEach(d=>{t=t.replace(invRe(d.palabra),"$1"+sinAcento(d.valor||"").toLowerCase());});
+  INV_DIC.filter(d=>d.tipo==="problema"&&INV_CATW[d.valor]).forEach(d=>{t=t.replace(invRe(d.palabra),"$1"+INV_CATW[d.valor]);});
+  INV_DIC.filter(d=>d.tipo==="persona").sort((a,b)=>b.palabra.length-a.palabra.length).forEach(d=>{if(invRe(d.palabra).test(t)){pers.push(d.valor);t=t.replace(invRe(d.palabra),"$1");}});
+  return{t:t.replace(/\s+/g," ").trim(),pers};}
+/* sitio por su nombre tal como sale en los avisos («14024», «punto de consumo m3», «moriz»): gana el que más palabras casa */
+const INV_SIT_NO=new Set(["de","del","la","el","a","al","junto","en","y"]);
+function invSitioNom(t,O){let best=null;[...new Set(O.map(invSitio))].forEach(s=>{if(/^(nave|sin lugar)/i.test(s))return;
+    const tk=sinAcento(s).toLowerCase().split(/[\s,.]+/).filter(w=>w.length>=2&&!INV_SIT_NO.has(w));
+    if(tk.length&&tk.every(w=>invRe(w).test(t))&&(!best||tk.length>best.n))best={v:s,n:tk.length,tk};});return best;}
+
 /* entender la pregunta */
-function invEntiende(q,C,F){const t=sinAcento(q).toLowerCase().replace(/[¿?¡!.,;:]/g," ").replace(/\s+/g," ").trim();
+function invEntiende(q,C,F){const t0=sinAcento(q).toLowerCase().replace(/[¿?¡!.,;:]/g," ").replace(/\s+/g," ").trim();
+  const D=invAplicaDic(t0),t=D.t;
   const per=invPerQ(t)||{d0:F.d0,d1:F.d1,t:F.t};
   const nombres=[...new Set(C.W.filter(w=>w.rol!=="admin"||C.O.some(o=>o.hecho_por_n===w.nombre)).map(w=>w.nombre))];
-  const pers=invPersQ(t,nombres);
-  const sitio=invSitioQ(t),cat=invCatQ(t);
+  const pers=[...new Set(D.pers.concat(invPersQ(t,nombres)))];
+  const sn=invSitioNom(t,C.O),sr=invSitioQ(t);
+  const sitio=sn&&(sn.n>1||!sr||sr.k!=="maq"||sr.v!==sn.v)&&!(sr&&sr.k==="nave"&&sn.n<2)?{k:"lugar",v:sn.v}:sr;
+  const cat=invCatQ(t);
   const dsem=(INV_DSEM.find(([d])=>new RegExp("\\b"+d+"s?\\b").test(t))||[])[1];
-  const usadas=new Set();pers.forEach(n=>sinAcento(n).toLowerCase().split(/\s+/).forEach(w=>usadas.add(w)));
+  const usadas=new Set();pers.forEach(n=>sinAcento(n).toLowerCase().split(/\s+/).forEach(w=>usadas.add(w)));if(sitio&&sitio.k==="lugar"&&sn)sn.tk.forEach(w=>usadas.add(w));
   const libres=t.split(" ").filter(w=>w.length>=3&&!INV_NO.has(w)&&!usadas.has(w)&&!/^[fm]\d+$/.test(w)&&!/^20\d\d$/.test(w));
   return{t,q,per,pers,sitio,cat,dsem,libres,int:invIntQ(t),grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
 
@@ -93,7 +113,7 @@ function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.siti
   const naveMaq={};(C.EL||[]).forEach(e=>{const m=String(e.codigo||"").match(/F\s?-?(\d+)/i);if(m)naveMaq["F"+(+m[1])]=sinAcento(e.lugar||"").toLowerCase();});
   let X=L.filter(o=>{if(E.pers.length&&!E.pers.includes(o.hecho_por_n)&&!(o.estado!=="hecha"&&(o.nombres||[]).some(n=>E.pers.includes(n))))return false;
     if(E.cat==="*"&&!invCat(o))return false;if(E.cat&&E.cat!=="*"&&invCat(o)!==E.cat)return false;
-    if(E.sitio&&E.sitio.k==="maq"&&invSitio(o)!==E.sitio.v)return false;
+    if(E.sitio&&(E.sitio.k==="maq"||E.sitio.k==="lugar")&&invSitio(o)!==E.sitio.v)return false;
     if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o),txt=sinAcento([s,o.nave,o.lugar].filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
     if(E.dsem!=null&&new Date(o.fecha+"T12:00:00").getDay()!==E.dsem)return false;return true;});
   /* palabras del trabajo: solo si hay trabajos que las tengan todas (si no, se ignoran y se dice) */
@@ -156,13 +176,16 @@ function invPreguntaCard(F){const res=el("div",{id:"invResp"});const qi=el("inpu
     catch(e){res.textContent="";res.appendChild(el("p",{class:"hint",text:e.message||"No he podido contestar"}));}};
   const ej=el("details",{style:"margin-top:6px"},[el("summary",{class:"hint",style:"cursor:pointer",text:"Ejemplos de preguntas"}),el("div",{class:"chips",style:"margin-top:6px"},INV_EJ.map(x=>el("button",{type:"button",class:"chip",text:x,onclick:()=>{qi.value=x;ir();}})))]);
   if(S.invQ)setTimeout(ir,0);
-  return el("div",{class:"card",id:"invPreg"},[el("div",{class:"hd"},el("h2",{text:"Pregúntale"})),el("div",{class:"bd"},[
-    el("div",{class:"row",style:"gap:8px;align-items:center;flex-wrap:nowrap"},[qi,el("button",{class:"btn",type:"button",text:"Preguntar",onclick:ir})]),ej,res])]);}
+  const fav=el("div",{class:"chips",style:"margin-top:8px"});const pf=()=>{fav.textContent="";INV_DIC.filter(d=>d.tipo==="favorita").forEach(d=>fav.appendChild(el("button",{type:"button",class:"chip",text:"☆ "+d.palabra,onclick:()=>{qi.value=d.palabra;ir();}})));};pf();
+  invDicCarga().then(pf);
+  return el("div",{class:"card",id:"invPreg"},[el("div",{class:"hd"},[el("h2",{text:"Pregúntale"}),el("button",{class:"btn sec peq der",type:"button",text:"Enséñale",onclick:()=>invDiccionario(()=>pinta())})]),el("div",{class:"bd"},[
+    el("div",{class:"row",style:"gap:8px;align-items:center;flex-wrap:nowrap"},[qi,el("button",{class:"btn",type:"button",text:"Preguntar",onclick:ir})]),fav,ej,res])]);}
 function invPinta(res,E,r){res.textContent="";
   const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
     E.dsem!=null?["Día",DIAS_INV[E.dsem]]:null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
   res.appendChild(el("div",{class:"meta",style:"margin:10px 0 6px"},[el("small",{class:"hint",style:"margin:0",text:"He entendido:"})].concat(ent.map(([a,b])=>el("span",{class:"pill info",text:a+": "+b})))));
-  if(E.ignoradas.length)res.appendChild(el("p",{class:"hint",style:"margin:0 0 6px",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}));
+  if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),
+    el("button",{class:"btn sec peq",type:"button",text:"Enseñar «"+E.ignoradas[0]+"»",onclick:()=>invEnsena(E.ignoradas[0],"frase",()=>{const b=document.querySelector("#invPreg .btn:not(.sec)");if(b)b.click();})})]));
   res.appendChild(el("p",{style:"font-weight:600;margin:6px 0 10px",text:r.frase}));
   if(r.cols&&r.filas.length)res.appendChild(el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,r.cols.map(h=>el("th",{text:h})))),
     el("tbody",null,r.filas.slice(0,40).map(f=>el("tr",null,f.map(x=>el("td",{text:String(x)})))))])));
@@ -171,7 +194,39 @@ function invPinta(res,E,r){res.textContent="";
     el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Día","Trabajo","Dónde","Quién","Tiempo"].map(h=>el("th",{text:h})))),
       el("tbody",null,L.slice(0,200).map(o=>el("tr",null,[el("td",{text:fCorta(o.fecha)}),el("td",{text:o.titulo}),el("td",{text:invSitio(o)}),el("td",{text:o.hecho_por_n||(o.nombres||[]).join(", ")||"—"}),
         el("td",{text:o.estado==="hecha"?invH(invMin(o))+(invReal(o)?"":" (est.)"):(EST[o.estado]||[o.estado])[0]})])))]))]));
+  invServido(E,r,res);
   res.appendChild(el("div",{class:"row",style:"margin-top:10px"},[el("button",{class:"btn sec peq",type:"button",text:"Excel de esta respuesta",onclick:async e=>{e.target.disabled=true;
     try{await libXLSX();const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Pregunta",E.q],["Periodo",E.per.t+" ("+E.per.d0+" a "+E.per.d1+")"],["Respuesta",r.frase]].concat(r.cols?[[],r.cols].concat(r.filas):[])),"Respuesta");
       XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(L.length?L.map(o=>({"Fecha":o.fecha,"Hora":o.creado?hora(o.creado):"","Trabajo":o.titulo,"Descripción":o.descripcion||"","Dónde":invSitio(o),"Problema":invCat(o)?invCatN(invCat(o)):"","Quién":o.hecho_por_n||"","Estado":o.estado,"Minutos":o.estado==="hecha"?Math.round(invMin(o)):null,"Tiempo real":invReal(o)?"Sí":"Estimado"})):[{"":"Ningún trabajo"}]),"Trabajos");
       bajar(new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"pregunta-limpieza.xlsx");}catch(er){toast(er.message);}e.target.disabled=false;}})]));}
+
+/* ===== aprender: ¿te ha servido?, favoritas y diccionario ===== */
+async function invGuardaPreg(p){try{return await rpc("inv_preg_guardar",{p_tok:S.tok,p});}catch(e){return null;}}
+function invServido(E,r,box){let id=null;invGuardaPreg({q:E.q,entendido:{periodo:E.per,personas:E.pers,sitio:E.sitio,problema:E.cat,dia:E.dsem,palabras:E.libres,ignoradas:E.ignoradas,que:E.int,grupo:E.grupo},respuesta:r.frase,ok:null}).then(x=>{id=x;});
+  const fila=el("div",{class:"row",style:"margin-top:10px;align-items:center;gap:8px"},[el("small",{class:"hint",style:"margin:0",text:"¿Te ha servido?"}),
+    el("button",{class:"btn sec peq",type:"button",text:"Sí",onclick:async()=>{if(id)invGuardaPreg({id,ok:true});fila.textContent="";
+      const ya=INV_DIC.some(d=>d.tipo==="favorita"&&d.palabra===E.q.toLowerCase().trim());
+      fila.appendChild(el("small",{class:"hint",style:"margin:0",text:"Gracias, apuntado."}));
+      if(!ya)fila.appendChild(el("button",{class:"btn sec peq",type:"button",text:"☆ Guardar como favorita",onclick:async e=>{e.target.disabled=true;try{await rpc("inv_dic_guardar",{p_tok:S.tok,p:{tipo:"favorita",palabra:E.q}});await invDicCarga();toast("Guardada en tus preguntas");pinta();}catch(er){toast(er.message);e.target.disabled=false;}}}));}}),
+    el("button",{class:"btn sec peq",type:"button",text:"No es lo que quería",onclick:()=>{let txt="";
+      dlg("¿Qué querías saber?",el("div",null,[el("p",{class:"hint",text:"Escríbelo con tus palabras. Lo reviso y le enseño a la app a entenderlo. Si es una palabra que no conoce (un mote, cómo llamáis a una máquina…), enséñasela ya en «Enséñale»."}),area("",x=>txt=x)]),
+        [{t:"Cancelar",cls:"sec"},{t:"Enviar",fn:async()=>{if(id)await invGuardaPreg({id,ok:false,queria:txt});else await invGuardaPreg({q:E.q,respuesta:r.frase,ok:false,queria:txt});toast("Apuntado: lo revisaremos");fila.textContent="";fila.appendChild(el("small",{class:"hint",style:"margin:0",text:"Apuntado para revisarlo."}));}}]);}})]);
+  box.appendChild(fila);}
+const INV_TIPOS=[["persona","Una persona","Cuando escriba…","Es…"],["lugar","Un lugar como se apunta","Lugar apuntado en los avisos","Se llama…"],["problema","Un tipo de problema","Cuando escriba…","Es un problema de…"],["frase","Otras palabras","Cuando escriba…","Quiero decir…"]];
+function invEnsena(pal,tipo,re){const W=(TRAB||[]).filter(w=>w.activo!==false).map(w=>w.nombre).sort((a,b)=>a.localeCompare(b,"es"));const s={tipo:tipo||"frase",palabra:pal||"",valor:""};const box=el("div");
+  const pinta2=()=>{box.textContent="";const T=INV_TIPOS.find(x=>x[0]===s.tipo);
+    box.appendChild(fld("¿Qué le enseñas?",sel(INV_TIPOS.map(x=>[x[0],x[1]]),s.tipo,v=>{s.tipo=v;s.valor="";pinta2();})));
+    box.appendChild(fld(T[2],inp(s.palabra,v=>s.palabra=v,{autocomplete:"off"})));
+    box.appendChild(fld(T[3],s.tipo==="persona"?sel([["","Elige"]].concat(W.map(n=>[n,n])),s.valor,v=>s.valor=v):s.tipo==="problema"?sel([["","Elige"]].concat(INV_CAT.filter(x=>x[0]!=="otro").map(x=>[x[0],x[1]])),s.valor,v=>s.valor=v):inp(s.valor,v=>s.valor=v,{autocomplete:"off"})));
+    box.appendChild(el("p",{class:"hint",text:s.tipo==="lugar"?"Escribe el lugar tal como aparece en los avisos y cómo quieres que salga (por ejemplo «punto de consumo junto a m3» → «Punto de consumo M3»).":s.tipo==="frase"?"Sirve para motes y formas de hablar: por ejemplo «finde» → «sábados y domingos».":"Desde ahora lo entenderá siempre."}));};
+  pinta2();dlg("Enséñale",box,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{try{await rpc("inv_dic_guardar",{p_tok:S.tok,p:s});await invDicCarga();toast("Aprendido");if(re)re();}catch(e){toast(e.message==="FALTA_VALOR"?"Falta lo que quiere decir":e.message);return false;}}}]);}
+async function invDiccionario(re){await invDicCarga();let P=[];try{P=(await rpc("inv_preg_listar",{p_tok:S.tok,p_solo_mal:true}))||[];}catch(e){}
+  const nom={persona:"Personas",lugar:"Lugares",problema:"Problemas",frase:"Otras palabras",favorita:"Preguntas favoritas"};
+  const lista=el("div",null,Object.keys(nom).map(k=>{const L=INV_DIC.filter(d=>d.tipo===k);if(!L.length)return null;
+    return el("div",{style:"margin:0 0 10px"},[el("b",{text:nom[k]}),...L.map(d=>el("div",{class:"linea",style:"display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"},[
+      el("span",{style:"flex:1;min-width:0",text:k==="favorita"?"«"+d.palabra+"»":"«"+d.palabra+"» → "+(k==="problema"?invCatN(d.valor):d.valor)}),
+      el("button",{class:"btn sec peq",type:"button",text:"Borrar",onclick:async e=>{e.target.disabled=true;try{await rpc("inv_dic_borrar",{p_tok:S.tok,p_id:d.id});await invDicCarga();e.target.closest(".linea").remove();if(re)re();}catch(er){toast(er.message);e.target.disabled=false;}}})]))]);}).filter(Boolean));
+  dlg("Lo que sabe la app",el("div",null,[INV_DIC.length?lista:el("p",{class:"hint",text:"Todavía no le has enseñado nada."}),
+    P.length?el("details",null,[el("summary",{class:"hint",style:"cursor:pointer;font-weight:600",text:"Preguntas que no ha entendido ("+P.length+")"}),...P.slice(0,40).map(p=>el("div",{class:"linea",style:"border-top:1px solid var(--line);padding:6px 0"},[el("b",{text:p.q}),p.queria?el("div",{class:"hint",style:"margin:2px 0 0",text:"Querías: "+p.queria}):null]))]):null,
+    el("p",{class:"hint",text:"Para que aprenda las que no ha entendido, dile a Claude: «revisa las preguntas que no ha entendido la app»."})]),
+    [{t:"Cerrar",cls:"sec"},{t:"＋ Enseñarle algo",fn:()=>{setTimeout(()=>invEnsena("","frase",re),0);}}]);}

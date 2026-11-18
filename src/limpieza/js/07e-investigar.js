@@ -16,7 +16,10 @@ function invCat(o){const t=sinAcento((o.titulo||"")+" "+(o.descripcion||""));if(
 /* dónde: la máquina si el lugar empieza por ella (F19, H-F66 → F66, M3, «F29 · Nave 1» → F29); si no, el lugar tal cual
    (sin mayúsculas de más: «MORIZ» = «Moriz»); sin lugar, la máquina que se nombre en el título, y si no, la nave */
 const invCod=m=>m[1].toUpperCase()+(+m[2]);
-function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");let m=l.match(/^(?:H-)?([FM])\s?-?(\d{1,3})\b/i);if(m)return invCod(m);
+function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
+  /* nombre enseñado en el diccionario («punto de consumo junto a m3» → «Punto de consumo M3») */
+  if(l&&typeof INV_DIC!=="undefined"){const k=sinAcento(l).toLowerCase(),d=INV_DIC.find(x=>x.tipo==="lugar"&&x.palabra===k);if(d)return d.valor;}
+  let m=l.match(/^(?:H-)?([FM])\s?-?(\d{1,3})\b/i);if(m)return invCod(m);
   if(l){const t=l.toLowerCase();return t.charAt(0).toUpperCase()+t.slice(1);}
   m=[o.titulo,o.descripcion].filter(Boolean).join(" ").match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);return o.nave||"Sin lugar";}
 /* para juntar el mismo trabajo escrito de formas distintas («Derrame taladrina» = «Derrame de taladrina») */
@@ -105,7 +108,7 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   if(F.d0>F.d1){box.textContent="";box.appendChild(el("div",{class:"empty",text:"La fecha «desde» es después de «hasta»."}));return;}
   const A=invAnterior(F.d0,F.d1);let O,W,R,FE,SU;
-  try{[O,W,R,FE,SU]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:A.d0,p_hasta:F.d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:F.d0,p_hasta:F.d1}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(F.d0,F.d1)]);}
+  try{[O,W,R,FE,SU]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:A.d0,p_hasta:F.d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:F.d0,p_hasta:F.d1}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(F.d0,F.d1),invDicCarga()]);}
   catch(e){box.textContent="";box.appendChild(el("div",{class:"empty",text:e.message}));return;}
   const J=invJornadas(W,R,FE,SU,F.d0,F.d1);const Oant=O.filter(o=>o.fecha>=A.d0&&o.fecha<=A.d1&&!o.borrado);
   const X=invDatos(O,J,F.d0,F.d1,Oant);S.invX={X,F,A};box.textContent="";
