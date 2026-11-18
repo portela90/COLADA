@@ -387,3 +387,33 @@ test('«¿Cómo podemos ahorrar tiempo?» junta lo previsto, las personas, el ti
   await expect(r).toContainText('En la app no hay ningún trabajo apuntado el 12/06/2026');
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
 });
+
+test('«¿Qué trabajos son los que más se repiten?» son los avisos (sin los fijos) y «¿cuánto tiempo sobra?»', async ({ page }) => {
+  const g = R.inv_dic_listar;
+  R.inv_dic_listar = [{ id: 'ru', tipo: 'grupo', palabra: 'rutinas', valor: '5s, bidon, grg, pistonwax, desgasificadora, bolon, insertos, barredura, viruta, basura, tacho, saca' }];
+  try {
+  R.ots_rango = [ot('2026-09-14', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30), ot('2026-10-13', '5s', 'Nave 1', 'Ahmed El Hait', 30), ot('2026-10-14', '5s', 'Nave 2', 'Ahmed El Hait', 30),
+    ot('2026-10-20', 'Limpieza pasillo Nave 2', '', 'Josefa Ruiz', 40, { origen: 'fija', estado: 'pendiente', minutos_est: 45 }),ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30), ot('2026-10-06', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30),
+    ot('2026-10-07', 'Derrame de aceite', 'F5', 'Ahmed El Hait', 30), ot('2026-10-08', 'Suelo resbaladizo', 'Nave 2', 'Ahmed El Hait', 20),
+    ot('2026-10-09', 'Suelo resbaladizo', 'Nave 2', 'Ahmed El Hait', 20), ot('2026-10-10', 'Fuga de agua', 'F30', 'Ahmed El Hait', 20),
+    ot('2026-10-07', 'Limpieza pasillo Nave 1', '', 'Josefa Ruiz', 40, { origen: 'fija' }), ot('2026-10-08', 'Limpieza pasillo Nave 1', '', 'Josefa Ruiz', 40, { origen: 'fija' }),
+    ot('2026-10-09', 'Limpieza pasillo Nave 1', '', 'Josefa Ruiz', 40, { origen: 'fija' }), ot('2026-10-12', 'Limpieza pasillo Nave 1', '', 'Josefa Ruiz', 40, { origen: 'fija' })];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('¿Qué trabajos son los que más se repiten?');
+  await expect(r).toContainText('Los avisos que más se repiten este mes: «Derrame de aceite» 3 veces (a más; 1 h 30 min, en 2 sitios; donde más, F19 con 2; sobre todo los');
+  await expect(r).toContainText('«Suelo resbaladizo» 2 veces (nuevo;');
+  await expect(r).toContainText('Aparte, 2 avisos son rutinas (la que más, «5s» 2 veces)');
+  await expect(r).toContainText('Rutinas pedidas como aviso');
+  await expect(r).not.toContainText('Limpieza pasillo'); await expect(r).not.toContainText('Fuga de agua');
+  r = await pregunta('¿Cuánto tiempo sobra según la carga de trabajo de los trabajadores?');
+  await expect(r).toContainText('Quiero saber: cuánto tiempo sobra'); await expect(r).not.toContainText('No encuentro trabajos');
+  await expect(r).toContainText('Según lo apuntado, este mes sobran');
+  await expect(r).toContainText('que no tienen nada apuntado: seguramente trabajan sin apuntarlo');
+  await expect(r).toContainText('Abdoul kader Maiga (sin nada apuntado)');
+  await expect(r).toContainText('Qué días sobra más (de quien apunta)'); await expect(r).toContainText('Por turno (de quien apunta)');
+  await expect(r).toContainText('Lo que se ha quedado sin hacer (1 trabajo, unas 45 min) cabría');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.inv_dic_listar = g; }
+});

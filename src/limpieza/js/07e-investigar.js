@@ -77,7 +77,7 @@ function invDatos(O,J,d0,d1,Oant){
       const R=L.filter(o=>invReal(o)&&!invDudosa(o)&&o.inicio&&o.fin).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));let desp=0,finAnt=null;
       R.forEach(o=>{const ini=Date.parse(o.inicio),fin=Date.parse(o.fin);if(finAnt!=null){const g=(ini-finAnt)/60000;if(g>0&&g<=INV_HUECO)desp+=g;}finAnt=finAnt==null?fin:Math.max(finAnt,fin);});
       if(!jor){if(reg>0){p.sinJor+=reg;raros.push({f,n,t:L.length+(L.length===1?" trabajo":" trabajos"),min:reg,motivo:"trabajo en un día sin horas de jornada: no cuenta en la saturación"});}return;}
-      const tot=reg+desp;p.jor+=jor;p.min+=reg;p.desp+=desp;p.cont+=Math.min(tot,jor);
+      const tot=reg+desp;p.jor+=jor;p.min+=reg;p.desp+=desp;p.cont+=Math.min(tot,jor);(p.D=p.D||{})[f]={jor,cont:Math.min(tot,jor)};
       if(tot>jor*1.15)raros.push({f,n,t:L.length+(L.length===1?" trabajo":" trabajos"),min:tot,motivo:"más tiempo apuntado que su jornada ("+invH(jor)+")"+(L.some(o=>o.origen==="excel")?", del Excel del fin de semana (puede ser trabajo de todo el equipo)":"")+": se cuenta su jornada"});});
     p.sin=Math.max(0,p.jor-p.cont);});
   raros.sort((a,b)=>b.f.localeCompare(a.f)||a.n.localeCompare(b.n));
