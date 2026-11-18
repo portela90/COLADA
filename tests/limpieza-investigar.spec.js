@@ -359,3 +359,31 @@ test('Preguntas nuevas: naves, ahorro, ¿ha vuelto?, sin hacer, empeorado, resum
     expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.elementos = e0; }
 });
+
+test('«¿Cómo podemos ahorrar tiempo?» junta lo previsto, las personas, el tiempo entre trabajos y lo que se repite; y una fecha suelta', async ({ page }) => {
+  const t = (f, a, b) => ({ inicio: f + 'T' + a + ':00Z', fin: f + 'T' + b + ':00Z' });
+  R.ots_rango = [
+    ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 50, Object.assign({ minutos_est: 20 }, t('2026-10-05', '06:00', '06:50'))),
+    ot('2026-10-05', 'Limpieza pasillo Nave 1', 'Nave 1', 'Ahmed El Hait', 30, t('2026-10-05', '07:00', '07:30')),
+    ot('2026-10-05', 'Vaciar barreduras', 'Nave 1', 'Ahmed El Hait', 10, t('2026-10-05', '08:30', '08:40')),
+    ot('2026-10-12', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 50, Object.assign({ minutos_est: 20 }, t('2026-10-12', '06:00', '06:50'))),
+    ot('2026-10-06', 'Derrame de aceite', 'F5', 'Josefa Ruiz', 20, { minutos_est: 20 }), ot('2026-10-07', 'Derrame de aceite', 'F6', 'Josefa Ruiz', 20, { minutos_est: 20 })];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('¿cómo podemos ahorrar tiempo en realizar los trabajos?');
+  await expect(r).toContainText('Quiero saber: cómo ahorrar tiempo'); await expect(r).not.toContainText('No encuentro trabajos');
+  await expect(r).toContainText('Para ahorrar tiempo los últimos 3 meses, por orden: 1) arreglar las máquinas y sitios que repiten problemas');
+  await expect(r).toContainText('2) tiempo entre un trabajo y otro');
+  await expect(r).toContainText('Derrame de aceite: Ahmed El Hait 50 min de media, Josefa Ruiz 20 min');
+  await expect(r).toContainText('Derrame de aceite: 50 min de media y se prevén 20 min (2 veces)');
+  await expect(r).toContainText('Solo cuenta lo que tiene tiempo real');
+  r = await pregunta('¿qué trabajos hizo Ahmed el día 5/10/26?');
+  await expect(r).toContainText('Periodo: el 05/10/2026'); await expect(r).not.toContainText('No encuentro trabajos'); await expect(r).toContainText('3 en total');
+  r = await pregunta('quien tarda mas en realizar un trabajo en concreto');
+  await expect(r).not.toContainText('No encuentro trabajos');
+  await expect(r).toContainText('donde más diferencia hay es «Derrame de aceite»: Ahmed El Hait tarda 50 min de media y Josefa Ruiz 20 min');
+  r = await pregunta('¿qué trabajos hizo Ahmed el día 12/6/26?');
+  await expect(r).toContainText('En la app no hay ningún trabajo apuntado el 12/06/2026');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});
