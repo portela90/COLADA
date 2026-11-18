@@ -436,3 +436,59 @@ test('«En qué se va el tiempo» y las filas de «Pregúntale»: al pulsar se v
   await expect(d.locator('h3')).toHaveText('F5'); await expect(d).toContainText('1 vez este mes'); await expect(d).toContainText('Derrame de aceite');
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
 });
+
+test('Carga de cada trabajador: ficha, trabajos que se pueden pasar (botón «Pasar») y tiempos que se ajustan', async ({ page }) => {
+  const W0 = R.trabajadores_admin, T0 = R.tareas, H0 = R.habituales;
+  const lun = { lunes: [['06:00', '14:00']], martes: [], miercoles: [], jueves: [], viernes: [], sabado: [], domingo: [] };
+  R.trabajadores_admin = W0.map(w => w.id === 'w3' ? Object.assign({}, w, { horario: Object.assign({}, lun, { lunes: [['06:00', '07:00']] }) }) : w.id === 'w1' ? w : Object.assign({}, w, { horario: lun }));
+  R.tareas = [{ id: 't1', dias: ['lunes'], tipo: 'Basuras', turno: 'Mañana', activo: true, equipo: 'Semana', titulo: 'Basuras Nave 2', nombres: ['Ahmed El Hait'], asignados: ['w3'], descripcion: '', minutos_est: 90, todo_equipo: false }];
+  R.habituales = [{ id: 'h1', titulo: 'Vaciar contenedor', descripcion: null, lugar: null, minutos_est: 20, activo: true }];
+  try {
+    const L = ['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26'];
+    R.ots_rango = [].concat(
+      L.map(f => ot(f, 'Basuras Nave 2', 'Nave 2', 'Ahmed El Hait', 90, { origen: 'fija', tarea_id: 't1', asignados: ['w3'], minutos_est: 90 })),
+      L.map(f => ot(f, 'Vaciar contenedor', 'Nave 1', 'Josefa Ruiz', 40, { habitual_id: 'h1', minutos_est: 20 })),
+      L.slice(0, 3).map(f => ot(f, 'Vaciar contenedor', 'Nave 1', 'Ahmed El Hait', 10, { habitual_id: 'h1', minutos_est: 20 })),
+      [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Josefa Ruiz', 30)],
+      ['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-10-27'].map(f => ot(f, 'Recoger sacas', 'Nave 2', 'Ahmed El Hait', 10, { tiempo_auto: true, minutos_est: 10 })));
+    R.horas_rango = []; R.sust_rango = [];
+    const { err, llamadas } = await abre(page, ADMIN, '?ir=investigar');
+    const pas = page.locator('#invPasar');
+    await expect(pas).toContainText('Ahmed El Hait · 100 %'); await expect(pas).toContainText('Basuras Nave 2');
+    await expect(pas).toContainText('Mejor opción: Josefa Ruiz: del 10 % al 29 %');
+    await expect(pas).toContainText('Abdoul kader Maiga (sin datos');
+    await pas.getByRole('button', { name: 'Pasar' }).click();
+    await expect(page.locator('.dlg')).toContainText('Desde hoy, «Basuras Nave 2» (Lun) lo hará Josefa Ruiz en vez de Ahmed El Hait');
+    await page.locator('.dlg').getByRole('button', { name: 'Pasar' }).click();
+    await expect.poll(() => llamadas.filter(([f]) => f === 'tarea_guardar').map(([, b]) => b.p.id + ':' + b.p.asignados.join(','))).toContain('t1:w4');
+    // la ficha de la persona
+    await page.locator('#invSat tr', { hasText: 'Ahmed El Hait' }).click();
+    const d = page.locator('.dlg');
+    await expect(d.locator('h3')).toHaveText('Ahmed El Hait');
+    await expect(d).toContainText('100 % de saturación'); await expect(d).toContainText('Cada día'); await expect(d).toContainText('Sus trabajos fijos');
+    await expect(d).toContainText('Trabajos que podría hacer otro'); await expect(d).toContainText('Lo que ha hecho en el periodo');
+    await d.getByRole('button', { name: 'Cerrar' }).click();
+    // tiempos
+    const ti = page.locator('#invTiempos'); await ti.locator('summary').click();
+    await expect(ti.locator('tr', { hasText: 'Vaciar contenedor' }).first()).toContainText('32 min');
+    await ti.locator('tr', { hasText: 'Vaciar contenedor' }).first().getByRole('button', { name: 'Aplicar' }).click();
+    await expect.poll(() => llamadas.filter(([f]) => f === 'habitual_guardar').map(([, b]) => b.p.id + ':' + b.p.minutos_est)).toContain('h1:32');
+    await expect(ti).toContainText('Trabajos sin tiempo fiable'); await expect(ti.locator('tr', { hasText: 'Recoger sacas' })).toContainText('0 (0 %)');
+    await expect(ti.locator('tr', { hasText: 'Josefa Ruiz' })).toContainText('40 min');
+    // Pregúntale
+    await page.fill('#invQ', '¿qué trabajos se pueden pasar a otro?'); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400);
+    await expect(page.locator('#invResp')).toContainText('1 persona pasa del 85 %: Ahmed El Hait (100 %)');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.trabajadores_admin = W0; R.tareas = T0; R.habituales = H0; }
+});
+
+test('Plan de la semana: carga prevista con los avisos que suele hacer cada uno', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-06', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 60, { hecho_por: 'w3', inicio: '2026-10-06T06:00:00Z', fin: '2026-10-06T07:00:00Z' }),
+    ot('2026-10-07', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 60, { hecho_por: 'w3', inicio: '2026-10-07T06:00:00Z', fin: '2026-10-07T07:00:00Z' })];
+  const { err } = await abre(page, ADMIN, '?ir=semana');
+  const c = page.locator('#cargaPrev');
+  await expect(c).toContainText('Carga prevista de la semana');
+  await expect(c.locator('tr', { hasText: 'Ahmed El Hait' })).toContainText('5');
+  await expect(c.locator('tr', { hasText: 'Josefa Ruiz' }).locator('td').nth(2)).toHaveText('—');
+  expect(err).toEqual([]);
+});

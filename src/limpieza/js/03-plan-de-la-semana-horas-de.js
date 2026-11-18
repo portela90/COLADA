@@ -39,7 +39,21 @@ async function vSemana(v){S.semP=S.semP||lunesDe(hoyISO());const lun=S.semP;cons
   box.appendChild(el("div",{class:"card"},[el("div",{class:"tw-sem"},el("table",{class:"sem"},[el("thead",null,el("tr",null,[el("th",{text:""})].concat(X.dias.map((f,i)=>el("th",{class:f===hoy?"hoy":"",text:DL[i]+" "+f.slice(8,10)}))))),
     el("tbody",null,R.gente.map(w=>el("tr",null,[el("th",{text:w.nombre.split(" ")[0]+(w.nombre.split(" ")[1]?" "+w.nombre.split(" ")[1][0]+".":"")})].concat(X.dias.map(f=>celda(w,f))))).concat([filaExtra("Sin asignar",X.libre,"libre"),filaExtra("Todo el equipo",X.equipo,"equipo")]))])),
     el("div",{class:"ley"},[["ok","Le sobra tiempo"],["warn","Casi lleno (80 %+)"],["bad","Se pasa de su jornada"],["libra","Libra"],["sinh","Sin horario puesto"]].map(([k,t])=>el("span",null,[el("i",{class:"c "+k}),t])))]));
-  box.appendChild(el("details",{class:"ayuda"},[el("summary",{text:"¿Cómo se lee esta tabla?"}),el("p",{class:"hint",text:"Cada casilla: horas de trabajo asignado / horas de jornada (según su horario y las horas extra). Solo cuentan los trabajos con tiempo estimado. Toca una casilla para ver sus trabajos y pasarlos a otra persona."})]));}
+  box.appendChild(el("details",{class:"ayuda"},[el("summary",{text:"¿Cómo se lee esta tabla?"}),el("p",{class:"hint",text:"Cada casilla: horas de trabajo asignado / horas de jornada (según su horario y las horas extra). Solo cuentan los trabajos con tiempo estimado. Toca una casilla para ver sus trabajos y pasarlos a otra persona."})]));
+  if(lun>=lunesDe(hoy))box.appendChild(await cargaPrevista(R,X,lun));}
+/* carga prevista de la semana: trabajos fijos y asignados + los avisos que suele hacer cada uno (media de las 4 semanas anteriores) */
+async function cargaPrevista(R,X,lun){const d0=sumaD(lunesDe(hoyISO()),-28),d1=sumaD(lunesDe(hoyISO()),-1);let O=[];try{O=await rpc("ots_rango",{p_tok:S.tok,p_desde:d0,p_hasta:d1});}catch(e){}
+  const mins=o=>o.inicio&&o.fin?Math.max(0,(Date.parse(o.fin)-Date.parse(o.inicio))/60000-(+o.pausado_min||0)):(+o.minutos_est||0);
+  const filas=R.gente.map(w=>{const P=X.P[w.id];if(!P)return null;const dias=Object.values(P.d);const jor=dias.reduce((t,c)=>t+c.jor,0);const fijo=dias.reduce((t,c)=>t+c.carga,0),sinT=dias.reduce((t,c)=>t+c.sinT,0);
+    const mios=O.filter(o=>o.hecho_por===w.id&&o.estado==="hecha");const diasT=new Set(mios.map(o=>o.fecha)).size;
+    const av=mios.filter(o=>o.origen==="rapida"||o.origen==="manual").reduce((t,o)=>t+mins(o),0);const diasJ=dias.filter(c=>c.jor>0).length;
+    const avPrev=diasT?av/diasT*diasJ:0;const tot=fijo+avPrev;return{w,jor,fijo,sinT,avPrev,tot,pc:jor?Math.round(tot*100/jor):null};}).filter(x=>x&&(x.jor||x.tot));
+  filas.sort((a,b)=>(b.pc||0)-(a.pc||0));const altos=filas.filter(x=>x.pc!=null&&x.pc>=85);
+  return el("div",{class:"card",id:"cargaPrev"},[el("div",{class:"hd"},[el("h2",{text:"Carga prevista de la semana"}),el("span",{class:"der sub",text:altos.length?altos.length+(altos.length===1?" persona pasa":" personas pasan")+" del 85 %":"nadie pasa del 85 %"})]),el("div",{class:"bd"},[
+    el("p",{class:"hint",style:"margin-top:0",text:"Trabajo asignado esta semana más los avisos que suele hacer cada uno (media por día trabajado de las 4 semanas anteriores), frente a su jornada. Sirve para repartir antes de que empiece la semana."}),
+    el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Persona","Asignado","Avisos de siempre","Total","Jornada","Previsto"].map(h=>el("th",{text:h})))),
+      el("tbody",null,filas.map(x=>el("tr",null,[el("td",{text:x.w.nombre}),el("td",{text:hCorta(x.fijo)+(x.sinT?" (+"+x.sinT+" sin tiempo)":"")}),el("td",{text:x.avPrev?hCorta(x.avPrev):"—"}),el("td",{text:hCorta(x.tot)}),el("td",{text:hCorta(x.jor)}),
+        el("td",null,x.pc==null?"—":el("span",{class:"pill "+(x.pc>=85?"bad":x.pc>=60?"ok":"warn"),text:x.pc+" %"}))])))]))])]);}
 function listaOTs(tit,L,re){dlg(tit,el("div",null,L.length?L.map(o=>el("div",{class:"linea"},[el("span",{style:"flex:1"},[el("b",{text:o.titulo}),el("small",{class:"hint",style:"display:block;margin:0",text:[(EST[o.estado]||[o.estado])[0],o.minutos_est?""+durTxt(o.minutos_est):"sin tiempo",quienTxt(o)].filter(Boolean).join(" · ")})]),
   o.estado==="hecha"?null:el("button",{class:"btn sec peq",text:"Cambiar",onclick:()=>{document.querySelectorAll(".ov").forEach(x=>x.remove());formOT(o,re);}})])):el("p",{class:"empty",text:"Nada."})));}
 function diaPersona(w,f,c,re){const L=c.ots;

@@ -33,7 +33,9 @@ function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   if(nv.size>1)return"Nave 1 y 2";if(nv.size)return"Nave "+[...nv][0];return o.nave||"Sin lugar";}
 /* para juntar el mismo trabajo escrito de formas distintas («Derrame taladrina» = «Derrame de taladrina») */
 const invClave=o=>sinAcento(String(o.titulo||"").replace(/\s*·.*$/,"")).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(w=>w&&!VACIAS.has(w)).join(" ");
-const invMin=o=>o.estado!=="hecha"?0:(o.minutos!=null&&+o.minutos>=0?+o.minutos:(+o.minutos_est||0));
+/* tiempos propuestos (07g): para los trabajos hechos sin «Empezar» y sin tiempo estimado */
+const INV_TPROP={};
+const invMin=o=>o.estado!=="hecha"?0:(o.minutos!=null&&+o.minutos>=0?+o.minutos:(+o.minutos_est||INV_TPROP[o.tarea_id?"f:"+o.tarea_id:o.habitual_id?"h:"+o.habitual_id:"a:"+invClave(o)]||0));
 const invReal=o=>o.estado==="hecha"&&o.minutos!=null&&!o.tiempo_auto;
 /* hueco entre dos trabajos seguidos de la misma persona que cuenta como desplazamiento y preparación (ir a por material,
    cambiar de nave, recoger…); más largo, queda como tiempo sin justificar */
@@ -116,11 +118,15 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
   Object.keys(INV_CACHE).forEach(k=>delete INV_CACHE[k]);v.appendChild(invPreguntaCard(F));
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   if(F.d0>F.d1){box.textContent="";box.appendChild(el("div",{class:"empty",text:"La fecha «desde» es después de «hasta»."}));return;}
-  const A=invAnterior(F.d0,F.d1);let O,W,R,FE,SU;
-  try{[O,W,R,FE,SU]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:A.d0,p_hasta:F.d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:F.d0,p_hasta:F.d1}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(F.d0,F.d1),invDicCarga()]);}
+  const A=invAnterior(F.d0,F.d1);let O,W,R,FE,SU,TF,HB;
+  /* los tiempos se calculan con los últimos 4 meses como poco */
+  const d4=sumaD(hoyISO(),-120),dIni=A.d0<d4?A.d0:d4;
+  try{[O,W,R,FE,SU,,TF,HB]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:dIni,p_hasta:F.d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:F.d0,p_hasta:F.d1}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(F.d0,F.d1),invDicCarga(),
+    rpc("tareas",{p_tok:S.tok}).catch(()=>[]),habituales(true)]);}
   catch(e){box.textContent="";box.appendChild(el("div",{class:"empty",text:e.message}));return;}
   const J=invJornadas(W,R,FE,SU,F.d0,F.d1);const Oant=O.filter(o=>o.fecha>=A.d0&&o.fecha<=A.d1&&!o.borrado);
-  const X=invDatos(O,J,F.d0,F.d1,Oant);S.invX={X,F,A};box.textContent="";
+  const TT=invTiempos(O,TF,HB);invUsaTiempos(TT);
+  const X=invDatos(O,J,F.d0,F.d1,Oant);S.invX={X,F,A,J,O,W,TF:TF||[],HB:HB||[],T:TT,re};box.textContent="";
   const T=X.tot;
   box.appendChild(el("div",{class:"kpis"},[["Saturación del equipo",T.jor?invPct(T.cont,T.jor)+" %":"—"]].concat(T.sinNada.length&&T.jorAp?[["De quien apunta sus trabajos",invPct(T.contAp,T.jorAp)+" %"]]:[]).concat([["Horas de jornada",invH(T.jor)],["En trabajos",invH(T.min)],["Desplazamiento y preparación",invH(T.desp)],["Sin justificar",invH(T.sin)],["Perdidas en problemas",invH(T.prob)]]).map(([a,b])=>el("div",null,[el("b",{text:String(b)}),el("small",{text:a})]))));
   box.appendChild(el("div",{class:"row",style:"margin:0 0 12px"},[el("button",{class:"btn",text:"Informe PDF",onclick:async e=>{e.target.disabled=true;try{bajar(await invPDF(X,F,A),"investigacion-limpieza-"+F.d0+"_"+F.d1+".pdf");}catch(er){toast(er.message);}e.target.disabled=false;}}),
@@ -131,10 +137,11 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
     X.tot.sinNada.length?el("div",{class:"aviso",style:"margin:0 0 10px"},[(X.tot.sinNada.length===1?"1 persona no tiene":X.tot.sinNada.length+" personas no tienen")+" ningún trabajo apuntado a su nombre: "+X.tot.sinNada.map(p=>p.n).join(", "),
       el("small",{text:"Toda su jornada ("+invH(X.tot.sinNada.reduce((s,p)=>s+p.jor,0))+") sale sin justificar y baja la saturación del equipo. Si sus trabajos los apunta otra persona (el encargado, el Excel del fin de semana…) o no pueden entrar en la app, la saturación real es más alta: la de quien sí apunta es "+(X.tot.jorAp?invPct(X.tot.contAp,X.tot.jorAp)+" %":"—")+"."})]):null,
     X.sat.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Persona","Jornada","Trabajos","Despl. y prep.","Sin justificar","Saturación"].map(h=>el("th",{text:h})))),
-      el("tbody",null,X.sat.map(p=>{const pc=invPct(p.cont,p.jor);return el("tr",null,[el("td",null,[el("b",{text:p.n}),el("div",{class:"bar"+(pc>=85?" llena":""),style:"margin-top:4px"},el("i",{style:"width:"+Math.min(100,pc||0)+"%"})),
+      el("tbody",null,X.sat.map(p=>{const pc=invPct(p.cont,p.jor);return el("tr",{style:"cursor:pointer",title:"Ver su ficha",onclick:()=>invFichaPersona(p)},[el("td",null,[el("b",{style:"color:var(--acc)",text:p.n+" ›"}),el("div",{class:"bar"+(pc>=85?" llena":""),style:"margin-top:4px"},el("i",{style:"width:"+Math.min(100,pc||0)+"%"})),
           el("small",{class:"hint",style:"display:block;margin:2px 0 0",text:p.nt+(p.nt===1?" trabajo":" trabajos")+(p.nt&&p.real<p.nt?" · "+invPct(p.real,p.nt)+" % con tiempo real":"")})]),
         el("td",{text:invH(p.jor)}),el("td",{text:invH(p.min)}),el("td",{text:p.desp?invH(p.desp):"—"}),el("td",{text:invH(p.sin)}),el("td",null,pc==null?"—":el("span",{class:"pill "+invNivel(pc),text:pc+" %"}))]);}))]):el("p",{class:"hint",text:"Nadie tiene horas ni trabajos en este periodo."}),
-    el("p",{class:"hint",text:"Rojo: 85 % o más (muy cargado). Los trabajos sin «Empezar» cuentan con su tiempo estimado y no dan huecos: pulsar «Empezar» y «Terminar» sube la saturación real. Un día nunca cuenta más que su jornada."})])]));
+    el("p",{class:"hint",text:"Pulsa una persona para ver su saturación día a día y todos sus trabajos. Rojo: 85 % o más (muy cargado). Los trabajos sin «Empezar» cuentan con su tiempo estimado y no dan huecos: pulsar «Empezar» y «Terminar» sube la saturación real. Un día nunca cuenta más que su jornada."})])]));
+  box.appendChild(invCardPasar(S.invX));
   /* tiempos que no cuadran */
   if(X.raros.length)box.appendChild(el("details",{class:"card",id:"invRaros"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"Tiempos que no cuadran"}),el("span",{class:"pill warn",text:String(X.raros.length)})]),el("div",{class:"bd"},[
     el("p",{class:"hint",style:"margin-top:0",text:"No deforman la saturación (ya están ajustados), pero conviene revisarlos: trabajos que se quedaron abiertos, días con más trabajo apuntado que horas y trabajo en días sin horas."}),
@@ -160,6 +167,7 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
       el("tbody",null,X.trab.slice(0,25).map(t=>el("tr",{style:"cursor:pointer",title:"Ver cada vez que se hizo",onclick:()=>invLista(t.t,t.L,F.t)},[el("td",null,[el("span",{style:"color:var(--acc);font-weight:600",text:t.t+" ›"}),t.prob?el("span",{class:"pill bad",style:"margin-left:6px",text:"problema"}):t.plan?el("span",{class:"pill",style:"margin-left:6px",text:"fija"}):null]),
         el("td",{text:String(t.n)}),el("td",{text:invH(t.min)}),el("td",{text:invH(t.min/t.n)}),el("td",{text:invH(t.max)})])))]):el("p",{class:"hint",text:"Ningún trabajo hecho en este periodo."}),
     X.trab.length?el("p",{class:"hint",text:"Pulsa un trabajo para ver cada vez que se hizo: cuándo, dónde, quién y cuánto tardó."}):null])]));
+  box.appendChild(invCardTiempos(S.invX));
   /* cuándo pasan */
   if(X.P.length)box.appendChild(el("details",{class:"card",id:"invDia"},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"Qué días pasan más los problemas"})),el("div",{class:"bd"},[
     el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Día","Avisos",""].map(h=>el("th",{text:h})))),el("tbody",null,[1,2,3,4,5,6,0].filter(d=>X.dia[d]).map(d=>el("tr",null,[el("td",{text:DIAS_INV[d]}),el("td",{text:String(X.dia[d])}),
