@@ -14,7 +14,7 @@ function invCat(o){const t=sinAcento((o.titulo||"")+" "+(o.descripcion||""));if(
   if(/(agua|filtrac|lluvia|gotera|inund|humedad)/.test(t))return"agua";if(/resbal/.test(t))return"resbala";
   if(/(roto|rota|rotura|averi|estropead|no funciona)/.test(t))return"rotura";return"otro";}
 /* dónde: la máquina si el lugar empieza por ella (F19, H-F66 → F66, M3, «F29 · Nave 1» → F29); si no, el lugar tal cual
-   (sin mayúsculas de más: «MORIZ» = «Moriz»); sin lugar, la máquina que se nombre en el título, y si no, la nave */
+   (sin mayúsculas de más: «MORIZ» = «Moriz»); sin lugar, la máquina o la nave que se nombre en el título, y si no, la nave */
 const invCod=m=>m[1].toUpperCase()+(+m[2]);
 function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   /* nombre enseñado en el diccionario («punto de consumo junto a m3» → «Punto de consumo M3») */
@@ -25,7 +25,10 @@ function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   if(!l||/^nave \d\s*[ab]?$/i.test(l)){const d=dicEn([o.titulo,o.descripcion].filter(Boolean).join(" "));if(d)return d;}
   let m=l.match(/^(?:H-)?([FM])\s?-?(\d{1,3})\b/i);if(m)return invCod(m);
   if(l){const t=l.toLowerCase().replace(/\bnave (\d)/g,"Nave $1");return t.charAt(0).toUpperCase()+t.slice(1);}
-  m=[o.titulo,o.descripcion].filter(Boolean).join(" ").match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);return o.nave||"Sin lugar";}
+  const tt=[o.titulo,o.descripcion].filter(Boolean).join(" ");m=tt.match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);
+  /* ronda 4: sin lugar, la nave que diga el título («Limpieza pasillo Nave 2» → Nave 2; «las 2 naves» → Nave 1 y 2) */
+  const tn=sinAcento(tt).toLowerCase();if(/\b(las (2|dos) naves|ambas naves|nave 1 y 2)\b/.test(tn))return"Nave 1 y 2";
+  m=tn.match(/\bnave\s*(1|2)\b/);if(m)return"Nave "+m[1];return o.nave||"Sin lugar";}
 /* para juntar el mismo trabajo escrito de formas distintas («Derrame taladrina» = «Derrame de taladrina») */
 const invClave=o=>sinAcento(String(o.titulo||"").replace(/\s*·.*$/,"")).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(w=>w&&!VACIAS.has(w)).join(" ");
 const invMin=o=>o.estado!=="hecha"?0:(o.minutos!=null&&+o.minutos>=0?+o.minutos:(+o.minutos_est||0));

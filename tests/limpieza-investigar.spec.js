@@ -226,3 +226,28 @@ test('Ronda 3: Brother y Moriz es una zona, los hornos AlSi12 suman a la Nave 1 
     expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.inv_dic_listar = g; }
 });
+
+test('Ronda 4: la nave del título, «las 2 naves» cuentan en las dos y el grupo «basuras» (saca sí, sacar no)', async ({ page }) => {
+  const g = R.inv_dic_listar;
+  R.inv_dic_listar = [{ id: 'q1', tipo: 'lugar', palabra: 'horno mantenedor nave 1', valor: 'Horno mantenedor Nave 1' },
+    { id: 'q2', tipo: 'grupo', palabra: 'basuras', valor: 'basura, saca, tacho, contenedor, carton, plastico, madera, papel' }];
+  try {
+    R.ots_rango = [ot('2026-10-05', 'Limpieza pasillo Nave 2', '', 'Ahmed El Hait', 30), ot('2026-10-06', 'Basuras Nave 2', '', 'Ahmed El Hait', 20),
+      ot('2026-10-07', 'Retirar basura de las 2 naves( cartón, plásticos y madera)', '', 'Ahmed El Hait', 40),
+      ot('2026-10-08', 'Vaciar retenedores de aceites y taladrinas.', 'NAVE 1 y 2', 'Ahmed El Hait', 25),
+      ot('2026-10-09', 'Limpieza horno mantenedor Nave 1', '', 'Ahmed El Hait', 35), ot('2026-10-12', 'Cambiar saca blanca', 'Nave 1', 'Ahmed El Hait', 10),
+      ot('2026-10-13', 'Sacar la escoria', 'Nave 1', 'Ahmed El Hait', 15)];
+    R.horas_rango = []; R.sust_rango = [];
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    // Nave 2: pasillo, basuras y los dos de «las 2 naves»
+    let r = await pregunta('trabajos en la nave 2');
+    await expect(r).toContainText('4 veces');
+    // Nave 1: los dos de «las 2 naves», el mantenedor de la Nave 1, la saca y sacar escoria
+    r = await pregunta('trabajos en la nave 1');
+    await expect(r).toContainText('5 veces');
+    r = await pregunta('basuras');
+    await expect(r).toContainText('Grupo: Basuras'); await expect(r).toContainText('3 veces');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.inv_dic_listar = g; }
+});

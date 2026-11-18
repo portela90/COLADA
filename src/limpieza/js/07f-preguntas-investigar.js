@@ -91,8 +91,9 @@ function invAplicaDic(t){const pers=[];
   let conj=null;INV_DIC.filter(d=>d.tipo==="grupo"&&d.valor).forEach(d=>{if(conj)return;const re=invRe(sinAcento(d.palabra).toLowerCase());
     if(re.test(t)){conj={n:d.palabra.charAt(0).toUpperCase()+d.palabra.slice(1),w:sinAcento(d.valor).toLowerCase().split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean)};t=t.replace(re,"$1");}});
   return{t:t.replace(/\s+/g," ").trim(),pers,conj};}
-/* ¿el trabajo es del grupo? (alguna palabra del título, descripción o lugar empieza por una de las del grupo) */
-const invEnConj=(o,c)=>{const w=sinAcento([o.titulo,o.descripcion,o.lugar].filter(Boolean).join(" ")).toLowerCase().split(/[^a-z0-9ñ]+/);return c.w.some(g=>w.some(x=>x.startsWith(g)));};
+/* ¿el trabajo es del grupo? (alguna palabra del título, descripción o lugar empieza por una de las del grupo;
+   las cortas, de 4 letras o menos, tienen que ser la palabra entera o su plural: «saca» sí, «sacar» no) */
+const invEnConj=(o,c)=>{const w=sinAcento([o.titulo,o.descripcion,o.lugar].filter(Boolean).join(" ")).toLowerCase().split(/[^a-z0-9ñ]+/);return c.w.some(g=>w.some(x=>g.length>4?x.startsWith(g):(x===g||x===g+"s"||x===g+"es")));};
 /* sitio por su nombre tal como sale en los avisos («14024», «punto de consumo m3», «moriz»): gana el que más palabras casa */
 const INV_SIT_NO=new Set(["de","del","la","el","a","al","junto","en","y"]);
 function invSitioNom(t,O){let best=null;[...new Set(O.map(invSitio))].forEach(s=>{if(/^(nave|sin lugar|\d+ y \d+$)/i.test(s))return;
@@ -121,7 +122,7 @@ function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.siti
     if(E.cat==="*"&&!invCat(o))return false;if(E.cat&&E.cat!=="*"&&invCat(o)!==E.cat)return false;
     if(E.sitio&&(E.sitio.k==="maq"||E.sitio.k==="lugar")&&invSitio(o)!==E.sitio.v)return false;
     if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o);if(/^horno fusi[oó]n nave/i.test(s))return false;const enDic=INV_DIC.some(d=>d.tipo==="lugar"&&d.valor===s);/* sitio enseñado: cuenta en la nave solo si su nombre la dice («Horno fusión AlSi12 (Nave 1)» sí; «Brother y Moriz» no) */
-      const txt=sinAcento((enDic?[s]:[s,o.nave,o.lugar]).filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
+      const txt=sinAcento((enDic?[s]:[s,o.nave,o.lugar]).filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav)&&!(/^nave 1 y 2$/i.test(s)&&/^nave [12]$/.test(nav)))return false;}
     if(E.conj&&!invEnConj(o,E.conj))return false;
     if(E.dsem&&!E.dsem.includes(new Date(o.fecha+"T12:00:00").getDay()))return false;return true;});
   /* palabras del trabajo: solo si hay trabajos que las tengan todas (si no, se ignoran y se dice) */
@@ -226,7 +227,7 @@ function invEnsena(pal,tipo,re){const W=(TRAB||[]).filter(w=>w.activo!==false).m
     box.appendChild(fld("¿Qué le enseñas?",sel(INV_TIPOS.map(x=>[x[0],x[1]]),s.tipo,v=>{s.tipo=v;s.valor="";pinta2();})));
     box.appendChild(fld(T[2],inp(s.palabra,v=>s.palabra=v,{autocomplete:"off"})));
     box.appendChild(fld(T[3],s.tipo==="persona"?sel([["","Elige"]].concat(W.map(n=>[n,n])),s.valor,v=>s.valor=v):s.tipo==="problema"?sel([["","Elige"]].concat(INV_CAT.filter(x=>x[0]!=="otro").map(x=>[x[0],x[1]])),s.valor,v=>s.valor=v):inp(s.valor,v=>s.valor=v,{autocomplete:"off"})));
-    box.appendChild(el("p",{class:"hint",text:s.tipo==="lugar"?"Escribe el lugar tal como aparece en los avisos y cómo quieres que salga (por ejemplo «punto de consumo junto a m3» → «Punto de consumo M3»).":s.tipo==="grupo"?"Por ejemplo «hornos» → «horno, escoria, bolon, desgasificadora». Basta con el principio de la palabra: «bolon» vale para bolones.":s.tipo==="frase"?"Sirve para motes y formas de hablar: por ejemplo «finde» → «sábados y domingos».":"Desde ahora lo entenderá siempre."}));};
+    box.appendChild(el("p",{class:"hint",text:s.tipo==="lugar"?"Escribe el lugar tal como aparece en los avisos y cómo quieres que salga (por ejemplo «punto de consumo junto a m3» → «Punto de consumo M3»).":s.tipo==="grupo"?"Por ejemplo «hornos» → «horno, escoria, bolon, desgasificadora». Basta con el principio de la palabra: «bolon» vale para bolones. Las de 4 letras o menos valen enteras o en plural: «saca» sirve para sacas, pero no para sacar.":s.tipo==="frase"?"Sirve para motes y formas de hablar: por ejemplo «finde» → «sábados y domingos».":"Desde ahora lo entenderá siempre."}));};
   pinta2();dlg("Enséñale",box,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{try{await rpc("inv_dic_guardar",{p_tok:S.tok,p:s});await invDicCarga();toast("Aprendido");if(re)re();}catch(e){toast(e.message==="FALTA_VALOR"?"Falta lo que quiere decir":e.message);return false;}}}]);}
 async function invDiccionario(re){await invDicCarga();let P=[];try{P=(await rpc("inv_preg_listar",{p_tok:S.tok,p_solo_mal:true}))||[];}catch(e){}
   const nom={persona:"Personas",lugar:"Lugares",problema:"Problemas",frase:"Otras palabras",grupo:"Grupos de trabajos",favorita:"Preguntas favoritas"};
