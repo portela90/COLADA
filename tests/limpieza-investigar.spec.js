@@ -196,3 +196,33 @@ test('Ronda 2: «el finde» son sábado y domingo, y la Nave 1 no incluye el hor
   await expect(r).toContainText('Dónde: Horno fusión Nave 1'); await expect(r).toContainText('1 vez');
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
 });
+
+test('Ronda 3: Brother y Moriz es una zona, los hornos AlSi12 suman a la Nave 1 y el grupo «hornos»', async ({ page }) => {
+  const g = R.inv_dic_listar;
+  R.inv_dic_listar = [
+    { id: 'r1', tipo: 'lugar', palabra: 'brother y moriz', valor: 'Brother y Moriz' }, { id: 'r2', tipo: 'lugar', palabra: 'moriz', valor: 'Brother y Moriz' },
+    { id: 'r3', tipo: 'lugar', palabra: 'morriz', valor: 'Brother y Moriz' }, { id: 'r4', tipo: 'lugar', palabra: 'brother', valor: 'Brother y Moriz' },
+    { id: 'r5', tipo: 'lugar', palabra: 'horno fusion alsi12', valor: 'Horno fusión AlSi12 (Nave 1)' },
+    { id: 'r6', tipo: 'lugar', palabra: 'horno fusion nave 1', valor: 'Horno fusión Nave 1' },
+    { id: 'r7', tipo: 'grupo', palabra: 'hornos', valor: 'horno, escoria, bolon, desgasificadora, barredura' }];
+  try {
+    R.ots_rango = [ot('2026-10-05', 'Suelo Brother y Moriz', '', 'Ahmed El Hait', 30), ot('2026-10-06', 'Limpieza de canaleta', 'MORIZ', 'Ahmed El Hait', 20),
+      ot('2026-10-07', 'Fuga de agua', 'Brother 2', 'Ahmed El Hait', 15), ot('2026-10-08', 'Limpieza de suelo de brother y morriz', 'Nave 1', 'Ahmed El Hait', 25),
+      ot('2026-10-09', 'Limpieza horno fusión AlSi12', '', 'Ahmed El Hait', 60), ot('2026-10-12', 'Vaciar bandejas escoria', '', 'Ahmed El Hait', 20),
+      ot('2026-10-13', 'Bolones', 'HORNO FUSIÓN Nave 1', 'Ahmed El Hait', 15), ot('2026-10-14', 'Limpieza horno fusión Nave 1', '', 'Ahmed El Hait', 40),
+      ot('2026-10-15', 'Limpieza pasillo nave 1', 'Nave 1', 'Ahmed El Hait', 30)];
+    R.horas_rango = []; R.sust_rango = [];
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    let r = await pregunta('trabajos en brother y moriz');
+    await expect(r).toContainText('Dónde: Brother y Moriz'); await expect(r).toContainText('4 veces');
+    r = await pregunta('hornos');
+    await expect(r).toContainText('Grupo: Hornos'); await expect(r).toContainText('4 veces');
+    // Nave 1: el AlSi12 y el pasillo (no el horno de fusión de la Nave 1, ni su limpieza, ni Brother y Moriz)
+    r = await pregunta('trabajos en la nave 1');
+    await expect(r).toContainText('2 veces');
+    r = await pregunta('trabajos en el horno de fusión de la nave 1');
+    await expect(r).toContainText('Dónde: Horno fusión Nave 1'); await expect(r).toContainText('2 veces');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.inv_dic_listar = g; }
+});

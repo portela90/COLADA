@@ -18,7 +18,11 @@ function invCat(o){const t=sinAcento((o.titulo||"")+" "+(o.descripcion||""));if(
 const invCod=m=>m[1].toUpperCase()+(+m[2]);
 function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   /* nombre enseñado en el diccionario («punto de consumo junto a m3» → «Punto de consumo M3») */
-  if(l&&typeof INV_DIC!=="undefined"){const k=sinAcento(l).toLowerCase(),d=INV_DIC.find(x=>x.tipo==="lugar"&&x.palabra===k);if(d)return d.valor;}
+  const DL=typeof INV_DIC!=="undefined"?INV_DIC.filter(x=>x.tipo==="lugar"&&x.valor).map(x=>({p:sinAcento(x.palabra).toLowerCase(),v:x.valor})).sort((a,b)=>b.p.length-a.p.length):[];
+  const dicEn=txt=>{const k=sinAcento(txt).toLowerCase().replace(/\s+/g," ");const d=DL.find(x=>x.p===k)||DL.find(x=>new RegExp("(^|[^a-z0-9])"+x.p.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[^a-z0-9])").test(k));return d?d.v:null;};
+  if(l){const d=dicEn(l);if(d)return d;}
+  /* ronda 3: sin lugar (o solo «Nave 1»), el sitio enseñado que nombre el título («Suelo Brother y Moriz» → Brother y Moriz) */
+  if(!l||/^nave \d\s*[ab]?$/i.test(l)){const d=dicEn([o.titulo,o.descripcion].filter(Boolean).join(" "));if(d)return d;}
   let m=l.match(/^(?:H-)?([FM])\s?-?(\d{1,3})\b/i);if(m)return invCod(m);
   if(l){const t=l.toLowerCase().replace(/\bnave (\d)/g,"Nave $1");return t.charAt(0).toUpperCase()+t.slice(1);}
   m=[o.titulo,o.descripcion].filter(Boolean).join(" ").match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);return o.nave||"Sin lugar";}

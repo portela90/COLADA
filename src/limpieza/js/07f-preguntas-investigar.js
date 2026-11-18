@@ -87,11 +87,16 @@ function invAplicaDic(t){const pers=[];
   INV_DIC.filter(d=>d.tipo==="frase").forEach(d=>{t=t.replace(invRe(d.palabra),"$1"+sinAcento(d.valor||"").toLowerCase());});
   INV_DIC.filter(d=>d.tipo==="problema"&&INV_CATW[d.valor]).forEach(d=>{t=t.replace(invRe(d.palabra),"$1"+INV_CATW[d.valor]);});
   INV_DIC.filter(d=>d.tipo==="persona").sort((a,b)=>b.palabra.length-a.palabra.length).forEach(d=>{if(invRe(d.palabra).test(t)){pers.push(d.valor);t=t.replace(invRe(d.palabra),"$1");}});
-  return{t:t.replace(/\s+/g," ").trim(),pers};}
+  /* grupo de trabajos (ronda 3): «hornos» = los trabajos con horno, escoria, bolones… (solo la palabra enseñada: «el horno de fusión» sigue siendo ese horno) */
+  let conj=null;INV_DIC.filter(d=>d.tipo==="grupo"&&d.valor).forEach(d=>{if(conj)return;const re=invRe(sinAcento(d.palabra).toLowerCase());
+    if(re.test(t)){conj={n:d.palabra.charAt(0).toUpperCase()+d.palabra.slice(1),w:sinAcento(d.valor).toLowerCase().split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean)};t=t.replace(re,"$1");}});
+  return{t:t.replace(/\s+/g," ").trim(),pers,conj};}
+/* ¿el trabajo es del grupo? (alguna palabra del título, descripción o lugar empieza por una de las del grupo) */
+const invEnConj=(o,c)=>{const w=sinAcento([o.titulo,o.descripcion,o.lugar].filter(Boolean).join(" ")).toLowerCase().split(/[^a-z0-9ñ]+/);return c.w.some(g=>w.some(x=>x.startsWith(g)));};
 /* sitio por su nombre tal como sale en los avisos («14024», «punto de consumo m3», «moriz»): gana el que más palabras casa */
 const INV_SIT_NO=new Set(["de","del","la","el","a","al","junto","en","y"]);
 function invSitioNom(t,O){let best=null;[...new Set(O.map(invSitio))].forEach(s=>{if(/^(nave|sin lugar|\d+ y \d+$)/i.test(s))return;
-    const tk=sinAcento(s).toLowerCase().split(/[\s,.]+/).filter(w=>(w.length>=2||/^\d$/.test(w))&&!INV_SIT_NO.has(w));
+    const tk=sinAcento(s).toLowerCase().split(/[\s,.()·]+/).filter(w=>(w.length>=2||/^\d$/.test(w))&&!INV_SIT_NO.has(w));
     if(tk.length&&tk.every(w=>invRe(w).test(t))&&(!best||tk.length>best.n))best={v:s,n:tk.length,tk};});return best;}
 
 /* entender la pregunta */
@@ -107,7 +112,7 @@ function invEntiende(q,C,F){const t0=sinAcento(q).toLowerCase().replace(/[¿?¡!
   let dsem=INV_DSEM.filter(([d])=>new RegExp("\\b"+d+"s?\\b").test(t)).map(x=>x[1]);if(/\b(finde|findes|fin de semana|fines de semana)\b/.test(t))dsem=[...new Set(dsem.concat([6,0]))];if(!dsem.length)dsem=null;
   const usadas=new Set();pers.forEach(n=>sinAcento(n).toLowerCase().split(/\s+/).forEach(w=>usadas.add(w)));if(sitio&&sitio.k==="lugar"&&sn)sn.tk.forEach(w=>usadas.add(w));
   const libres=t.split(" ").filter(w=>w.length>=3&&!INV_NO.has(w)&&!usadas.has(w)&&!/^[fm]\d+$/.test(w)&&!/^20\d\d$/.test(w));
-  return{t,q,per,pers,sitio,cat,dsem,libres,int:invIntQ(t),grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
+  return{t,q,per,pers,sitio,cat,dsem,libres,conj:D.conj,int:invIntQ(t),grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
 
 /* trabajos que cumplen lo pedido (sin periodo) */
 function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.sitio.v:"").toLowerCase();
@@ -115,7 +120,9 @@ function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.siti
   let X=L.filter(o=>{if(E.pers.length&&!E.pers.includes(o.hecho_por_n)&&!(o.estado!=="hecha"&&(o.nombres||[]).some(n=>E.pers.includes(n))))return false;
     if(E.cat==="*"&&!invCat(o))return false;if(E.cat&&E.cat!=="*"&&invCat(o)!==E.cat)return false;
     if(E.sitio&&(E.sitio.k==="maq"||E.sitio.k==="lugar")&&invSitio(o)!==E.sitio.v)return false;
-    if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o);if(/^horno/i.test(s))return false;const txt=sinAcento([s,o.nave,o.lugar].filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
+    if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o);if(/^horno fusi[oó]n nave/i.test(s))return false;const enDic=INV_DIC.some(d=>d.tipo==="lugar"&&d.valor===s);/* sitio enseñado: cuenta en la nave solo si su nombre la dice («Horno fusión AlSi12 (Nave 1)» sí; «Brother y Moriz» no) */
+      const txt=sinAcento((enDic?[s]:[s,o.nave,o.lugar]).filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
+    if(E.conj&&!invEnConj(o,E.conj))return false;
     if(E.dsem&&!E.dsem.includes(new Date(o.fecha+"T12:00:00").getDay()))return false;return true;});
   /* palabras del trabajo: solo si hay trabajos que las tengan todas (si no, se ignoran y se dice) */
   E.ignoradas=[];if(E.libres.length){const cl=o=>(invClave(o)+" "+sinAcento((o.descripcion||"")+" "+(o.lugar||"")).toLowerCase()).split(/\s+/);
@@ -128,7 +135,7 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
   const todos=invFiltra(C.O,E,C),L=todos.filter(enP),La=todos.filter(enA);const H=L.filter(o=>o.estado==="hecha");
   const T=a=>a.reduce((s,o)=>s+invMin(o),0);const r={L,cols:null,filas:[],frase:""};
   const desc=[E.cat==="*"?"problemas":E.cat?invCatN(E.cat).toLowerCase():null,E.sitio?(E.sitio.k==="maq"?"en la "+E.sitio.v:"en la "+E.sitio.v):null,
-    E.pers.length?"de "+E.pers.join(" y "):null,E.dsem?"los "+E.dsem.map(d=>DIAS_INV[d].toLowerCase()).join(" y "):null,E.libres.length&&!E.ignoradas.length?"«"+E.libres.join(" ")+"»":null].filter(Boolean).join(" ");
+    E.conj?"de "+E.conj.n.toLowerCase():null,E.pers.length?"de "+E.pers.join(" y "):null,E.dsem?"los "+E.dsem.map(d=>DIAS_INV[d].toLowerCase()).join(" y "):null,E.libres.length&&!E.ignoradas.length?"«"+E.libres.join(" ")+"»":null].filter(Boolean).join(" ");
   const quien=desc||"trabajos";
   if(E.int==="sat"){const J=invJornadas(C.W,C.R,C.FE,C.SU,d0,d1);const X=invDatos(C.O,J,d0,d1,[]);let P=X.sat;if(E.pers.length)P=P.filter(p=>E.pers.includes(p.n));
     r.cols=["Persona","Jornada","Trabajos","Despl. y prep.","Sin justificar","Saturación"];r.filas=P.map(p=>[p.n,invH(p.jor),invH(p.min),invH(p.desp),invH(p.sin),p.jor?invPct(p.cont,p.jor)+" %":"—"]);
@@ -182,7 +189,7 @@ function invPreguntaCard(F){const res=el("div",{id:"invResp"});const qi=el("inpu
   return el("div",{class:"card",id:"invPreg"},[el("div",{class:"hd"},[el("h2",{text:"Pregúntale"}),el("button",{class:"btn sec peq der",type:"button",text:"Enséñale",onclick:()=>invDiccionario(()=>pinta())})]),el("div",{class:"bd"},[
     el("div",{class:"row",style:"gap:8px;align-items:center;flex-wrap:nowrap"},[qi,el("button",{class:"btn",type:"button",text:"Preguntar",onclick:ir})]),fav,ej,res])]);}
 function invPinta(res,E,r){res.textContent="";
-  const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
+  const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.conj?["Grupo",E.conj.n+" ("+E.conj.w.join(", ")+")"]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
     E.dsem?["Día",E.dsem.map(d=>DIAS_INV[d]).join(" y ")]:null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
   res.appendChild(el("div",{class:"meta",style:"margin:10px 0 6px"},[el("small",{class:"hint",style:"margin:0",text:"He entendido:"})].concat(ent.map(([a,b])=>el("span",{class:"pill info",text:a+": "+b})))));
   if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),
@@ -213,16 +220,16 @@ function invServido(E,r,box){let id=null;invGuardaPreg({q:E.q,entendido:{periodo
       dlg("¿Qué querías saber?",el("div",null,[el("p",{class:"hint",text:"Escríbelo con tus palabras. Lo reviso y le enseño a la app a entenderlo. Si es una palabra que no conoce (un mote, cómo llamáis a una máquina…), enséñasela ya en «Enséñale»."}),area("",x=>txt=x)]),
         [{t:"Cancelar",cls:"sec"},{t:"Enviar",fn:async()=>{if(id)await invGuardaPreg({id,ok:false,queria:txt});else await invGuardaPreg({q:E.q,respuesta:r.frase,ok:false,queria:txt});toast("Apuntado: lo revisaremos");fila.textContent="";fila.appendChild(el("small",{class:"hint",style:"margin:0",text:"Apuntado para revisarlo."}));}}]);}})]);
   box.appendChild(fila);}
-const INV_TIPOS=[["persona","Una persona","Cuando escriba…","Es…"],["lugar","Un lugar como se apunta","Lugar apuntado en los avisos","Se llama…"],["problema","Un tipo de problema","Cuando escriba…","Es un problema de…"],["frase","Otras palabras","Cuando escriba…","Quiero decir…"]];
+const INV_TIPOS=[["persona","Una persona","Cuando escriba…","Es…"],["lugar","Un lugar como se apunta","Lugar apuntado en los avisos","Se llama…"],["problema","Un tipo de problema","Cuando escriba…","Es un problema de…"],["frase","Otras palabras","Cuando escriba…","Quiero decir…"],["grupo","Un grupo de trabajos","Nombre del grupo (cuando escriba…)","Trabajos con alguna de estas palabras (separadas por comas)"]];
 function invEnsena(pal,tipo,re){const W=(TRAB||[]).filter(w=>w.activo!==false).map(w=>w.nombre).sort((a,b)=>a.localeCompare(b,"es"));const s={tipo:tipo||"frase",palabra:pal||"",valor:""};const box=el("div");
   const pinta2=()=>{box.textContent="";const T=INV_TIPOS.find(x=>x[0]===s.tipo);
     box.appendChild(fld("¿Qué le enseñas?",sel(INV_TIPOS.map(x=>[x[0],x[1]]),s.tipo,v=>{s.tipo=v;s.valor="";pinta2();})));
     box.appendChild(fld(T[2],inp(s.palabra,v=>s.palabra=v,{autocomplete:"off"})));
     box.appendChild(fld(T[3],s.tipo==="persona"?sel([["","Elige"]].concat(W.map(n=>[n,n])),s.valor,v=>s.valor=v):s.tipo==="problema"?sel([["","Elige"]].concat(INV_CAT.filter(x=>x[0]!=="otro").map(x=>[x[0],x[1]])),s.valor,v=>s.valor=v):inp(s.valor,v=>s.valor=v,{autocomplete:"off"})));
-    box.appendChild(el("p",{class:"hint",text:s.tipo==="lugar"?"Escribe el lugar tal como aparece en los avisos y cómo quieres que salga (por ejemplo «punto de consumo junto a m3» → «Punto de consumo M3»).":s.tipo==="frase"?"Sirve para motes y formas de hablar: por ejemplo «finde» → «sábados y domingos».":"Desde ahora lo entenderá siempre."}));};
+    box.appendChild(el("p",{class:"hint",text:s.tipo==="lugar"?"Escribe el lugar tal como aparece en los avisos y cómo quieres que salga (por ejemplo «punto de consumo junto a m3» → «Punto de consumo M3»).":s.tipo==="grupo"?"Por ejemplo «hornos» → «horno, escoria, bolon, desgasificadora». Basta con el principio de la palabra: «bolon» vale para bolones.":s.tipo==="frase"?"Sirve para motes y formas de hablar: por ejemplo «finde» → «sábados y domingos».":"Desde ahora lo entenderá siempre."}));};
   pinta2();dlg("Enséñale",box,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{try{await rpc("inv_dic_guardar",{p_tok:S.tok,p:s});await invDicCarga();toast("Aprendido");if(re)re();}catch(e){toast(e.message==="FALTA_VALOR"?"Falta lo que quiere decir":e.message);return false;}}}]);}
 async function invDiccionario(re){await invDicCarga();let P=[];try{P=(await rpc("inv_preg_listar",{p_tok:S.tok,p_solo_mal:true}))||[];}catch(e){}
-  const nom={persona:"Personas",lugar:"Lugares",problema:"Problemas",frase:"Otras palabras",favorita:"Preguntas favoritas"};
+  const nom={persona:"Personas",lugar:"Lugares",problema:"Problemas",frase:"Otras palabras",grupo:"Grupos de trabajos",favorita:"Preguntas favoritas"};
   const lista=el("div",null,Object.keys(nom).map(k=>{const L=INV_DIC.filter(d=>d.tipo===k);if(!L.length)return null;
     return el("div",{style:"margin:0 0 10px"},[el("b",{text:nom[k]}),...L.map(d=>el("div",{class:"linea",style:"display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"},[
       el("span",{style:"flex:1;min-width:0",text:k==="favorita"?"«"+d.palabra+"»":"«"+d.palabra+"» → "+(k==="problema"?invCatN(d.valor):d.valor)}),
