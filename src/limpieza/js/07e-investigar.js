@@ -20,7 +20,7 @@ function invSitio(o){const l=String(o.lugar||"").trim().replace(/\s+/g," ");
   /* nombre enseñado en el diccionario («punto de consumo junto a m3» → «Punto de consumo M3») */
   if(l&&typeof INV_DIC!=="undefined"){const k=sinAcento(l).toLowerCase(),d=INV_DIC.find(x=>x.tipo==="lugar"&&x.palabra===k);if(d)return d.valor;}
   let m=l.match(/^(?:H-)?([FM])\s?-?(\d{1,3})\b/i);if(m)return invCod(m);
-  if(l){const t=l.toLowerCase();return t.charAt(0).toUpperCase()+t.slice(1);}
+  if(l){const t=l.toLowerCase().replace(/\bnave (\d)/g,"Nave $1");return t.charAt(0).toUpperCase()+t.slice(1);}
   m=[o.titulo,o.descripcion].filter(Boolean).join(" ").match(/\b(?:H-)?([FM])\s?-?(\d{1,3})\b/);if(m)return invCod(m);return o.nave||"Sin lugar";}
 /* para juntar el mismo trabajo escrito de formas distintas («Derrame taladrina» = «Derrame de taladrina») */
 const invClave=o=>sinAcento(String(o.titulo||"").replace(/\s*·.*$/,"")).replace(/[^a-z0-9ñ ]/g," ").split(/\s+/).filter(w=>w&&!VACIAS.has(w)).join(" ");

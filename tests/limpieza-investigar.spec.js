@@ -180,3 +180,19 @@ test('Enséñale: el diccionario cambia cómo entiende las preguntas, favoritas 
     expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.inv_dic_listar = g; }
 });
+
+test('Ronda 2: «el finde» son sábado y domingo, y la Nave 1 no incluye el horno de fusión', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-10', 'Derrame de aceite', 'Nave 1', 'Ahmed El Hait', 30), ot('2026-10-11', 'Derrame de aceite', 'Nave 1', 'Ahmed El Hait', 30),
+    ot('2026-10-12', 'Derrame de aceite', 'Nave 1', 'Ahmed El Hait', 30), ot('2026-10-13', 'Derrame de aceite', 'Horno fusión Nave 1', 'Ahmed El Hait', 30),
+    ot('2026-10-14', 'Derrame de aceite', 'Horno fusión Nave 2', 'Ahmed El Hait', 30)];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('derrames de aceite el finde');
+  await expect(r).toContainText('Día: Sábado y Domingo'); await expect(r).toContainText('2 veces');
+  r = await pregunta('derrames de aceite en la nave 1');
+  await expect(r).toContainText('3 veces');
+  r = await pregunta('derrames en el horno de fusión de la nave 1');
+  await expect(r).toContainText('Dónde: Horno fusión Nave 1'); await expect(r).toContainText('1 vez');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});

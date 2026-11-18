@@ -90,8 +90,8 @@ function invAplicaDic(t){const pers=[];
   return{t:t.replace(/\s+/g," ").trim(),pers};}
 /* sitio por su nombre tal como sale en los avisos («14024», «punto de consumo m3», «moriz»): gana el que más palabras casa */
 const INV_SIT_NO=new Set(["de","del","la","el","a","al","junto","en","y"]);
-function invSitioNom(t,O){let best=null;[...new Set(O.map(invSitio))].forEach(s=>{if(/^(nave|sin lugar)/i.test(s))return;
-    const tk=sinAcento(s).toLowerCase().split(/[\s,.]+/).filter(w=>w.length>=2&&!INV_SIT_NO.has(w));
+function invSitioNom(t,O){let best=null;[...new Set(O.map(invSitio))].forEach(s=>{if(/^(nave|sin lugar|\d+ y \d+$)/i.test(s))return;
+    const tk=sinAcento(s).toLowerCase().split(/[\s,.]+/).filter(w=>(w.length>=2||/^\d$/.test(w))&&!INV_SIT_NO.has(w));
     if(tk.length&&tk.every(w=>invRe(w).test(t))&&(!best||tk.length>best.n))best={v:s,n:tk.length,tk};});return best;}
 
 /* entender la pregunta */
@@ -103,7 +103,8 @@ function invEntiende(q,C,F){const t0=sinAcento(q).toLowerCase().replace(/[¿?¡!
   const sn=invSitioNom(t,C.O),sr=invSitioQ(t);
   const sitio=sn&&(sn.n>1||!sr||sr.k!=="maq"||sr.v!==sn.v)&&!(sr&&sr.k==="nave"&&sn.n<2)?{k:"lugar",v:sn.v}:sr;
   const cat=invCatQ(t);
-  const dsem=(INV_DSEM.find(([d])=>new RegExp("\\b"+d+"s?\\b").test(t))||[])[1];
+  /* días de la semana (varios a la vez); «el finde» / «fin de semana» = sábado y domingo (ronda 2) */
+  let dsem=INV_DSEM.filter(([d])=>new RegExp("\\b"+d+"s?\\b").test(t)).map(x=>x[1]);if(/\b(finde|findes|fin de semana|fines de semana)\b/.test(t))dsem=[...new Set(dsem.concat([6,0]))];if(!dsem.length)dsem=null;
   const usadas=new Set();pers.forEach(n=>sinAcento(n).toLowerCase().split(/\s+/).forEach(w=>usadas.add(w)));if(sitio&&sitio.k==="lugar"&&sn)sn.tk.forEach(w=>usadas.add(w));
   const libres=t.split(" ").filter(w=>w.length>=3&&!INV_NO.has(w)&&!usadas.has(w)&&!/^[fm]\d+$/.test(w)&&!/^20\d\d$/.test(w));
   return{t,q,per,pers,sitio,cat,dsem,libres,int:invIntQ(t),grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
@@ -114,8 +115,8 @@ function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.siti
   let X=L.filter(o=>{if(E.pers.length&&!E.pers.includes(o.hecho_por_n)&&!(o.estado!=="hecha"&&(o.nombres||[]).some(n=>E.pers.includes(n))))return false;
     if(E.cat==="*"&&!invCat(o))return false;if(E.cat&&E.cat!=="*"&&invCat(o)!==E.cat)return false;
     if(E.sitio&&(E.sitio.k==="maq"||E.sitio.k==="lugar")&&invSitio(o)!==E.sitio.v)return false;
-    if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o),txt=sinAcento([s,o.nave,o.lugar].filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
-    if(E.dsem!=null&&new Date(o.fecha+"T12:00:00").getDay()!==E.dsem)return false;return true;});
+    if(E.sitio&&E.sitio.k==="nave"){const s=invSitio(o);if(/^horno/i.test(s))return false;const txt=sinAcento([s,o.nave,o.lugar].filter(Boolean).join(" ")).toLowerCase();if(!txt.includes(nav)&&!(naveMaq[s]||"").startsWith(nav))return false;}
+    if(E.dsem&&!E.dsem.includes(new Date(o.fecha+"T12:00:00").getDay()))return false;return true;});
   /* palabras del trabajo: solo si hay trabajos que las tengan todas (si no, se ignoran y se dice) */
   E.ignoradas=[];if(E.libres.length){const cl=o=>(invClave(o)+" "+sinAcento((o.descripcion||"")+" "+(o.lugar||"")).toLowerCase()).split(/\s+/);
     const tiene=(o,w)=>cl(o).some(x=>x.startsWith(w.slice(0,Math.max(4,w.length-2))));
@@ -127,7 +128,7 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
   const todos=invFiltra(C.O,E,C),L=todos.filter(enP),La=todos.filter(enA);const H=L.filter(o=>o.estado==="hecha");
   const T=a=>a.reduce((s,o)=>s+invMin(o),0);const r={L,cols:null,filas:[],frase:""};
   const desc=[E.cat==="*"?"problemas":E.cat?invCatN(E.cat).toLowerCase():null,E.sitio?(E.sitio.k==="maq"?"en la "+E.sitio.v:"en la "+E.sitio.v):null,
-    E.pers.length?"de "+E.pers.join(" y "):null,E.dsem!=null?"los "+DIAS_INV[E.dsem].toLowerCase():null,E.libres.length&&!E.ignoradas.length?"«"+E.libres.join(" ")+"»":null].filter(Boolean).join(" ");
+    E.pers.length?"de "+E.pers.join(" y "):null,E.dsem?"los "+E.dsem.map(d=>DIAS_INV[d].toLowerCase()).join(" y "):null,E.libres.length&&!E.ignoradas.length?"«"+E.libres.join(" ")+"»":null].filter(Boolean).join(" ");
   const quien=desc||"trabajos";
   if(E.int==="sat"){const J=invJornadas(C.W,C.R,C.FE,C.SU,d0,d1);const X=invDatos(C.O,J,d0,d1,[]);let P=X.sat;if(E.pers.length)P=P.filter(p=>E.pers.includes(p.n));
     r.cols=["Persona","Jornada","Trabajos","Despl. y prep.","Sin justificar","Saturación"];r.filas=P.map(p=>[p.n,invH(p.jor),invH(p.min),invH(p.desp),invH(p.sin),p.jor?invPct(p.cont,p.jor)+" %":"—"]);
@@ -182,7 +183,7 @@ function invPreguntaCard(F){const res=el("div",{id:"invResp"});const qi=el("inpu
     el("div",{class:"row",style:"gap:8px;align-items:center;flex-wrap:nowrap"},[qi,el("button",{class:"btn",type:"button",text:"Preguntar",onclick:ir})]),fav,ej,res])]);}
 function invPinta(res,E,r){res.textContent="";
   const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
-    E.dsem!=null?["Día",DIAS_INV[E.dsem]]:null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
+    E.dsem?["Día",E.dsem.map(d=>DIAS_INV[d]).join(" y ")]:null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
   res.appendChild(el("div",{class:"meta",style:"margin:10px 0 6px"},[el("small",{class:"hint",style:"margin:0",text:"He entendido:"})].concat(ent.map(([a,b])=>el("span",{class:"pill info",text:a+": "+b})))));
   if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),
     el("button",{class:"btn sec peq",type:"button",text:"Enseñar «"+E.ignoradas[0]+"»",onclick:()=>invEnsena(E.ignoradas[0],"frase",()=>{const b=document.querySelector("#invPreg .btn:not(.sec)");if(b)b.click();})})]));
