@@ -115,3 +115,33 @@ test('Investigar: el operario no la tiene', async ({ page }) => {
   await expect(page.locator('#invSat')).toHaveCount(0);
   expect(err).toEqual([]);
 });
+
+test('Pregúntale: entiende la pregunta y contesta con la cifra, la tabla y los trabajos', async ({ page }) => {
+  R.ots_rango = datos(); R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+  let r = await pregunta('¿Cuántas veces ha perdido aceite la F19 este mes?');
+  await expect(r).toContainText('Dónde: F19'); await expect(r).toContainText('Problema: Fugas y derrames de aceite');
+  await expect(r).toContainText('en la F19 este mes: 4 veces, 2 h');
+  await expect(r).toContainText('Ver los 4 trabajos');
+  r = await pregunta('¿Quién tarda más en los derrames de taladrina?');
+  await expect(r).toContainText('El que más: Josefa Ruiz (30 min)');
+  r = await pregunta('¿Qué máquinas pierden más aceite?');
+  await expect(r.locator('tbody tr').first()).toContainText('F19');
+  r = await pregunta('Saturación de Ahmed este mes');
+  await expect(r).toContainText('Persona: Ahmed El Hait'); await expect(r).toContainText('Saturación de Ahmed El Hait este mes: 1 %');
+  r = await pregunta('derrames de aceite en septiembre');
+  await expect(r).toContainText('Periodo: septiembre'); await expect(r).toContainText('septiembre: 1 vez');
+  r = await pregunta('¿En qué se va el tiempo los lunes?');
+  await expect(r).toContainText('Día: Lunes'); await expect(r.locator('tbody tr').first()).toContainText('Derrame de aceite');
+  r = await pregunta('¿Cuántas veces se ha limpiado el xilofono?');
+  await expect(r).toContainText('No encuentro trabajos con «xilofono»');
+  r = await pregunta('¿Quién no pulsa Empezar?');
+  await expect(r).toContainText('Quien menos pulsa «Empezar»');
+  expect(await desbordes(page)).toEqual([]);
+  // Excel de la respuesta
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Excel de esta respuesta' }).click()]);
+  const wb = XLSX.read(fs.readFileSync(await dl.path()));
+  expect(XLSX.utils.sheet_to_json(wb.Sheets['Respuesta'], { header: 1 })[0]).toEqual(['Pregunta', '¿Quién no pulsa Empezar?']);
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});

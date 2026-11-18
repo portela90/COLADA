@@ -101,6 +101,7 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
   const fechas=el("div",{class:"row",style:"margin:0 0 12px"},[fld("Desde",inp(F.d0,x=>{if(x){S.inv=Object.assign({},F,{k:"",d0:x,t:"del "+fDM(x)+" al "+fDM(F.d1)});re();}},{type:"date"})),
     fld("Hasta",inp(F.d1,x=>{if(x){S.inv=Object.assign({},F,{k:"",d1:x,t:"del "+fDM(F.d0)+" al "+fDM(x)});re();}},{type:"date"}))]);
   v.appendChild(el("div",{class:"card"},[el("div",{class:"bd"},[el("p",{class:"hint",style:"margin-top:0",text:"Saturación del equipo, tiempo que se va en fugas y derrames, y las máquinas o zonas donde se repiten. Solo lo ves tú."}),chips,fechas])]));
+  Object.keys(INV_CACHE).forEach(k=>delete INV_CACHE[k]);v.appendChild(invPreguntaCard(F));
   const box=el("div",null,el("div",{class:"card"},el("div",{class:"empty",text:"Cargando…"})));v.appendChild(box);
   if(F.d0>F.d1){box.textContent="";box.appendChild(el("div",{class:"empty",text:"La fecha «desde» es después de «hasta»."}));return;}
   const A=invAnterior(F.d0,F.d1);let O,W,R,FE,SU;
