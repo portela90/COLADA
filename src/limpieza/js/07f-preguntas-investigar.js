@@ -198,9 +198,9 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
     r.L=a.a.concat(b.a);return r;}
   /* ¿cuánto se ahorraría si se arregla? horas al mes en problemas */
   if(E.int==="ahorro"){const P=todos.filter(enP).filter(o=>invCat(o)&&o.estado==="hecha");const mes=Math.max(1,(invDias(d0,d1)+1)/30.4);
-    const G={};P.forEach(o=>{const k=invSitio(o);const g=G[k]=G[k]||{s:k,n:0,min:0,c:{}};g.n++;g.min+=invMin(o);g.c[invCat(o)]=(g.c[invCat(o)]||0)+1;});
+    const G={};P.forEach(o=>{const k=invSitio(o);const g=G[k]=G[k]||{s:k,n:0,min:0,c:{},L:[]};g.n++;g.L.push(o);g.min+=invMin(o);g.c[invCat(o)]=(g.c[invCat(o)]||0)+1;});
     const L2=Object.values(G).sort((x,y)=>y.min-x.min);const tipos=g=>Object.entries(g.c).sort((x,y)=>y[1]-x[1]).map(([k,n])=>invCatN(k).toLowerCase()+" "+n).join(", ");
-    r.cols=["Sitio","Problemas","Tiempo "+E.per.t,"Al mes","De qué"];r.filas=L2.map(g=>[g.s,g.n,invH(g.min),invH(g.min/mes),tipos(g)]);
+    r.cols=["Sitio","Problemas","Tiempo "+E.per.t,"Al mes","De qué"];r.filas=L2.map(g=>[g.s,g.n,invH(g.min),invH(g.min/mes),tipos(g)]);r.rowL=L2.map(g=>g.L);
     const tot=P.reduce((x,o)=>x+invMin(o),0);
     r.frase=!P.length?"No ha habido problemas "+(E.sitio?"en la "+E.sitio.v+" ":"")+E.per.t+": no hay nada que ahorrar.":
       E.sitio&&L2.length===1?"Si se arregla la "+E.sitio.v+", se ahorrarían unas "+invH(tot/mes)+" al mes de limpieza: "+E.per.t+" ha tenido "+P.length+" problemas ("+tipos(L2[0])+") que han llevado "+invH(tot)+".":
@@ -215,9 +215,9 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
     r.cols=["",E.per.t,"Antes"];r.filas=[["Veces",L2.length,antes.length],["Tiempo",invH(T(L2.filter(o=>o.estado==="hecha"))),invH(T(antes.filter(o=>o.estado==="hecha")))]];r.L=L2;return r;}
   /* trabajos sin hacer */
   if(E.int==="pend"){const hoy=hoyISO();const P=L.filter(o=>o.estado!=="hecha"&&o.fecha<=hoy&&!o.no_se_hace);const G={};
-    P.forEach(o=>{const k=invClave(o)||o.titulo;const g=G[k]=G[k]||{t:o.titulo.replace(/\s*·.*$/,""),n:0,p:0,nh:0,c:0,ult:o.fecha};g.n++;if(o.estado==="no_hecha")g.nh++;else if(o.estado==="en_curso")g.c++;else g.p++;if(o.fecha>g.ult)g.ult=o.fecha;});
+    P.forEach(o=>{const k=invClave(o)||o.titulo;const g=G[k]=G[k]||{t:o.titulo.replace(/\s*·.*$/,""),n:0,p:0,nh:0,c:0,ult:o.fecha,L:[]};g.n++;g.L.push(o);if(o.estado==="no_hecha")g.nh++;else if(o.estado==="en_curso")g.c++;else g.p++;if(o.fecha>g.ult)g.ult=o.fecha;});
     const L2=Object.values(G).sort((x,y)=>y.n-x.n);const c=k=>P.filter(o=>o.estado===k).length;
-    r.cols=["Trabajo","Sin hacer","Pendientes","No hechos","Empezados","Último"];r.filas=L2.map(g=>[g.t,g.n,g.p,g.nh,g.c,fCorta(g.ult)]);
+    r.cols=["Trabajo","Sin hacer","Pendientes","No hechos","Empezados","Último"];r.filas=L2.map(g=>[g.t,g.n,g.p,g.nh,g.c,fCorta(g.ult)]);r.rowL=L2.map(g=>g.L);
     r.frase=P.length?"Sin hacer "+E.per.t+(quien==="trabajos"?"":" ("+quien+")")+": "+P.length+" trabajos ("+c("pendiente")+" pendientes, "+c("no_hecha")+" marcados como no hechos y "+c("en_curso")+" empezados sin terminar). "+
       "El que más se queda sin hacer: «"+L2[0].t+"» ("+vez(L2[0].n)+").":"Nada se ha quedado sin hacer "+E.per.t+".";
     r.L=P;return r;}
@@ -277,14 +277,14 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
   if(E.int==="avisos"){const esAv=o=>o.origen==="rapida"||o.origen==="manual";const A2=L.filter(esAv),Aa=La.filter(esAv);
     /* las rutinas (grupo «rutinas» del diccionario: 5S, bidones, Pistonwax…) salen aparte */
     const dr=INV_DIC.find(d=>d.tipo==="grupo"&&sinAcento(d.palabra).toLowerCase()==="rutinas"&&d.valor);const cr=dr?{w:sinAcento(dr.valor).toLowerCase().split(/\s*,\s*/).filter(Boolean)}:null;const esRut=o=>cr&&invEnConj(o,cr);
-    const agrupa=X0=>{const G={};X0.forEach(o=>{const k=invClave(o)||o.titulo;const g=G[k]=G[k]||{k,t:o.titulo.replace(/\s*·.*$/,""),n:0,min:0,S:{},D:[0,0,0,0,0,0,0]};g.n++;if(o.estado==="hecha")g.min+=invMin(o);
+    const agrupa=X0=>{const G={};X0.forEach(o=>{const k=invClave(o)||o.titulo;const g=G[k]=G[k]||{k,t:o.titulo.replace(/\s*·.*$/,""),n:0,min:0,S:{},D:[0,0,0,0,0,0,0],L:[]};g.n++;g.L.push(o);if(o.estado==="hecha")g.min+=invMin(o);
       const si=invSitio(o);g.S[si]=(g.S[si]||0)+1;g.D[new Date(o.fecha+"T12:00:00").getDay()]++;});return G;};
     const Ga=agrupa(Aa);const top=g=>Object.entries(g.S).sort((a,b)=>b[1]-a[1])[0];const dia=g=>{const m=Math.max(...g.D);return DIAS_INV[g.D.indexOf(m)]+" ("+m+")";};
     const va=g=>{const a=(Ga[g.k]||{n:0}).n;return a?(g.n>a?"a más":g.n<a?"a menos":"igual"):"nuevo";};
     const fila=g=>[g.t,g.n,(Ga[g.k]||{n:0}).n,va(g),invH(g.min),Object.keys(g.S).length,top(g)[0]+" ("+top(g)[1]+")",dia(g)];
     const ord=G=>Object.values(G).filter(g=>g.n>=2).sort((a,b)=>b.n-a.n||b.min-a.min);
     const L2=ord(agrupa(A2.filter(o=>!esRut(o)))),R2=ord(agrupa(A2.filter(esRut)));
-    r.cols=["Aviso","Veces","Antes","Va","Tiempo","Sitios","Donde más","Día que más"];r.filas=L2.map(fila);
+    r.cols=["Aviso","Veces","Antes","Va","Tiempo","Sitios","Donde más","Día que más"];r.filas=L2.map(fila);r.rowL=L2.map(g=>g.L);
     r.extra=[{titulo:"Rutinas pedidas como aviso",cols:r.cols,filas:R2.map(fila)}];
     r.frase=L2.length?"Los avisos que más se repiten "+E.per.t+": "+L2.slice(0,3).map(g=>"«"+g.t+"» "+vez(g.n)+" ("+va(g)+"; "+invH(g.min)+", en "+Object.keys(g.S).length+(Object.keys(g.S).length===1?" sitio":" sitios")+"; donde más, "+top(g)[0]+" con "+top(g)[1]+"; sobre todo los "+dia(g).replace(/ \(.*/,"").toLowerCase()+")").join(", ")+
       ". No cuento los trabajos fijos (pasillos, basuras, hornos…)."+(R2.length?" Aparte, "+R2.reduce((x,g)=>x+g.n,0)+" avisos son rutinas (la que más, «"+R2[0].t+"» "+vez(R2[0].n)+"): quizá convenga pasarlas a trabajos fijos.":""):
@@ -334,7 +334,7 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
       "Donde más tiempo se pierde repitiendo el mismo trabajo "+E.per.t+": "+G[0].sitio+" ("+invCatN(G[0].cat).toLowerCase()+"), "+G[0].n+" veces y "+invH(G[0].min)+
       ". En total se han ido "+invH(tot)+" en "+veces+" trabajos por "+G.length+(G.length===1?" problema que se repite":" problemas que se repiten")+" sin arreglarse. "+invFrase(G[0]):
       G.length+(G.length===1?" sitio donde se repite":" sitios donde se repite")+" "+E.per.t+". "+invFrase(G[0]);
-    r.L=G.length?G[0].L:[];r.rep=G;return r;}
+    r.L=G.length?G[0].L:[];r.rep=G;r.rowL=G.map(g=>g.L);return r;}
   if(E.int==="cal"){const G={};H.forEach(o=>{const n=o.hecho_por_n||"Sin indicar";const g=G[n]=G[n]||{n,t:0,r:0};g.t++;if(invReal(o))g.r++;});
     const P=Object.values(G).sort((a,b)=>(a.r/a.t)-(b.r/b.t));r.cols=["Persona","Trabajos","Con «Empezar»","Sin empezar","% real"];r.filas=P.map(g=>[g.n,g.t,g.r,g.t-g.r,invPct(g.r,g.t)+" %"]);
     r.frase=P.length?"Quien menos pulsa «Empezar» "+E.per.t+": "+P[0].n+" ("+invPct(P[0].t-P[0].r,P[0].t)+" % de sus trabajos sin tiempo real).":"Ningún trabajo hecho "+E.per.t+".";r.L=H.filter(o=>!invReal(o));return r;}
@@ -367,7 +367,7 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
     else ks.sort((a,b)=>E.menos?key(val(M[a]))-key(val(M[b])):key(val(M[b]))-key(val(M[a])));
     const nom=k=>g==="trab"?M[k][0].titulo.replace(/\s*·.*$/,""):k;
     r.cols=[{per:"Persona",sit:"Sitio",dsem:"Día",sem:"Semana",mes:"Mes",trab:"Trabajo",tipo:"Tipo",hora:"Hora",semmes:"Semana del mes",turno:"Turno"}[g]].concat(head).concat(E.comp?["Antes"]:[]);
-    r.filas=ks.map(k=>[nom(k)].concat(fmt(val(M[k]))).concat(E.comp?[(Ma[k]||[]).length]:[]));
+    r.filas=ks.map(k=>[nom(k)].concat(fmt(val(M[k]))).concat(E.comp?[(Ma[k]||[]).length]:[]));r.rowL=ks.map(k=>M[k]);
     const ord=["sem","mes","dsem","hora","semmes"].includes(g);const top=ks.filter(k=>!ord&&k!=="Sin hora")[0]||ks.filter(k=>k!=="Sin hora").sort((a,b)=>E.menos?key(val(M[a]))-key(val(M[b])):key(val(M[b]))-key(val(M[a])))[0]||ks[0];
     r.frase=ks.length?quien.charAt(0).toUpperCase()+quien.slice(1)+" "+E.per.t+" ("+tot.n+" en total, "+invH(tot.min)+"). "+(E.menos?"El que menos":"El que más")+": "+nom(top)+" ("+fmt(val(M[top])).join(" · ")+")."+
       (E.comp?" Periodo anterior: "+ant.n+" ("+cmp(ant.n,tot.n)+" ahora).":"")+(g==="hora"&&M["Sin hora"]?" ("+M["Sin hora"].length+" sin hora: trabajos fijos que no se avisan ni se empezaron con «Empezar».)":""):"No hay "+quien+" "+E.per.t+".";
@@ -403,8 +403,11 @@ function invPinta(res,E,r){res.textContent="";
   if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),
     el("button",{class:"btn sec peq",type:"button",text:"Enseñar «"+E.ignoradas[0]+"»",onclick:()=>invEnsena(E.ignoradas[0],"frase",()=>{const b=document.querySelector("#invPreg .btn:not(.sec)");if(b)b.click();})})]));
   res.appendChild(el("p",{style:"font-weight:600;margin:6px 0 10px",text:r.frase}));
+  const pul=i=>r.rowL&&r.rowL[i]&&r.rowL[i].length;
   if(r.cols&&r.filas.length)res.appendChild(el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,r.cols.map(h=>el("th",{text:h})))),
-    el("tbody",null,r.filas.slice(0,40).map(f=>el("tr",null,f.map(x=>el("td",{text:String(x)})))))])));
+    el("tbody",null,r.filas.slice(0,40).map((f,i)=>el("tr",pul(i)?{style:"cursor:pointer",title:"Ver los trabajos",onclick:()=>invLista(String(f[0]).replace(/^\s*·\s*/,""),r.rowL[i],E.per.t)}:null,
+      f.map((x,j)=>el("td",j===0&&pul(i)?null:{text:String(x)},j===0&&pul(i)?[el("span",{style:"color:var(--acc);font-weight:600",text:String(x)+" ›"})]:null)))))])));
+  if(r.rowL&&r.rowL.some(a=>a&&a.length))res.appendChild(el("p",{class:"hint",style:"margin:4px 0 0",text:"Pulsa una fila para ver sus trabajos."}));
   (r.extra||[]).forEach(x=>{if(!x.filas.length)return;res.appendChild(el("p",{style:"font-weight:600;margin:14px 0 6px",text:x.titulo}));
     res.appendChild(el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,x.cols.map(h=>el("th",{text:h})))),el("tbody",null,x.filas.slice(0,40).map(f=>el("tr",null,f.map(v=>el("td",{text:String(v)})))))])));});
   const L=(r.L||[]).slice().sort((a,b)=>(b.fecha+(b.creado||"")).localeCompare(a.fecha+(a.creado||"")));

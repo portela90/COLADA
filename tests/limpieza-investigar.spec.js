@@ -417,3 +417,22 @@ test('«¿Qué trabajos son los que más se repiten?» son los avisos (sin los f
   expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.inv_dic_listar = g; }
 });
+
+test('«En qué se va el tiempo» y las filas de «Pregúntale»: al pulsar se ven los trabajos de cada vez', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30), ot('2026-10-12', 'Derrame de aceite', 'F5', 'Josefa Ruiz', 50),
+    ot('2026-10-13', 'Limpieza pasillo Nave 1', 'Nave 1', 'Josefa Ruiz', 40, { origen: 'fija' })];
+  R.horas_rango = []; R.sust_rango = [];
+  const { err } = await abre(page, ADMIN, '?ir=investigar');
+  await page.locator('#invTrab summary').click();
+  await page.locator('#invTrab tr', { hasText: 'Derrame de aceite' }).click();
+  const d = page.locator('.dlg');
+  await expect(d.locator('h3')).toHaveText('Derrame de aceite');
+  await expect(d).toContainText('2 veces este mes: 1 h 20 min en total, 40 min de media');
+  await expect(d).toContainText('F5'); await expect(d).toContainText('Josefa Ruiz'); await expect(d).toContainText('F19');
+  await d.getByRole('button', { name: 'Cerrar' }).click();
+  await page.fill('#invQ', '¿dónde hay más derrames?'); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#invResp')).toContainText('Pulsa una fila para ver sus trabajos');
+  await page.locator('#invResp tbody tr', { hasText: 'F5' }).first().click();
+  await expect(d.locator('h3')).toHaveText('F5'); await expect(d).toContainText('1 vez este mes'); await expect(d).toContainText('Derrame de aceite');
+  expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+});

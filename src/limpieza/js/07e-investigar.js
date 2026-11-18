@@ -94,7 +94,7 @@ function invDatos(O,J,d0,d1,Oant){
     g.ant=Pant.filter(o=>invSitio(o)===g.sitio&&invCat(o)===g.cat).length;return g;})
     .sort((a,b)=>b.n-a.n||b.min-a.min);
   /* qué trabajos se llevan el tiempo */
-  const T={};H.forEach(o=>{const k=invClave(o)||"(sin título)";const t=T[k]=T[k]||{nom:{},n:0,min:0,max:0,real:0,prob:!!invCat(o),plan:o.origen==="fija"};t.nom[o.titulo]=(t.nom[o.titulo]||0)+1;
+  const T={};H.forEach(o=>{const k=invClave(o)||"(sin título)";const t=T[k]=T[k]||{nom:{},n:0,min:0,max:0,real:0,prob:!!invCat(o),plan:o.origen==="fija",L:[]};t.nom[o.titulo]=(t.nom[o.titulo]||0)+1;t.L.push(o);
     const m=invMin(o);t.n++;t.min+=m;t.max=Math.max(t.max,m);if(invReal(o))t.real++;});
   const trab=Object.values(T).map(t=>Object.assign(t,{t:Object.entries(t.nom).sort((a,b)=>b[1]-a[1])[0][0].replace(/\s*·.*$/,"")})).sort((a,b)=>b.min-a.min);
   /* cuándo pasan los problemas */
@@ -157,8 +157,9 @@ async function vInvestigar(v){S.inv=S.inv||Object.assign({k:"mes"},invPeriodo("m
   /* qué trabajos se llevan el tiempo */
   box.appendChild(el("details",{class:"card",id:"invTrab"},[el("summary",{class:"hd",style:"cursor:pointer"},[el("h2",{text:"En qué se va el tiempo"}),el("span",{class:"der sub",text:X.trab.length+" trabajos distintos"})]),el("div",{class:"bd"},[
     X.trab.length?el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Trabajo","Veces","Tiempo","Media","Máx."].map(h=>el("th",{text:h})))),
-      el("tbody",null,X.trab.slice(0,25).map(t=>el("tr",null,[el("td",null,[t.t,t.prob?el("span",{class:"pill bad",style:"margin-left:6px",text:"problema"}):t.plan?el("span",{class:"pill",style:"margin-left:6px",text:"fija"}):null]),
-        el("td",{text:String(t.n)}),el("td",{text:invH(t.min)}),el("td",{text:invH(t.min/t.n)}),el("td",{text:invH(t.max)})])))]):el("p",{class:"hint",text:"Ningún trabajo hecho en este periodo."})])]));
+      el("tbody",null,X.trab.slice(0,25).map(t=>el("tr",{style:"cursor:pointer",title:"Ver cada vez que se hizo",onclick:()=>invLista(t.t,t.L,F.t)},[el("td",null,[el("span",{style:"color:var(--acc);font-weight:600",text:t.t+" ›"}),t.prob?el("span",{class:"pill bad",style:"margin-left:6px",text:"problema"}):t.plan?el("span",{class:"pill",style:"margin-left:6px",text:"fija"}):null]),
+        el("td",{text:String(t.n)}),el("td",{text:invH(t.min)}),el("td",{text:invH(t.min/t.n)}),el("td",{text:invH(t.max)})])))]):el("p",{class:"hint",text:"Ningún trabajo hecho en este periodo."}),
+    X.trab.length?el("p",{class:"hint",text:"Pulsa un trabajo para ver cada vez que se hizo: cuándo, dónde, quién y cuánto tardó."}):null])]));
   /* cuándo pasan */
   if(X.P.length)box.appendChild(el("details",{class:"card",id:"invDia"},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"Qué días pasan más los problemas"})),el("div",{class:"bd"},[
     el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Día","Avisos",""].map(h=>el("th",{text:h})))),el("tbody",null,[1,2,3,4,5,6,0].filter(d=>X.dia[d]).map(d=>el("tr",null,[el("td",{text:DIAS_INV[d]}),el("td",{text:String(X.dia[d])}),
@@ -175,6 +176,19 @@ function invFicha(g,F){const fila=o=>el("tr",null,[el("td",{text:fCorta(o.fecha)
     el("p",{class:"hint",text:"Periodo: "+F.t+". Las fotos están en cada trabajo (pantalla del día)."})]),
     [{t:"Cerrar",cls:"sec"},{t:"Excel",cls:"sec",fn:async()=>{try{bajar(await invXLSXSitio(g,F),"repeticiones-"+g.sitio.replace(/\W+/g,"_")+"-"+g.cat+".xlsx");}catch(e){toast(e.message);}return false;}},
      {t:"Informe PDF",fn:async()=>{try{bajar(await invPDFSitio(g,F),"repeticiones-"+g.sitio.replace(/\W+/g,"_")+"-"+g.cat+".pdf");}catch(e){toast(e.message);}return false;}}]);}
+
+/* cada vez que se hizo un trabajo (o los trabajos de una fila de «Pregúntale») */
+function invLista(tit,L,per){L=(L||[]).slice().sort((a,b)=>(b.fecha+(b.creado||"")).localeCompare(a.fecha+(a.creado||"")));const H=L.filter(o=>o.estado==="hecha");const min=H.reduce((x,o)=>x+invMin(o),0);
+  const fila=o=>el("tr",null,[el("td",{text:fCorta(o.fecha)+(o.origen==="rapida"&&o.creado?" "+hora(o.creado):"")}),el("td",null,[el("b",{text:o.titulo}),o.descripcion?el("div",{class:"hint",style:"margin:2px 0 0",text:o.descripcion}):null]),
+    el("td",{text:invSitio(o)}),el("td",{text:o.hecho_por_n||(o.nombres||[]).join(", ")||"—"}),
+    el("td",{text:o.estado==="hecha"?invH(invMin(o))+(invReal(o)?"":" (est.)"):EST[o.estado]?EST[o.estado][0]:o.estado}),el("td",{text:o.nfotos?String(o.nfotos):"—"})]);
+  dlg(tit,el("div",null,[el("p",{style:"margin-top:0;font-weight:600",text:L.length+(L.length===1?" vez":" veces")+" "+per+(H.length?": "+invH(min)+" en total, "+invH(min/H.length)+" de media ("+H.filter(invReal).length+" con tiempo real).":".")}),
+    el("div",{style:"overflow:auto"},el("table",{class:"g-tab"},[el("thead",null,el("tr",null,["Cuándo","Qué","Dónde","Quién","Tiempo","Fotos"].map(h=>el("th",{text:h})))),el("tbody",null,L.slice(0,300).map(fila))])),
+    el("p",{class:"hint",text:"«(est.)»: no se pulsó «Empezar» y se cuenta el tiempo previsto. Las fotos están en cada trabajo (pantalla del día)."})]),
+    [{t:"Cerrar",cls:"sec"},{t:"Excel",fn:async()=>{try{await libXLSX();const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(L.map(o=>({"Fecha":o.fecha,"Trabajo":o.titulo,"Descripción":o.descripcion||"","Dónde":invSitio(o),"Quién":o.hecho_por_n||(o.nombres||[]).join(", "),"Estado":o.estado,
+        "Minutos":o.estado==="hecha"?Math.round(invMin(o)):null,"Tiempo real":invReal(o)?"Sí":"Estimado","Fotos":o.nfotos||0}))),"Trabajos");
+      bajar(new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"trabajos-"+tit.replace(/\W+/g,"_").slice(0,40)+".xlsx");}catch(e){toast(e.message);}return false;}}]);}
 
 /* ---------- PDF ---------- */
 async function invDoc(tit,sub){await libPDF();const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=14,AZ=[31,78,121];
