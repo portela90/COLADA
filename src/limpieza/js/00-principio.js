@@ -247,10 +247,11 @@ function puedoCorregirAlm(o){return o.estado==="hecha"&&habAlmOT(o)&&(esAdm()||(
 const NAVES_PUNTO=["Nave 1A","Nave 1B","Nave 2"];
 const esRepone=o=>{const h=(HAB||[]).find(x=>x.id===o.habitual_id);return !!(o.pide_alm||(h&&h.alm_art&&h.alm_cant==null));};
 function corregirAlm(o,re){const h=(HAB||[]).find(x=>x.id===o.habitual_id);const NV=esRepone(o)?NAVES_PUNTO:["Nave 1","Nave 2"];let nave=NV.includes(o.nave||"")?o.nave:"";
-  let kg=String(o.alm_cant_real!=null?o.alm_cant_real:(h&&h.alm_cant)||"");
+  let kg=String(o.alm_cant_real!=null?o.alm_cant_real:(h&&h.alm_cant)||""),visto=null;const aw=el("div",{class:"aviso",id:"avBidon",style:"display:none"});
   const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";NV.forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
-  dlg("Corregir nave y kilos",el("div",null,[el("p",{class:"hint",text:o.titulo}),fld("¿En qué nave?",nb),fld("Kilos",inp(kg,v=>kg=v,{inputmode:"decimal"}))]),
+  dlg("Corregir nave y kilos",el("div",null,[el("p",{class:"hint",text:o.titulo}),fld("¿En qué nave?",nb),fld("Kilos",inp(kg,v=>kg=v,{inputmode:"decimal"})),aw]),
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",cls:"ok",fn:async()=>{const n=parseFloat(String(kg).replace(",","."));if(!nave){toast("Elige la nave");return false;}if(!(n>0)){toast("Pon los kilos");return false;}
+      if(esRepone(o)&&bidonRaro(n)&&visto!==n){visto=n;aw.textContent=avisoBidon(n);aw.style.display="";return false;}
       const r=await rpc("ot_consumo_editar",{p_tok:S.tok,p_ot:o.id,p_nave:nave,p_cant:n});toast("Corregido"+(r&&r.almacen?". "+r.almacen:""));re();}}]);}
 /* El jefe o el encargado cambia la respuesta: «es la misma» o «es otra cosa» */
 function cambiarRepite(o,re){const cambia=async resp=>{try{await rpc("ot_repite_cambiar",{p_tok:S.tok,p_ot:o.id,p_resp:resp});toast("Respuesta guardada");re();}catch(e){toast(e.message||"No se pudo cambiar");return false;}};
@@ -322,11 +323,17 @@ function puntoTrab(p,ck){const it=el("div",{class:"it"});const tit=p.ayuda||p.ti
   if(p.tipo==="txt"){const i=el("input",{type:"text",placeholder:"(opcional)",value:ck[p.texto]||""});i.oninput=()=>{if(i.value.trim())ck[p.texto]=i.value;else delete ck[p.texto];};it.append(tit,i);return it;}
   it.append(tit,segOK(ck[p.texto],v=>ck[p.texto]=v));return it;}
 /* tareas fijas que reponen material del almacén (p. ej. Pistonwax): antes de terminar, nave y cantidad */
-function pedirNaveCant(o,seguir){let nave=NAVES_PUNTO.includes(o.nave||"")?o.nave:"",kg="";
+/* el Pistonwax se repone siempre en bidones enteros de 110 kg (Cristian, 19/11/2026): la casilla viene con 110
+   y, si se escribe otra cosa que no sea un número de bidones enteros, se pide confirmarlo (el 18/11 se puso 15 por el «dúo 15») */
+const BIDON_KG=110;
+const bidonRaro=n=>n>0&&Math.abs(n/BIDON_KG-Math.round(n/BIDON_KG))>1e-9;
+const avisoBidon=n=>"Los bidones son de "+BIDON_KG+" kg y se reponen enteros: "+String(n).replace(".",",")+" kg no son bidones enteros. Si es así, pulsa otra vez para guardarlo.";
+function pedirNaveCant(o,seguir){let nave=NAVES_PUNTO.includes(o.nave||"")?o.nave:"",kg=String(o.alm_cant_real||BIDON_KG),visto=null;const aw=el("div",{class:"aviso",id:"avBidon",style:"display:none"});
   const nb=el("div",{class:"seg sel"});const pn=()=>{nb.textContent="";NAVES_PUNTO.forEach(n=>nb.appendChild(el("button",{type:"button","aria-pressed":String(nave===n),text:n,onclick:()=>{nave=n;pn();}})));};pn();
   dlg("¿Cuánto repones?",el("div",null,[el("p",{class:"hint",text:"Pistonwax dúo 15: sale del Almacén general. El bidón que había en ese punto se da por gastado."}),fld("¿En qué punto?",nb),
-    fld("Kilos que repones",inp(o.alm_cant_real||"",v=>kg=v,{inputmode:"decimal",placeholder:"ej. 15"}))]),
+    fld("Kilos que repones",inp(kg,v=>kg=v,{inputmode:"decimal",placeholder:String(BIDON_KG)})),el("p",{class:"hint",style:"margin-top:-4px",text:"Un bidón entero son "+BIDON_KG+" kg; dos bidones, "+(2*BIDON_KG)+"."}),aw]),
     [{t:"Cancelar",cls:"sec"},{t:"Continuar",cls:"ok",fn:async()=>{const n=parseFloat(String(kg).replace(",","."));if(!nave){toast("Elige la nave");return false;}if(!(n>0)){toast("Pon cuántos kilos repones");return false;}
+      if(bidonRaro(n)&&visto!==n){visto=n;aw.textContent=avisoBidon(n);aw.style.display="";return false;}
       await rpc("ot_consumo_fijar",{p_tok:S.tok,p_ot:o.id,p_nave:nave,p_cant:n});o.nave=nave;o.alm_cant_real=n;seguir();}}]);}
 function terminar(o,re,PT){if(o.pide_alm&&o.alm_cant_real==null){pedirNaveCant(o,()=>terminar(o,re,PT));return;}if(o.elemento_id&&!ELS){elementosL().then(()=>terminar(o,re,PT));return;}if(PT===undefined){rpc("check_ot_puntos",{p_tok:S.tok,p_ot:o.id}).then(r=>terminar(o,re,Array.isArray(r)?r:[])).catch(()=>terminar(o,re,[]));return;}const eo=o.elemento_id&&ELS?ELS.find(x=>x.id===o.elemento_id):null;const esLim=!o.accion_horno||o.accion_horno==="limpieza";const P1=!esLim?[]:(o.puntos&&o.puntos.length)?o.puntos:((eo&&eo.puntos)||[]);const pts=P1.length?P1.slice():null;const iny=!pts&&PT&&PT.length?PT:null;const usaCk=CHECKLIST_ACTIVA||!!pts||!!iny;const preg=medido(o)?null:preguntaTiempo(o);const ck=Object.assign({},o.checklist||{}),fin=Object.assign({},o.checklist_final||{});const conFin=!pts&&!iny&&usaCk&&(finde(o.fecha)||o.equipo==="Finde");let nota="";const fotos=[];
   const fbox=el("div",{class:"fotos"});

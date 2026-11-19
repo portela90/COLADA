@@ -193,3 +193,24 @@ test('problemas que se repiten: «No es lo mismo» quita un aviso con su motivo'
   expect(llamadas.find(([f]) => f === 'problema_quitar_ot')[1]).toMatchObject({ p_id: 'p1', p_ot: 'x1', p_nota: 'Es aceite de la carretilla' });
   expect(err).toEqual([]);
 });
+
+test('Reponer Pistonwax: los kilos vienen con 110 (un bidón entero) y avisa si no son bidones enteros', async ({ page }) => {
+  const D0 = R.ots_dia;
+  R.ots_dia = Object.assign({}, D0, { dia: [{ id: 'opw', titulo: 'Reponer Pistonwax dúo 15', descripcion: '', fecha: '2026-10-21', estado: 'en_curso', equipo: 'Semana', asignados: ['w2'], nombres: ['Abdoul kader Maiga'],
+    prioridad: 'normal', lugar: 'Nave 1', nave: null, minutos_est: 20, nfotos: 0, cubre: [], creado_por_n: 'Cristian Portela', inicio: '2026-10-21T07:10:00Z', pide_alm: true, alm_cant_real: null }] });
+  try {
+    const { err, llamadas } = await abre(page, OPER);
+    await page.locator('.ot', { hasText: 'Reponer Pistonwax' }).getByRole('button', { name: 'Terminar' }).first().click();
+    const d = page.locator('.dlg', { hasText: '¿Cuánto repones?' });
+    await expect(d.locator('input')).toHaveValue('110');
+    await d.getByRole('button', { name: 'Nave 1A' }).click();
+    await d.locator('input').fill('15');
+    await d.getByRole('button', { name: 'Continuar' }).click();
+    await expect(d.locator('#avBidon')).toContainText('Los bidones son de 110 kg y se reponen enteros: 15 kg no son bidones enteros');
+    expect(llamadas.filter(([f]) => f === 'ot_consumo_fijar')).toHaveLength(0);
+    await d.locator('input').fill('110');
+    await d.getByRole('button', { name: 'Continuar' }).click();
+    await expect.poll(() => llamadas.filter(([f]) => f === 'ot_consumo_fijar').map(([, b]) => b.p_cant + ' ' + b.p_nave)).toContain('110 Nave 1A');
+    expect(err).toEqual([]);
+  } finally { R.ots_dia = D0; }
+});
