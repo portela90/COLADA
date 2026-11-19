@@ -240,6 +240,7 @@ $("lupa").addEventListener("click",()=>{if(!ready||!db){toast("Espera a que carg
   db.collection("incid").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});incidAnos=m;render();},()=>{});
   db.collection("maq").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});maqEv=m;render();},()=>{});
   db.collection("mov").onSnapshot(sn=>{const m={};sn.docs.forEach(d=>{m[d.id]=(d.data().items)||[];});meses=m;ready=true;render();},()=>{});
+  db.doc("rdh/hist").onSnapshot(sn=>{rdHist=sn.exists?((sn.data().items)||[]):[];render();},()=>{});
   db.doc("cfg/app").onSnapshot(sn=>{if(sn.exists){const c=sn.data();cfg=Object.assign({},c,{minimos:c.minimos||{},granalla:c.granalla||{inicial:0,min:0},proveedores:c.proveedores||[],precios:c.precios||{},plan:c.plan||{},paros:c.paros||[],calendario:c.calendario||{},cargador:c.cargador||{},cierres:c.cierres||{},informes:c.informes||[],recuentos:c.recuentos||[],fab:c.fab||{}});}render();},()=>{});
 })();
 })();

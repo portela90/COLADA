@@ -22,7 +22,9 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
   const Sd={};dias.forEach(d=>{Sd[d]=conCorte(d,saldos);});
   const lin=LINEAS.filter(([n,m])=>pasaF(n,m)).map(([n,m])=>key(n,m)).filter(k=>lotes.some(l=>key(l.nave,l.material)===k&&((S[l.id]||{}).fa>0||dias.some(d=>(Sd[d][l.id]||{}).fa>0))));
   const faNave=(SS,k,d)=>lotes.filter(l=>key(l.nave,l.material)===k&&dondeEn(l,d)!=="externo").reduce((a,l)=>a+Math.max(0,(SS[l.id]||{}).fa||0),0);
-  const cards=lin.map(k=>{const [n,m]=k.split("|"),col=MAT[m].col;
+  /* lo contado en el recuento de ese día en esa nave (el último si hubo varios) */
+  const rcDia=n=>rdHist.filter(x=>x.nave===n&&x.f===f&&x.c).sort((a,b)=>(b.ts||0)-(a.ts||0))[0]||null;
+  const cards=lin.map(k=>{const [n,m]=k.split("|"),col=MAT[m].col;const rc=rcDia(n);const cnt=id=>rc&&rc.c[id]!=null?fmt(rc.c[id]):"—";
     const L=lotes.filter(l=>key(l.nave,l.material)===k&&(S[l.id]||{}).fa>0).sort((a,b)=>(a.entrada||"").localeCompare(b.entrada||"")||a.nombre.localeCompare(b.nombre,"es"));
     const nave=fStk.ubi==="externo"?[]:L.filter(l=>dondeEn(l,f)!=="externo"),ext=fStk.ubi==="nave"?[]:L.filter(l=>dondeEn(l,f)==="externo");
     if(fStk.ubi)L.splice(0,L.length,...nave.concat(ext));
@@ -47,7 +49,7 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
     const graf=el("div",{class:"sd-graf","aria-label":"Fardos en nave los últimos 30 días"},dias.map((d,i)=>el("button",{type:"button",class:"sd-gb"+(d===f?" on":"")+(relevosDia(d)===0?" libre":""),style:"--h:"+Math.max(3,vals[i]/mx*100)+"%;--c:"+col,title:dmy(d)+": "+fmt(vals[i])+" f en nave",onclick:()=>irDia(d)})));
     const fila=(l,ex)=>el("tr",{"data-l":l.id,class:"sd-tr",onclick:e=>{if(e.target.closest(".sd-lnk"))return;marca(l.id);}},[el("td",{},[el("button",{type:"button",class:"sd-lnk",text:l.nombre,title:"Abrir la ficha de la colada",onclick:()=>abrirFicha(l.id)})]),
       el("td",{class:"sub",text:ex?"Externo":"Nave"}),el("td",{class:"r num",text:fmt(S[l.id].fa)}),el("td",{class:"r num",text:fmt(S[l.id].kg)}),
-      el("td",{class:"r num",text:consL[l.id]?"−"+consL[l.id]:""})]);
+      el("td",{class:"r num",text:consL[l.id]?"−"+consL[l.id]:""})].concat(rc?[el("td",{class:"r num sub",text:cnt(l.id)})]:[]));
     const gastadas=Object.keys(consL).filter(id=>!L.some(l=>l.id===id));/* coladas que se acabaron ese día */
     cardEl=el("div",{class:"card"},[
       el("div",{class:"hd"},[el("span",{class:"tagm",style:"background:"+col}),el("h2",{text:n+" · "+MAT[m].nom}),el("span",{class:"sub num",style:"margin-left:auto",text:fmt(sF(L))+" f · "+fmt(sK(L))+" kg"})]),
@@ -59,8 +61,9 @@ function vStockDia(){const h=hoy(),f=sdF||h,S=conCorte(f,saldos),ms=todosMovs();
           el("div",{},[el("small",{text:"Entró ese día"}),el("b",{class:"num",text:ents.length?"+"+fmt(ents.reduce((a,r)=>a+(r.fa||0),0))+" f":"—"}),el("span",{text:ents.map(r=>nomLote(r.d)+(r.p?" ("+r.p+")":"")).join(", ")})])]),
         L.length?barra:el("div",{class:"empty",text:"No quedaba nada."}),
         L.length?leyenda:null,L.length?el("div",{class:"sd-info num","aria-live":"polite"}):null,
-        L.length?el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Colada"}),el("th",{text:"Dónde"}),el("th",{class:"r",text:"Fardos"}),el("th",{class:"r",text:"Kilos"}),el("th",{class:"r",text:"Gastado ese día"})])]),
-          el("tbody",{},nave.map(l=>fila(l,false)).concat(ext.map(l=>fila(l,true))).concat(gastadas.map(id=>el("tr",{class:"sub"},[el("td",{text:nomLote(id)}),el("td",{text:"se acabó"}),el("td",{class:"r num",text:"0"}),el("td",{class:"r num",text:"0"}),el("td",{class:"r num",text:"−"+consL[id]})]))))])]):null,
+        L.length?el("div",{class:"tw"},[el("table",{},[el("thead",{},[el("tr",{},[el("th",{text:"Colada"}),el("th",{text:"Dónde"}),el("th",{class:"r",text:"Fardos"}),el("th",{class:"r",text:"Kilos"}),el("th",{class:"r",text:"Gastado ese día"})].concat(rc?[el("th",{class:"r",text:"Contado a las "+(rc.hora||"?")})]:[]))]),
+          el("tbody",{},nave.map(l=>fila(l,false)).concat(ext.map(l=>fila(l,true))).concat(gastadas.map(id=>el("tr",{class:"sub"},[el("td",{text:nomLote(id)}),el("td",{text:"se acabó"}),el("td",{class:"r num",text:"0"}),el("td",{class:"r num",text:"0"}),el("td",{class:"r num",text:"−"+consL[id]})].concat(rc?[el("td",{class:"r num sub",text:cnt(id)})]:[])))))])]):null,
+        L.length&&rc?el("p",{class:"sub",style:"margin:0",text:"«Contado»: lo que se contó en el recuento de ese día a las "+(rc.hora||"?")+(f===h?". Los fardos son los de ahora":". Los fardos son al acabar el día")+": la diferencia es lo que se gastó después del recuento."}):null,
         el("div",{},[el("div",{class:"sub",style:"margin-bottom:4px",text:"Fardos en nave, últimos 30 días (toca un día para verlo)"}),graf])])]);return cardEl;});
   let gran=null;try{gran=conCorte(f,granallaKg);}catch(e){}
   return [el("div",{class:"card"},[el("div",{class:"bd",style:"display:flex;flex-direction:column;gap:8px"},[sel,tit,filtroLineas()])])]

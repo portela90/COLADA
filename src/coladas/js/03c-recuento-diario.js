@@ -232,6 +232,8 @@ function vRecuentoDiario(){
       const cont={};Object.values(C.out).forEach(o=>o.C.forEach(x=>{cont[x.l.id]=x.c;}));
       const reg={f:relevoAhora().f,u:relevoAhora().u,ts:Date.now(),hora:new Date().toTimeString().slice(0,5),c:cont,nave};
       cfg.rdiarioN=Object.assign({},cfg.rdiarioN||{},{[nave]:reg});cfg.rdiario=reg;await saveCfg();
+      /* y al historial, para ver luego lo que se contó cada día (Stock de un día) */
+      try{await itemsAdd("rdh","hist",[Object.assign({i:uid("r")},reg)]);}catch(e){}
       lineas.forEach(([n,m])=>{const k=key(n,m);delete d.R[k];delete d.K[k];fifoLista(n,m,S).forEach(l=>{delete d.C[l.id];});});
       const falta=navesL.find(n=>n!==nave&&!rdHoyN(n));
       toast(nave+" guardada"+(todo.length?": "+todo.length+" apunte"+(todo.length===1?"":"s"):"")+(falta?". Ahora la "+falta:""));

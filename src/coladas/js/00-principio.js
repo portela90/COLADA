@@ -14,6 +14,8 @@ let planMes=null,parteDia="";
 const MAQ={"Nave 1":["F4","F10","F15","F16","F19","F20","F21","F22","F25","F26","F27","F28","F29","F30","F31","F32","F33","F34"],
   "Nave 2":["F51","F52","F53","F54","F55","F56","F61","F62","F63","F64","F65","F66","F67"]};
 let maqEv={},mqFecha="",mqTurno="",maqAbierto=true;
+/* historial de los recuentos diarios (rdh/hist): {nave,f,u,ts,hora,c:{lote:fardos contados}} */
+let rdHist=[];
 const TI=t=>TURNOS.indexOf(t);
 /* relevo según la hora: mañana 6-14, tarde 14-22, noche 22-6 */
 const turnoAhora=()=>{const h=new Date().getHours();return h>=6&&h<14?"Mañana":(h>=14&&h<22?"Tarde":"Noche");};

@@ -706,6 +706,10 @@ test('Recuento diario: cada nave se guarda por separado', async ({ page }) => {
   await expect(page.locator('.dlg textarea')).toHaveValue(/recuento: Nave 1 a las .*Nave 2 a las/);
   const N = await page.evaluate(() => Object.keys(window.__D.cfg.app.rdiarioN));
   expect(N.sort()).toEqual(['Nave 1', 'Nave 2']);
+  // cada recuento queda también en el historial (para «Stock de un día»)
+  const H = await page.evaluate(() => ((window.__D.rdh || {}).hist || {}).items || []);
+  expect(H.map(x => x.nave).sort()).toEqual(['Nave 1', 'Nave 2']);
+  expect(H.find(x => x.nave === 'Nave 1').c.l3).toBe(8);
   expect(err).toEqual([]);
 });
 
@@ -793,6 +797,25 @@ test('Stock de un día: elegir un día y ver cada colada en nave y externo, lo c
   await expect(c2.locator('.sd-kpis')).not.toContainText('En el externo');
   await expect(c2.locator('tr', { hasText: 'C25001' })).toHaveCount(0);
   await page.locator('.sd-filtro .seg[aria-label="Dónde"] button', { hasText: 'Todo' }).click(); await page.waitForTimeout(300);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Stock de un día: al lado sale lo que se contó en el recuento de ese día', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => { await db.doc('mov/2026-10').set({ items: [{ i: 'm1', t: 'C', f: '2026-10-20', u: 'Tarde', o: 'l3', fa: 3 }] });
+    await db.doc('rdh/hist').set({ items: [{ i: 'r1', nave: 'Nave 1', f: '2026-10-20', u: 'Mañana', ts: 1, hora: '08:54', c: { l3: 7 } }] }); });
+  await page.waitForTimeout(300);
+  await page.locator('.stk-t', { hasText: 'Stock de un día' }).first().click(); await page.waitForTimeout(400);
+  await page.fill('#sd-f', '2026-10-20'); await page.locator('#sd-f').dispatchEvent('change'); await page.waitForTimeout(400);
+  const card = page.locator('.card', { hasText: 'Nave 1 · AlSi9' }).first();
+  await expect(card.locator('thead')).toContainText('Contado a las 08:54');
+  await expect(card.locator('tr', { hasText: 'C25003' }).locator('td').last()).toHaveText('7');
+  await expect(card).toContainText('«Contado»: lo que se contó en el recuento de ese día a las 08:54');
+  // otro día sin recuento: no sale la columna
+  await page.locator('button[aria-label="Día anterior"]').click(); await page.waitForTimeout(400);
+  await expect(card.locator('thead')).not.toContainText('Contado');
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
