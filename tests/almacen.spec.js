@@ -1829,6 +1829,17 @@ test('Pistones robados: salen para SAP como consumo, se marcan como metidos y va
   const card = page.locator('#pSapCard');
   const fila = card.locator('tr', { hasText: 'Robo · Nave 2' });
   await expect(fila).toContainText('Ø 60 ×2'); await expect(fila).toContainText('Pendiente'); await expect(fila).toContainText('Robo en la zona de pistones');
+  // filtros: tipo, nave y motivo
+  await card.locator('#pSapTipo').selectOption('cambio'); await page.waitForTimeout(300);
+  await expect(card.locator('tr', { hasText: 'Robo · Nave 2' })).toHaveCount(0);
+  await card.locator('#pSapTipo').selectOption('perdida'); await page.waitForTimeout(300);
+  await expect(card.locator('tr', { hasText: 'Robo · Nave 2' })).toHaveCount(1);
+  await card.locator('#pSapNave').selectOption('Nave 1'); await page.waitForTimeout(300);
+  await expect(card.locator('tr', { hasText: 'Robo · Nave 2' })).toHaveCount(0);
+  await card.locator('#pSapNave').selectOption('Nave 2'); await page.waitForTimeout(300);
+  await expect(card.locator('#pSapMot option', { hasText: 'Robo' })).toHaveCount(1);
+  await card.locator('#pSapQuitar').click(); await page.waitForTimeout(300);
+  await expect(card.locator('#pSapQuitar')).toHaveCount(0); await expect(card.locator('tr', { hasText: 'Robo · Nave 2' })).toHaveCount(1);
   expect(await desbordes(page)).toEqual([]);
   // el informe para Beatriz lo lleva como consumo
   await page.locator('.banner button', { hasText: 'Preparar informe' }).click(); await page.waitForTimeout(400);
