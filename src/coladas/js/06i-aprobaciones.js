@@ -4,7 +4,8 @@
    el principio. Tarjeta en Consultas › Por aprobar, aviso en la campana y en el móvil. Motor: comun/aprobaciones.js. */
 const aprCfgC=()=>(cfg&&cfg.aprob)||{};
 function aprListaC(){const c=aprCfgC(),L=[];if(!c.quien||!c.quien.length)return L;const lim=+c.ajuste_kg||0;if(!(lim>0))return L;const desde=c.desde||"2000-01-01",S=saldos();
-  todosMovs().forEach(r=>{if(r.t!=="A"||r.h||!r.f||r.f<desde)return;const kg=kgAp(r,S)||0;if(Math.abs(kg)<=lim)return;const l=lotes.find(x=>x.id===(r.o||r.d));
+  todosMovs().forEach(r=>{if(r.t!=="A"||r.h||!r.f||r.f<desde)return;/* el signo lo da el sentido del ajuste: sale de la colada (o) = menos; entra (d) = más. Los kilos del apunte van sin signo */
+    const kg=Math.abs(kgAp(r,S)||0)*(r.o&&!r.d?-1:1);if(Math.abs(kg)<=lim)return;const l=lotes.find(x=>x.id===(r.o||r.d));
     L.push({k:"mov:"+r.i,txt:"Ajuste de "+(kg>0?"+":"−")+fmt(Math.abs(Math.round(kg)))+" kg"+(r.fa!=null?" ("+Math.abs(r.fa)+" f)":"")+(l?" · colada "+l.nombre:""),
       det:[l?l.nave:r.nv,r.n||null].filter(Boolean).join(" · "),f:r.f,apr:r.apr||null,r,ir:irCol("hist")});});
   return L.sort((a,b)=>(b.f||"").localeCompare(a.f||""));}

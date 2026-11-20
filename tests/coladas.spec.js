@@ -1151,6 +1151,28 @@ test('Aprobaciones en Coladas: un ajuste grande queda pendiente, se aprueba y lo
   expect(err).toEqual([]);
 });
 
+test('Por aprobar: el ajuste que quita fardos de una colada sale con −, aunque sus kilos se apunten sin signo', async ({ page }) => {
+  await page.addInitScript(() => { window.__rpc = [];
+    window.yoId = () => 'u-cris'; window.yoNombre = () => 'Cristian'; window.yoAdmin = () => true;
+    const q = d => { const o = { select: () => o, in: () => o, eq: () => o, then: (ok, ko) => Promise.resolve({ data: d, error: null }).then(ok, ko) }; return o; };
+    window.sbColada = { from: () => q([{ user_id: 'u-cris', nombre: 'Cristian', activo: true, coladas: true }]), rpc: async (f, a) => { window.__rpc.push([f, a]); return { data: true }; } }; });
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.evaluate(async () => {
+    await db.doc('cfg/app').set(Object.assign({}, __D.cfg.app, { aprob: { quien: ['u-cris'], ajuste_kg: 1000, desde: '2026-10-01' } }));
+    const sn = await db.doc('mov/2026-10').get(); const it = sn.exists ? (sn.data().items || []) : [];
+    await db.doc('mov/2026-10').set({ items: it.concat([{ i: 'aj3', t: 'A', o: 'l1', f: '2026-10-30', fa: 5, kg: 3693, n: 'Recuento diario: faltan 5 f frente a las hojas' }, { i: 'aj4', t: 'A', d: 'l1', f: '2026-10-30', fa: 5, kg: 3530, n: 'Recuento diario: sobran 5 f frente a las hojas' }]) }); });
+  await page.waitForTimeout(2200);
+  await page.locator('.campana').click(); await page.waitForTimeout(200);
+  await page.locator('.campana-pan .campana-x').click();
+  await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Informes').click()); await page.waitForTimeout(1500);
+  await page.locator('.stk-t', { hasText: 'Por aprobar' }).first().click(); await page.waitForTimeout(600);
+  const c = page.locator('.card.apr').last();
+  await expect(c.locator('.apr-it', { hasText: 'faltan 5 f' })).toContainText('Ajuste de −3693 kg (5 f)');
+  await expect(c.locator('.apr-it', { hasText: 'sobran 5 f' })).toContainText('Ajuste de +3530 kg (5 f)');
+  expect(err).toEqual([]);
+});
+
 test('Enlace para compartir: desde un informe se crea un enlace que caduca, se copia y se puede anular', async ({ page }) => {
   await page.addInitScript(() => { window.__ins = []; window.__upd = [];
     const filas = [];
