@@ -600,6 +600,27 @@ test('Contadores: empezar a contar de nuevo un contador con lecturas mal', async
   expect(err).toEqual([]);
 });
 
+test('Contadores: dos contadores que marcan casi lo mismo (Engrase 220 y Prensa) no dan el aviso de «la del otro» con un consumo normal', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const it = [], base = { e220: 40100, ter: 77000, pre: 40099, i46: 903000, gli: 122000 }; const h = new Date();
+    for (let i = 12; i >= 1; i--) { const x = new Date(h); x.setDate(x.getDate() - i); if (x.getDay() === 0 || x.getDay() === 6) continue; const f = x.toISOString().slice(0, 10);
+      Object.keys(base).forEach(k => base[k] += 30); it.push({ id: 'c' + i, f, nave: 'Nave 1', c: Object.assign({}, base), por: 'Cristian', ts: i }); }
+    v.cont = { [String(h.getFullYear())]: { items: it } }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Aceites, taladrinas y jabones$/ }).click(); await page.waitForTimeout(400);
+  await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
+  const u = await page.evaluate(() => { const L = window.__D.cont[Object.keys(window.__D.cont)[0]].items; return L[L.length - 1].c; });
+  await page.fill('#cte220', String(u.e220 + 35)); await page.fill('#ctpre', String(u.pre + 8));
+  await expect(page.locator('.dlg')).toContainText('= 35 l'); await expect(page.locator('.dlg')).toContainText('= 8 l');
+  await expect(page.locator('.dlg')).not.toContainText('se parece a la lectura');
+  // pero si de verdad se apunta en la casilla de otro contador (lo que marca el Térmico), sí avisa
+  await page.fill('#ctpre', String(u.ter + 2));
+  await expect(page.locator('.dlg')).toContainText('se parece a la lectura del Térmico');
+  expect(err).toEqual([]);
+});
+
 test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y avisa si es raro', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;

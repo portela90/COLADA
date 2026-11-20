@@ -38,12 +38,17 @@ async function guardaLect(rec,viejo){const y=rec.f.slice(0,4);rec.id=rec.id||uid
 function avisosLect(nave,fecha,vals){const L=lectDe(nave),ant=L.filter(r=>r.f<fecha).pop(),o=[];if(!ant)return o;
   const lab=Math.max(1,laborables(ant.f,fecha));
   CONT.forEach(([k,nom])=>{const x=vals[k];if(x==null||!isFinite(x))return;const pv=typeof ant.c[k]==="number"?ant.c[k]:null;if(pv==null)return;const d=Math.round((x-pv)*10)/10;
-    /* ¿se parece más a lo que marcaba otro contador de la nave? (p. ej. se apunta la del Térmico en el ISO 46) */
-    const otro=CONT.find(([k2])=>k2!==k&&typeof ant.c[k2]==="number"&&Math.abs(x-ant.c[k2])<Math.abs(x-pv)&&Math.abs(x-ant.c[k2])<=Math.max(50,Math.abs(ant.c[k2])*0.02));
+    const T=tramos(nave,k).filter(t=>t.dif>=0).slice(-20).map(t=>t.lpd).sort((a,b)=>a-b),med=T.length?T[Math.floor(T.length/2)]:null;
+    const mucho=med!=null&&T.length>=5&&d/lab>Math.max(med*3,med+20)&&d>10;
+    /* ¿se parece más a lo que marcaba otro contador de la nave? (p. ej. se apunta la del Térmico en el ISO 46).
+       Solo si la lectura no cuadra con su contador (marca menos o muchísimo más de lo normal) y los dos contadores
+       marcaban números claramente distintos: en la Nave 1 el Engrase 220 y la Prensa iban casi iguales (40.359 y 40.358)
+       y cualquier consumo normal de uno saltaba como «la del otro» (20/11/2026) */
+    const cerca=v=>Math.max(50,Math.abs(v)*0.02);
+    const otro=(d<0||mucho)&&CONT.find(([k2])=>k2!==k&&typeof ant.c[k2]==="number"&&Math.abs(ant.c[k2]-pv)>cerca(pv)&&Math.abs(x-ant.c[k2])<Math.abs(x-pv)&&Math.abs(x-ant.c[k2])<=cerca(ant.c[k2]));
     if(otro){o.push(nom+": "+fmtN(x)+" se parece a la lectura del "+otro[1]+" ("+fmtN(ant.c[otro[0]])+"), no a la del "+nom+" ("+fmtN(pv)+"). ¿Lo has apuntado en la casilla de otro contador?");return;}
     if(d<0){o.push(nom+": marca menos que la lectura anterior ("+fmtN(pv)+" el "+fmtF(ant.f)+"). ¿Error al leer o contador cambiado?");return;}
-    const T=tramos(nave,k).filter(t=>t.dif>=0).slice(-20).map(t=>t.lpd).sort((a,b)=>a-b),med=T.length?T[Math.floor(T.length/2)]:null;
-    if(med!=null&&T.length>=5&&d/lab>Math.max(med*3,med+20)&&d>10)o.push(nom+": "+fmtL(d)+(lab>1?" en "+lab+" días":"")+", más de 3 veces lo normal ("+fmtL(med)+"/día).");});
+    if(mucho)o.push(nom+": "+fmtL(d)+(lab>1?" en "+lab+" días":"")+", más de 3 veces lo normal ("+fmtL(med)+"/día).");});
   return o;}
 /* apuntar las lecturas de una nave (o corregir las de un día) */
 function formLect(nave0,f0){const f={f:f0||hoy(),nave:nave0||(faltaLectHoy()[0]||NAVES_CT[0]),v:{}};
