@@ -98,6 +98,8 @@ nav button span{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 @media (max-width:600px){
  table.parte-t tr>:nth-child(3),table.parte-t tr>:nth-child(4){display:none}
  table.parte-t .solo-movil{display:block}
+ /* con el filtro «En nave» o «Externo» el total se oculta: entonces se enseña la columna de lo que se ha elegido */
+ table.parte-t.solo-n tr>:nth-child(3),table.parte-t.solo-e tr>:nth-child(4){display:table-cell}
  table.parte-t{width:100%}
 }
 /* previsión en el móvil: las máquinas van debajo del nombre */

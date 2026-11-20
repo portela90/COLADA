@@ -139,7 +139,8 @@ function vParte(B,ud,ahora){
         el("td",{},[el("span",{class:"tagm",style:"background:var(--cobre)"}),document.createTextNode("Granalla de cobre"),
           gcNaves.length?el("div",{class:"sub",text:gcNaves.join(" · ")}):null]),
         el("td",{class:"r num"},[el("div",{style:"font-weight:600",text:fmt(gc.tot)+" kg"})]),
-        el("td",{class:"r num sub c-n",text:"—"}),el("td",{class:"r num sub c-e",text:"—"}),
+        /* la granalla está toda en nave: lo que queda sale también en «En nave» (con el filtro «En nave» el total no se ve) */
+        el("td",{class:"r num c-n"},[el("div",{text:fmt(gk)+" kg"}),el("div",{class:"sub",text:"quedan"})]),el("td",{class:"r num sub c-e",text:"—"}),
         el("td",{class:"r num c-t"},[el("div",{text:fmt(gk)+" kg"}),el("div",{class:"sub",text:"quedan"})]),
         el("td",{class:"r num sub",text:"—"})])]))
     ])]):el("div",{class:"empty",text:"Sin existencias."}),

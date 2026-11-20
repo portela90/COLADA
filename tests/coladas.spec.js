@@ -1235,3 +1235,17 @@ test('«¿No cuadra?» al pie de cada pantalla y en la ficha de una colada', asy
   expect(nc[1].ctx.tipo).toBe('Colada'); expect(nc[1].ctx.titulo).toBe('Colada ' + nom);
   expect(err).toEqual([]);
 });
+
+test('Parte del día en el móvil con el filtro «En nave»: se ven los fardos en nave y lo que queda de granalla', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => { try { localStorage.setItem('colada.fstk', JSON.stringify({ nave: '', mat: '', ubi: 'nave' })); } catch (e) {} });
+  await page.goto(url); await page.waitForTimeout(900);
+  await page.locator('.stk-t', { hasText: 'Parte del día' }).first().click(); await page.waitForTimeout(500);
+  const t = page.locator('table.parte-t');
+  await expect(t.locator('th', { hasText: 'En nave' })).toBeVisible();
+  const g = t.locator('tr', { hasText: 'Granalla de cobre' });
+  await expect(g.locator('td.c-n')).toBeVisible(); await expect(g.locator('td.c-n')).toContainText('quedan');
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
