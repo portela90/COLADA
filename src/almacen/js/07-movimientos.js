@@ -15,12 +15,12 @@ function vMov(v,solo){const d=draft.m;if(solo)d.tipo="salida";
   const fileI=el("input",{id:"mFoto",type:"file",accept:"image/*"});fileI.addEventListener("change",()=>{draft.mFile=fileI.files[0]||null;});
   const form=el("form",{},[
     solo?null:el("div",{class:"seg",role:"group","aria-label":"Tipo de movimiento"},Object.entries(TIPOS).map(([k,l])=>el("button",{type:"button","aria-pressed":String(t===k),text:l,onclick:()=>{d.tipo=k;almDefecto();render(true);}}))),
-    el("div",{class:"row"},[fld("Fecha",inp("mF",d.f,x=>d.f=x,{type:"date"})),fld("Artículo",sel("mArt",artOpts(),d.art,x=>{d.art=x;almDefecto();render(true);},"Elige artículo…"))]),
+    el("div",{class:"row"},[fld("Fecha",inp("mF",d.f,x=>d.f=x,{type:"date"})),fld("Artículo",selArtBusca("mArt",d,x=>{d.art=x;almDefecto();render(true);}))]),
     el("div",{class:"row"},[fld(t==="traslado"?"Desde":"Almacén",sel("mAlm",almOptsArt(art(d.art)),d.alm,x=>{d.alm=x;if(d.dest===x)d.dest="";if(t==="traslado")render(true);else pintaCalc();})),
       t==="traslado"?fld("Hasta",sel("mDest",almOptsArt(art(d.art),d.alm),d.dest,x=>{d.dest=x;pintaCalc();},"Destino…")):null,
       fld(t==="ajuste"?"Cantidad contada":"Cantidad",inp("mCant",d.cant,x=>{d.cant=x;pintaCalc();},{inputmode:"decimal",class:"num",autocomplete:"off",placeholder:"0"}))]),
     t==="salida"?campoMotSal(d):null,
-    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo","horno"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",sel("mMaq",paraOpts(),d.maq,x=>d.maq=x,"—")),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),fld("Relevo",selRelevo("mRel",d)),typeof selGestor==="function"?selGestor("mGest",d,"mRel"):null,el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
+    t==="salida"?el("div",{class:"row"},[fld(art(d.art)&&["piston","barra","tornillo","horno"].includes(art(d.art).fam)?"Inyectora":"Para (inyectora o nave, opcional)",selPara("mMaq",d.maq,x=>d.maq=x,()=>render(true))),fld("Operario que lo ha cogido",inp("mResp",d.resp||"",x=>{d.resp=x;d.rOk=false;},{autocomplete:"off",list:"lOperM",placeholder:"Nº o nombre"})),fld("Relevo",selRelevo("mRel",d)),typeof selGestor==="function"?selGestor("mGest",d,"mRel"):null,el("datalist",{id:"lOperM"},responsables().map(r=>el("option",{value:r})))]):null,
     t==="entrada"&&!window.SOLO_CONSULTA?(()=>{const fi=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"mLeerAlb"});fi.addEventListener("change",()=>{const f=fi.files[0];fi.value="";leerAlbaranAlm(f);});
       const fg=el("input",{type:"file",accept:"image/*",capture:"environment",style:"display:none",id:"mLeerAlbG"});fg.addEventListener("change",()=>{const f=fg.files[0];fg.value="";leerAlbaranIAGratis(f);});
       return el("div",{style:"display:grid;gap:4px"},[fi,fg,el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn sec",id:"bLeerAlbG",text:"📷 Leer albarán (gratis)",onclick:()=>fg.click()}),el("button",{type:"button",class:"btn sec",text:"Leer con IA",onclick:()=>fi.click()})]),
@@ -428,14 +428,14 @@ function cardComprasPist(re){const h=hoy(),k=draft.cpP||"mes";const y=h.slice(0,
 /* modificar un movimiento ya apuntado (fecha, artículo, almacén, cantidad, para quién, proveedor, albarán, nota y, en pistones, nuevos o recuperados) */
 async function patchMov(m,pt){if(db.itemsPatchId){await db.itemsPatchId("mov",mesDe(m.f),[Object.assign({},pt,{id:m.id})]);return;}
   const ref=db.doc("mov/"+mesDe(m.f)),sn=await ref.get();if(!sn.exists)return;await ref.set({items:(sn.data().items||[]).map(x=>x.id===m.id?Object.assign({},x,pt):x)});}
-function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeMov(m.id)||!!m.trep;const v={f:m.f,art:m.art,alm:m.alm,dest:m.dest||"",cant:String(m.tipo==="ajuste"?(m.contado!=null?m.contado:""):m.cant),maq:m.maq||(m.nave?"nave:"+m.nave:""),prov:m.prov||"",alb:m.alb||"",nota:m.nota||"",rec:esEntRec(m),resp:m.resp?String(m.resp):""};
+function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeMov(m.id)||!!m.trep;const v={f:m.f,art:m.art,alm:m.alm,dest:m.dest||"",cant:String(m.tipo==="ajuste"?(m.contado!=null?m.contado:""):m.cant),maq:paraVal(m),prov:m.prov||"",alb:m.alb||"",nota:m.nota||"",rec:esEntRec(m),resp:m.resp?String(m.resp):""};
   const box=el("div",{style:"display:grid;gap:10px"});
   const pinta=()=>{box.textContent="";const a=art(v.art);
     if(ligado)box.appendChild(el("div",{class:"banner w",text:m.trep?"Viene de la vuelta de tolvas del taller: aquí solo se cambian el albarán y la nota.":"Es un cambio de pistón: aquí solo se cambian la nota y el albarán. Si está mal la máquina, la medida o la cantidad, bórralo y apúntalo de nuevo."}));
     if(!ligado){box.appendChild(el("div",{class:"row"},[fld("Fecha",inp("emF",v.f,x=>v.f=x,{type:"date"})),m.tipo==="ajuste"?null:fld("Artículo",sel("emArt",artOpts(),v.art,x=>{v.art=x;pinta();}))]));
       box.appendChild(el("div",{class:"row"},[m.tipo==="ajuste"?null:fld(m.tipo==="traslado"?"Desde":"Almacén",sel("emAlm",almOptsArt(a),v.alm,x=>v.alm=x)),m.tipo==="traslado"?fld("Hasta",sel("emDest",almOptsArt(a,v.alm),v.dest,x=>v.dest=x,"Destino…")):null,
         m.tipo==="ajuste"?null:fld("Cantidad",inp("emCant",v.cant,x=>v.cant=x,{inputmode:"decimal",class:"num"}))]));
-      if(m.tipo==="salida")box.appendChild(fld("Para (inyectora o nave)",sel("emMaq",paraOpts(),v.maq,x=>v.maq=x,"—")));}
+      if(m.tipo==="salida")box.appendChild(fld("Para (inyectora o nave)",selPara("emMaq",v.maq,x=>v.maq=x)));}
     if(m.tipo==="salida"&&!ligado)box.appendChild(fld("Operario",inp("emResp",v.resp,x=>v.resp=x,{autocomplete:"off",placeholder:"Nº o nombre"})));
     if(m.tipo==="entrada"&&a&&a.fam==="piston")box.appendChild(el("div",{class:"seg",role:"group","aria-label":"Pistones nuevos o recuperados"},[[false,"Nuevos"],[true,"Recuperados"]].map(([r,l])=>el("button",{type:"button","aria-pressed":String(v.rec===r),text:l,onclick:()=>{v.rec=r;pinta();}}))));
     if(m.tipo==="entrada")box.appendChild(el("div",{class:"row"},[ligado?null:fld("Proveedor",sel("emProv",provOpts(),v.prov,x=>v.prov=x,"—")),fld("Nº albarán",inp("emAlb",v.alb,x=>v.alb=x,{autocomplete:"off"}))]));
@@ -447,7 +447,7 @@ function editMov(m0){const m=Object.assign({},m0),a0=art(m.art),ligado=!!pistDeM
     if(m.tipo==="salida"&&!ligado)pt.resp=String(v.resp).trim()||null;
     if(!ligado){if(!v.f){toast("Pon la fecha");return false;}if(m.tipo!=="ajuste"){const q=parseN(v.cant);if(!a){toast("Elige el artículo");return false;}if(!v.alm){toast("Elige el almacén");return false;}if(!(isFinite(q)&&q>0)){toast("Escribe una cantidad válida");return false;}
         if(m.tipo==="traslado"&&(!v.dest||v.dest===v.alm)){toast("Elige un destino distinto");return false;}Object.assign(pt,{art:v.art,alm:v.alm,cant:q});if(m.tipo==="traslado")pt.dest=v.dest;
-        if(m.tipo==="salida"){pt.maq=null;pt.nave=null;ponPara(pt,v.maq);}if(m.tipo==="entrada")pt.prov=v.prov||null;}
+        if(m.tipo==="salida"){pt.maq=null;pt.nave=null;pt.maqs=null;ponPara(pt,v.maq);}if(m.tipo==="entrada")pt.prov=v.prov||null;}
       pt.f=v.f;}
     try{if(pt.f&&mesDe(pt.f)!==mesDe(m.f)){const nu=Object.assign({},m0,pt);Object.keys(nu).forEach(k=>{if(nu[k]==null)delete nu[k];});await delMov(m.id,m.f);await addMovs([nu]);}
       else await patchMov(m,pt);}catch(e){toast("No se pudo guardar");return false;}

@@ -25,7 +25,7 @@ function bloqueQueLleva(m){const L=queLleva(m);if(!L.length)return el("p",{class
   return el("div",{class:"card"},el("div",{class:"lst"},filas));}
 /* consumibles sacados para una máquina que no tiene asignados */
 function sinAsignar(m,dias0){const des=sumaDias(hoy(),-(dias0||180));const g={};
-  todosMov().filter(x=>x.tipo==="salida"&&x.maq===m.id&&x.f>=des&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art);if(!a||a.fam==="piston"||(a.iny||[]).includes(m.id))return;g[a.id]=(g[a.id]||0)+(+x.cant||0);});
+  todosMov().filter(x=>x.tipo==="salida"&&deMaq(x,m.id)&&x.f>=des&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art);if(!a||a.fam==="piston"||(a.iny||[]).includes(m.id))return;g[a.id]=(g[a.id]||0)+(+x.cant||0)*parteMaq(x,m.id);});
   return Object.keys(g).map(id=>({a:art(id),c:g[id]})).filter(x=>x.a&&x.a.activo!==false).sort((p,q)=>q.c-p.c);}
 async function asignarArt(a,maqIds){const x=art(a.id);x.iny=Array.from(new Set((x.iny||[]).concat(maqIds)));await saveCat();toast(x.desc+": asignado a "+maqIds.map(maqN).join(", "));}
 /* propuesta general: para cada consumible, las máquinas para las que se ha sacado */
@@ -106,7 +106,7 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
   const dm=diamDe(m),pa=dm?pistArt(dm):null;
   const asign0=artsActivos().filter(a=>(a.iny||[]).includes(m.id)).sort((a,b)=>a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc));
   const asign=asign0.filter(a=>a.fam!=="horno"),hornoA=asign0.filter(a=>a.fam==="horno").sort((a,b)=>GRUPOS_H.indexOf(a.grupo)-GRUPOS_H.indexOf(b.grupo)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
-  const d60=sumaDias(hy,-60),cons={};todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=d60&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{cons[x.art]=(cons[x.art]||0)+(+x.cant||0);});
+  const d60=sumaDias(hy,-60),cons={};todosMov().filter(x=>deMaq(x,m.id)&&x.tipo==="salida"&&x.f>=d60&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{cons[x.art]=(cons[x.art]||0)+(+x.cant||0)*parteMaq(x,m.id);});
   const lista=(arr,fn)=>el("div",{class:"card"},el("div",{class:"lst"},arr.map(fn)));
   const gh=t=>el("div",{class:"gh",style:"border-radius:6px",text:t});
   const itArt=(a,extra)=>el("button",{type:"button",class:"it",onclick:abre(()=>ficha(a))},[el("div",{class:"ppal"},[el("div",{class:"t1",text:TEC(a.fam)?nomBT(a):a.desc}),
@@ -159,15 +159,15 @@ function fichaIny(m0,tab0){const m=maqDe(m0.id)||m0;const hy=hoy();const abre=fn
   /* --- Historial: todo lo que ha pasado en la máquina, en una sola lista --- */
   const H=[];todosMlog().filter(x=>x.maq===m.id).forEach(x=>H.push({f:x.f,ts:x.ts||0,t:x.tipo==="molde"?"Molde":"Contenedor",d:x.tipo==="molde"?"Se pone el "+(((moldeDe(x.val)||{}).cod)||"?"):(x.val?"Se pone el "+(((contDe(x.val)||{}).cod)||"?"):"Se quita")+(x.antes?" · sale el "+((x.tipo==="molde"?(moldeDe(x.antes)||{}).cod:(contDe(x.antes)||{}).cod)||"?")+(x.destino?" ("+((CT_EST[x.destino]||[x.destino])[0]).toLowerCase()+")":""):""),q:x.by,ir:x.tipo==="cont"&&contDe(x.val||x.antes)?()=>fichaCont(contDe(x.val||x.antes)):null}));
   all.forEach(p=>H.push({f:p.f,ts:p.ts||0,t:"Pistón",d:p.diam+" · "+cap(p.motivo||"")+((+p.cant||1)>1?" · "+p.cant+" pistones":""),q:p.resp?respTxt(p.resp):p.por||""}));
-  todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art);H.push({f:x.f,ts:x.ts||0,t:a&&a.fam==="horno"?"Horno":a&&TEC(a.fam)?FAM[a.fam]:"Material",d:(a?(TEC(a.fam)?nomBT(a):a.desc):"?")+" × "+fmtN(+x.cant||0)+(x.nota?" · "+x.nota:""),q:x.por||(x.resp?respTxt(x.resp):""),ir:a?()=>ficha(a):null});});
+  todosMov().filter(x=>deMaq(x,m.id)&&x.tipo==="salida"&&!/^Cambio de pistón/.test(x.nota||"")).forEach(x=>{const a=art(x.art);H.push({f:x.f,ts:x.ts||0,t:a&&a.fam==="horno"?"Horno":a&&TEC(a.fam)?FAM[a.fam]:"Material",d:(a?(TEC(a.fam)?nomBT(a):a.desc):"?")+" × "+fmtN(+x.cant||0)+(x.maq!==m.id&&x.maqs?" (compartido: "+paraTxt(x)+")":"")+(x.nota?" · "+x.nota:""),q:x.por||(x.resp?respTxt(x.resp):""),ir:a?()=>ficha(a):null});});
   H.sort((a,b)=>(b.f+"|"+String(b.ts).padStart(15,"0")).localeCompare(a.f+"|"+String(a.ts).padStart(15,"0")));
   const hist=H.length?el("div",{class:"lst"},H.slice(0,80).map(x=>el(x.ir?"button":"div",Object.assign({class:"it"},x.ir?{type:"button",onclick:abre(x.ir)}:{style:"cursor:default"}),[el("span",{class:"mq-ht",text:x.t}),el("div",{class:"ppal"},[el("div",{class:"t1",text:x.d}),el("div",{class:"t2",text:[fmtF(x.f),x.q].filter(Boolean).join(" · ")})])]))):el("p",{class:"hint",text:"Todavía no hay nada apuntado en esta máquina."});
   /* --- Gasto: pistones y material, este mes, el anterior y el año --- */
-  const gastoDe=desde=>{const ps=all.filter(p=>p.f>=desde),ms=todosMov().filter(x=>x.maq===m.id&&x.tipo==="salida"&&x.f>=desde&&!/^Cambio de pistón/.test(x.nota||""));
+  const gastoDe=desde=>{const ps=all.filter(p=>p.f>=desde),ms=todosMov().filter(x=>deMaq(x,m.id)&&x.tipo==="salida"&&x.f>=desde&&!/^Cambio de pistón/.test(x.nota||""));
     const R={},sinP=new Map(),add=(k,n,e,a)=>{const r=R[k]=R[k]||{n:0,e:0,sp:0};r.n+=n;r.e+=e;if(!e&&n){r.sp+=n;if(a)sinP.set(a.id,a);}};
     ps.forEach(p=>{const a=pistArt(p.diam),c=+p.cant||1;add("Pistones",c,c*precioDe(a),a);});
     todasRep().filter(r=>r.res==="ok"&&r.rec&&r.rec>=desde&&(r.maq===m.cod||r.maq===m.id)).forEach(r=>{const v=costeRep(r).v;add("Reparación de ejes",1,v,null);});
-    ms.forEach(x=>{const a=art(x.art);const k=a?(a.fam==="horno"?"Horno":TEC(a.fam)?"Barras y tornillos":"Consumibles"):"Otros";const c=+x.cant||0;add(k,c,c*precioDe(a),a);});
+    ms.forEach(x=>{const a=art(x.art);const k=a?(a.fam==="horno"?"Horno":TEC(a.fam)?"Barras y tornillos":"Consumibles"):"Otros";const c=(+x.cant||0)*parteMaq(x,m.id);add(k,c,c*precioDe(a),a);});
     return{R,sinP,pist:ps.reduce((t,p)=>t+(+p.cant||1),0),tot:Object.values(R).reduce((a,r)=>a+r.e,0)};};
   const mes0=hy.slice(0,8)+"01",ano0=hy.slice(0,5)+"01-01";const GM=gastoDe(mes0),GA=gastoDe(ano0),G12=gastoDe(sumaDias(hy,-365));
   const FILAS=["Pistones","Reparación de ejes","Consumibles","Barras y tornillos","Horno","Otros"],celda=(G,k)=>{const r=G.R[k];if(!r||!r.n)return"—";return r.e?eur(r.e)+(r.sp?" + "+fmtN(r.sp)+" sin precio":""):fmtN(r.n)+(k==="Reparación de ejes"?(r.n===1?" rep.":" rep."):" ud")+" · sin precio";};

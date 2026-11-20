@@ -64,13 +64,46 @@ const NAVES_C=["Nave 1A","Nave 1B","Nave 2"];
 const RELEVOS_A=["Mañana","Tarde","Noche"];
 const relevoAhoraA=()=>{const h=new Date().getHours();return h>=6&&h<14?"Mañana":h>=14&&h<22?"Tarde":"Noche";};
 function selRelevo(id,d){if(d.u==null)d.u=d.f===hoy()||!d.f?relevoAhoraA():"";return sel(id,RELEVOS_A.map(r=>[r,r]),d.u,x=>{d.u=x;},"—");}
-function paraOpts(){return[el("optgroup",{label:"Nave"},NAVES_C.map(n=>el("option",{value:"nave:"+n,text:n}))),el("optgroup",{label:"Inyectora"},maqOpts().map(([v,t])=>el("option",{value:v,text:t})))];}
-function ponPara(rec,v){if(!v)return;if(v.startsWith("nave:"))rec.nave=v.slice(5);else rec.maq=v;}
-const paraTxt=m=>m.maq?maqN(m.maq):(m.nave||"");
+/* «Para»: una nave, una inyectora o varias máquinas a la vez (p. ej. la granalladora que da servicio a la F27 y la F32,
+   20/11/2026). Las combinaciones se guardan en el catálogo (cat.multiDest: [["F27","F32"],…]); en el apunte van como
+   maqs:["F27","F32"] y la nave de la primera. Cada máquina cuenta su parte (la mitad si son dos). */
+const multiTxt=L=>L.map(maqN).join("/");
+function paraOpts(nuevo){return[el("optgroup",{label:"Nave"},NAVES_C.map(n=>el("option",{value:"nave:"+n,text:n}))),el("optgroup",{label:"Inyectora"},maqOpts().map(([v,t])=>el("option",{value:v,text:t}))),
+  el("optgroup",{label:"Varias máquinas"},((cat&&cat.multiDest)||[]).map(L=>el("option",{value:"maqs:"+L.join(","),text:multiTxt(L)})).concat(nuevo?[el("option",{value:"maqs:nuevo",text:"＋ Varias máquinas…"})]:[]))];}
+function ponPara(rec,v){if(!v||v==="maqs:nuevo")return;if(v.startsWith("nave:"))rec.nave=v.slice(5);
+  else if(v.startsWith("maqs:")){rec.maqs=v.slice(5).split(",").filter(Boolean);const m=cat.maquinas.find(x=>x.id===rec.maqs[0]);if(m&&m.nave)rec.nave=m.nave;}else rec.maq=v;}
+const paraTxt=m=>m.maq?maqN(m.maq):Array.isArray(m.maqs)&&m.maqs.length?multiTxt(m.maqs):(m.nave||"");
+const paraVal=m=>m.maq||(Array.isArray(m.maqs)&&m.maqs.length?"maqs:"+m.maqs.join(","):m.nave?"nave:"+m.nave:"");
+/* ¿este apunte es de la máquina id? y qué parte le toca (1 si es solo suya; 1/2 si es de dos) */
+const deMaq=(x,id)=>x.maq===id||(Array.isArray(x.maqs)&&x.maqs.includes(id));
+const parteMaq=(x,id)=>x.maq===id?1:Array.isArray(x.maqs)&&x.maqs.includes(id)?1/x.maqs.length:0;
+/* desplegable «Para» que, con «＋ Varias máquinas…», deja elegir las máquinas y guarda la combinación */
+function selPara(id,val,on,re){const s=sel(id,paraOpts(true),val,x=>{if(x!=="maqs:nuevo"){on(x);return;}s.value=val||"";elegirMaqs(v=>{on(v);if(re)re();});},"—");return s;}
+function elegirMaqs(listo){const elegidas=new Set();const box=el("div",{style:"display:grid;gap:6px;max-height:50vh;overflow:auto"},maqOpts().map(([v,t])=>el("label",{class:"chk"},[el("input",{type:"checkbox",value:v,onchange:e=>{if(e.target.checked)elegidas.add(v);else elegidas.delete(v);}}),el("span",{text:" "+t})])));
+  dlg("Varias máquinas",[el("p",{class:"hint",style:"margin-top:0",text:"Marca las máquinas a las que va (por ejemplo la F27 y la F32 si comparten la granalladora). Cada una cuenta su parte."}),box],
+    [{t:"Cancelar",cls:"sec"},{t:"Usar estas",fn:async()=>{const L=maqOpts().map(([v])=>v).filter(v=>elegidas.has(v));if(L.length<2){toast("Marca al menos dos máquinas");return false;}
+      const k=L.join(",");cat.multiDest=(cat.multiDest||[]).filter(x=>x.join(",")!==k).concat([L]);try{await saveCat();}catch(e){}listo("maqs:"+k);}}]);}
 const provN=id=>{const p=cat.proveedores.find(x=>x.id===id);return p?p.nom:"";};
 const artsActivos=()=>cat.articulos.filter(a=>a.activo!==false);
 function artOpts(fil){const g={};artsActivos().filter(fil||(()=>true)).forEach(a=>{(g[a.fam]=g[a.fam]||[]).push(a);});
   return Object.keys(FAM).filter(f=>g[f]).map(f=>el("optgroup",{label:FAM[f]},g[f].sort((x,y)=>x.desc.localeCompare(y.desc)).map(a=>el("option",{value:a.id,text:a.desc+(a.cod&&!a.desc.includes(a.cod)?" · "+a.cod:"")}))));}
+/* elegir artículo sin pelearse con la lista (20/11/2026): un buscador que filtra la lista mientras escribes (por trozos de
+   palabra, sin tildes: «gran 110», «toner 44») y los artículos que más se sacan, a un toque. Si solo queda uno, se elige solo. */
+const artTxt=a=>String(a.desc+" "+(a.cod||"")+" "+(FAM[a.fam]||"")).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function artBusca(q,fil){const T=String(q||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().split(/[^a-z0-9ñ]+/).filter(Boolean);
+  return a=>(!fil||fil(a))&&T.every(t=>artTxt(a).includes(t));}
+function artMasUsados(n,fil){const c={},d90=sumaDias(hoy(),-90);todosMov().forEach(m=>{if(m.tipo==="salida"&&m.f>=d90&&m.art)c[m.art]=(c[m.art]||0)+1;});
+  return Object.keys(c).map(art).filter(a=>a&&a.activo!==false&&(!fil||fil(a))).sort((a,b)=>c[b.id]-c[a.id]).slice(0,n||6);}
+function selArtBusca(id,d,on,fil){const q=d._artQ||"";const s=sel(id,artOpts(artBusca(q,fil)),d.art,on,q?"Elige entre los que coinciden…":"Elige artículo…");
+  const n=artsActivos().filter(artBusca(q,fil)).length;
+  const bus=el("input",{id:id+"Q",type:"search",value:q,placeholder:"Buscar: escribe parte del nombre o código",autocomplete:"off","aria-label":"Buscar artículo"});
+  const info=el("div",{class:"sub",style:"min-height:16px",text:q?(n?n+(n===1?" artículo":" artículos"):"Ninguno con «"+q+"»"):""});
+  bus.addEventListener("input",()=>{d._artQ=bus.value;const L=artsActivos().filter(artBusca(bus.value,fil));
+    s.textContent="";s.appendChild(el("option",{value:"",text:bus.value?"Elige entre los que coinciden…":"Elige artículo…"}));artOpts(artBusca(bus.value,fil)).forEach(o=>s.appendChild(o));
+    info.textContent=bus.value?(L.length?L.length+(L.length===1?" artículo":" artículos"):"Ninguno con «"+bus.value+"»"):"";
+    if(L.length===1&&L[0].id!==d.art){s.value=L[0].id;on(L[0].id);}else s.value=L.some(a=>a.id===d.art)?d.art:"";});
+  const usa=artMasUsados(6,fil);
+  return el("div",{style:"display:grid;gap:6px"},[bus,info,s,usa.length&&!d.art?el("div",{class:"chips"},[el("span",{class:"sub",text:"Los que más se sacan:"})].concat(usa.map(a=>el("button",{type:"button",class:"chip",text:a.desc,onclick:()=>on(a.id)})))):null]);}
 const almOpts=()=>cat.almacenes.map(a=>[a.id,a.nom]);
 const maqOpts=()=>cat.maquinas.slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).map(m=>[m.id,m.cod+(m.nave?" · "+m.nave:"")]);
 const provOpts=()=>cat.proveedores.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(p=>[p.id,p.nom]);

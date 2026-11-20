@@ -1202,6 +1202,34 @@ test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', asy
   expect(err).toEqual([]);
 });
 
+test('Consumo: buscar el artículo escribiendo y destino de varias máquinas (granalladora de la F21 y la F22)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click()); await page.waitForTimeout(300); await page.locator('#view button', { hasText: /^Consumo/ }).first().click(); await page.waitForTimeout(300);
+  // el buscador filtra la lista (sin tildes y por trozos) y, si solo queda uno, lo elige
+  await page.fill('#mArtQ', 'mant cera'); await page.waitForTimeout(400);
+  await expect(page.locator('#mArt')).toHaveValue(await page.$eval('#mArt', s => [...s.options].find(o => /Manta cer/.test(o.text)).value));
+  await expect(page.locator('#mArtQ')).toHaveValue('mant cera');
+  await page.fill('#mArtQ', 'pist'); await page.waitForTimeout(300);
+  expect(await page.$$eval('#mArt option[value]:not([value=""])', o => o.every(x => /Pist/.test(x.textContent)))).toBe(true);
+  await page.fill('#mArtQ', 'espumadera'); await page.waitForTimeout(400);
+  await page.fill('#mCant', '2'); await page.fill('#mResp', 'Operario prueba');
+  // «＋ Varias máquinas…»: se marcan la F21 y la F22 y queda como destino «F21/F22»
+  await page.locator('#mMaq').selectOption('maqs:nuevo'); await page.waitForTimeout(300);
+  const d = page.locator('.dlg', { hasText: 'Varias máquinas' });
+  await d.locator('label', { hasText: 'F21 ·' }).locator('input').check(); await d.locator('label', { hasText: 'F22 ·' }).locator('input').check();
+  await d.getByRole('button', { name: 'Usar estas' }).click(); await page.waitForTimeout(400);
+  await expect(page.locator('#mMaq option:checked')).toHaveText('F21/F22');
+  expect(await page.evaluate(() => JSON.stringify(window.__D.cat.app.multiDest))).toContain('["F21","F22"]');
+  await page.locator('#mBtn').click(); await page.waitForTimeout(600);
+  const m = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).find(x => x.maqs));
+  expect(m.maqs).toEqual(['F21', 'F22']); expect(m.nave).toBe('Nave 1'); expect(m.maq).toBeUndefined();
+  // la próxima vez sale ya en la lista
+  await expect(page.locator('#mMaq option', { hasText: 'F21/F22' })).toHaveCount(1);
+  expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
 test('Pestaña Consumo: apuntar un consumo con el operario', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
