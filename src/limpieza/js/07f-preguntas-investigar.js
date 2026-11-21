@@ -22,7 +22,8 @@ const INV_NO=new Set(("cuanto cuanta cuantas cuantos veces vez tiempo horas hora
   "franja franjas turno turnos manana tarde noche partido refuerzo primera segunda tercera cuarta quinta resumen informe jefe jefes pendiente pendientes hechos hecha hechas "+
   "terminar terminado terminados quedado quedaron quedan queda ahorro ahorrar ahorramos ahorrariamos ahorraria ahorrarian vuelto frente versus contra tardamos tardais "+
   "arreglaron arreglen solucionaron solucionen respecto empeora empeoran mejora mejoran subir bajar "+
-  "podemos puedo puede podriamos realizar realizamos realizan hacemos mejorar ganar optimizar eficientes eficiencia reducir aprovechar concreto concreta concretos determinado mismo sobra sobran segun capacidad disponible disponibles queda "+INV_MESES.join(" ")+" "+INV_DSEM.map(x=>x[0]).join(" ")).split(" "));
+  "podemos puedo puede podriamos realizar realizamos realizan hacemos mejorar ganar optimizar eficientes eficiencia reducir aprovechar concreto concreta concretos determinado mismo sobra sobran segun capacidad disponible disponibles queda "+
+  "presupuesto fuera extra extras falta faltas baja bajas vacacion vacaciones permiso permisos ausencia ausencias bolsa sustitucion sustituciones sustituye festivo festivos motivo motivos justificadas justificada venido jornadas "+INV_MESES.join(" ")+" "+INV_DSEM.map(x=>x[0]).join(" ")).split(" "));
 const invYMD=(y,m,d)=>y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
 const invFinMes=(y,m)=>invYMD(y,m,new Date(y,m,0).getDate());
 /* periodo escrito en la pregunta (null = el de la pantalla) */
@@ -67,6 +68,8 @@ function invPersQ(t,nombres){const tk=n=>sinAcento(n).toLowerCase().split(/\s+/)
   const sc=n=>tk(n).filter(enT).length,max=Math.max(...parcial.map(sc));return parcial.filter(n=>sc(n)===max);}
 /* lo que hay que contestar */
 function invIntQ(t){const has=re=>re.test(t);
+  /* horas de las personas (07h): días trabajados, fuera de presupuesto, extra, sustitución, faltas y bolsa */
+  if(invHorasQ(t))return"horas";
   if(has(/(resumen|informe del mes|informe para|como ha ido)/))return"res";
   if(has(/(sin hacer|no se (han )?hecho|no se hicieron|no se ha hecho|pendiente|quedado sin|quedaron sin|quedan sin|no hech|sin terminar)/))return"pend";
   /* Nave 1 frente a Nave 2 (no «la Nave 2 comparado con el mes anterior») */
@@ -116,9 +119,11 @@ function invMetQ(t){if(/(tarda|media|promedio|cuanto dura|duracion)/.test(t))ret
 /* carga (con el periodo anterior para comparar) */
 const INV_CACHE={};
 async function invCarga(d0,d1){const A=invAnterior(d0,d1),k=A.d0+"|"+d1;if(INV_CACHE[k])return INV_CACHE[k];
-  const [O,W,R,FE,SU,EL]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:A.d0,p_hasta:d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:d0,p_hasta:d1}),
-    rpc("festivos_listar",{p_tok:S.tok}),sustRango(d0,d1),rpc("elementos",{p_tok:S.tok}).catch(()=>[])]);
-  return INV_CACHE[k]={O:O.filter(o=>!o.borrado),W,R,FE,SU,EL:EL||[],A};}
+  /* horas desde que se empezaron a contar (para la bolsa) o desde el periodo anterior, lo que sea antes */
+  const dH=A.d0<BOLSA_DESDE?A.d0:BOLSA_DESDE;
+  const [O,W,R,FE,SU,EL,RH,SUH]=await Promise.all([rpc("ots_rango",{p_tok:S.tok,p_desde:A.d0,p_hasta:d1}),trabajadores(true),rpc("horas_rango",{p_tok:S.tok,p_desde:d0,p_hasta:d1}),
+    rpc("festivos_listar",{p_tok:S.tok}),sustRango(d0,d1),rpc("elementos",{p_tok:S.tok}).catch(()=>[]),rpc("horas_rango",{p_tok:S.tok,p_desde:dH,p_hasta:d1}).catch(()=>[]),sustRango(dH,d1)]);
+  return INV_CACHE[k]={O:O.filter(o=>!o.borrado),W,R,FE,SU,EL:EL||[],A,RH:RH||[],SUH:SUH||[]};}
 
 /* ===== lo que Cristian le enseña (tabla inv_dic): persona, lugar, problema, frase y favorita ===== */
 let INV_DIC=[];
@@ -157,7 +162,7 @@ function invEntiende(q,C,F){const t0=sinAcento(q).toLowerCase().replace(/[¿?¡!
   const usadas=new Set();if(turno)turno.split(" ").forEach(w=>usadas.add(w));pers.forEach(n=>sinAcento(n).toLowerCase().split(/\s+/).forEach(w=>usadas.add(w)));if(sitio&&sitio.k==="lugar"&&sn)sn.tk.forEach(w=>usadas.add(w));
   const libres=t.split(" ").filter(w=>w.length>=3&&!INV_NO.has(w)&&!usadas.has(w)&&!/^[fm]\d+$/.test(w)&&!/^20\d\d$/.test(w)&&!/^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{2,4})?$/.test(w));
   const int=invIntQ(t);
-  return{t,q,per,pers,sitio:int==="naves"&&sitio&&sitio.k==="nave"?null:sitio,cat,dsem,turno,libres,conj:D.conj,int,grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
+  return{t,q,per,pers,hq:int==="horas"?invHorasQ(t):null,sitio:int==="naves"&&sitio&&sitio.k==="nave"?null:sitio,cat,dsem,turno,libres,conj:D.conj,int,grupo:invGrupoQ(t),met:invMetQ(t),comp:/(compar|anterior|antes|subido|bajado|aumentado|empeorado|mejorado|que el mes)/.test(t),menos:/\bmenos\b/.test(t)};}
 
 /* trabajos que cumplen lo pedido (sin periodo) */
 function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.sitio.v:"").toLowerCase();
@@ -179,7 +184,7 @@ function invFiltra(L,E,C){const nav=sinAcento(E.sitio&&E.sitio.k==="nave"?E.siti
 /* contestar */
 function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=d1;const A=invAnterior(d0,d1);const enA=o=>o.fecha>=A.d0&&o.fecha<=A.d1;
   const todos=invFiltra(C.O,E,C),L=todos.filter(enP),La=todos.filter(enA);const H=L.filter(o=>o.estado==="hecha");
-  const T=a=>a.reduce((s,o)=>s+invMin(o),0);const r={L,cols:null,filas:[],frase:""};
+  const T=a=>a.reduce((s,o)=>s+invMin(o),0);const r={L,cols:null,filas:[],frase:""};if(E.int==="horas")return invHorasContesta(E,C,r);
   const desc=[E.cat==="*"?"problemas":E.cat?invCatN(E.cat).toLowerCase():null,E.sitio?(E.sitio.k==="maq"?"en la "+E.sitio.v:"en la "+E.sitio.v):null,
     E.conj?"de "+E.conj.n.toLowerCase():null,E.pers.length?"de "+E.pers.join(" y "):null,E.dsem?"los "+E.dsem.map(d=>DIAS_INV[d].toLowerCase()).join(" y "):null,E.libres.length&&!E.ignoradas.length?"«"+E.libres.join(" ")+"»":null].filter(Boolean).join(" ");
   const quien=desc||"trabajos";
@@ -389,7 +394,7 @@ function invContesta(E,C){const{d0,d1}=E.per;const enP=o=>o.fecha>=d0&&o.fecha<=
   return r;}
 
 /* la tarjeta del buscador */
-const INV_EJ=["¿Cuántas veces ha perdido aceite la F19 este año?","¿Qué máquinas pierden más aceite en los últimos 3 meses?","¿Quién tarda más en los derrames de taladrina?","¿Quién tarda más en cada trabajo?","¿Qué trabajos son los que más se repiten?","¿Qué trabajos se pueden pasar a otro?","¿Cuánto tiempo sobra según la carga de trabajo?",
+const INV_EJ=["¿Cuántas veces ha perdido aceite la F19 este año?","¿Qué máquinas pierden más aceite en los últimos 3 meses?","¿Quién tarda más en los derrames de taladrina?","¿Quién tarda más en cada trabajo?","¿Qué trabajos son los que más se repiten?","¿Qué trabajos se pueden pasar a otro?","Horas fuera de presupuesto este mes","¿Cuántos días ha trabajado cada uno el mes pasado?","¿Cuánto tiempo sobra según la carga de trabajo?",
   "¿Dónde se pierde más tiempo?","¿Cómo podemos ahorrar tiempo en los trabajos?","Resumen del mes pasado","Compara la Nave 1 con la Nave 2","¿Qué ha empeorado este mes?","¿Cuánto ahorraríamos si arreglan la F19?",
   "¿A qué hora hay más derrames?","¿Qué se ha quedado sin hacer esta semana?","Saturación de cada uno el mes pasado","¿Qué días hay más derrames?","Tiempo perdido en problemas por semana","¿Dónde se repiten las fugas de agua?","¿Quién no pulsa Empezar?",
   "Derrames de aceite en la Nave 2 comparado con el mes anterior","¿En qué se va el tiempo los sábados?"];
@@ -407,7 +412,7 @@ function invPreguntaCard(F){const res=el("div",{id:"invResp"});const qi=el("inpu
 function invPinta(res,E,r){res.textContent="";
   const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.conj?["Grupo",E.conj.n+" ("+E.conj.w.join(", ")+")"]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
     E.dsem?["Día",E.dsem.map(d=>DIAS_INV[d]).join(" y ")]:null,E.turno?["Turno",E.turno]:null,
-    {pasar:["Quiero saber","qué trabajos se pueden pasar a otro"],mejora:["Quiero saber","cómo ahorrar tiempo"],avisos:["Quiero saber","qué avisos se repiten más"],sobra:["Quiero saber","cuánto tiempo sobra"],naves:["Compara","Nave 1 y Nave 2"],ahorro:["Quiero saber","cuánto se ahorraría"],vuelto:["Quiero saber","si ha vuelto a pasar"],pend:["Quiero saber","lo que se ha quedado sin hacer"],
+    {horas:["Quiero saber",{dias:"días trabajados",fuera:"horas fuera de presupuesto",extra:"horas extra",sust:"horas por sustitución",falta:"faltas",bolsa:"bolsa de horas"}[E.hq]||"horas"],pasar:["Quiero saber","qué trabajos se pueden pasar a otro"],mejora:["Quiero saber","cómo ahorrar tiempo"],avisos:["Quiero saber","qué avisos se repiten más"],sobra:["Quiero saber","cuánto tiempo sobra"],naves:["Compara","Nave 1 y Nave 2"],ahorro:["Quiero saber","cuánto se ahorraría"],vuelto:["Quiero saber","si ha vuelto a pasar"],pend:["Quiero saber","lo que se ha quedado sin hacer"],
       evo:["Quiero saber",/(mejor|bajado)/.test(E.t)?"qué ha mejorado":"qué ha empeorado"],res:["Quiero","un resumen"],rep:["Quiero saber","dónde se repite"],sat:["Quiero saber","la carga de trabajo"]}[E.int]||null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
   res.appendChild(el("div",{class:"meta",style:"margin:10px 0 6px"},[el("small",{class:"hint",style:"margin:0",text:"He entendido:"})].concat(ent.map(([a,b])=>el("span",{class:"pill info",text:a+": "+b})))));
   if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),

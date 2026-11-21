@@ -492,3 +492,33 @@ test('Plan de la semana: carga prevista con los avisos que suele hacer cada uno'
   await expect(c.locator('tr', { hasText: 'Josefa Ruiz' }).locator('td').nth(2)).toHaveText('—');
   expect(err).toEqual([]);
 });
+
+test('Pregúntale entiende preguntas de horas: días trabajados, fuera de presupuesto, extra, faltas y bolsa', async ({ page }) => {
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30)];
+  R.horas_rango = [
+    { fecha: '2026-10-05', trabajador: 'w3', nombre: 'Ahmed El Hait', trabajadas: 10, fuera: 2, falta: null, nota: 'Derrame grande en la F19', extra_mano: 2 },
+    { fecha: '2026-10-06', trabajador: 'w4', nombre: 'Josefa Ruiz', trabajadas: 9, fuera: 1, falta: null, nota: 'Limpieza a fondo del horno', extra_mano: null },
+    { fecha: '2026-10-07', trabajador: 'w3', nombre: 'Ahmed El Hait', trabajadas: null, fuera: 0, falta: 'vacaciones', nota: null, extra_mano: null }];
+  R.sust_rango = [];
+  try {
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    let r = await pregunta('horas fuera de presupuesto este mes');
+    await expect(r).toContainText('Quiero saber: horas fuera de presupuesto');
+    await expect(r).toContainText('Horas fuera de presupuesto este mes: 3 h entre 2 personas. Quien más: Ahmed El Hait, 2 h');
+    await expect(r).toContainText('Derrame grande en la F19'); await expect(r).toContainText('Limpieza a fondo del horno');
+    r = await pregunta('¿cuántos días ha trabajado Ahmed en octubre?');
+    await expect(r).toContainText('Ahmed El Hait ha trabajado 21 días en octubre (21 entre semana y 0 en fin de semana): 170 h');
+    r = await pregunta('¿quién ha hecho más horas extra este mes?');
+    await expect(r).toContainText('Horas extra este mes: 2 h en 1 día');
+    r = await pregunta('faltas de Ahmed este mes');
+    await expect(r).toContainText('Días de faltas este mes: 1 (Ahmed El Hait)');
+    await expect(r).toContainText('Vacaciones');
+    r = await pregunta('bolsa de horas de cada uno');
+    await expect(r).toContainText('Bolsa de horas al cerrar la última semana');
+    // lo de antes sigue igual
+    r = await pregunta('¿qué se ha quedado sin hacer este mes?');
+    await expect(r).not.toContainText('faltas');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.horas_rango = []; }
+});
