@@ -508,7 +508,7 @@ test('Pregúntale entiende preguntas de horas: días trabajados, fuera de presup
     await expect(r).toContainText('Horas fuera de presupuesto este mes: 3 h entre 2 personas. Quien más: Ahmed El Hait, 2 h');
     await expect(r).toContainText('Derrame grande en la F19'); await expect(r).toContainText('Limpieza a fondo del horno');
     r = await pregunta('¿cuántos días ha trabajado Ahmed en octubre?');
-    await expect(r).toContainText('Ahmed El Hait ha trabajado 21 días en octubre (21 entre semana y 0 en fin de semana): 170 h');
+    await expect(r).toContainText('Ahmed El Hait ha trabajado 21 días en octubre (21 de mañana): 170 h');
     r = await pregunta('¿quién ha hecho más horas extra este mes?');
     await expect(r).toContainText('Horas extra este mes: 2 h en 1 día');
     r = await pregunta('faltas de Ahmed este mes');
@@ -516,9 +516,45 @@ test('Pregúntale entiende preguntas de horas: días trabajados, fuera de presup
     await expect(r).toContainText('Vacaciones');
     r = await pregunta('bolsa de horas de cada uno');
     await expect(r).toContainText('Bolsa de horas al cerrar la última semana');
+    r = await pregunta('¿qué días ha faltado Ahmed?');
+    await expect(r).toContainText('Días de faltas este mes: 1 (Ahmed El Hait)');
+    r = await pregunta('horas de más de Ahmed');
+    await expect(r).toContainText('Horas de más frente a su horario este mes: 2 h (Ahmed El Hait, 1 día)');
+    r = await pregunta('¿quién no ha cumplido su jornada?');
+    await expect(r).toContainText('Nadie ha hecho horas de menos frente a su horario este mes');
+    r = await pregunta('¿cuántas horas le debemos a Ahmed?');
+    await expect(r).toContainText('Quiero saber: bolsa de horas');
+    r = await pregunta('¿quién ha trabajado en festivo?');
+    await expect(r).toContainText('Quiero saber: trabajo en festivo'); await expect(r).toContainText('No hay festivos este mes');
     // lo de antes sigue igual
     r = await pregunta('¿qué se ha quedado sin hacer este mes?');
     await expect(r).not.toContainText('faltas');
     expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
   } finally { R.horas_rango = []; }
+});
+
+test('Horas por turno: «¿cuántos días ha trabajado Ahmed y cuántos de refuerzo?» y «horas de refuerzo de Ahmed»', async ({ page }) => {
+  const W0 = R.trabajadores_admin;
+  const hor = { lunes: [['08:00', '14:00']], martes: [], miercoles: [['08:00', '14:00']], jueves: [], viernes: [['08:00', '14:00']], sabado: [['06:00', '14:00']], domingo: [['06:00', '14:00']] };
+  R.trabajadores_admin = W0.map(w => w.id === 'w3' ? Object.assign({}, w, { horario: hor, turno_semana: 'Refuerzo', turno_finde: 'Mañana finde', equipos: ['Semana', 'Finde'] }) : w);
+  R.ots_rango = [ot('2026-10-05', 'Derrame de aceite', 'F19', 'Ahmed El Hait', 30)]; R.horas_rango = []; R.sust_rango = [];
+  try {
+    const { err } = await abre(page, ADMIN, '?ir=investigar');
+    const pregunta = async q => { await page.fill('#invQ', q); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400); return page.locator('#invResp'); };
+    let r = await pregunta('¿cuántos días ha trabajado Ahmed y cuántos días han sido refuerzo?');
+    await expect(r).toContainText('Ahmed El Hait ha trabajado 22 días este mes (13 de refuerzo y 9 de mañana finde): 150 h');
+    await expect(r).toContainText('Días que ha trabajado Ahmed');
+    r = await pregunta('cuantas horas de refuerzo a trabajado Ahmed');
+    await expect(r).toContainText('Turno: refuerzo');
+    await expect(r).toContainText('Ahmed El Hait ha trabajado 13 días de refuerzo este mes: 78 h');
+    r = await pregunta('que dias ha trabajado Ahmed El Hait');
+    await expect(r).toContainText('Quiero saber: días trabajados');
+    r = await pregunta('¿cuántos sábados ha trabajado Ahmed?');
+    await expect(r).toContainText('Ahmed El Hait ha trabajado 5 días este mes (5 de mañana finde): 40 h');
+    r = await pregunta('¿qué horario tiene Ahmed?');
+    await expect(r).toContainText('Ahmed El Hait: entre semana, refuerzo; el fin de semana, mañana finde. Horario: L 8:00–14:00 · X 8:00–14:00 · V 8:00–14:00 · S 6:00–14:00 · D 6:00–14:00 (34 h a la semana)');
+    r = await pregunta('¿quién ha trabajado más horas este mes?');
+    await expect(r).toContainText('Quien más: Abdoul kader Maiga, 22 días (176 h)');
+    expect(err.filter(e => !/jspdf|autoTable/i.test(e))).toEqual([]);
+  } finally { R.trabajadores_admin = W0; }
 });

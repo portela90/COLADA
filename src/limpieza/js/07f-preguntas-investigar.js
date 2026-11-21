@@ -23,6 +23,7 @@ const INV_NO=new Set(("cuanto cuanta cuantas cuantos veces vez tiempo horas hora
   "terminar terminado terminados quedado quedaron quedan queda ahorro ahorrar ahorramos ahorrariamos ahorraria ahorrarian vuelto frente versus contra tardamos tardais "+
   "arreglaron arreglen solucionaron solucionen respecto empeora empeoran mejora mejoran subir bajar "+
   "podemos puedo puede podriamos realizar realizamos realizan hacemos mejorar ganar optimizar eficientes eficiencia reducir aprovechar concreto concreta concretos determinado mismo sobra sobran segun capacidad disponible disponibles queda "+
+  "faltado venido vino vinieron ausente libranza libranzas debe debemos deben deber horario horarios exceso encima debajo cumplido pasado sabados domingos findes "+
   "presupuesto fuera extra extras falta faltas baja bajas vacacion vacaciones permiso permisos ausencia ausencias bolsa sustitucion sustituciones sustituye festivo festivos motivo motivos justificadas justificada venido jornadas "+INV_MESES.join(" ")+" "+INV_DSEM.map(x=>x[0]).join(" ")).split(" "));
 const invYMD=(y,m,d)=>y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
 const invFinMes=(y,m)=>invYMD(y,m,new Date(y,m,0).getDate());
@@ -105,7 +106,8 @@ function invGrupoQ(t){const has=re=>re.test(t);
   return null;}
 /* turno nombrado («turno de tarde», «los de mañana»): se filtra por él */
 function invTurnoQ(t){const m=t.match(/\b(?:turno (?:de )?(?:la )?)?(manana finde|manana|tarde|noche|partido|refuerzo)\b/);if(!m)return null;
-  if(!/turno/.test(t)&&!/(de|por|en) la (manana|tarde|noche)/.test(t))return null;return m[1];}
+  /* «refuerzo» siempre es un turno; los demás, solo si se dice «turno» o «por la tarde» */
+  if(m[1]!=="refuerzo"&&!/turno/.test(t)&&!/(de|por|en) la (manana|tarde|noche)/.test(t)&&!/(horas|dias) de (manana finde|manana|tarde|noche|partido)/.test(t))return null;return m[1];}
 /* turno del trabajo: el apuntado o, si no, el de quien lo hizo (entre semana o el finde) */
 function invTurno(o,C){if(o.turno)return o.turno;const W=C._wid||(C._wid=Object.fromEntries((C.W||[]).map(w=>[w.id,w])));const id=o.hecho_por||(o.asignados||[])[0];const w=W[id];
   if(!w)return"Sin turno";const fin=[0,6].includes(new Date(o.fecha+"T12:00:00").getDay());return(fin?w.turno_finde:w.turno_semana)||w.turno_semana||"Sin turno";}
@@ -412,7 +414,7 @@ function invPreguntaCard(F){const res=el("div",{id:"invResp"});const qi=el("inpu
 function invPinta(res,E,r){res.textContent="";
   const ent=[["Periodo",E.per.t],E.pers.length?["Persona",E.pers.join(", ")]:null,E.sitio?["Dónde",E.sitio.v]:null,E.conj?["Grupo",E.conj.n+" ("+E.conj.w.join(", ")+")"]:null,E.cat?["Problema",E.cat==="*"?"todos los problemas":invCatN(E.cat)]:null,
     E.dsem?["Día",E.dsem.map(d=>DIAS_INV[d]).join(" y ")]:null,E.turno?["Turno",E.turno]:null,
-    {horas:["Quiero saber",{dias:"días trabajados",fuera:"horas fuera de presupuesto",extra:"horas extra",sust:"horas por sustitución",falta:"faltas",bolsa:"bolsa de horas"}[E.hq]||"horas"],pasar:["Quiero saber","qué trabajos se pueden pasar a otro"],mejora:["Quiero saber","cómo ahorrar tiempo"],avisos:["Quiero saber","qué avisos se repiten más"],sobra:["Quiero saber","cuánto tiempo sobra"],naves:["Compara","Nave 1 y Nave 2"],ahorro:["Quiero saber","cuánto se ahorraría"],vuelto:["Quiero saber","si ha vuelto a pasar"],pend:["Quiero saber","lo que se ha quedado sin hacer"],
+    {horas:["Quiero saber",{dias:"días trabajados",fuera:"horas fuera de presupuesto",extra:"horas extra",sust:"horas por sustitución",falta:"faltas",bolsa:"bolsa de horas",festivo:"trabajo en festivo",exceso:"horas de más o de menos",horario:"horario y turno"}[E.hq]||"horas"],pasar:["Quiero saber","qué trabajos se pueden pasar a otro"],mejora:["Quiero saber","cómo ahorrar tiempo"],avisos:["Quiero saber","qué avisos se repiten más"],sobra:["Quiero saber","cuánto tiempo sobra"],naves:["Compara","Nave 1 y Nave 2"],ahorro:["Quiero saber","cuánto se ahorraría"],vuelto:["Quiero saber","si ha vuelto a pasar"],pend:["Quiero saber","lo que se ha quedado sin hacer"],
       evo:["Quiero saber",/(mejor|bajado)/.test(E.t)?"qué ha mejorado":"qué ha empeorado"],res:["Quiero","un resumen"],rep:["Quiero saber","dónde se repite"],sat:["Quiero saber","la carga de trabajo"]}[E.int]||null,E.libres.length&&E.ignoradas.length<E.libres.length?["Trabajo",E.libres.filter(w=>!E.ignoradas.includes(w)).join(" ")]:null].filter(Boolean);
   res.appendChild(el("div",{class:"meta",style:"margin:10px 0 6px"},[el("small",{class:"hint",style:"margin:0",text:"He entendido:"})].concat(ent.map(([a,b])=>el("span",{class:"pill info",text:a+": "+b})))));
   if(E.ignoradas.length)res.appendChild(el("div",{class:"row",style:"margin:0 0 6px;align-items:center;gap:8px"},[el("p",{class:"hint",style:"margin:0;flex:1;min-width:0",text:"No encuentro trabajos con «"+E.ignoradas.join(" ")+"»: no lo he tenido en cuenta."}),
