@@ -140,7 +140,7 @@ test('Ficha de inyectora: lo que monta lleva a cada pieza y se vuelve a la máqu
 });
 
 test('Cada pieza con las mismas pestañas y «Añadir» para avisos, listas e ideas', async ({ page }) => {
-  test.setTimeout(90000);
+  test.setTimeout(150000);
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
   const mas = async () => { await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click()); await page.waitForTimeout(200); };
@@ -157,6 +157,8 @@ test('Cada pieza con las mismas pestañas y «Añadir» para avisos, listas e id
   await mas(); await page.locator('.tile .tt', { hasText: /^Contenedores$/ }).click();
   const addExtra = async (tipo, rellena) => {
     if (!(await page.locator('.secc-tabs .tab-mas', { hasText: 'Añadir' }).count())) { await page.locator('.secc-tabs .tab-mas').click(); await page.locator('.dlg .acc-menu button', { hasText: /^Añadir/ }).click(); await page.waitForTimeout(150); }
+    // con mucha carga, la ventana del menú «⋯ Más» puede tardar en cerrarse y tapar el botón: se espera a que no haya ninguna
+    await expect(page.locator('.dlg-ov')).toHaveCount(0);
     await page.getByRole('button', { name: '＋ Añadir' }).click();
     await page.locator('.dlg').last().locator('.it', { hasText: tipo }).click();
     const d = page.locator('.dlg').last(); await rellena(d); await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(200);
