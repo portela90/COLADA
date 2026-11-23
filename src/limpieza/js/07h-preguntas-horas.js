@@ -8,14 +8,14 @@
      contrato; empieza a contar el BOLSA_INICIO con saldo 0. */
 /* el orden importa: gana la primera que casa (21/11: más formas de preguntar lo mismo) */
 const INV_HQ=[["fuera",/(fuera de presupuesto|presupuesto)/],["extra",/\bextras?\b/],["sust",/(sustitu|justificad)/],
-  ["falta",/(\b(faltas?|faltado|bajas?|vacacion|vacaciones|permisos?|ausencias?|ausente|libranzas?)\b|no (ha |han )?venido|no vino|no vinieron|de baja\b)/,/(que falta|lo que falta|faltan? por|falta(n)? para|ha bajado|han bajado)/],
+  ["falta",/(\b(faltas?|faltado|bajas?|vacacion|vacaciones|permisos?|ausencias?|ausente|libranzas?)\b|\bcompens|no (ha |han )?venido|no vino|no vinieron|de baja\b)/,/(que falta|lo que falta|faltan? por|falta(n)? para|ha bajado|han bajado)/],
   ["bolsa",/(\bbolsa\b|(le |les )?(debe|debemos|deben) horas|horas (que )?(le |les )?(debe|debemos|deben)|a deber)/],
   ["festivo",/\bfestivos?\b/],
   ["exceso",/(horas de mas|horas de menos|por encima de su|por debajo de su|mas (horas )?de su (jornada|horario)|menos (horas )?de su (jornada|horario)|\bexceso\b|no (ha |han )?cumplid|se ha pasado de|se han pasado de)/],
   ["horario",/(que horario|su horario|horario de|horarios|que turno tiene|en que turno (esta|trabaja)|turno de cada)/],
   ["dias",/(dias? (ha |han |he )?trabaj|cuantos dias|ha trabajado|han trabajado|horas trabajadas|que dias (ha |han )?(venido|trabajado)|jornadas? trabajad|\b(ha|han|a|an|he) trabajad|\brefuerzos?\b|\btrabaj(a|an|o) (los|el|en) (finde|fines|fin de semana|sabados?|domingos?)|cuantos (sabados|domingos|findes|fines de semana)|(horas|dias) de (manana finde|manana|tarde|noche|partido))/]];
 function invHorasQ(t){const x=INV_HQ.find(([,re,no])=>re.test(t)&&!(no&&no.test(t)));return x?x[0]:null;}
-const INV_FALTA_N={baja:"Baja",vacaciones:"Vacaciones",permiso:"Permiso",otro:"Otra falta"};
+const INV_FALTA_N={baja:"Baja",vacaciones:"Vacaciones",permiso:"Permiso",compensa:"Compensa horas (bolsa)",otro:"Otra falta"};
 /* «octubre» → «en octubre»; «este mes», «el 12/11/2026», «desde el…» se quedan igual */
 const invEnP=t=>/^(el|la|los|las|este|esta|estos|del|desde|hoy|ayer)\b/.test(t)?t:"en "+t;
 const invHd1=h=>{const v=Math.round((h||0)*10)/10;return String(v).replace(".",",")+" h";};
@@ -73,11 +73,11 @@ function invHorasContesta(E,C,r){const{d0,d1}=E.per,A=invAnterior(d0,d1);const h
     const tot=F.reduce((s,x)=>s+x.t,0);r.cols=["Persona","Horas por sustitución","Días","A quién sustituye"];r.filas=F.map(x=>[x.n,invHd1(x.t),x.dias,x.a.join(", ")||"—"]);
     r.frase=tot?"Horas por sustitución (justificadas) "+invEnP(E.per.t)+": "+invHd1(tot)+(F.length>1?" entre "+F.length+" personas. Quien más: "+F[0].n+", "+invHd1(F[0].t)+".":" ("+F[0].n+", "+F[0].dias+(F[0].dias===1?" día).":" días).")):"No hay horas por sustitución "+invEnP(E.per.t)+".";
     r.extra=[{titulo:"Día a día",cols:["Día","Persona","Horas","Sustituye a"],filas:F.flatMap(x=>x.D.map(d=>[fCorta(d.f),x.n,invHd1(d.sj),d.su?sustTxt(d.su):""]))}];return r;}
-  if(hq==="falta"){const tipo=/\bbajas?\b/.test(E.t)?"baja":/vacacion/.test(E.t)?"vacaciones":/permiso/.test(E.t)?"permiso":null;
-    const F=P.map(p=>{const D=p.D.filter(d=>d.fa&&(!tipo||d.fa===tipo));const c=k=>D.filter(d=>d.fa===k).length;return{n:p.w.nombre,t:D.length,b:c("baja"),v:c("vacaciones"),p:c("permiso"),o:c("otro"),D,a:antes(p.w.nombre,X=>X.filter(d=>d.fa&&(!tipo||d.fa===tipo)).length)};})
+  if(hq==="falta"){const tipo=/\bbajas?\b/.test(E.t)?"baja":/vacacion/.test(E.t)?"vacaciones":/permiso/.test(E.t)?"permiso":/compens/.test(E.t)?"compensa":null;
+    const F=P.map(p=>{const D=p.D.filter(d=>d.fa&&(!tipo||d.fa===tipo));const c=k=>D.filter(d=>d.fa===k).length;return{n:p.w.nombre,t:D.length,b:c("baja"),v:c("vacaciones"),p:c("permiso"),cb:c("compensa"),o:c("otro"),D,a:antes(p.w.nombre,X=>X.filter(d=>d.fa&&(!tipo||d.fa===tipo)).length)};})
       .filter(x=>x.t>0||E.pers.length).sort((a,b)=>b.t-a.t);
-    const tot=F.reduce((s,x)=>s+x.t,0),nom=tipo?(INV_FALTA_N[tipo]||tipo).toLowerCase():"faltas";
-    r.cols=["Persona","Baja","Vacaciones","Permiso","Otra falta","Total días"].concat(E.comp?["Antes"]:[]);r.filas=F.map(x=>[x.n,x.b,x.v,x.p,x.o,x.t].concat(E.comp?[x.a==null?"—":x.a]:[]));
+    const tot=F.reduce((s,x)=>s+x.t,0),nom=tipo==="compensa"?"compensar horas de la bolsa":tipo?(INV_FALTA_N[tipo]||tipo).toLowerCase():"faltas";
+    r.cols=["Persona","Baja","Vacaciones","Permiso","Compensa bolsa","Otra falta","Total días"].concat(E.comp?["Antes"]:[]);r.filas=F.map(x=>[x.n,x.b,x.v,x.p,x.cb,x.o,x.t].concat(E.comp?[x.a==null?"—":x.a]:[]));
     r.frase=tot?"Días de "+nom+" "+invEnP(E.per.t)+": "+tot+(F.length>1?" entre "+F.length+" personas. Quien más: "+F[0].n+", "+F[0].t+(F[0].t===1?" día.":" días."):" ("+F[0].n+")."):"No hay días de "+nom+" "+invEnP(E.per.t)+(E.pers.length?" de "+E.pers.join(" y "):"")+".";
     r.extra=[{titulo:"Día a día",cols:["Día","Persona","Falta","Nota"],filas:F.flatMap(x=>x.D.map(d=>[fCorta(d.f),x.n,INV_FALTA_N[d.fa]||d.fa,d.nota||""]))}];return r;}
   if(hq==="bolsa"){const ini=sumaD(d0,-1),fin=d1<hoyISO()?d1:hoyISO();

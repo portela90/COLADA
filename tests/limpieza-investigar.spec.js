@@ -524,6 +524,13 @@ test('Pregúntale entiende preguntas de horas: días trabajados, fuera de presup
     await expect(r).toContainText('Nadie ha hecho horas de menos frente a su horario este mes');
     r = await pregunta('¿cuántas horas le debemos a Ahmed?');
     await expect(r).toContainText('Quiero saber: bolsa de horas');
+    R.horas_rango = R.horas_rango.concat([{ fecha: '2026-10-08', trabajador: 'w3', nombre: 'Ahmed El Hait', trabajadas: null, fuera: 0, falta: 'compensa', nota: null, extra_mano: null }]);
+    await page.reload(); await page.waitForTimeout(800);
+    r = await pregunta('¿cuántos días ha compensado bolsa Ahmed?');
+    await expect(r).toContainText('Días de compensar horas de la bolsa este mes: 1 (Ahmed El Hait)');
+    await expect(r).toContainText('Compensa horas (bolsa)');
+    r = await pregunta('faltas de Ahmed este mes');
+    await expect(r).toContainText('Días de faltas este mes: 2 (Ahmed El Hait)');
     r = await pregunta('¿quién ha trabajado en festivo?');
     await expect(r).toContainText('Quiero saber: trabajo en festivo'); await expect(r).toContainText('No hay festivos este mes');
     // lo de antes sigue igual

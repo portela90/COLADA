@@ -103,7 +103,7 @@ function sustDe(SU,W,wid,f){let r=null;(SU||[]).forEach(s=>{if(s.sustituto!==wid
 /* own = horas de su horario; su = sustDe(...); h = horas que cuentan ese día. Devuelve las horas de sustitución */
 const horasPorSust=(own,su,esF,h)=>su&&!esF?Math.max(0,Math.min(h,su.h)-own):0;
 const sustTxt=su=>"Sustituye a "+su.aus+" ("+String(su.mot).toLowerCase()+")";
-const FALTAS_H=[["","Ninguna"],["baja","Baja"],["vacaciones","Vacaciones"],["permiso","Permiso"],["otro","Otra falta"]];
+const FALTAS_H=[["","Ninguna"],["baja","Baja"],["vacaciones","Vacaciones"],["permiso","Permiso"],["compensa","Compensa horas (bolsa)"],["otro","Otra falta"]];
 const numH=s=>{const n=parseFloat(String(s==null?"":s).replace(",","."));return isFinite(n)?n:null;};
 /* Una fila por persona: lo guardado, o su horario normal si no hay nada guardado */
 async function formHorasDia(f,re){let L,FE,SU;try{[L,FE,SU]=await Promise.all([rpc("horas_dia_leer",{p_tok:S.tok,p_fecha:f}),rpc("festivos_listar",{p_tok:S.tok}),sustRango(f,f)]);}catch(e){toast(e.message);return;}
@@ -118,7 +118,7 @@ async function formHorasDia(f,re){let L,FE,SU;try{[L,FE,SU]=await Promise.all([r
     fld("Extra a mano (opcional)",inp(r.em,v=>r.em=v,{inputmode:"decimal"})),
     fld("Motivo de las horas fuera de presupuesto o extra (para tu jefa). Obligatorio si pones horas",inp(r.nota,v=>r.nota=v)),
     fld("Falta (si no ha venido)",sel(FALTAS_H,r.fa,v=>r.fa=v))]);
-  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo que pase de sus horas normales cuenta como extra festivo. ":"")+"«Extra a mano»: horas que se pagan como extra. Lo que pase de 35 h a la semana va a la bolsa sola, y un día libre sin baja ni vacaciones resta de la bolsa. "+"Aparecen sus horas de horario (en festivo, 0 h); quien cubre a otro, las del que falta si son más. Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
+  const cuerpo=el("div",null,[el("p",{class:"hint",text:(esFes?"Es festivo: lo que pase de sus horas normales cuenta como extra festivo. ":"")+"«Extra a mano»: horas que se pagan como extra. Lo que pase de 35 h a la semana va a la bolsa sola, y un día libre sin baja ni vacaciones resta de la bolsa. «Compensa horas (bolsa)»: no viene y se le paga con las horas que tiene guardadas en la bolsa. "+"Aparecen sus horas de horario (en festivo, 0 h); quien cubre a otro, las del que falta si son más. Cambia solo a quien haya trabajado distinto. Lo trabajado en festivo cuenta como extra. «Fuera de presupuesto» son horas de ese día que no paga el servicio."}),...filas.map(fila)]);
   dlg("Horas del día · "+fLarga(f),cuerpo,[{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const items=[];
     for(const r of filas){let tra=numH(r.tra);const fu=numH(r.fu)||0;const fa=r.fa||null;
       if(fa&&tra==null)tra=0;
@@ -163,25 +163,25 @@ async function horasMesExcel(mes){const[y,m]=mes.slice(0,7).split("-").map(Numbe
     return{x,esF,def,esp:own,fa,h,em,fu:x?(+x.fuera||0):0,sj:horasPorSust(own,su,esF,h),dow:new Date(f+"T12:00:00").getDay()};};
   const lim=fin<hoyISO()?fin:hoyISO();/* solo días ya pasados: no se cuentan los que faltan por llegar */
   const diasDesde=[];for(let f=BOLSA_DESDE;f<=lim;f=addDia(f,1))diasDesde.push(f);
-  const filas=[["Nombre","Jornada","Horas de contrato","Horas trabajadas","Horas normales","Extra a mano entre semana","Extra a mano sábado","Extra a mano festivo y domingo","Fuera de presupuesto (h)","Horas por sustitución (justificadas)","Bolsa al inicio del mes (h)","Variación de la bolsa (h)","Bolsa al final del mes (h)","Días de baja","Días de vacaciones","Días de permiso","Días de otra falta"]];
+  const filas=[["Nombre","Jornada","Horas de contrato","Horas trabajadas","Horas normales","Extra a mano entre semana","Extra a mano sábado","Extra a mano festivo y domingo","Fuera de presupuesto (h)","Horas por sustitución (justificadas)","Bolsa al inicio del mes (h)","Variación de la bolsa (h)","Bolsa al final del mes (h)","Días de baja","Días de vacaciones","Días de permiso","Días compensando bolsa","Días de otra falta"]];
   W.filter(w=>w.activo&&w.rol!=="admin"&&w.jornada!=="externo").sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).forEach(w=>{
     const thr=w.horas_contrato!=null&&w.horas_contrato!==""?+w.horas_contrato:null;
-    if(w.jornada!=="completa"){let Wp=0,fu=0,sj=0,bj=0,vc=0,pm=0,ot=0;
-      for(let f=ini;f<=lim;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;sj+=d.sj;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="otro")ot++;}
-      filas.push([w.nombre,"Parcial",thr==null?"":thr,dec(Wp),dec(Wp),"—","—","—",dec(fu),dec(sj),"—","—","—",bj,vc,pm,ot]);return;}
-    const c=thr==null?35:thr;let bolsa=0;const M={W:0,nor:0,ew:0,sa:0,fes:0,fu:0,sj:0,dl:0,ini:null,bj:0,vc:0,pm:0,ot:0};let wk=null;
+    if(w.jornada!=="completa"){let Wp=0,fu=0,sj=0,bj=0,vc=0,pm=0,cb=0,ot=0;
+      for(let f=ini;f<=lim;f=addDia(f,1)){const d=dd(w,f);Wp+=d.h;fu+=d.fu;sj+=d.sj;if(d.fa==="baja")bj++;else if(d.fa==="vacaciones")vc++;else if(d.fa==="permiso")pm++;else if(d.fa==="compensa")cb++;else if(d.fa==="otro")ot++;}
+      filas.push([w.nombre,"Parcial",thr==null?"":thr,dec(Wp),dec(Wp),"—","—","—",dec(fu),dec(sj),"—","—","—",bj,vc,pm,cb,ot]);return;}
+    const c=thr==null?35:thr;let bolsa=0;const M={W:0,nor:0,ew:0,sa:0,fes:0,fu:0,sj:0,dl:0,ini:null,bj:0,vc:0,pm:0,cb:0,ot:0};let wk=null;
     const cierra=f=>{const cap=c*wk.n/7-wk.exc;const neto=wk.W-wk.paid;const dl=wk.ini<BOLSA_INICIO?0:neto-cap;const antes=bolsa;bolsa+=dl;
-      if(f.slice(0,7)===ym){M.W+=wk.W;M.nor+=Math.min(neto,cap);M.ew+=wk.ew;M.sa+=wk.sa;M.fes+=wk.fes;M.fu+=wk.fu;M.dl+=dl;M.bj+=wk.b;M.vc+=wk.v;M.pm+=wk.p;M.ot+=wk.o;if(M.ini===null)M.ini=antes;}
+      if(f.slice(0,7)===ym){M.W+=wk.W;M.nor+=Math.min(neto,cap);M.ew+=wk.ew;M.sa+=wk.sa;M.fes+=wk.fes;M.fu+=wk.fu;M.dl+=dl;M.bj+=wk.b;M.vc+=wk.v;M.pm+=wk.p;M.cb+=wk.c;M.ot+=wk.o;if(M.ini===null)M.ini=antes;}
       wk=null;};
     for(let f=ini;f<=lim;f=addDia(f,1))M.sj+=dd(w,f).sj;/* las de sustitución se cuentan por día del mes (en la bolsa ya van dentro de lo trabajado) */
     diasDesde.forEach(f=>{const d=dd(w,f);
-      if(!wk)wk={ini:f,W:0,n:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,o:0};wk.n++;
-      if(d.fa==="baja"||d.fa==="vacaciones"||(d.esF&&d.h===0))wk.exc+=d.esp;/* bajas, vacaciones y festivo sin trabajar no restan */
-      if(d.fa==="baja")wk.b++;else if(d.fa==="vacaciones")wk.v++;else if(d.fa==="permiso")wk.p++;else if(d.fa==="otro")wk.o++;
+      if(!wk)wk={ini:f,W:0,n:0,paid:0,exc:0,ew:0,sa:0,fes:0,fu:0,b:0,v:0,p:0,c:0,o:0};wk.n++;
+      if(d.fa==="baja"||d.fa==="vacaciones"||(d.esF&&d.h===0))wk.exc+=d.esp;/* bajas, vacaciones y festivo sin trabajar no restan; «compensa» sí resta: se paga con la bolsa */
+      if(d.fa==="baja")wk.b++;else if(d.fa==="vacaciones")wk.v++;else if(d.fa==="permiso")wk.p++;else if(d.fa==="compensa")wk.c++;else if(d.fa==="otro")wk.o++;
       wk.W+=d.h;wk.paid+=d.em;wk.fu+=d.fu;
       if(d.em>0){if(d.esF||d.dow===0)wk.fes+=d.em;else if(d.dow===6)wk.sa+=d.em;else wk.ew+=d.em;}
       if(d.dow===0)cierra(f);});
-    filas.push([w.nombre,"Completa",c,dec(M.W),dec(M.nor),dec(M.ew),dec(M.sa),dec(M.fes),dec(M.fu),dec(M.sj),dec(M.ini==null?bolsa:M.ini),dec(M.dl),dec(bolsa),M.bj,M.vc,M.pm,M.ot]);});
+    filas.push([w.nombre,"Completa",c,dec(M.W),dec(M.nor),dec(M.ew),dec(M.sa),dec(M.fes),dec(M.fu),dec(M.sj),dec(M.ini==null?bolsa:M.ini),dec(M.dl),dec(bolsa),M.bj,M.vc,M.pm,M.cb,M.ot]);});
   const txt="﻿"+filas.map(r=>r.map(csvCel).join(";")).join("\r\n");
   const a=el("a",{href:URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"})),download:"horas_"+ym+".csv"});
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}

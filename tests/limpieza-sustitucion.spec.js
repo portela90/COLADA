@@ -53,6 +53,34 @@ test('Excel del mes y detalle: horas por sustitución justificadas y dentro de l
   expect(err).toEqual([]);
 });
 
+test('Falta «Compensa horas (bolsa)»: sale en Horas del día, tiene su columna en el Excel y resta de la bolsa (la baja no)', async ({ page }) => {
+  preparar(); R.ots_rango = [];
+  R.horas_dia_leer = R.trabajadores_admin.filter(w => w.rol !== 'admin').map(w => ({ id: w.id, nombre: w.nombre, jornada: 'completa', horario: w.horario.miercoles, trabajadas: null, fuera: 0, falta: null }));
+  const { err } = await abre(page, ADMIN, '?ir=resumen');
+  const lee = async () => { const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Descargar horas del mes' }).click()]); return fs.readFileSync(await dl.path(), 'utf8').replace(/^﻿/, '').split('\r\n').map(l => l.split(';')); };
+  const num = s => +String(s).replace(',', '.');
+  // lunes 12 y miércoles 14/10: Ahmed no viene (8 h cada día). La bolsa cuenta semanas cerradas (de lunes a domingo)
+  const dos = falta => ['2026-10-12', '2026-10-14'].map(fecha => ({ fecha, trabajador: 'w3', nombre: 'Ahmed El Hait', trabajadas: null, fuera: 0, falta, nota: null, extra_mano: null }));
+  R.horas_rango = dos('baja'); const B = await lee();
+  R.horas_rango = dos('compensa'); const C = await lee();
+  const cb = C[0].indexOf('Días compensando bolsa'); expect(cb).toBeGreaterThan(0);
+  expect(C[0][cb + 1]).toBe('Días de otra falta');
+  const fin = C[0].indexOf('Bolsa al final del mes (h)');
+  const ahB = B.find(r => r[0] === 'Ahmed El Hait'), ahC = C.find(r => r[0] === 'Ahmed El Hait');
+  expect(ahC[cb]).toBe('2'); expect(ahB[cb]).toBe('0');
+  expect(ahB[C[0].indexOf('Días de baja')]).toBe('2');
+  // con baja esos días no cuentan; compensando, se pagan con la bolsa: 16 h menos
+  expect(num(ahB[fin]) - num(ahC[fin])).toBe(16);
+  // en «Horas del día» se puede elegir
+  await page.goto(page.url().replace(/\?.*$/, ''));
+  await page.getByRole('button', { name: 'Horas del día' }).click(); await page.waitForTimeout(500);
+  const fila = page.locator('.ov').last().locator('.ot', { hasText: 'Ahmed El Hait' });
+  await fila.locator('select').selectOption('compensa');
+  await expect(fila.locator('select')).toHaveValue('compensa');
+  await expect(fila.locator('select option:checked')).toHaveText('Compensa horas (bolsa)');
+  expect(err).toEqual([]);
+});
+
 test('Día: el trabajo que no se hace por estar cubriendo sale marcado para el jefe', async ({ page }) => {
   R.ots_dia = Object.assign({}, guarda.ots_dia, { dia: guarda.ots_dia.dia.map((o, i) => i === 0 ? Object.assign({}, o, { no_se_hace: 'Abdoul sustituye a Josefa Ruiz' }) : o) });
   const { err } = await abre(page, ADMIN);
