@@ -1871,6 +1871,32 @@ test('Pistón sacado de un eje agarrotado: va a la zona de usados y vale lo que 
   expect(err).toEqual([]);
 });
 
+test('Peso de cada Ø puesto a mano: manda sobre el peso medio de la chatarrería', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      v.cat.app.pusados = { ev: [{ id: 'c0', t: 'cuenta', f: '2026-01-01', ts: 1, b: { Z: {}, R: {}, M: {}, C: { 'Ø 80': 10 } } },
+        { id: 'ch1', t: 'chat', f: '2026-10-20', ts: 2, c: { 'Ø 80': 10 }, kg: 15, eur: 117.6 },
+        { id: 's1', t: 'saca', f: '2026-10-22', ts: 3, nv: 'N1', d: 'Ø 80', n: 1, maq: 'F22' }, { id: 's2', t: 'saca', f: '2026-10-23', ts: 4, nv: 'N1', d: 'Ø 60', n: 1, maq: 'F25' }] }; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(500);
+  await page.getByRole('button', { name: /^Peso de cada Ø/ }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last(); await expect(d).toContainText('ahora 1,5 kg');
+  await d.locator('#kgD80').fill('2'); await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
+  const art = await page.evaluate(() => window.__D.cat.app.articulos.find(a => a.fam === 'piston' && a.diam === 'Ø 80'));
+  expect(art.kgPieza).toBe(2);
+  await expect(page.locator('#view')).toContainText('Peso puesto a mano: Ø 80 2 kg');
+  // Ø 80: 2 kg × 7,84 = 15,68 €; Ø 60 sin peso propio: media 1,5 kg → 11,76 €; total 27,44 €
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', 'cuánto hemos ahorrado sacando pistones este año'); await page.waitForTimeout(300);
+  const r = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  expect(r).toMatch(/habéis sacado 2 pistones de ejes agarrotados: 27,44 € que no se han perdido/);
+  expect(r).toContain('15,68 €'); expect(r).toContain('11,76 €');
+  expect(err).toEqual([]);
+});
+
 test('Ejes en cuarentena por agarrotado: si el pistón sigue puesto, no cuenta como salvado', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => {
