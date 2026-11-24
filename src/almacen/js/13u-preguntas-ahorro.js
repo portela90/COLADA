@@ -4,8 +4,13 @@
    · Ejes recuperados en planta: no se mandan al taller → se ahorra su precio de reparación (el del modelo).
    · Pistones recuperados (rebajados de Ø) en vez de comprarlos nuevos → precio nuevo − precio recuperado.
    · Barras recuperadas en vez de comprarlas nuevas → precio nueva × cantidad − lo que costó recuperarlas.
+   · Pistones sacados de ejes agarrotados (24/11/2026): no se pierden → lo que valen en la chatarrería (13v2).
+   «¿Cuánto nos ha dado la chatarra?» → lo cobrado en la chatarrería por los pistones (no es ahorro: va aparte).
    Si no se dice el periodo, este mes. */
-function intencionAhorro(q){if(!/\bahorr\w*\b/.test(q)||/\bagarrotad\w*\b/.test(q))return null;
+function intencionAhorro(q){
+  if(/\bchatarr\w*\b/.test(q)&&/\b(dinero|euros?|pagad\w*|pagan|pagaron|cobrad\w*|cobramos|ingres\w*|dado|dio|da|dan|sacado|sacamos)\b/.test(q))return{cat:"chat"};
+  if(/\bahorr\w*\b/.test(q)&&/\b(sacad\w*|sacando|sacar|salvad\w*)\b/.test(q)&&/\b(piston\w*|ejes?|agarrotad\w*)\b/.test(q))return{cat:"salv"};
+  if(!/\bahorr\w*\b/.test(q)||/\bagarrotad\w*\b/.test(q))return null;
   const cat=/\bejes?\b|\btaller\b|\breparac\w*\b/.test(q)?"ejes":/\bpiston\w*\b/.test(q)?"pist":/\bbarras?\b/.test(q)?"barras":"todo";
   return{cat};}
 function datosAhorro(d,h){
@@ -13,8 +18,9 @@ function datosAhorro(d,h){
   const P=datosComprasPist(d,h);
   const barras=[];(BREC||[]).forEach(b=>(b.vuelta||[]).forEach(v=>{if(!v.f||v.f<d||v.f>h)return;const a=art(v.art),pn=a?precioDe(a):0,c=+v.cant||0,coste=+v.eur||0;
     barras.push({f:v.f,a,c,coste,eur:pn?c*pn-coste:0,sinP:!pn});}));
-  const tE=ejes.reduce((s,x)=>s+x.eur,0),tP=P.ahorro,tB=barras.reduce((s,x)=>s+x.eur,0);
-  return{ejes,P,barras,tE,tP,tB,tot:tE+tP+tB};}
+  const sal=typeof pistSalvados==="function"?pistSalvados(d,h):[];
+  const tE=ejes.reduce((s,x)=>s+x.eur,0),tP=P.ahorro,tB=barras.reduce((s,x)=>s+x.eur,0),tS=sal.reduce((s,x)=>s+x.eur,0);
+  return{ejes,P,barras,sal,tE,tP,tB,tS,tot:tE+tP+tB+tS};}
 function pintaAhorro(I,P0,H){const {frase,nota,ent,lista,it}=H;const per=P0.def?{d:hoy().slice(0,7)+"-01",h:hoy(),t:"este mes"}:P0;
   const D=datosAhorro(per.d,per.h),cat=I.ah.cat;
   const nE=D.ejes.length,sinE=D.ejes.filter(x=>!x.eur).length;
@@ -29,11 +35,21 @@ function pintaAhorro(I,P0,H){const {frase,nota,ent,lista,it}=H;const per=P0.def?
   const fB=()=>{if(!D.barras.length){frase(cap(per.t)+" no han vuelto barras recuperadas, así que en barras no hay ahorro.");return;}
     const n=D.barras.reduce((s,x)=>s+x.c,0);frase(cap(per.t)+" habéis ahorrado "+eur(D.tB)+" en barras: "+n+(n===1?" barra recuperada":" barras recuperadas")+" en vez de comprarlas nuevas.");
     lista("Barras recuperadas",D.barras.map(x=>it((x.a?nomBT(x.a):"Barra")+" × "+x.c,[fmtF(x.f)+(x.coste?" · recuperarlas costó "+eur(x.coste):"")],x.sinP?"—":eur(x.eur),x.sinP?"sin precio":"ahorro")));};
+  const nS=D.sal.reduce((s,x)=>s+x.n,0);
+  const fS=()=>{if(!nS){frase(cap(per.t)+" no se ha sacado ningún pistón de un eje agarrotado.");return;}
+    frase(cap(per.t)+" habéis sacado "+nS+(nS===1?" pistón":" pistones")+" de ejes agarrotados"+(D.tS?": "+eur(D.tS)+" que no se han perdido.":". Todavía sin euros: falta pesar algún viaje a la chatarrería."));
+    lista("Pistones salvados",D.sal.slice().reverse().map(x=>it("Pistón "+x.d+(x.maq?" · "+x.maq:""),[fmtF(x.f)+" · a la zona de la "+puNavN(x.nv)],x.eur?eur(x.eur):"—",x.eur?"no perdido":"sin peso")),eur(D.tS));};
+  if(cat==="salv"){ent("pistones sacados de ejes agarrotados",[per.t]);fS();nota("Un pistón que se va al taller dentro del eje se pierde entero. Si lo sacáis, se queda en la fábrica: como mínimo vale lo que pagan en la chatarrería. "+txtValorPist());return;}
+  if(cat==="chat"){ent("dinero de la chatarra de pistones",[per.t]);const C=chatDinero(per.d,per.h);
+    if(!C.L.length){frase(cap(per.t)+" no se ha llevado ningún pistón a la chatarrería.");return;}
+    frase(cap(per.t)+" se han llevado "+C.n+" pistones a la chatarrería ("+fmtN(Math.round(C.kg*10)/10)+" kg)"+(C.eur?" y han pagado "+eur(C.eur):"")+"."+(C.sinEur?" En "+C.sinEur+(C.sinEur===1?" viaje":" viajes")+" no se apuntó lo que pagaron.":""));
+    lista("Viajes a la chatarrería",C.L.slice().reverse().map(v=>it(v.n+" pistones",[fmtF(v.f)+(v.kg?" · "+fmtN(v.kg)+" kg":" · sin pesar")],v.eur?eur(v.eur):"—")),C.eur?eur(C.eur):"");
+    nota("Sale de Pistones › Pistones usados › «Llevar a chatarrería». Apunta siempre los kilos y, si lo sabes, lo que pagan.");return;}
   if(cat==="ejes"){ent("ahorro en ejes",[per.t]);fE();nota("El ahorro de un eje recuperado en planta es su precio de reparación (el del modelo, en Más › Ejes › Costes de reparación): es lo que no se ha pagado al taller.");return;}
   if(cat==="pist"){ent("ahorro en pistones",[per.t]);fP();nota("Ahorro = precio de un pistón nuevo − precio del recuperado, por cada recuperado que ha entrado.");return;}
   if(cat==="barras"){ent("ahorro en barras",[per.t]);fB();nota("Ahorro = precio de la barra nueva × las que han vuelto − lo que costó recuperarlas.");return;}
   ent("ahorro total",[per.t]);
-  frase(cap(per.t)+" habéis ahorrado "+eur(D.tot)+" en total: "+eur(D.tE)+" en ejes recuperados en planta, "+eur(D.tP)+" en pistones recuperados y "+eur(D.tB)+" en barras recuperadas.");
+  frase(cap(per.t)+" habéis ahorrado "+eur(D.tot)+" en total: "+eur(D.tE)+" en ejes recuperados en planta, "+eur(D.tP)+" en pistones recuperados, "+eur(D.tB)+" en barras recuperadas"+(nS?" y "+eur(D.tS)+" en pistones sacados de ejes agarrotados":"")+".");
   lista("De dónde sale",[it("Ejes recuperados en planta",[nE+(nE===1?" eje":" ejes")+" que no fueron al taller"],eur(D.tE)),it("Pistones recuperados",[fmtN(D.P.tR)+" en vez de nuevos"],eur(D.tP)),
-    it("Barras recuperadas",[D.barras.reduce((s,x)=>s+x.c,0)+" en vez de nuevas"],eur(D.tB))],eur(D.tot));
+    it("Barras recuperadas",[D.barras.reduce((s,x)=>s+x.c,0)+" en vez de nuevas"],eur(D.tB)),it("Pistones sacados de ejes agarrotados",[nS+" que no se han perdido"],eur(D.tS))],eur(D.tot));
   nota("Pregunta «ahorro en ejes», «ahorro en pistones» o «ahorro en barras» para ver el detalle. Cambia el periodo con «este año», «el mes pasado», «en octubre»…");}

@@ -1082,7 +1082,11 @@ test('Ejes: uno preparado para enviar que al final se arregla aquí cuenta como 
   await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'todo sobre el eje 3.2.B-7'); await page.waitForTimeout(300);
   await page.locator('#bdRes button', { hasText: 'Abrir la ficha del eje' }).click(); await page.waitForTimeout(400);
-  await page.locator('.dlg button', { hasText: 'Recuperado en planta' }).click(); await page.waitForTimeout(700);
+  await page.locator('.dlg button', { hasText: 'Recuperado en planta' }).click(); await page.waitForTimeout(400);
+  const dq = page.locator('.dlg').last(); await expect(dq).toContainText('¿Habéis podido sacar el pistón agarrotado?');
+  await dq.getByRole('button', { name: 'Sí, lo hemos sacado' }).click(); await dq.locator('#sacaD').selectOption('Ø 70');
+  await dq.getByRole('button', { name: 'Recuperado' }).click(); await page.waitForTimeout(700);
+  expect((await page.evaluate(() => (window.__D.cat.app.pusados.ev || []).find(e => e.t === 'saca')))).toMatchObject({ d: 'Ø 70', maq: 'F22' });
   const D = await page.evaluate(() => ({ e: window.__D.ejes.ep, rep: Object.values(window.__D.rep).flatMap(x => x.items).find(r => r.id === 'rp'), rc: window.__D.cat.app.ejeRecup }));
   expect(D.e.estado).toBe('planta');
   expect(D.rep).toMatchObject({ res: 'anulada', recup: true });
@@ -1825,6 +1829,64 @@ test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y to
   expect(r).toMatch(/ahorrado 480 € en pistones: 4 pistones recuperados/);
   r = await resp('cuánto hemos ahorrado este año');
   expect(r).toMatch(/ahorrado 1\.?140 € en total: 660 € en ejes/);
+  expect(err).toEqual([]);
+});
+
+test('Pistón sacado de un eje agarrotado: va a la zona de usados y vale lo que pagan en la chatarrería', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 3); const mq = v.cat.app.maquinas[1];
+      // viaje a la chatarrería: 10 pistones, 15 kg, pagaron 117,60 € → 1,5 kg y 7,84 €/kg → 11,76 € por pistón
+      v.cat.app.pusados = { ev: [{ id: 'c0', t: 'cuenta', f: '2026-01-01', ts: 1, b: { Z: {}, R: {}, M: {}, C: { 'Ø 80': 10 } } },
+        { id: 'ch1', t: 'chat', f: '2026-10-20', ts: 2, c: { 'Ø 80': 10 }, kg: 15, eur: 117.6 }] };
+      v.cat.app.ejePend = [{ id: 'pq9', f: m.toISOString().slice(0, 10), maq: mq.cod, mods: [], pist: null, diam: 'Ø 80', motivo: 'PISTÓN AGARROTADO', nota: null, manual: true }]; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  const mq = await page.evaluate(() => window.__D.cat.app.maquinas[1].cod);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
+  await page.locator('#view').getByRole('button', { name: 'Recuperado en planta', exact: true }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await expect(d).toContainText('¿Habéis podido sacar el pistón agarrotado?');
+  await d.getByRole('button', { name: 'Recuperado' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.dlg')).toHaveCount(1); // sin contestar no deja seguir
+  await d.getByRole('button', { name: 'Sí, lo hemos sacado' }).click();
+  await expect(d).toContainText('1,5 kg'); await expect(d).toContainText('11,76 €');
+  await expect(d.locator('#sacaD')).toHaveValue('Ø 80');
+  await d.getByRole('button', { name: 'Recuperado' }).click(); await page.waitForTimeout(800);
+  const C = await page.evaluate(() => window.__D.cat.app);
+  expect(C.ejePend.length).toBe(0);
+  expect(C.ejeRecup.some(x => x.pend === 'pq9')).toBe(true);
+  expect(C.pusados.ev.find(e => e.t === 'saca')).toMatchObject({ d: 'Ø 80', n: 1, maq: mq, pend: 'pq9' });
+  // en la consulta de ahorro y en la de la chatarra
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  const resp = async q => { await page.fill('#bdQ', q); await page.waitForTimeout(300); return (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' '); };
+  let r = await resp('¿cuánto hemos ahorrado sacando pistones agarrotados este año?');
+  expect(r).toMatch(/habéis sacado 1 pistón de ejes agarrotados: 11,76 € que no se han perdido/);
+  r = await resp('cuánto hemos ahorrado este año');
+  expect(r).toMatch(/y 11,76 € en pistones sacados de ejes agarrotados/);
+  r = await resp('¿cuánto dinero nos ha dado la chatarra este año?');
+  expect(r).toMatch(/se han llevado 10 pistones a la chatarrería \(15 kg\) y han pagado 117,6 €/);
+  expect(err).toEqual([]);
+});
+
+test('Ejes en cuarentena por agarrotado: si el pistón sigue puesto, no cuenta como salvado', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => {
+    let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+      const m = new Date(); m.setDate(m.getDate() - 3); const mq = v.cat.app.maquinas[1];
+      v.cat.app.ejePend = [{ id: 'pq8', f: m.toISOString().slice(0, 10), maq: mq.cod, mods: [], pist: null, diam: null, motivo: 'PISTÓN AGARROTADO', nota: null, manual: true }]; } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Ejes$/ }).click(); await page.waitForTimeout(500);
+  await page.locator('#view').getByRole('button', { name: 'No hay que repararlo', exact: true }).click(); await page.waitForTimeout(300);
+  const d = page.locator('.dlg').last();
+  await d.getByRole('button', { name: 'No, sigue puesto' }).click();
+  await d.getByRole('button', { name: 'Quitar' }).click(); await page.waitForTimeout(800);
+  const C = await page.evaluate(() => window.__D.cat.app);
+  expect(C.ejePend.length).toBe(0);
+  expect(((C.pusados || {}).ev || []).some(e => e.t === 'saca')).toBe(false);
   expect(err).toEqual([]);
 });
 

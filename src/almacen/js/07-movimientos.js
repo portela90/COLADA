@@ -166,7 +166,7 @@ function puEstado(){const ev=puEv();const c0=ev.filter(e=>e.t==="cuenta").sort((
     if(e.t==="cuenta"){PU_B.forEach(([b])=>{if(b!=="Z"&&e.b&&e.b[b])DIAM.forEach(d=>{if(e.b[b][d]!=null)S[d][b]=+e.b[b][d]||0;});});
       /* recuentos nuevos: Z1 y Z2; los antiguos solo Z (toda la zona) y se pone en la Nave 1 */
       const z1=e.b&&(e.b.Z1||e.b.Z),z2=e.b&&e.b.Z2;DIAM.forEach(d=>{if(z1&&z1[d]!=null)ZN.N1[d]=+z1[d]||0;if(z2&&z2[d]!=null)ZN.N2[d]=+z2[d]||0;else if(e.b&&e.b.Z&&!e.b.Z1&&e.b.Z[d]!=null)ZN.N2[d]=0;});}
-    else if(e.t==="cambio"){if(ZN[e.nv]&&e.d in ZN[e.nv])ZN[e.nv][e.d]+=e.n;}
+    else if(e.t==="cambio"||e.t==="saca"){if(ZN[e.nv]&&e.d in ZN[e.nv])ZN[e.nv][e.d]+=(+e.n||1);}/* saca: pistón sacado de un eje agarrotado */
     else if(e.t==="clasif"){if(e.esp){if(e.nave)addZ(e.nave,e.esp,-1);else Object.keys(e.esp).forEach(d=>{if(d in ZN.N1){ZN.N1[d]=0;ZN.N2[d]=0;}});}
       else{quitaZ(e.rec);quitaZ(e.des);}add("R",e.rec,1);add("C",e.des,1);}
     else if(e.t==="envio"){add("R",e.c,-1);add("M",e.c,1);}
@@ -178,7 +178,9 @@ function puEstado(){const ev=puEv();const c0=ev.filter(e=>e.t==="cuenta").sort((
    Sin nave: los de las dos. */
 function puCambiosZona(nv){if(!nv)return puCambiosZona("N1").concat(puCambiosZona("N2")).sort((a,b)=>a.f.localeCompare(b.f)||(+a.ts||0)-(+b.ts||0));
   const ev=puEv();const marca=ev.filter(e=>e.t==="cuenta"||(e.t==="clasif"&&e.esp&&(!e.nave||e.nave===nv))).sort((a,b)=>b.f.localeCompare(a.f)||b.ts-a.ts)[0];if(!marca)return[];
-  return todosPist().filter(p=>p.dest===DESTINOS[0]&&puNave(p)===nv&&(p.f>marca.f||(p.f===marca.f&&(+p.ts||0)>marca.ts))).sort((a,b)=>a.f.localeCompare(b.f)||(+a.ts||0)-(+b.ts||0));}
+  const tras=x=>x.f>marca.f||(x.f===marca.f&&(+x.ts||0)>marca.ts);
+  const sac=ev.filter(e=>e.t==="saca"&&e.nv===nv&&tras(e)).map(e=>({f:e.f,ts:e.ts,maq:e.maq||"",diam:e.d,cant:e.n||1,resp:null,saca:true}));
+  return todosPist().filter(p=>p.dest===DESTINOS[0]&&puNave(p)===nv&&tras(p)).concat(sac).sort((a,b)=>a.f.localeCompare(b.f)||(+a.ts||0)-(+b.ts||0));}
 function puFaltasAno(){const y=hoy().slice(0,4);let n=0;puEv().forEach(e=>{if(e.t==="clasif"&&e.falta&&String(e.f).startsWith(y))Object.values(e.falta).forEach(x=>{if(x>0)n+=x;});});return n;}
 function puUrge(E){const out=[];DIAM.forEach(d=>{const a=pistArt(d);if(!a)return;const n=nivel(a);if(n!=="bad"&&n!=="warn")return;
     const fuentes=DIAM.filter(src=>puOpc(src).includes(d)&&(E.S[src].Z+E.S[src].R)>0).map(src=>({src,u:E.S[src].Z+E.S[src].R}));if(fuentes.length)out.push({d,a,fuentes});});return out;}
@@ -214,7 +216,7 @@ function puClasif(nv){nv=nv||"N1";const E=puEstado();const F=puFecha();const hay
     el("td",{id:"pudf"+d.replace(/\W/g,""),class:"r num"})])));
   const lista=cam.length?el("details",{},[el("summary",{class:"hint",style:"cursor:pointer;font-weight:600",text:"De dónde salen los que debe haber ("+cam.length+" cambio"+(cam.length===1?"":"s")+")"}),
     el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},["Fecha","Iny.","Ø","Responsable"].map(t=>el("th",{text:t})))),
-      el("tbody",{},cam.map(p=>el("tr",{},[el("td",{text:fmtF(p.f).slice(0,5)}),el("td",{text:maqN(p.maq)}),el("td",{text:p.diam.replace("Ø ","")+((+p.cant||1)>1?" ×"+p.cant:"")}),el("td",{text:p.resp?respTxt(p.resp):"—"})])))]))]):
+      el("tbody",{},cam.map(p=>el("tr",{},[el("td",{text:fmtF(p.f).slice(0,5)}),el("td",{text:maqN(p.maq)+(p.saca?" (sacado del eje)":"")}),el("td",{text:p.diam.replace("Ø ","")+((+p.cant||1)>1?" ×"+p.cant:"")}),el("td",{text:p.resp?respTxt(p.resp):"—"})])))]))]):
     el("p",{class:"hint",text:"No hay cambios de pistón de la "+puNavN(nv)+" con destino a la zona desde la última retirada."});
   dlg("Retirar de la "+puNavN(nv)+" · 1/2 contar",[el("p",{class:"hint",text:"Cuenta lo que hay de verdad en la zona de pistones usados de la "+puNavN(nv)+" y apúntalo en «Hay» (pon 0 si no hay ninguno). La diferencia sale sola: en rojo los que faltan."}),
     el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"}),el("th",{class:"r",text:"Debe haber"}),el("th",{text:"Hay"}),el("th",{class:"r",text:"Dif."})])),tb,
@@ -243,8 +245,8 @@ function puRecep(){const F=puFecha(),A=puTxt("Nº de albarán (opcional)");const
   async(v,E,chk)=>{if(chk){for(const d of DIAM){const n=(v.ok[d]||0)+(v.mal[d]||0);if(n>E.S[d].M)return"De "+d+" solo hay "+E.S[d].M+" en "+PU_REC+".";if(v.ok[d]&&!puRecup(d))return d+" no se puede recuperar.";if(v.ok[d]&&!pistArt(v.como[d]||puRecup(d)))return"No hay artículo de pistón "+(v.como[d]||puRecup(d))+" en el catálogo.";}return"";}
     const movs=Object.entries(v.ok).map(([d,n])=>({tipo:"entrada",f:F.v,art:pistArt(v.como[d]||puRecup(d)).id,alm:L.v,cant:n,rec:true,alb:A.v.trim()||undefined,nota:"Recuperado por "+PU_REC+" (era "+d+")"}));
     if(movs.length)await addMovs(movs);const como={};Object.keys(v.ok).forEach(d=>como[d]=v.como[d]||puRecup(d));return puGuarda({t:"recep",f:F.v,ok:v.ok,como,mal:v.mal,alb:A.v.trim(),alm:L.v,movs:movs.map(m=>({id:m.id,f:m.f}))});});}
-function puChat(){const F=puFecha(),K=puTxt("Kilos (opcional)","",{inputmode:"decimal"}),I=puTxt("Importe que pagan, € (opcional)","",{inputmode:"decimal"});
-  puForm("Llevar a la chatarrería","Viene puesto todo lo que hay en el cajón.",[{k:"c",t:"Se llevan",infoT:"En cajón",info:(E,d)=>E.S[d].C||"·",pre:(E,d)=>E.S[d].C>0?E.S[d].C:"",mostrar:(E,d)=>E.S[d].C>0}],[F,K,I],"Registrar",
+function puChat(){const F=puFecha(),K=puTxt("Kilos (todos juntos)","",{inputmode:"decimal"}),I=puTxt("Importe que pagan, € (si lo sabes)","",{inputmode:"decimal"});
+  puForm("Llevar a la chatarrería","Viene puesto todo lo que hay en el cajón. Pon los kilos que pesan todos juntos: con eso la app saca lo que vale cada pistón que salváis de un eje agarrotado.",[{k:"c",t:"Se llevan",infoT:"En cajón",info:(E,d)=>E.S[d].C||"·",pre:(E,d)=>E.S[d].C>0?E.S[d].C:"",mostrar:(E,d)=>E.S[d].C>0}],[F,K,I],"Registrar",
   (v,E,chk)=>chk?supera(v,"c",E,"C","en el cajón"):puGuarda({t:"chat",f:F.v,c:v.c,kg:parseN(K.v)||null,eur:parseN(I.v)||null}));}
 function puCuenta(){const E=puEstado();const F=puFecha();const CU=[["Z1"],["Z2"],["R"],["M"],["C"]];const b={};CU.forEach(([k])=>b[k]={});
   const ahora=(d,k)=>k==="Z1"?E.ZN.N1[d]:k==="Z2"?E.ZN.N2[d]:E.S[d][k];
@@ -254,6 +256,7 @@ function puCuenta(){const E=puEstado();const F=puFecha();const CU=[["Z1"],["Z2"]
     el("div",{class:"tw"},el("table",{class:"pu"},[el("thead",{},el("tr",{},[el("th",{text:"Ø"})].concat(["Zona N1","Zona N2","Recup.",PU_REC,"Chatarra"].map(t=>el("th",{text:t}))))),tb])),F.node],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar recuento",fn:async()=>{CU.forEach(([k])=>DIAM.forEach(d=>{if(b[k][d]==null)b[k][d]=0;}));try{await puGuarda({t:"cuenta",f:F.v,b});toast("Recuento guardado");}catch(e){return false;}}}]);}
 function puTxtEv(e){const s=o=>Object.entries(o||{}).filter(([,n])=>n).map(([d,n])=>d+" ×"+n).join(", ")||"—";
+  if(e.t==="saca")return"Pistón "+e.d+" sacado del eje agarrotado"+(e.maq?" de la "+e.maq:"")+" · a la zona de la "+puNavN(e.nv);
   return e.t==="cuenta"?"Recuento":e.t==="clasif"?(e.esp?"Retirada de la zona"+(e.nave?" de la "+puNavN(e.nave):"")+(Object.values(e.falta||{}).some(n=>n>0)?" · FALTABAN "+Object.entries(e.falta).filter(([,n])=>n>0).map(([d,n])=>d+" ×"+n).join(", "):" · cuadra")+" · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des):"Selección · recuperar: "+s(e.rec)+" · chatarra: "+s(e.des)):e.t==="envio"?"Enviado a "+PU_REC+": "+Object.entries(e.c||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.a||{})[d]||"?").replace("Ø ","")+" ×"+n).join(", ")+(e.alb?" · alb. "+e.alb:""):
     e.t==="recep"?"Recibido de "+PU_REC+" · bien: "+Object.entries(e.ok||{}).filter(([,n])=>n).map(([d,n])=>d+"→"+((e.como||{})[d]||puRecup(d)||"?")+" ×"+n).join(", ")+(Object.keys(e.mal||{}).length?" · no sirven: "+s(e.mal):"")+(e.alb?" · alb. "+e.alb:""):"Chatarrería: "+s(e.c)+(e.kg?" · "+fmtN(e.kg)+" kg":"")+(e.eur?" · "+fmtN(e.eur)+" €":"");}
 async function puBorra(e){const prev=cat.pusados;cat.pusados={ev:puEv().filter(x=>x.id!==e.id)};try{await saveCat();for(const m of e.movs||[])await delMov(m.id,m.f);toast("Deshecho");}catch(er){cat.pusados=prev;}render(true);}
@@ -274,6 +277,7 @@ function cardUsados(){const E=puEstado();
     el("div",{class:"bd"},el("div",{class:"acciones acc2"},[el("button",{type:"button",class:"btn",text:"Retirar de la zona",onclick:puRetirar}),
       el("button",{type:"button",class:"btn sec",text:"Enviar a "+PU_REC,disabled:!E.tot.R,onclick:puEnvio}),el("button",{type:"button",class:"btn sec",text:"Recibir de "+PU_REC,disabled:!E.tot.M,onclick:puRecep}),
       el("button",{type:"button",class:"btn sec",text:"Llevar a chatarrería",disabled:!E.tot.C,onclick:puChat}),el("button",{type:"button",class:"btn sec",text:"Recuento",onclick:puCuenta})])),
+    typeof bloqueChatarra==="function"?bloqueChatarra():null,
     ev.length?el("details",{style:"border-top:1px solid var(--line2)"},[el("summary",{class:"gh",style:"cursor:pointer",text:"Movimientos de usados ("+ev.length+")"}),el("div",{class:"lst"},ev.slice(0,30).map(e=>el("div",{class:"it",style:"cursor:default"},[
       el("div",{class:"ppal"},[el("div",{class:"t1",style:"font-weight:500",text:puTxtEv(e)}),el("div",{class:"t2",text:fmtF(e.f)+(e.por?" · "+e.por:"")})]),
       el("button",{type:"button",class:"btn txt peq",text:"Deshacer",onclick:()=>confirmar("¿Deshacer?",puTxtEv(e)+(e.movs&&e.movs.length?". También se quita la entrada de esos pistones en el stock.":""),"Deshacer",()=>puBorra(e))})])))]):null]);}

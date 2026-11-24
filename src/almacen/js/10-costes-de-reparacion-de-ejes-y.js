@@ -19,11 +19,13 @@ function datosIC(k){const P=periodoIC(k),en=f=>f&&f>=P.d&&f<=P.h;
   const porMes={};recib.forEach(r=>{const x=porMes[r.rec.slice(0,7)]=porMes[r.rec.slice(0,7)]||{rep:0,coste:0,rec:0,ahorro:0};x.rep++;x.coste+=r.c.v;});
   recu.forEach(r=>{const x=porMes[r.f.slice(0,7)]=porMes[r.f.slice(0,7)]||{rep:0,coste:0,rec:0,ahorro:0};x.rec++;x.ahorro+=r.ah;});
   const sinPrecio=[...new Set(recib.filter(r=>!r.c.v).map(r=>r.mod).concat(recu.filter(r=>!r.ah).map(r=>r.mod)).concat(taller.filter(r=>!r.c.v).map(r=>r.mod)))].filter(Boolean);
-  return{P,recib,env,taller,recu,porMod,porMes,sinPrecio,coste:recib.reduce((t,r)=>t+r.c.v,0),ahorro:recu.reduce((t,r)=>t+r.ah,0),costeTaller:taller.reduce((t,r)=>t+r.c.v,0)};}
-const OPS_IC=[["#","Resumen"],["mod","Por modelo"],["mes","Por mes"],["#","Hojas del Excel"],["h:Por modelo","Por modelo"],["h:Por mes","Por mes"],["h:Reparaciones","Detalle de reparaciones"],["h:Recuperados en planta","Recuperados en planta"]];
+  const sal=typeof pistSalvados==="function"?pistSalvados(P.d,P.h):[];/* pistones sacados de ejes agarrotados: no se pierden */
+  return{P,recib,env,taller,recu,porMod,porMes,sinPrecio,sal,nSal:sal.reduce((t,x)=>t+x.n,0),eurSal:sal.reduce((t,x)=>t+x.eur,0),coste:recib.reduce((t,r)=>t+r.c.v,0),ahorro:recu.reduce((t,r)=>t+r.ah,0),costeTaller:taller.reduce((t,r)=>t+r.c.v,0)};}
+const OPS_IC=[["#","Resumen"],["mod","Por modelo"],["mes","Por mes"],["#","Hojas del Excel"],["h:Por modelo","Por modelo"],["h:Por mes","Por mes"],["h:Reparaciones","Detalle de reparaciones"],["h:Recuperados en planta","Recuperados en planta"],["h:Pistones salvados","Pistones salvados"]];
 function textoIC(D,s){s=s||incluirSel("costes",OPS_IC);const L=["INFORME DE EJES DE INYECCIÓN · "+D.P.t.toUpperCase()+" · MAPRI",""];
   L.push("Reparados por el taller (recibidos OK): "+D.recib.length+" ejes · coste "+eur(D.coste));
   L.push("Recuperados en planta (no se mandaron al taller): "+D.recu.length+" ejes · ahorro "+eur(D.ahorro));
+  if(D.nSal)L.push("Pistones sacados de ejes agarrotados (se quedan en la fábrica): "+D.nSal+" · valor "+eur(D.eurSal));
   L.push("Enviados a reparar en el periodo: "+D.env.length);
   L.push("En el taller ahora: "+D.taller.length+" ejes · coste previsto "+eur(D.costeTaller));L.push("");
   const ks=Object.keys(D.porMod).sort((a,b)=>D.porMod[b].coste-D.porMod[a].coste);
@@ -37,7 +39,7 @@ function informeCostes(){draft.ic=draft.ic||"12m";const D=datosIC(draft.ic);
   const ks=Object.keys(D.porMod).sort((a,b)=>D.porMod[b].coste+D.porMod[b].ahorro-D.porMod[a].coste-D.porMod[a].ahorro);const ms=Object.keys(D.porMes).sort();
   return el("details",{class:"card",open:draft.icOpen?true:null,ontoggle:e=>{draft.icOpen=e.target.open;}},[el("summary",{class:"hd",style:"cursor:pointer"},el("h2",{text:"Costes de reparación y ahorro"})),
     el("div",{class:"bd",style:"display:grid;gap:10px"},[seg,
-      el("dl",{class:"kpis num"},[["Coste taller",eur(D.coste)],["Reparados",String(D.recib.length)],["Ahorro en planta",eur(D.ahorro)],["Recuperados",String(D.recu.length)],["En taller ahora",D.taller.length+" · "+eur(D.costeTaller)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
+      el("dl",{class:"kpis num"},[["Coste taller",eur(D.coste)],["Reparados",String(D.recib.length)],["Ahorro en planta",eur(D.ahorro)],["Recuperados",String(D.recu.length)],["Pistones salvados",D.nSal+(D.eurSal?" · "+eur(D.eurSal):"")],["En taller ahora",D.taller.length+" · "+eur(D.costeTaller)]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
       D.sinPrecio.length?el("div",{class:"banner",text:"Sin precio de reparación: "+D.sinPrecio.join(", ")+". Esos ejes no suman. Ponlo en «Precios de reparación»."}):null,
       incluirChips("costes",OPS_IC,null,"Qué incluir al copiar o descargar (se recuerda):").node,
       el("div",{class:"acciones"},[el("button",{type:"button",class:"btn",text:"Descargar Excel",onclick:e=>excelIC(D,e.currentTarget)}),
@@ -45,7 +47,7 @@ function informeCostes(){draft.ic=draft.ic||"12m";const D=datosIC(draft.ic);
         el("button",{type:"button",class:"btn sec",text:"Precios de reparación",onclick:formPrecios})])]),
     ks.length?el("div",{class:"gh",text:"Por modelo · "+D.P.t}):null,ks.length?t([["Modelo"],["Reparados",1],["Coste",1],["Recuperados",1],["Ahorro",1]],ks.map(k=>{const x=D.porMod[k],m=modelo(k);return el("tr",{},[el("td",{text:m?m.ref+" ("+k+")":k}),el("td",{class:"r num",text:x.rep}),el("td",{class:"r num",text:eur(x.coste)}),el("td",{class:"r num",text:x.rec}),el("td",{class:"r num",text:eur(x.ahorro)})]);})):el("p",{class:"hint",style:"padding:8px 14px",text:"No hay reparaciones recibidas ni ejes recuperados en este periodo."}),
     ms.length>1?el("div",{class:"gh",text:"Por mes"}):null,ms.length>1?t([["Mes"],["Reparados",1],["Coste",1],["Recuperados",1],["Ahorro",1]],ms.map(k=>{const x=D.porMes[k];return el("tr",{},[el("td",{text:cap(fmtMes(k))}),el("td",{class:"r num",text:x.rep}),el("td",{class:"r num",text:eur(x.coste)}),el("td",{class:"r num",text:x.rec}),el("td",{class:"r num",text:eur(x.ahorro)})]);})):null,
-    el("p",{class:"hint",style:"padding:8px 14px",text:"Coste = importe del albarán si lo pusiste al recibir; si no, el precio de reparación del modelo. Ahorro = precio de reparación de cada eje con pistón agarrotado que recuperas en planta («Recuperado en planta»)."})]);}
+    el("p",{class:"hint",style:"padding:8px 14px",text:"Coste = importe del albarán si lo pusiste al recibir; si no, el precio de reparación del modelo. Ahorro = precio de reparación de cada eje con pistón agarrotado que recuperas en planta («Recuperado en planta»). Pistones salvados = los que habéis podido sacar de un eje agarrotado: se quedan en la fábrica y valen, como mínimo, lo que pagan en la chatarrería."})]);}
 function formPrecios(){const x={};(cat.modelos||[]).forEach(m=>x[m.id]=m.precioRep||"");
   const mods=(cat.modelos||[]).slice().sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true}));
   dlg("Precios de reparación por modelo",[el("p",{class:"hint",text:"Lo que suele cobrar el taller por reparar un eje de cada modelo. Si al recibir pones el importe del albarán, se usa ese."}),
@@ -54,7 +56,7 @@ function formPrecios(){const x={};(cat.modelos||[]).forEach(m=>x[m.id]=m.precioR
 async function excelIC(D,btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();const ref=c=>{const m=modelo(c);return m?m.ref:"";};
     const res=[["Informe de ejes de inyección · MAPRI"],["Periodo",D.P.t+" ("+fmtF(D.P.d)+" a "+fmtF(D.P.h)+")"],[],["Reparados por el taller (recibidos OK)",D.recib.length],["Coste de reparación (€)",Math.round(D.coste*100)/100],
-      ["Recuperados en planta",D.recu.length],["Ahorro por recuperar en planta (€)",Math.round(D.ahorro*100)/100],["Enviados a reparar en el periodo",D.env.length],["En el taller ahora",D.taller.length],["Coste previsto de los que están en el taller (€)",Math.round(D.costeTaller*100)/100]];
+      ["Recuperados en planta",D.recu.length],["Ahorro por recuperar en planta (€)",Math.round(D.ahorro*100)/100],["Pistones sacados de ejes agarrotados",D.nSal],["Valor de esos pistones (€)",Math.round(D.eurSal*100)/100],["Enviados a reparar en el periodo",D.env.length],["En el taller ahora",D.taller.length],["Coste previsto de los que están en el taller (€)",Math.round(D.costeTaller*100)/100]];
     if(D.sinPrecio.length)res.push([],["Modelos sin precio (no suman)",D.sinPrecio.join(", ")]);
     const w1=X.utils.aoa_to_sheet(res);w1["!cols"]=[{wch:48},{wch:40}];X.utils.book_append_sheet(wb,w1,"Resumen");
     const pm=Object.keys(D.porMod).map(k=>{const x=D.porMod[k];return{"Modelo":k,"Referencia":ref(k),"Reparados":x.rep,"Coste (€)":Math.round(x.coste*100)/100,"Recuperados en planta":x.rec,"Ahorro (€)":Math.round(x.ahorro*100)/100,"Precio reparación (€)":precioMod(k)||""};});
@@ -65,6 +67,8 @@ async function excelIC(D,btn){if(!downloads){toast("Esta vista no permite descar
     if(hojaIC("Reparaciones"))X.utils.book_append_sheet(wb,X.utils.json_to_sheet(det.length?det:[{"Eje":"Sin reparaciones en el periodo"}]),"Reparaciones");
     const rc=D.recu.sort((a,b)=>a.f.localeCompare(b.f)).map(r=>({"Fecha recuperado":fmtF(r.f),"Inyectora":r.maq,"Modelo":r.mod,"Referencia":ref(r.mod),"Cambio de pistón":r.fPist?fmtF(r.fPist):"","Ahorro (€)":r.ah||""}));
     if(hojaIC("Recuperados en planta"))X.utils.book_append_sheet(wb,X.utils.json_to_sheet(rc.length?rc:[{"Fecha recuperado":"Sin ejes recuperados en el periodo"}]),"Recuperados en planta");
+    const ps=D.sal.map(x=>({"Fecha":fmtF(x.f),"Inyectora":x.maq,"Ø":x.d,"Pistones":x.n,"Valor (€)":Math.round(x.eur*100)/100||""}));
+    if(hojaIC("Pistones salvados"))X.utils.book_append_sheet(wb,X.utils.json_to_sheet(ps.length?ps:[{"Fecha":"Ningún pistón sacado de un eje agarrotado en el periodo"}]),"Pistones salvados");
     await downloads.save({filename:"Informe_ejes_"+D.P.d+"_"+D.P.h+".xlsx",data:new Blob([X.write(wb,{bookType:"xlsx",type:"array"})])});toast("Informe descargado");
   }catch(e){toast(e&&e.code==="declined"?"Descarga cancelada":"No se pudo crear el informe");}btn.disabled=false;}
 const hojaIC=n=>incluirSel("costes",OPS_IC)["h:"+n]!==false;
