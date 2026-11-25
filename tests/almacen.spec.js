@@ -703,15 +703,20 @@ test('Ronda de consumos: cada contador se guarda solo, se puede salir y volver, 
   expect(err).toEqual([]);
 });
 
-test('Ronda de consumos: la granalla apuntada hoy del relevo de ayer marca el paso como hecho', async ({ page }) => {
+test('Ronda de consumos: la granalla y los pistones apuntados hoy del relevo de ayer marcan el paso como hecho', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
     v.cat.app.almacenes.push({ id: 'n2', nom: 'Almacén Nave 2', nave: 'Nave 2', tipo: 'produccion' });
     v.cat.app.articulos.push({ id: 'gr1', desc: 'Granalla S110', fam: 'consumible', ud: 'kg', almPpal: 'n2', alms: ['n2'], activo: true });
     const k = Object.keys(v.mov)[0]; const ay = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     v.mov[k].items.push({ id: 'gs1', f: ay, u: 'Tarde', ts: Date.now(), alm: 'n2', art: 'gr1', cant: 50, maq: 'F63', tipo: 'salida' }); } }); });
+  await page.addInitScript(() => { const o = Object.getOwnPropertyDescriptor(window, '__D'); let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { o.set(v); d = v;
+    const mq = v.cat.app.maquinas.find(m => /2/.test(String(m.nave || ''))) || v.cat.app.maquinas[v.cat.app.maquinas.length - 1];
+    const ay = new Date(Date.now() - 86400000).toISOString().slice(0, 10); const k = Object.keys(v.pist || {})[0] || '2026'; v.pist = v.pist || {}; v.pist[k] = v.pist[k] || { items: [] };
+    v.pist[k].items.push({ id: 'pz1', f: ay, ts: Date.now(), maq: mq.id, diam: 'Ø 80', cant: 1, motivo: 'DESGASTE', dest: 'ZONA DE PISTONES USADOS' }); window.__mqN2 = mq.cod; } }); });
   await page.goto(url + '?t=ronda'); await page.waitForTimeout(1500);
   await expect(page.locator('#ronda-gr')).toContainText('✓ 50 kg');
+  await expect(page.locator('#view')).toContainText('1 cambio apuntado hoy');
   expect(err).toEqual([]);
 });
 

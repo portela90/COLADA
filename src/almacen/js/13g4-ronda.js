@@ -56,7 +56,9 @@ function pasoHecho(p){if(p.t==="cont"){const r=lectHoyDe(p.nave);return !!(r&&p.
   if(p.t==="agua"){const r=lectHoyDe(AGUA);return !!(r&&typeof r.c.agua==="number");}
   if(p.t==="alu")return !!(marcaHoy(p.id)||alumHoy(p.nave));
   if(p.t==="gran")return !!(marcaHoy(p.id)||granHoy(p.nave).length);
-  return !!marcaHoy(p.id);}
+  /* pistones: «Revisado» o algún cambio de esa nave apuntado hoy (aunque sea de un relevo de ayer) */
+  return !!(marcaHoy(p.id)||pistHoy(p).length);}
+const pistHoy=p=>todosPist().filter(x=>puNave(x)===p.nv&&apuntadoHoy(x));
 function rondaEstado(){const P=rondaPasos();const h=P.filter(pasoHecho);return{P,n:h.length,tot:P.length,sig:P.find(p=>!pasoHecho(p))||null};}
 /* ---------- un paso ---------- */
 function cuerpoCont(p){const box=el("div",{style:"display:grid;gap:10px"});const L=lectDe(p.nave),ant=L.filter(r=>r.f<hoy()).pop();
@@ -111,6 +113,7 @@ function resumenPaso(p){if(p.t==="cont"){const r=lectHoyDe(p.nave);return p.ks.m
   if(p.t==="agua")return fmtN(lectHoyDe(AGUA).c.agua)+" m³";
   if(p.t==="gran"){const G=granHoy(p.nave);return G.length?fmtN(G.reduce((s,m)=>s+(+m.cant||0),0))+" kg":"Ninguno";}
   if(p.t==="alu"){const x=alumHoy(p.nave);return x?"Recuento"+(x.hora?" a las "+x.hora:""):"Hecho";}
+  if(p.t==="pist"&&!marcaHoy(p.id)){const n=pistHoy(p).length;return n+(n===1?" cambio apuntado hoy":" cambios apuntados hoy");}
   const m=marcaHoy(p.id);return m?"Revisado a las "+new Date(m.ts).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"";}
 /* ---------- la pantalla ---------- */
 let _rAbierto=null;
