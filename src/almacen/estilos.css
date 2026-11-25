@@ -467,3 +467,7 @@ input.leido{background:color-mix(in srgb,#F59E0B 12%,var(--surf))!important;bord
 .solo-ancho{display:none!important}
 @media (min-width:800px) and (min-height:560px){.solo-movil{display:none!important}.solo-ancho{display:revert!important}}
 @media (min-width:800px) and (min-height:560px){#view>.volver{display:none}}/* en pantallas grandes ya está la ruta «Almacén / Más / …» arriba */
+/* ronda de consumos (25/11/2026) */
+.ronda-bar,.card .bar{height:8px;background:var(--line2,#e3e3e3);border-radius:4px;overflow:hidden}.card .bar>i{display:block;height:100%;background:var(--ok)}
+.sub.ok{color:var(--ok);font-weight:600}
+.ronda-paso.hecho>.it .t1{color:var(--mut,inherit)}

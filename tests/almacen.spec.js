@@ -660,6 +660,49 @@ test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y
   expect(err).toEqual([]);
 });
 
+test('Ronda de consumos: cada contador se guarda solo, se puede salir y volver, y el glicol se junta en la lectura de la nave', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const it = [], h = new Date(); const B = { 'Nave 1': { e220: 40100, ter: 77000, pre: 40099, i46: 903000, gli: 122000 }, 'Nave 2': { e220: 1000, ter: 2000, pre: 3000, i46: 4000, gli: 5000 } };
+    for (let i = 12; i >= 1; i--) { const x = new Date(h); x.setDate(x.getDate() - i); if (x.getDay() === 0 || x.getDay() === 6) continue; const f = x.toISOString().slice(0, 10);
+      Object.keys(B).forEach(n => { Object.keys(B[n]).forEach(k => B[n][k] += 30); it.push({ id: 'c' + n + i, f, nave: n, c: Object.assign({}, B[n]), por: 'Cristian', ts: i }); }); }
+    v.cont = { [String(h.getFullYear())]: { items: it } }; } }); });
+  await page.goto(url + '?t=ronda'); await page.waitForTimeout(1500);
+  const view = page.locator('#view');
+  await expect(view).toContainText('Ronda de consumos'); await expect(view).toContainText(/0 de \d+/);
+  const hoyF = await page.evaluate(() => { const h = new Date(); return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0'); });
+  const lect = n => page.evaluate(([n, f]) => Object.values(window.__D.cont).flatMap(x => x.items).filter(r => r.nave === n && r.f === f), [n, hoyF]);
+  const ult = await page.evaluate(() => { const L = Object.values(window.__D.cont).flatMap(x => x.items).filter(r => r.nave === 'Nave 1'); return L[L.length - 1].c; });
+  // paso 1 abierto: se apunta el Engrase y se guarda solo al salir de la casilla
+  await page.fill('#rcc1e220', String(ult.e220 + 25)); await page.locator('#rcc1e220').press('Tab'); await page.waitForTimeout(500);
+  await expect(view).toContainText('✓ Guardado'); await expect(view).toContainText('= 25 l');
+  expect((await lect('Nave 1'))[0].c).toEqual({ e220: ult.e220 + 25 });
+  // se sale a otra pantalla y se vuelve: no se ha perdido nada y sale la barra para volver
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Stock')).click()); await page.waitForTimeout(300);
+  await page.locator('.ronda-volver').click(); await page.waitForTimeout(400);
+  await expect(page.locator('#rcc1e220')).toHaveValue(String(ult.e220 + 25));
+  for (const k of ['ter', 'pre', 'i46']) { await page.fill('#rcc1' + k, String(ult[k] + 10)); await page.locator('#rcc1' + k).press('Tab'); await page.waitForTimeout(400); }
+  await expect(view).toContainText(/1 de \d+/);
+  // lectura rara: no se guarda hasta confirmarla
+  await page.locator('#ronda-c2 > button').click(); await page.waitForTimeout(300);
+  await page.fill('#rcc2e220', '10'); await page.locator('#rcc2e220').press('Tab'); await page.waitForTimeout(400);
+  await expect(view).toContainText('marca menos que la lectura anterior'); expect(await lect('Nave 2')).toEqual([]);
+  // el glicol de la Nave 1 (más tarde, en otro paso) va a la misma lectura del día
+  await page.locator('#ronda-g1 > button').click(); await page.waitForTimeout(300);
+  await page.fill('#rcg1gli', String(ult.gli + 40)); await page.locator('#rcg1gli').press('Tab'); await page.waitForTimeout(600);
+  const L1 = await lect('Nave 1'); expect(L1.length).toBe(1);
+  expect(L1[0].c).toEqual({ e220: ult.e220 + 25, ter: ult.ter + 10, pre: ult.pre + 10, i46: ult.i46 + 10, gli: ult.gli + 40 });
+  // pistones: «Revisado» queda apuntado
+  await page.locator('#ronda-p1 > button').click(); await page.waitForTimeout(300);
+  await page.getByRole('button', { name: '✓ Revisado, no falta ninguno' }).click(); await page.waitForTimeout(400);
+  expect(await page.evaluate(() => Object.values(window.__D.ronda || {}).flatMap(x => x.items).map(x => x.paso))).toContain('p1');
+  await expect(view).toContainText(/3 de \d+/);
+  // en Hoy: seguir la ronda
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Hoy')).click()); await page.waitForTimeout(300);
+  await expect(page.getByRole('button', { name: 'Seguir ronda' })).toBeVisible();
+  expect(err).toEqual([]);
+});
+
 test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v; const k = Object.keys(v.mov)[0];

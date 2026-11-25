@@ -4,13 +4,13 @@
 const TABS=[["res","Hoy"],["rap","Apuntar"],["consu","Consumo"],["stock","Stock"],["repo","Reponer"],["mas","Más"]];
 /* Más: por pieza (cada una con todo lo suyo), máquinas y gestión */
 const SUB=[["pist","Pistones"],["ejes","Ejes"],["cont","Contenedores"],["btb","Barras expulsoras"],["btt","Tornillos tope"],["bth","Horno"],["quim","Aceites, taladrinas y jabones"],
-  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["aprob","Por aprobar"],["reglas","Reglas automáticas"],["reg","Registro de cambios"],["gest","Gestores y relevos"]];
+  ["iny","Inyectoras"],["mol","Moldes"],["aver","Averías"],["bd","Consultas"],["desv","Desviaciones"],["abc","Recuentos y ABC"],["mov","Movimientos"],["cat","Catálogo"],["aprob","Por aprobar"],["reglas","Reglas automáticas"],["reg","Registro de cambios"],["gest","Gestores y relevos"],["ronda","Ronda de consumos"]];
 /* menú lateral: los grupos de «Más» van recogidos; se abren al pulsarlos (y el del apartado en el que estás) */
 function subAbs(){try{return JSON.parse(localStorage.getItem("almacen.subAb")||"[]");}catch(e){return[];}}
 function subGuarda(g,ab){try{const L=subAbs().filter(x=>x!==g);if(ab)L.push(g);localStorage.setItem("almacen.subAb",JSON.stringify(L));}catch(e){}}
 const subAbierto=(g,ks)=>ks.includes(tab)||subAbs().includes(g);
 const SUB_G=[["Piezas",["pist","ejes","cont","btb","btt","bth","quim"]],["Máquinas",["iny","mol","aver"]],["Gestión",["bd","desv","abc","mov","cat","gest","aprob","reglas","reg"]]];
-const PADRE={gest:"mas",aprob:"mas",reglas:"mas",reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
+const PADRE={ronda:"res",gest:"mas",aprob:"mas",reglas:"mas",reg:"mas",abc:"mas",aver:"mas",bd:"mas",desv:"mas",consultas:"mas",pist:"mas",ejes:"mas",mov:"mas",bt:"mas",btb:"mas",btt:"mas",bth:"mas",quim:"mas",cat:"mas",iny:"mas",cons:"mas",mol:"mas",cont:"mas"};
 /* lo que era la app Inyectoras: cuatro pantallas dentro de Más › Inyectoras */
 const INY_SUB=[["iny","Plano"],["cons","Consumo por máquina"],["mol","Moldes"]];
 const esTab=t=>TABS.some(x=>x[0]===t)||SUB.some(x=>x[0]===t)||INY_SUB.some(x=>x[0]===t)||t==="bt"||t==="mat";
@@ -191,7 +191,7 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 let _pintando=false,_otraVez=false;
 function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);}}
 /* color y frase de cada pantalla (cabecera) */
-const SEC_ALM={gest:["gris","Qué gestores están en cada relevo"],aprob:["gris","Lo que necesita el visto bueno de Beatriz"],res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["rosa","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
+const SEC_ALM={ronda:["marron","Contadores, pistones, granalla, aluminio y agua, en el orden de la vuelta"],gest:["gris","Qué gestores están en cada relevo"],aprob:["gris","Lo que necesita el visto bueno de Beatriz"],res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["rosa","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
   stock:["gris","Lo que hay en cada almacén y punto de consumo"],repo:["morado","Lo que hay que bajar a planta para que no falte"],mas:["gris","Piezas, máquinas y gestión"],
   pist:["naranja","Cambios de pistón, usados y recuperados"],ejes:["indigo","Dónde está cada eje y sus reparaciones"],cont:["marron","Contenedores de cada tipo y dónde están"],
   btb:["azul","Barras expulsoras: stock, uso y recuperación"],btt:["azul","Tornillos tope: stock y uso"],bth:["granate","Recambios de horno y tolvas"],quim:["turquesa","Aceites, taladrinas y jabones, y sus contadores"],
@@ -207,10 +207,11 @@ function render0(force){const a=document.activeElement;
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(!catOk){v.appendChild(el("div",{class:"banner b",text:"No se ha podido cargar el catálogo (¿sin cobertura?). Cierra y vuelve a abrir la app. Mientras tanto no se guarda nada en el catálogo para no borrarlo."}));}
-  {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:"Más",fn:()=>irA("mas")}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO_AR[tab==="btt"?"btb":tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
-  if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:"‹ Más",onclick:()=>irA("mas")}));
+  {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:PADRE[tab]==="res"?"Hoy":"Más",fn:()=>irA(PADRE[tab])}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO_AR[tab==="btt"?"btb":tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
+  if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:PADRE[tab]==="res"?"‹ Hoy":"‹ Más",onclick:()=>irA(PADRE[tab])}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
-  (VC[tab]||{gest:vGest,aprob:vAprob,reglas:vReglas,reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
+  (VC[tab]||{ronda:v=>vRonda(v),gest:vGest,aprob:vAprob,reglas:vReglas,reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
+  if(typeof barraRonda==="function")try{barraRonda(v);}catch(e){console.warn(e);}
   if(typeof panelizar==="function")try{panelizar(v);}catch(e){console.warn(e);}
   document.querySelector("main").scrollTop=sc;kpiInicio();campanaAlm();}
 /* campana de avisos: lo mismo que «Qué hacer hoy» (se recalcula como mucho cada 2 s) */

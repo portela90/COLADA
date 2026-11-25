@@ -261,7 +261,7 @@ function vRes(v){const {hy,R,S,ir,tareas,T,crit,pedir,retr,AJ,bajar,pend,prep,ej
   const det=el("details",{class:"hoy-masdatos"},[el("summary",{text:"Más datos: pistones, máquinas y ejes"}),el("div",{class:"hoy-masdatos-c"},mas)]);
   try{if(localStorage.getItem("alm.hoyMas")==="1")det.open=true;}catch(e){}
   det.addEventListener("toggle",()=>{try{localStorage.setItem("alm.hoyMas",det.open?"1":"0");}catch(e){}});
-  v.appendChild(el("div",{class:"hoy-g"},[urg,el("div",{class:"hoy-lado"},[apunt,mesC])]));
+  v.appendChild(el("div",{class:"hoy-g"},[urg,el("div",{class:"hoy-lado"},[typeof cardRonda==="function"?cardRonda():null,apunt,mesC])]));
   v.appendChild(det);}
 
 /* qué investigar al pulsar un aviso de «Lo importante ahora» */

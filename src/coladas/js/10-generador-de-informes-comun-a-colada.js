@@ -221,7 +221,11 @@ const ICO_T={stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12
   hist:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',precios:'<path d="M17.5 6.5A6.5 6.5 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/>',
   plan:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'};
 try{const t=localStorage.getItem("colada.tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
-try{const q=new URLSearchParams(location.search).get("t");if(q&&TABS.some(x=>x[0]===q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
+try{const P=new URLSearchParams(location.search),q=P.get("t");if(P.get("ronda"))sessionStorage.setItem("colada.ronda","1");if(q&&TABS.some(x=>x[0]===q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
+/* venir desde la ronda de consumos del Almacén (25/11/2026): botón para volver a ella */
+try{if(sessionStorage.getItem("colada.ronda")){const b=document.createElement("a");b.href="almacen.html?t=ronda";b.className="btn ronda-volver";b.textContent="‹ Volver a la ronda";
+  b.style.cssText="position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.25);text-decoration:none";
+  b.onclick=()=>{try{sessionStorage.removeItem("colada.ronda");}catch(e){}};document.body.appendChild(b);}}catch(e){}
 tabsUI();render();
 window.addEventListener("colada-refresh",()=>render());
 window.descCambio=(col,it)=>{if(col==="mov"){const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};const l=lotes.find(x=>x.id===it.o);
