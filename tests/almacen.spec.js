@@ -1974,6 +1974,12 @@ test('Pesar los cajones de chatarra: solo los kilos de cada cajón, sin sacar na
   await expect(page.locator('#view')).toContainText(/9\.?800 €/);
   const ev = await page.evaluate(() => window.__D.cat.app.pusados.ev);
   expect(ev.find(e => e.t === 'pesa')).toMatchObject({ kg: 1250, cajones: [700, 550], bruto: [760, 605], tara: [60, 55], nota: 'cajones N1 y N2' });
+  // enviar al jefe lo que ha pesado cada cajón y la tara
+  await page.getByRole('button', { name: 'Enviar', exact: true }).first().click(); await page.waitForTimeout(300);
+  const tx = await page.locator('.dlg').last().locator('textarea').inputValue();
+  expect(tx).toContain('Cajón 1: peso total 760 kg − tara 60 kg = 700 kg de pistones');
+  expect(tx).toContain('Cajón 2: peso total 605 kg − tara 55 kg = 550 kg de pistones');
+  expect(tx).toMatch(/Total: 1\.?250 kg de pistones/);
   await expect(page.locator('#view')).toContainText('Movimientos de usados');
   expect(err).toEqual([]);
 });

@@ -78,11 +78,21 @@ function formPesaCajon(){const x={f:hoy(),c:[{b:"",t:""},{b:"",t:""}],nota:""};c
       if(!C.length){toast("Pon el peso de los cajones");return false;}const N=C.map(neto);if(N.some(v=>v==null||!(v>0))){toast("Revisa el peso total y la tara de cada cajón");return false;}
       const kg=Math.round(N.reduce((a,b)=>a+b,0)*100)/100;
       try{await puGuarda({t:"pesa",f:x.f||hoy(),kg,cajones:N,bruto:C.map(c=>parseN(c.b)),tara:C.map(c=>parseN(String(c.t).trim()===""?"0":c.t)),nota:String(x.nota||"").trim()||null});toast("Peso de los cajones guardado");}catch(e){return false;}}}]);}
+/* mandar a quien sea lo que ha pesado cada cajón y su tara (WhatsApp, correo… o copiar) */
+function textoPesa(P){const V=chatValor(),L=["Pesada de los cajones de chatarra de pistones · "+fmtF(P.f)];
+  (P.cajones||[P.kg]).forEach((n,i)=>{const b=(P.bruto||[])[i],t=(P.tara||[])[i];L.push("Cajón "+(i+1)+": "+(b!=null?"peso total "+fmtN(b)+" kg − tara "+fmtN(t||0)+" kg = ":"")+fmtN(n)+" kg de pistones");});
+  L.push("Total: "+fmtN(P.kg)+" kg de pistones");L.push("Valor aproximado: "+eur(P.kg*V.eurKg)+" (a "+fmtN(Math.round(V.eurKg*100)/100)+" €/kg"+(V.real?", lo que pagaron la última vez":", precio de referencia del cobre de 2.ª")+")");
+  if(P.nota)L.push("Nota: "+P.nota);return L.join("\n");}
+function enviarPesa(P){const tx=textoPesa(P);const ta=el("textarea",{readonly:true,style:"min-height:170px;font-size:14px",value:tx});
+  const acts=[{t:"Cerrar",cls:"sec"},{t:"Copiar",cls:"sec",fn:async()=>{try{await navigator.clipboard.writeText(tx);toast("Copiado: pégalo en WhatsApp o en el correo");}catch(e){ta.select();toast("Selecciona el texto y cópialo");return false;}}},
+    {t:"Correo",cls:"sec",fn:()=>{location.href="mailto:?subject="+encodeURIComponent("Pesada de los cajones de chatarra · "+fmtF(P.f))+"&body="+encodeURIComponent(tx);}}];
+  if(navigator.share)acts.push({t:"Enviar",fn:async()=>{try{await navigator.share({title:"Pesada de los cajones de chatarra",text:tx});}catch(e){return false;}}});
+  dlg("Enviar la pesada",[el("p",{class:"hint",text:"«Enviar» abre WhatsApp, el correo y las demás apps del móvil. También puedes copiarlo y pegarlo donde quieras."}),ta],acts);}
 /* bloque para la tarjeta de pistones usados: valor de la chatarra y pistones salvados */
 function bloqueChatarra(){const h=hoy(),y=h.slice(0,4)+"-01-01",V=chatValor(),D=chatDinero(y,h),S=pistSalvados(y,h);const nS=S.reduce((s,x)=>s+x.n,0);
   return el("div",{class:"bd",style:"border-top:1px solid var(--line2);display:grid;gap:6px"},[el("div",{class:"sub",style:"font-size:12px;font-weight:600",text:"Chatarra y pistones salvados (este año)"}),
     el("div",{style:"font-size:14px"},"Chatarrería: "+(D.L.length?D.n+" pistones · "+fmtN(Math.round(D.kg*10)/10)+" kg"+(D.eur?" · "+eur(D.eur)+" cobrados":"")+(D.sinKg?" ("+D.sinKg+" sin pesar)":""):"ningún viaje todavía")+"."),
-    (()=>{const P=ultPesa();if(!P)return null;const V=chatValor();return el("div",{style:"font-size:14px"},"Chatarra pesada el "+fmtF(P.f)+": "+fmtN(P.kg)+" kg"+(P.cajones&&P.cajones.length>1?" ("+P.cajones.length+" cajones)":"")+" ≈ "+eur(P.kg*V.eurKg)+" (a "+fmtN(Math.round(V.eurKg*100)/100)+" €/kg).");})(),
+    (()=>{const P=ultPesa();if(!P)return null;const V=chatValor();return el("div",{style:"font-size:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px"},[el("span",{text:"Chatarra pesada el "+fmtF(P.f)+": "+fmtN(P.kg)+" kg"+(P.cajones&&P.cajones.length>1?" ("+P.cajones.length+" cajones)":"")+" ≈ "+eur(P.kg*V.eurKg)+" (a "+fmtN(Math.round(V.eurKg*100)/100)+" €/kg)."}),el("button",{type:"button",class:"btn sec peq",text:"Enviar",onclick:()=>enviarPesa(P)})]);})(),
     el("div",{style:"font-size:14px"},"Sacados de ejes agarrotados: "+(nS?nS+(nS===1?" pistón":" pistones")+(S.some(x=>x.eur)?" · "+eur(S.reduce((s,x)=>s+x.eur,0))+" que no se han perdido":""):"ninguno todavía")+"."),
     el("p",{class:"hint",style:"margin:0",text:txtValorPist()}),
     el("div",{style:"display:flex;flex-wrap:wrap;gap:4px"},[el("button",{type:"button",class:"btn txt peq",text:"Precio de referencia del kg: "+fmtN(chatEurRef())+" €",onclick:formChatEur}),
