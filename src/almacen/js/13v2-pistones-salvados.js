@@ -61,11 +61,25 @@ function formPesosDiam(){const ds=DIAM.filter(d=>pistArt(d));const x={};ds.forEa
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{for(const d of ds){const v=String(x[d]||"").trim();if(v&&!(parseN(v)>0)){toast("Revisa el peso de "+d);return false;}}
       const prev=JSON.parse(JSON.stringify(cat.articulos));ds.forEach(d=>{const a=cat.articulos.find(z=>z.id===pistArt(d).id);if(!a)return;const n=parseN(x[d]);if(isFinite(n)&&n>0)a.kgPieza=n;else delete a.kgPieza;});
       try{await saveCat();toast("Pesos guardados");}catch(e){cat.articulos=prev;return false;}render(true);}}]);}
+/* pesar las cajas de chatarra sin llevarlas (se llevan una vez al año, cuando están llenas): solo los kilos netos,
+   sin contar pistones. Evento «pesa» en cat.pusados.ev {f,kg,nota}: no cambia lo que hay en el cajón (25/11/2026) */
+const ultPesa=()=>puEv().filter(e=>e.t==="pesa").sort((a,b)=>a.f.localeCompare(b.f)||(a.ts||0)-(b.ts||0)).pop()||null;
+function formPesaCajon(){const x={f:hoy(),kg:["",""],nota:""};const tot=el("div",{class:"sub",style:"font-weight:600"});const box=el("div",{style:"display:grid;gap:8px"});
+  const suma=()=>x.kg.map(v=>parseN(v)).filter(v=>isFinite(v)&&v>0).reduce((a,b)=>a+b,0);
+  const pinta=()=>{box.textContent="";x.kg.forEach((v,i)=>box.appendChild(fld("Cajón "+(i+1)+" (kg, sin la caja)",inp("pcKg"+(i+1),v,w=>{x.kg[i]=w;tot.textContent="Total: "+fmtN(suma())+" kg";},{inputmode:"decimal",class:"num",placeholder:"kg"}))));
+    box.appendChild(el("button",{type:"button",class:"btn txt peq",text:"＋ Otro cajón",onclick:()=>{x.kg.push("");pinta();}}));tot.textContent="Total: "+fmtN(suma())+" kg";};pinta();
+  dlg("Pesar los cajones de chatarra",[el("p",{class:"hint",text:"Pesa cada cajón y pon solo los kilos de los pistones (quita lo que pesa el cajón vacío). No hace falta contar nada: no se sacan, solo se apunta lo que pesan y lo que valen."}),
+    fld("Fecha",inp("pcF",x.f,v=>x.f=v,{type:"date",max:hoy()})),box,tot,fld("Nota (opcional)",inp("pcN","",v=>x.nota=v,{autocomplete:"off"}))],
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const L=x.kg.map(v=>String(v).trim()).filter(Boolean).map(parseN);if(!L.length||L.some(v=>!(isFinite(v)&&v>0))){toast("Pon los kilos de cada cajón");return false;}
+      const kg=Math.round(L.reduce((a,b)=>a+b,0)*100)/100;
+      try{await puGuarda({t:"pesa",f:x.f||hoy(),kg,cajones:L,nota:String(x.nota||"").trim()||null});toast("Peso de los cajones guardado");}catch(e){return false;}}}]);}
 /* bloque para la tarjeta de pistones usados: valor de la chatarra y pistones salvados */
 function bloqueChatarra(){const h=hoy(),y=h.slice(0,4)+"-01-01",V=chatValor(),D=chatDinero(y,h),S=pistSalvados(y,h);const nS=S.reduce((s,x)=>s+x.n,0);
   return el("div",{class:"bd",style:"border-top:1px solid var(--line2);display:grid;gap:6px"},[el("div",{class:"sub",style:"font-size:12px;font-weight:600",text:"Chatarra y pistones salvados (este año)"}),
     el("div",{style:"font-size:14px"},"Chatarrería: "+(D.L.length?D.n+" pistones · "+fmtN(Math.round(D.kg*10)/10)+" kg"+(D.eur?" · "+eur(D.eur)+" cobrados":"")+(D.sinKg?" ("+D.sinKg+" sin pesar)":""):"ningún viaje todavía")+"."),
+    (()=>{const P=ultPesa();if(!P)return null;const V=chatValor();return el("div",{style:"font-size:14px"},"Chatarra pesada el "+fmtF(P.f)+": "+fmtN(P.kg)+" kg"+(P.cajones&&P.cajones.length>1?" ("+P.cajones.length+" cajones)":"")+" ≈ "+eur(P.kg*V.eurKg)+" (a "+fmtN(Math.round(V.eurKg*100)/100)+" €/kg).");})(),
     el("div",{style:"font-size:14px"},"Sacados de ejes agarrotados: "+(nS?nS+(nS===1?" pistón":" pistones")+(S.some(x=>x.eur)?" · "+eur(S.reduce((s,x)=>s+x.eur,0))+" que no se han perdido":""):"ninguno todavía")+"."),
     el("p",{class:"hint",style:"margin:0",text:txtValorPist()}),
     el("div",{style:"display:flex;flex-wrap:wrap;gap:4px"},[el("button",{type:"button",class:"btn txt peq",text:"Precio de referencia del kg: "+fmtN(chatEurRef())+" €",onclick:formChatEur}),
+      window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn txt peq",text:"Pesar los cajones",onclick:formPesaCajon}),
       el("button",{type:"button",class:"btn txt peq",text:"Peso de cada Ø"+(DIAM.some(d=>kgDiam(d)!=null)?" ("+DIAM.filter(d=>kgDiam(d)!=null).length+" puestos)":""),onclick:formPesosDiam})])]);}
