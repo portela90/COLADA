@@ -49,7 +49,9 @@ let _rAluT=0;function rondaLeeAlu(){if(window.SIN_COLADAS||!window.sbColada||Dat
   Promise.resolve(window.sbColada.from("docs").select("rd:data->rdiarioN").eq("col","cfg").eq("id","app").maybeSingle()).then(r=>{if(r&&r.data&&r.data.rd){window._rondaAlu=r.data.rd;if(tab==="ronda")render();}}).catch(()=>{});}
 const granArt=()=>artsActivos().find(a=>/granalla/i.test(a.desc||"")&&!/cobre/i.test(a.desc||""));
 const almNave=n=>(cat.almacenes||[]).find(l=>l.id==="n"+n.replace(/\D/g,""))||(cat.almacenes||[]).find(l=>new RegExp("nave\\s*"+n.replace(/\D/g,"")+"\\b","i").test(l.nom||""))||null;
-function granHoy(nave){const a=granArt();if(!a)return[];const l=almNave(nave);return todosMov().filter(m=>m.tipo==="salida"&&m.art===a.id&&m.f===hoy()&&(!l||m.alm===l.id||m.nave===nave));}
+/* granalla apuntada hoy: lo que tiene fecha de hoy o lo que se ha apuntado hoy aunque sea del relevo de ayer (25/11/2026) */
+const apuntadoHoy=m=>m.f===hoy()||(+m.ts>0&&new Date(+m.ts).toDateString()===new Date().toDateString());
+function granHoy(nave){const a=granArt();if(!a)return[];const l=almNave(nave);return todosMov().filter(m=>m.tipo==="salida"&&m.art===a.id&&apuntadoHoy(m)&&(!l||m.alm===l.id||m.nave===nave));}
 function pasoHecho(p){if(p.t==="cont"){const r=lectHoyDe(p.nave);return !!(r&&p.ks.every(k=>typeof r.c[k]==="number"));}
   if(p.t==="agua"){const r=lectHoyDe(AGUA);return !!(r&&typeof r.c.agua==="number");}
   if(p.t==="alu")return !!(marcaHoy(p.id)||alumHoy(p.nave));
