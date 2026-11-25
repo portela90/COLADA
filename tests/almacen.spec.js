@@ -1965,14 +1965,15 @@ test('Pesar los cajones de chatarra: solo los kilos de cada cajón, sin sacar na
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Pesar los cajones' }).click(); await page.waitForTimeout(300);
-  const d = page.locator('.dlg').last(); await d.locator('#pcKg1').fill('700'); await d.locator('#pcKg2').fill('550'); await d.locator('#pcN').fill('cajones N1 y N2');
+  const d = page.locator('.dlg').last(); await d.locator('#pcB1').fill('760'); await d.locator('#pcT1').fill('60'); await d.locator('#pcB2').fill('605'); await d.locator('#pcT2').fill('55');
+  await expect(d).toContainText('= 700 kg de pistones'); await d.locator('#pcN').fill('cajones N1 y N2');
   await expect(d).toContainText(/Total: 1\.?250 kg/);
   await d.getByRole('button', { name: 'Guardar' }).click(); await page.waitForTimeout(600);
   // 1250 kg × 7,84 €/kg = 9800 €
   await expect(page.locator('#view')).toContainText('Chatarra pesada el'); await expect(page.locator('#view')).toContainText(/1\.?250 kg \(2 cajones\)/);
   await expect(page.locator('#view')).toContainText(/9\.?800 €/);
   const ev = await page.evaluate(() => window.__D.cat.app.pusados.ev);
-  expect(ev.find(e => e.t === 'pesa')).toMatchObject({ kg: 1250, cajones: [700, 550], nota: 'cajones N1 y N2' });
+  expect(ev.find(e => e.t === 'pesa')).toMatchObject({ kg: 1250, cajones: [700, 550], bruto: [760, 605], tara: [60, 55], nota: 'cajones N1 y N2' });
   await expect(page.locator('#view')).toContainText('Movimientos de usados');
   expect(err).toEqual([]);
 });

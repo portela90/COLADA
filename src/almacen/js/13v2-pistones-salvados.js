@@ -64,15 +64,20 @@ function formPesosDiam(){const ds=DIAM.filter(d=>pistArt(d));const x={};ds.forEa
 /* pesar las cajas de chatarra sin llevarlas (se llevan una vez al año, cuando están llenas): solo los kilos netos,
    sin contar pistones. Evento «pesa» en cat.pusados.ev {f,kg,nota}: no cambia lo que hay en el cajón (25/11/2026) */
 const ultPesa=()=>puEv().filter(e=>e.t==="pesa").sort((a,b)=>a.f.localeCompare(b.f)||(a.ts||0)-(b.ts||0)).pop()||null;
-function formPesaCajon(){const x={f:hoy(),kg:["",""],nota:""};const tot=el("div",{class:"sub",style:"font-weight:600"});const box=el("div",{style:"display:grid;gap:8px"});
-  const suma=()=>x.kg.map(v=>parseN(v)).filter(v=>isFinite(v)&&v>0).reduce((a,b)=>a+b,0);
-  const pinta=()=>{box.textContent="";x.kg.forEach((v,i)=>box.appendChild(fld("Cajón "+(i+1)+" (kg, sin la caja)",inp("pcKg"+(i+1),v,w=>{x.kg[i]=w;tot.textContent="Total: "+fmtN(suma())+" kg";},{inputmode:"decimal",class:"num",placeholder:"kg"}))));
-    box.appendChild(el("button",{type:"button",class:"btn txt peq",text:"＋ Otro cajón",onclick:()=>{x.kg.push("");pinta();}}));tot.textContent="Total: "+fmtN(suma())+" kg";};pinta();
-  dlg("Pesar los cajones de chatarra",[el("p",{class:"hint",text:"Pesa cada cajón y pon solo los kilos de los pistones (quita lo que pesa el cajón vacío). No hace falta contar nada: no se sacan, solo se apunta lo que pesan y lo que valen."}),
+function formPesaCajon(){const x={f:hoy(),c:[{b:"",t:""},{b:"",t:""}],nota:""};const tot=el("div",{class:"sub",style:"font-weight:600"});const box=el("div",{style:"display:grid;gap:10px"});
+  /* cada cajón: peso total (con el cajón) y tara (el cajón vacío) → kilos de pistones */
+  const neto=c=>{const b=parseN(c.b),t=parseN(String(c.t).trim()===""?"0":c.t);return isFinite(b)&&b>0&&isFinite(t)&&t>=0?Math.round((b-t)*100)/100:null;};
+  const suma=()=>x.c.map(neto).filter(v=>v!=null&&v>0).reduce((a,b)=>a+b,0);
+  const pinta=()=>{box.textContent="";x.c.forEach((c,i)=>{const n=el("div",{class:"sub"});const pn=()=>{const v=neto(c);n.textContent=v==null?"":v>0?"= "+fmtN(v)+" kg de pistones":"La tara es más que el total";tot.textContent="Total: "+fmtN(suma())+" kg de pistones";};
+      box.appendChild(el("div",{style:"display:grid;gap:4px"},[el("div",{class:"sub",style:"font-weight:600",text:"Cajón "+(i+1)}),
+        el("div",{class:"row"},[fld("Peso total (kg)",inp("pcB"+(i+1),c.b,w=>{c.b=w;pn();},{inputmode:"decimal",class:"num",placeholder:"con el cajón"})),fld("Tara (kg)",inp("pcT"+(i+1),c.t,w=>{c.t=w;pn();},{inputmode:"decimal",class:"num",placeholder:"cajón vacío"}))]),n]));pn();});
+    box.appendChild(el("button",{type:"button",class:"btn txt peq",text:"＋ Otro cajón",onclick:()=>{x.c.push({b:"",t:""});pinta();}}));tot.textContent="Total: "+fmtN(suma())+" kg de pistones";};pinta();
+  dlg("Pesar los cajones de chatarra",[el("p",{class:"hint",text:"Pon lo que pesa cada cajón lleno y su tara (el cajón vacío): la app resta y apunta los kilos de pistones. No hace falta contar nada ni se saca nada del cajón."}),
     fld("Fecha",inp("pcF",x.f,v=>x.f=v,{type:"date",max:hoy()})),box,tot,fld("Nota (opcional)",inp("pcN","",v=>x.nota=v,{autocomplete:"off"}))],
-    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const L=x.kg.map(v=>String(v).trim()).filter(Boolean).map(parseN);if(!L.length||L.some(v=>!(isFinite(v)&&v>0))){toast("Pon los kilos de cada cajón");return false;}
-      const kg=Math.round(L.reduce((a,b)=>a+b,0)*100)/100;
-      try{await puGuarda({t:"pesa",f:x.f||hoy(),kg,cajones:L,nota:String(x.nota||"").trim()||null});toast("Peso de los cajones guardado");}catch(e){return false;}}}]);}
+    [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{const C=x.c.filter(c=>String(c.b).trim()||String(c.t).trim());
+      if(!C.length){toast("Pon el peso de los cajones");return false;}const N=C.map(neto);if(N.some(v=>v==null||!(v>0))){toast("Revisa el peso total y la tara de cada cajón");return false;}
+      const kg=Math.round(N.reduce((a,b)=>a+b,0)*100)/100;
+      try{await puGuarda({t:"pesa",f:x.f||hoy(),kg,cajones:N,bruto:C.map(c=>parseN(c.b)),tara:C.map(c=>parseN(String(c.t).trim()===""?"0":c.t)),nota:String(x.nota||"").trim()||null});toast("Peso de los cajones guardado");}catch(e){return false;}}}]);}
 /* bloque para la tarjeta de pistones usados: valor de la chatarra y pistones salvados */
 function bloqueChatarra(){const h=hoy(),y=h.slice(0,4)+"-01-01",V=chatValor(),D=chatDinero(y,h),S=pistSalvados(y,h);const nS=S.reduce((s,x)=>s+x.n,0);
   return el("div",{class:"bd",style:"border-top:1px solid var(--line2);display:grid;gap:6px"},[el("div",{class:"sub",style:"font-size:12px;font-weight:600",text:"Chatarra y pistones salvados (este año)"}),
