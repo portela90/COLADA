@@ -2,6 +2,8 @@
 draft.p.resp=lsGet("alm.resp");draft.p.dest=lsGet("alm.dp");window.addEventListener("colada-refresh",()=>render());
 try{const t=localStorage.getItem((window.APP_ID||"almacen")+".tab");if(t&&esTab(t))tab=t;}catch(e){}
 try{const q=new URLSearchParams(location.search).get("t");if(q&&esTab(q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
+/* la dirección manda (almacen.html#ejes abre Ejes) y la pantalla de partida queda como primer paso del historial */
+try{const h=location.hash.slice(1);if(h&&esTab(h))tab=h;history.replaceState({t:tab},"",location.pathname+location.search+"#"+tab);}catch(e){}
 tabsUI();render(true);
 /* usuario de solo consulta: sus pantallas propias (13a-pantallas-solo-consulta.js) */
 window.addEventListener("solo-consulta",modoConsulta);

@@ -180,11 +180,25 @@ async function delPist(p){if(db.itemsDelId)await db.itemsDelId("pist",p.f.slice(
   await ref.set({items:(sn.data().items||[]).filter(x=>x.id!==p.id)});}if(p.movId)await delMov(p.movId,p.f);try{await quitarPendPist(p.id);}catch(e){}}
 
 /* ---------- dialogs ---------- */
+/* ===== Botón «atrás» del móvil y del navegador (26/11/2026) =====
+   Cada ficha o ventana que se abre deja un paso en el historial: «atrás» la cierra en vez de salir de la app.
+   Sin nada abierto, «atrás» vuelve a la pantalla anterior: cada pantalla tiene su dirección (almacen.html#stock). */
+let _ignPop=0,_ovN=0;
+const _ovArriba=()=>{try{return history.state&&history.state.ov;}catch(e){return null;}};
+function pilaAbre(ov){try{ov._id=++_ovN;history.pushState({ov:ov._id},"");ov._hist=true;}catch(e){}}
+/* al cerrar con un botón, se quita su paso del historial, pero solo si es el de arriba (nunca se sale de la app) */
+function pilaCierra(ov){if(!ov||!ov._hist)return;ov._hist=false;if(_ovArriba()===ov._id){_ignPop++;try{history.back();}catch(e){_ignPop--;}}}
+/* quitar varias de golpe */
+function quitaOvs(L){const arriba=_ovArriba();let suya=false;L.forEach(o=>{if(o._hist&&o._id===arriba)suya=true;o._hist=false;o.remove();});if(suya){_ignPop++;try{history.back();}catch(e){_ignPop--;}}}
+window.addEventListener("popstate",()=>{if(_ignPop>0){_ignPop--;return;}
+  const top=[...document.querySelectorAll(".dlg-ov,.bus-ov")].filter(o=>o._hist).pop();
+  if(top){top._hist=false;if(top._cerrar)top._cerrar();else top.remove();return;}
+  const h=location.hash.slice(1);if(h&&h!==tab&&esTab(h))irA(h,true);});
 function dlg(title,body,actions){const ov=el("div",{class:"dlg-ov",role:"dialog","aria-modal":"true","aria-label":title});
-  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};const esc=e=>{if(e.key==="Escape")close();};
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);pilaCierra(ov);};ov._cerrar=close;const esc=e=>{if(e.key==="Escape")close();};
   const box=el("div",{class:"dlg"},[el("h3",{text:title})].concat(Array.isArray(body)?body:[body]).concat([el("div",{class:"dlg-b"},actions.map(a=>{
     const b=el("button",{type:"button",class:"btn "+(a.cls||""),text:a.t});b.onclick=async()=>{if(a.fn){b.disabled=true;let r;try{r=await a.fn();}catch(e){r=false;}b.disabled=false;if(r===false)return;}close();};return b;}))]));
-  ov.appendChild(box);ov.addEventListener("click",e=>{if(e.target===ov)close();});document.addEventListener("keydown",esc);document.body.appendChild(ov);
+  ov.appendChild(box);ov.addEventListener("click",e=>{if(e.target===ov)close();});document.addEventListener("keydown",esc);document.body.appendChild(ov);pilaAbre(ov);
   const f=box.querySelector("input:not([type=checkbox]),select,textarea");if(f)setTimeout(()=>f.focus(),30);return close;}
 /* «⋯ Más» : las acciones que no son las principales, en una lista al tocarlo */
 function menuAcc(titulo,L,txt){return el("button",{type:"button",class:"btn sec acc-mas","aria-label":titulo,text:txt||"⋯ Más",onclick:()=>{
@@ -218,7 +232,8 @@ function render0(force){const a=document.activeElement;
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}
   if(!ready){v.appendChild(el("div",{class:"empty",text:"Cargando…"}));return;}
   if(!catOk){v.appendChild(el("div",{class:"banner b",text:"No se ha podido cargar el catálogo (¿sin cobertura?). Cierra y vuelve a abrir la app. Mientras tanto no se guarda nada en el catálogo para no borrarlo."}));}
-  {const C=secAlm(tab);v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]?{t:PADRE[tab]==="res"?"Hoy":"Más",fn:()=>irA(PADRE[tab])}:null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO_AR[tab==="btt"?"btb":tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
+  {const C=secAlm(tab);const grupo=(MENU_PC.find(([g,ks])=>g&&ks.includes(INY_SUB.some(x=>x[0]===tab)?"iny":tab))||[])[0];
+    v.appendChild(cabeceraPg({ruta:["Almacén",PADRE[tab]==="res"?{t:"Hoy",fn:()=>irA("res")}:PADRE[tab]?(grupo||{t:"Más",fn:()=>irA("mas")}):null],titulo:nomTab(tab),sub:C[1],color:C[0],icono:svgPg(ICO[tab]||ICO_AR[tab==="btt"?"btb":tab]||ICO[PADRE[tab]]||ICO.mas),vista:v}));}
   if(PADRE[tab])v.appendChild(el("button",{type:"button",class:"volver",text:PADRE[tab]==="res"?"‹ Hoy":"‹ Más",onclick:()=>irA(PADRE[tab])}));
   if(INY_SUB.some(x=>x[0]===tab))v.appendChild(el("div",{class:"seg",role:"tablist","aria-label":"Inyectoras",style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px"},INY_SUB.map(([k,t])=>el("button",{type:"button","aria-pressed":String(tab===k),text:t,onclick:()=>irA(k)}))));
   (VC[tab]||{ronda:v=>vRonda(v),gest:vGest,aprob:vAprob,reglas:vReglas,reg:vRegAlm,abc:vABC,aver:vAver,res:vRes,rap:vRap,consu:v=>{draft.m.tipo="salida";vMov(v,true);},stock:vStock,repo:vRepo,iny:vIny,mol:vMol,bd:vBD,cont:v=>vSecc("cont",v),cons:vCons,mat:v=>{draft.rv="mat";vRepo(v);},btb:v=>vSecc("btb",v),btt:v=>vSecc("btt",v),bth:v=>vSecc("bth",v),quim:v=>vSecc("quim",v),mov:vMov,pist:v=>vSecc("pist",v),ejes:v=>vSecc("ejes",v),bt:v=>vBT(v,"barra"),cat:vCat,mas:vMas,consultas:vBD,desv:vDesv}[tab])(v);
@@ -232,20 +247,33 @@ let _cmpT=null;function campanaAlm(){if(!window.campana||!ready)return;clearTime
   try{campana.pon("aprob",APR().campana(()=>irA("aprob")));APR().avisaNuevos();}catch(e){}
   if(PEND_FICHA&&catOk){const c=PEND_FICHA;PEND_FICHA=null;try{history.replaceState(null,"",location.pathname);}catch(e){}setTimeout(()=>abrirFichaClave(c),200);}}catch(e){try{campana.repinta();}catch(e2){}}},2000);}
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pending)render();},0));
-function irA(t){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
+function irA(t,desdeAtras){if(!esTab(t)){try{localStorage.setItem("almacen.tab",t);}catch(e){}location.href="almacen.html";return;}if(t!==tab&&draft.st)delete draft.st[t];tab=t;
+  /* cambiar de pantalla cierra lo que hubiera abierto encima y deja la dirección de la pantalla para «atrás» */
+  if(!desdeAtras){document.querySelectorAll(".dlg-ov,.bus-ov").forEach(o=>{o._hist=false;o.remove();});try{if(location.hash!=="#"+t)history.pushState({t},"","#"+t);}catch(e){}}try{localStorage.setItem((window.APP_ID||"almacen")+(VC[t]?".tabC":".tab"),t);}catch(e){}tabsUI();render(true);document.querySelector("main").scrollTop=0;}
 const ICO={res:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',rap:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',consu:'<path d="M12 20V8M7 13l5-5 5 5"/><path d="M5 4h14"/>',stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',repo:'<path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>',mas:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'};
 const nomTab=t=>{const x=TABS.concat(SUB).find(z=>z[0]===t)||INY_SUB.find(z=>z[0]===t);return x?x[1]:"Almacén";};
 function pintaCab(al){const h=$("hTit");if(!h)return;h.firstChild.textContent="Almacén";const sb=$("hSub");
   sb.textContent=cap(new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}));
   /* las cifras (para pedir, a planta) ya salen en Hoy: arriba solo el nombre y la fecha */
   const c=$("hChips");c.textContent="";}
+/* menú del ordenador y del iPad: todo a la vista, por grupos (en el móvil, la barra de abajo y «Más») */
+const MENU_PC=[[null,["res","rap","ronda"]],["Almacén",["stock","repo","mov","abc"]],["Piezas",["pist","ejes","quim","btb","btt","bth","cont"]],["Máquinas",["iny","mol","aver"]],["Análisis",["bd","desv"]],["Gestión",["cat","gest","aprob","reglas","reg"]]];
+const ICO_M={ronda:'<path d="M3 12h4l3-6 4 12 3-6h4"/>',mov:'<path d="M4 7h16M4 12h16M4 17h10"/>',abc:'<path d="M9 5h11M9 12h11M9 19h11"/><path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2"/>',btt:'<path d="M5 19 19 5"/><path d="M14 5h5v5"/>',
+  iny:'<rect x="3" y="7" width="14" height="10" rx="1.5"/><path d="M17 10h4v4h-4M7 7V4h6v3"/>',mol:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M4 12h5"/>',bd:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',desv:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  cat:'<path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/>',gest:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3 2.8 3 6"/>',aprob:'<path d="M5 12l4 4 10-10"/>',reglas:'<path d="M4 6h10M4 12h16M4 18h7"/><circle cx="18" cy="6" r="2"/><circle cx="15" cy="18" r="2"/>',reg:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'};
+const icoMenu=k=>(typeof ICO!=="undefined"&&ICO[k])||(typeof ICO_AR!=="undefined"&&ICO_AR[k==="btt"?"btb":k])||ICO_M[k]||ICO.mas;
+function menuPC(){const sel=k=>tab===k||(k==="iny"&&INY_SUB.some(x=>x[0]===tab))||(k==="rap"&&tab==="consu");
+  return el("div",{class:"menu-pc"},MENU_PC.map(([g,ks])=>el("div",{class:"menu-g"},[g?el("span",{class:"menu-gt",text:g}):null].concat(ks.filter(k=>esTab(k)).map(k=>{
+    const b=el("button",{type:"button","data-t":k,"aria-current":sel(k)?"page":null,onclick:()=>irA(k)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icoMenu(k)+"</svg>";
+    b.appendChild(el("span",{text:k==="rap"?"Apuntar":nomTab(k)}));return b;})))));}
 function tabsUI(){const n=$("tabs");n.textContent="";n.classList.toggle("muchas",TABS.length>7);TABS.filter(([id])=>id!=="consu"||TABS.length<6).forEach(([id,t])=>{const b=el("button",{type:"button","data-t":id,"aria-selected":String(tab===id||PADRE[tab]===id||(id==="rap"&&tab==="consu"&&TABS.length>=6)),onclick:()=>irA(id)});b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICO[id]||"")+"</svg>";b.appendChild(el("span",{text:t}));n.appendChild(b);
     /* en el menú lateral (ordenador e iPad), lo de «Más» sale desplegado debajo: piezas, máquinas y gestión */
-    if(id==="mas")n.appendChild(el("div",{class:"sub-mas"},SUB_G.map(([g,ks])=>{const ab=subAbierto(g,ks);
+    if(false&&id==="mas")n.appendChild(el("div",{class:"sub-mas"},SUB_G.map(([g,ks])=>{const ab=subAbierto(g,ks);
       const lst=el("div",{class:"sub-it",hidden:!ab},ks.map(k=>{const x=SUB.find(z=>z[0]===k);if(!x)return null;
         return el("button",{type:"button","data-t":k,"aria-selected":String(tab===k),onclick:()=>irA(k)},[el("span",{text:x[1]})]);}).filter(Boolean));
       const bt=el("button",{type:"button",class:"sub-gt","aria-expanded":String(ab),onclick:()=>{const a=lst.hidden;lst.hidden=!a;bt.setAttribute("aria-expanded",String(a));subGuarda(g,a);}},[el("span",{text:g})]);
       return el("div",{class:"sub-g"},[bt,lst]);})));});
+  if(TABS[0]&&TABS[0][0]==="res")n.appendChild(menuPC());
   const sb=n.querySelector("[aria-selected=true]");if(sb&&n.scrollWidth>n.clientWidth)setTimeout(()=>{try{sb.scrollIntoView({inline:"center",block:"nearest"});}catch(e){}},0);}
 
 /* ===== CONSULTAS: preguntas con filtros sobre pistones, ejes y material ===== */

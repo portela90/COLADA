@@ -57,7 +57,7 @@ function investigar(F,o){o=o||{};const D=datosInv(F),reabre=()=>investigar(F,o);
   const mx=Math.max(...D.serie.map(s=>s.v),1e-9),ult=D.largo?D.F.d1.slice(0,7):lunesA(D.F.d1);
   const barras=el("div",{"aria-hidden":"true",style:"display:grid;grid-template-columns:repeat("+D.serie.length+",1fr);gap:2px;align-items:end;height:46px"},
     D.serie.map(s=>el("div",{title:(D.largo?fmtMes(s.k):"Semana del "+fmtF(s.k))+": "+D.fmt(s.v),style:"height:"+Math.max(2,Math.round(s.v/mx*44))+"px;border-radius:2px;background:"+(s.k>=(D.largo?D.F.d0.slice(0,7):lunesA(D.F.d0))&&s.k<=ult?"var(--warn)":"var(--acc)")+";opacity:"+(s.k<=ult?1:.35)})));
-  const otra=G=>{const ov=[...document.querySelectorAll(".dlg-ov:not(.op-ov)")].pop();if(ov)ov.remove();investigar(Object.assign({},F,G),o);};
+  const otra=G=>{const ov=[...document.querySelectorAll(".dlg-ov:not(.op-ov)")].pop();if(ov)quitaOvs([ov]);investigar(Object.assign({},F,G),o);};
   const body=[o.intro?el("p",{class:"hint",style:"margin:0",text:o.intro}):null,
     selPeriodo(F.d0,F.d1,(d0,d1,t)=>otra({d0,d1,per:t})),
     el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[el("span",{class:"sub",text:"Comparar con"}),el("div",{class:"seg",role:"group","aria-label":"Comparar con"},[["normal","Lo normal"],["ant","Periodo anterior"],["ano","Año pasado"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(D.cmp===k),text:t,onclick:()=>otra({cmp:k})})))]),

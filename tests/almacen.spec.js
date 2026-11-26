@@ -2439,28 +2439,44 @@ test('Aprobaciones: el que apunta no aprueba, y a Beatriz le llega un solo aviso
   expect(err).toEqual([]);
 });
 
-test('Menú lateral: lo de «Más» sale desplegado (en el ordenador) y en el móvil no', async ({ page }) => {
+test('Menú lateral del ordenador: todo a la vista por grupos; en el móvil, la barra de abajo', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
-  const sub = page.locator('nav#tabs .sub-mas');
-  await expect(sub).toBeVisible();
-  // los grupos van recogidos: se ven sus nombres, no lo de dentro
-  await expect(sub.locator('.sub-gt')).toHaveText(['Piezas', 'Máquinas', 'Gestión']);
-  await expect(sub.locator('button', { hasText: 'Reglas automáticas' })).toBeHidden();
-  await sub.locator('.sub-gt', { hasText: 'Gestión' }).click();
-  await expect(sub.locator('.sub-gt', { hasText: 'Gestión' })).toHaveAttribute('aria-expanded', 'true');
-  for (const t of ['Por aprobar', 'Reglas automáticas', 'Registro de cambios']) await expect(sub.locator('button', { hasText: t })).toBeVisible();
-  await expect(sub.locator('button', { hasText: 'Pistones' })).toBeHidden();
-  await sub.locator('.sub-gt', { hasText: 'Piezas' }).click();
-  for (const t of ['Pistones', 'Aceites, taladrinas y jabones']) await expect(sub.locator('button', { hasText: t })).toBeVisible();
-  await sub.locator('button', { hasText: 'Reglas automáticas' }).click(); await page.waitForTimeout(400);
+  const menu = page.locator('nav#tabs .menu-pc');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.menu-gt')).toHaveText(['Almacén', 'Piezas', 'Máquinas', 'Análisis', 'Gestión']);
+  for (const t of ['Hoy', 'Stock', 'Pistones', 'Ejes', 'Aceites, taladrinas y jabones', 'Por aprobar', 'Reglas automáticas']) await expect(menu.locator('button', { hasText: t }).first()).toBeVisible();
+  await expect(page.locator('nav#tabs > button[data-t="mas"]')).toBeHidden();
+  await menu.locator('button', { hasText: 'Reglas automáticas' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('.pg-h')).toHaveText('Reglas automáticas');
-  await expect(sub.locator('button[aria-selected="true"]')).toHaveText('Reglas automáticas');
+  await expect(menu.locator('button[aria-current="page"]')).toHaveText('Reglas automáticas');
+  await expect(page.locator('.pg-ruta')).toContainText('Gestión');
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
-  await expect(sub).toBeHidden();
+  await expect(menu).toBeHidden();
+  await expect(page.locator('nav#tabs > button[data-t="mas"]')).toBeVisible();
   expect(err).toEqual([]);
 });
 
+test('Atrás del móvil: cierra la ficha abierta y luego vuelve a la pantalla anterior', async ({ page }) => {
+  const err = await vigila(page); await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs > button')].find(b => b.textContent.includes('Stock')).click());
+  await page.waitForTimeout(400);
+  await expect(page.locator('.pg-h')).toHaveText('Stock');
+  expect(await page.evaluate(() => location.hash)).toBe('#stock');
+  await page.locator('#view button.it').first().click(); await page.waitForTimeout(400);
+  await expect(page.locator('.op-ov')).toHaveCount(1);
+  await page.goBack(); await page.waitForTimeout(400);
+  await expect(page.locator('.op-ov')).toHaveCount(0);
+  await expect(page.locator('.pg-h')).toHaveText('Stock');
+  // cerrada con su botón: «atrás» va directo a la pantalla anterior (no se queda un paso vacío)
+  await page.locator('#view button.it').first().click(); await page.waitForTimeout(400);
+  await page.locator('.op-back').click(); await page.waitForTimeout(400);
+  await expect(page.locator('.op-ov')).toHaveCount(0);
+  await page.goBack(); await page.waitForTimeout(400);
+  await expect(page.locator('.pg-h')).toHaveText('Hoy');
+  expect(await page.evaluate(() => !!window.__D)).toBe(true);
+  expect(err).toEqual([]);
+});
 test('Pérdidas e incidencias: un robo con material del almacén y una línea a mano, cargado a Nave 1, baja el stock, suma en euros y sale en Consultas', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
@@ -2498,7 +2514,7 @@ test('Pérdidas e incidencias: un robo con material del almacén y una línea a 
   await expect(page.locator('.dlg').last()).toContainText('Por nave');
   await page.keyboard.press('Escape');
   // Consultas
-  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="bd"]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('#tabs .menu-pc [data-t="bd"]').click()); await page.waitForTimeout(400);
   await page.fill('#bdQ', 'cuánto nos han robado este año'); await page.waitForTimeout(500);
   await expect(page.locator('#bdRes')).toContainText('pérdidas e incidencias');
   await expect(page.locator('#bdRes')).toContainText('1 incidencia');
@@ -2512,7 +2528,7 @@ test('Pérdidas e incidencias: un robo con material del almacén y una línea a 
 test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca menos y sale en Consultas', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="quim"]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('#tabs .menu-pc [data-t="quim"]').click()); await page.waitForTimeout(400);
   const card = page.locator('#aguaCard'); await expect(card).toBeVisible();
   await expect(card).toContainText('sin lecturas');
   const apunta = async (f, v) => { await page.click('#bAgua'); await page.fill('#aguaF', f); await page.waitForTimeout(200); await page.fill('#aguaV', v);
@@ -2562,7 +2578,7 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   // al glicol se le escapa a veces la coma: con la lectura anterior se corrige
   expect(await page.evaluate(() => [ajustaLectura('1206907', 'glicol', 120650.2), ajustaLectura('120690.7', 'glicol', 120650.2), ajustaLectura('031638', 'aceite', 31600)])).toEqual([120690.7, 120690.7, 31638]);
   // Consultas
-  await page.evaluate(() => document.querySelector('#tabs .sub-mas [data-t="bd"]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('#tabs .menu-pc [data-t="bd"]').click()); await page.waitForTimeout(400);
   await page.fill('#bdQ', 'consumo de agua este año'); await page.waitForTimeout(500);
   await expect(page.locator('#bdRes')).toContainText('12,5');
   expect(err).toEqual([]);

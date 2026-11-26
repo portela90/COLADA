@@ -28,9 +28,9 @@ function infTexto(def,P){const bl=infBl(def);const ahora=new Date();
 function infHojas(def,P){const hs=[{nombre:"Informe",lineas:infTexto(def,P).split("\n")}];
   infBl(def).forEach(b=>{if(!b.hoja)return;try{const h=b.hoja(P,infOpts(b,def));if(h&&h.filas&&h.filas.length)hs.push(h);}catch(e){console.error(e);}});
   const vistos={};hs.forEach(h=>{let n=String(h.nombre).replace(/[\\\/\?\*\[\]:]/g," ").slice(0,28);while(vistos[n])n=n.slice(0,25)+" "+(++vistos[n]);vistos[n]=1;h.nombre=n;});return hs;}
-function infModal(titulo,cuerpo,pie){const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);};const tec=e=>{if(e.key==="Escape"&&ov===[...document.querySelectorAll(".dlg-ov")].pop())cerrar();};
+function infModal(titulo,cuerpo,pie){const cerrar=()=>{ov.remove();document.removeEventListener("keydown",tec);pilaCierra(ov);};const tec=e=>{if(e.key==="Escape"&&ov===[...document.querySelectorAll(".dlg-ov")].pop())cerrar();};
   const ov=IE("div",{class:"dlg-ov",role:"dialog","aria-modal":"true","aria-label":titulo,onclick:e=>{if(e.target===ov)cerrar();}},IE("div",{class:"dlg inf-dlg"},[IE("h3",{text:titulo})].concat(cuerpo).concat([IE("div",{class:"dlg-b"},pie)])));
-  document.addEventListener("keydown",tec);document.body.appendChild(ov);return cerrar;}
+  ov._cerrar=cerrar;document.addEventListener("keydown",tec);document.body.appendChild(ov);pilaAbre(ov);return cerrar;}
 function infToast(t){if(typeof toast==="function")toast(t);}
 function infBtn(t,fn,cls){return IE("button",{type:"button",class:"btn "+(cls||""),text:t,onclick:fn});}
 /* ventana 1: elegir informe */

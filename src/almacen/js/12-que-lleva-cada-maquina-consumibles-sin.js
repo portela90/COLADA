@@ -337,7 +337,7 @@ async function importarMaquinas(file,hoja){try{await cargarXLSX();}catch(e){toas
         const S=new Set(xs.map(x=>{let a=cat.articulos.find(z=>z.fam===cp.auto&&norm(z.desc)===norm(x));if(!a){a={id:uid(),desc:x,almPpal:(origenRepo()||{}).id||null,alms:[(origenRepo()||{}).id].filter(Boolean),ubic:null,cod:null,fam:cp.auto,ud:"ud",diam:null,min:0,pp:0,plazo:null,prov:null,activo:true,iny:[]};cat.articulos.push(a);}return a.id;}));
         cat.articulos.filter(a=>a.fam===cp.auto).forEach(a=>{const tiene=(a.iny||[]).includes(m.id),quiere=S.has(a.id);if(tiene!==quiere)a.iny=quiere?(a.iny||[]).concat([m.id]):(a.iny||[]).filter(z=>z!==m.id);});});
       cat.fichaIny={campos:P};try{await saveCat();toast("Fichas importadas");}catch(e){return false;}render(true);}}]);}
-function cerrarDlgs(){document.querySelectorAll(".dlg-ov,.bus-ov").forEach(o=>o.remove());}
+function cerrarDlgs(){quitaOvs([...document.querySelectorAll(".dlg-ov,.bus-ov")]);}
 /* búsqueda: «F-54», «F 54», «F054» y «F54» son lo mismo; un código de máquina busca la máquina exacta (F5 no saca F54) */
 const nfq=t=>norm(String(t||"")).replace(/\bf[\s\-]*0*(\d{1,3})\b/g,"f$1");
 const tokQ=raw=>nfq(raw).split(/\s+/).filter(Boolean);
