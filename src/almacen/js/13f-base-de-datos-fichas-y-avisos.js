@@ -230,7 +230,7 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     /* ritmo de los últimos 6 meses, contando desde que existe el artículo (si es nuevo, no se diluye) */
     const R=S.L.map(a=>{const PA=typeof PREV_AC!=="undefined"?PREV_AC[a.id]:null,s0=S0.art[a.id];const i0=S0.ini&&F1[a.id]&&F1[a.id]>S0.ini?F1[a.id]:S0.ini;
       const r=PA&&PA.porCont?consDia(a):(s0?s0.tot/Math.max(1,dias(i0,h)+1):consDia(a));
-      const st=stockDe(a.id),pend=a.pedido?(+a.pedCant||0):0,mn=+a.min||0,antes=r*dA,gasto=r*dP,need=antes+gasto+mn-st-pend;
+      const st=dispDe(a),pend=a.pedido?(+a.pedCant||0):0,mn=+a.min||0,antes=r*dA,gasto=r*dP,need=antes+gasto+mn-st-pend;
       let ped=0,env=null;if(need>0){if(PA){ped=Math.ceil(need/PA.grg-1e-9)*PA.grg;env=Math.round(ped/PA.grg)+" GRG";}else if(a.peso>0){const n=Math.ceil(need/a.peso-1e-9);ped=n*a.peso;env=n+" "+(a.envase||"envase").toLowerCase()+(n===1?"":"s");}else ped=redU(need,CONTABLE(a));}
       const pl=plazoArt(a)||pc.plazo,tMin=r>0?(st+pend-mn)/r:Infinity,dPed=Math.floor(Math.min(tMin,dA)-pl);
       return{a,r,st,pend,mn,antes,gasto,ped,env,pl,dPed,eu:ped*precioDe(a),queda:st+pend-antes};}).filter(x=>x.r>0||x.ped>0);
@@ -251,13 +251,13 @@ function pintaIntA2(I,res,pon){const h=hoy(),q=I.q,P=periodoQ(q);
     nota("Cantidad = lo que se gastará hasta final de "+per.t.toLowerCase()+" + la reserva mínima − lo que hay − lo ya pedido. Gasto al ritmo de los últimos 6 meses (los aceites, con sus contadores cuando haya 2 semanas de lecturas). Se redondea a GRG o envases enteros.");return;}
 
   if(I.modo==="pedirsemana"){const PT=prevTodo(),SA={};PT.arts.forEach(x=>{SA[x.a.id]=x;});
-    const L=artsActivos().filter(a=>a.fam!=="eje"&&!a.pedido).map(a=>{const c=consDia(a),st=stockDe(a.id),pp=puntoPedido(a),dp=c>0?(st-pp)/c:null,x=SA[a.id];const cont=CONTABLE(a);
-      const cant=Math.max(x?x.pedir:0,redU(pp+c*14-st,cont));return{a,st,pp,dp,cant,n:nivel(a)};}).filter(x=>(x.n==="bad"||x.n==="warn"||(x.dp!=null&&x.dp<=7))&&x.cant>0)
+    const L=artsActivos().filter(a=>a.fam!=="eje"&&!a.pedido).map(a=>{const c=consDia(a),st=dispDe(a),pp=puntoPedido(a),dp=c>0?(st-pp)/c:null,x=SA[a.id];const cont=CONTABLE(a);
+      const cant=redEnv(a,Math.max(x?x.pedir:0,redU(pp+c*14-st,cont)));return{a,st,pp,dp,cant,n:nivel(a)};}).filter(x=>(x.n==="bad"||x.n==="warn"||(x.dp!=null&&x.dp<=7))&&x.cant>0)
       .sort((a,b)=>(a.n==="bad"?0:1)-(b.n==="bad"?0:1)||(a.dp==null?0:a.dp)-(b.dp==null?0:b.dp));
     ent("lo que hay que pedir esta semana");frase(L.length?"Esta semana hay que pedir "+L.length+(L.length===1?" artículo.":" artículos.")+(L.some(x=>x.n==="bad")?" "+L.filter(x=>x.n==="bad").length+" ya están bajo mínimo.":""):"Esta semana no hace falta pedir nada.");
     if(L.length){const porP={};L.forEach(x=>{const p=provN(x.a.prov)||"Sin proveedor";(porP[p]=porP[p]||[]).push(x);});
       Object.entries(porP).forEach(([p,xs])=>lista(p,xs.map(x=>it(nomArt(x.a),["Hay "+fmtN(Math.round(x.st*10)/10)+" · punto de pedido "+fmtN(Math.round(x.pp*10)/10),x.st<=0?"Agotado":x.n==="bad"?"Bajo mínimo":x.dp!=null&&x.dp>0?"Llega al punto de pedido en "+Math.ceil(x.dp)+" días":"En el punto de pedido"],fmtN(x.cant),x.a.ud||"ud",()=>ficha(x.a),x.n==="bad"?"bad":"warn")),fmtN(xs.length)+" artículos"));
-      copiar("Copiar la lista para compras",["PEDIDO SEMANA "+fmtF(h)].concat(...Object.entries(porP).map(([p,xs])=>["",p.toUpperCase()].concat(xs.map(x=>"- "+nomArt(x.a)+(x.a.cod?" ("+x.a.cod+")":"")+": "+fmtN(x.cant)+" "+(x.a.ud||"ud"))))).join("\n"));}
+      copiar("Copiar la lista para compras",["PEDIDO SEMANA "+fmtF(h)].concat(...Object.entries(porP).map(([p,xs])=>["",p.toUpperCase()].concat(xs.map(x=>"- "+nomArt(x.a)+(x.a.cod?" ("+x.a.cod+")":"")+": "+pedTxt(x.a,x.cant))))).join("\n"));}
     nota("Cantidad = lo que falta para llegar al punto de pedido más dos semanas de consumo (o la sugerencia de Previsión, si es mayor).");return;}
 
   if(I.modo==="mesquviene"){const PT=prevTodo(),G={};let tot=0;PT.arts.forEach(x=>{const v=x.mes.mu*precioDe(x.a);if(!v)return;const k=famLbl(x.a);G[k]=(G[k]||0)+v;tot+=v;});

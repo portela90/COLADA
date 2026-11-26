@@ -2684,3 +2684,29 @@ test('Cantidades raras: el albarán avisa antes de guardar; «¿No cuadra?» en 
   expect(nc[0].t).toContain('en el taller'); expect(nc[0].ctx.titulo).toBe('2.8.J-1');
   expect(err).toEqual([]);
 });
+
+test('Pedir: en envases completos y lo no crítico no avisa (sigue en la lista de pedido)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.articulos.push({ id: 'talP', desc: 'Taladrina de prueba', fam: 'consumible', ud: 'kg', envase: 'Bidón', peso: 200, min: 400, pp: 0, almPpal: 'gen', alms: ['gen'], activo: true },
+      { id: 'espP', desc: 'Espumadera de prueba', fam: 'consumible', ud: 'ud', min: 4, pp: 0, almPpal: 'gen', alms: ['gen'], activo: true, sinAviso: true });
+    const k = Object.keys(v.mov)[0];
+    v.mov[k].items.push({ id: 'tp1', f: '2026-10-01', ts: 1, alm: 'gen', art: 'talP', cant: 100, tipo: 'entrada' },
+      { id: 'ep1', f: '2026-10-01', ts: 2, alm: 'gen', art: 'espP', cant: 1, tipo: 'entrada' }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Stock')).click());
+  await page.waitForTimeout(400);
+  const card = page.locator('section.card', { has: page.locator('h2', { hasText: /^Para pedir/ }) });
+  await expect(card.locator('.it', { hasText: 'Taladrina de prueba' })).toHaveCount(1);
+  await expect(card.locator('.it', { hasText: 'Espumadera de prueba' })).toHaveCount(0);
+  await expect(card).toContainText('Sin aviso (no críticos): Espumadera de prueba');
+  await expect(card.locator('.it', { hasText: 'Taladrina de prueba' })).toContainText('400 kg (2 bidones)');
+  await page.getByRole('button', { name: 'Lista de pedido' }).first().click(); await page.waitForTimeout(300);
+  const tx = await page.locator('#lpTxt').inputValue();
+  expect(tx).toContain('- Taladrina de prueba: pedir 400 kg (2 bidones)');
+  expect(tx).toContain('- Espumadera de prueba: pedir 3 ud');
+  await page.locator('.dlg').last().getByRole('button', { name: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await card.locator('.it', { hasText: 'Taladrina de prueba' }).getByRole('button', { name: 'No avisar' }).click(); await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__D.cat.app.articulos.find(a => a.id === 'talP').sinAviso)).toBe(true);
+  expect(err).toEqual([]);
+});

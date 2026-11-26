@@ -290,12 +290,13 @@ function ajustaAceites(){PREV_AC={};CONT_GRG.forEach(([k,nom])=>{const C=cfgCot(
   const kd=consDia(a),grg=grgKg(k,a),pl=plazoArt(a)||PLAZO0,auto=a.ppAuto!==false;
   if(auto){a.min=grg;a.pp=Math.ceil(grg+kd*pl);}
   /* lo que queda puesto en la instalación (GRG de arriba y de abajo) */
-  const R=cotejo(k),u=R.iv[R.iv.length-1];const instL=u&&!u.hasta&&u.cub?(u.queda||0)+(u.ab!=null?u.ab:0):null;
+  const R=cotejo(k),u=R.iv[R.iv.length-1];/* lo que había al último cambio o nivel (arriba + abajo) menos lo que han marcado los contadores desde entonces */
+  const instL=u&&!u.hasta&&u.cub?Math.max(0,(u.l||0)+(u.ab!=null?u.ab:0)-(u.cont||0)):null;
   PREV_AC[a.id]={k,nom,a,g,porCont,kd,ld:kd/C.dens,grg,pl,plDef:!plazoArt(a),auto,instKg:instL!=null?instL*C.dens:null};});}
 function cardPrevAceites(){const L=Object.values(PREV_AC);if(!L.length)return el("div");const h=hoy();
   const filas=L.map(P=>{const a=P.a,st=stockDe(a.id),tot=st+(P.instKg||0),dias=P.kd>0?Math.floor(tot/P.kd):null,pp=puntoPedido(a);
-    const dPed=P.kd>0?Math.floor((st-pp)/P.kd):null;
-    return{P,st,dias,pp,dPed,f:[P.nom,P.kd>0?fmtL(P.ld)+" · "+fmtN(Math.round(P.kd*10)/10)+" kg"+(P.porCont?"":" *"):"—",fmtN(Math.round(st))+" kg ("+fmtN(Math.round(st/P.grg*10)/10)+" GRG)",dias!=null?dias+" d":"—",
+    const dPed=P.kd>0?Math.floor((tot-pp)/P.kd):null;
+    return{P,st,dias,pp,dPed,f:[P.nom,P.kd>0?fmtL(P.ld)+" · "+fmtN(Math.round(P.kd*10)/10)+" kg"+(P.porCont?"":" *"):"—",fmtN(Math.round(st))+" kg ("+fmtN(Math.round(st/P.grg*10)/10)+" GRG)"+(P.instKg>0?" + "+fmtN(Math.round(P.instKg))+" kg puestos":""),dias!=null?dias+" d":"—",
       fmtN(Math.round(+a.min||0))+" / "+fmtN(Math.ceil(pp))+" kg",a.pedido?"pedido":dPed==null?"—":dPed<=0?"¡ya!":fmtF(sumaDias(h,dPed))]};});
   const ya=filas.filter(x=>!x.P.a.pedido&&x.dPed!=null&&x.dPed<=0),pronto=filas.filter(x=>!x.P.a.pedido&&x.dPed!=null&&x.dPed>0&&x.dPed<=7);
   return el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Previsión y pedido de aceites"}),el("span",{class:"der sub",text:"1 GRG de reserva"})]),

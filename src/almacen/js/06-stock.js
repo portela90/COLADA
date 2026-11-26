@@ -12,14 +12,18 @@ function vStock(v){
         el("div",{style:"display:flex;gap:8px;width:100%;margin-top:6px"},[el("button",{type:"button",class:"btn peq",text:"Ha llegado",onclick:()=>{Object.assign(draft.m,{tipo:"entrada",art:a.id,alm:draft.m.alm||(cat.almacenes[0]||{}).id||"",cant:a.pedCant?String(a.pedCant):"",prov:a.prov||""});irA("mov");}}),
           el("button",{type:"button",class:"btn sec peq",text:"Anular pedido",onclick:()=>confirmar("¿Anular el pedido?",a.desc+": deja de figurar como pedido.","Anular",()=>marcarPedido(a,null))})])]);}))]));}
   if(!cat.articulos.length){v.appendChild(el("div",{class:"card"},el("div",{class:"empty"},["Aún no hay artículos. ",el("button",{type:"button",class:"btn peq",text:"Añadir en Catálogo",onclick:()=>irA("cat")})])));return;}
-  const alertas=artsActivos().map(a=>({a,n:nivel(a)})).filter(x=>!x.a.pedido&&(x.n==="bad"||x.n==="warn")).sort((x,y)=>(x.n==="bad"?0:1)-(y.n==="bad"?0:1)||x.a.desc.localeCompare(y.a.desc));
-  if(alertas.length){v.appendChild(el("section",{class:"card alerta"},[el("div",{class:"hd"},[el("h2",{text:"Para pedir ("+alertas.length+")"})]),
+  const alertas0=artsActivos().map(a=>({a,n:nivel(a)})).filter(x=>!x.a.pedido&&(x.n==="bad"||x.n==="warn"));
+  /* los no críticos (sin aviso) no salen en «Para pedir»: solo una línea al final y en la lista de pedido */
+  const sinAv=alertas0.filter(x=>!avisaDe(x.a)),alertas=alertas0.filter(x=>avisaDe(x.a)).sort((x,y)=>(x.n==="bad"?0:1)-(y.n==="bad"?0:1)||x.a.desc.localeCompare(y.a.desc));
+  if(alertas.length||sinAv.length){v.appendChild(el("section",{class:"card"+(alertas.length?" alerta":"")},[el("div",{class:"hd"},[el("h2",{text:"Para pedir ("+alertas.length+")"})]),
     el("div",{class:"lst"},alertas.map(({a,n})=>{const st=stockDe(a.id);const pedir=cantPedir(a);
       return el("div",{class:"it",style:"cursor:default"},[el("span",{class:"stripe "+n}),
         el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),el("div",{class:"t2",text:(Math.ceil(puntoPedido(a))>(+a.min||0)?"Mín "+fmtN(+a.min||0)+" · pedir al llegar a "+fmtN(Math.ceil(puntoPedido(a))):"Mínimo "+fmtN(+a.min||0))+(provN(a.prov)?" · "+provN(a.prov):"")}),
           a.pedido?el("div",{class:"t2"},[el("span",{class:"pill info",text:"Pedido "+fmtF(a.pedido)})," ",el("button",{type:"button",class:"btn txt peq",text:"Quitar",onclick:()=>marcarPedido(a,null)})])
-                  :el("div",{style:"margin-top:6px"},el("button",{type:"button",class:"btn sec peq",text:"Marcar pedido"+(pedir?" ("+fmtN(pedir)+" "+a.ud+")":""),onclick:()=>marcarPedido(a,hoy())}))]),
-        el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud+" · "+NIV[n]})])]);}))]));}
+                  :el("div",{style:"margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"btn sec peq",text:"Marcar pedido"+(pedir?" ("+pedTxt(a,pedir)+")":""),onclick:()=>marcarPedido(a,hoy())}),
+                    el("button",{type:"button",class:"btn txt peq",text:"No avisar",title:"Para lo que no es crítico: deja de salir aquí y en Hoy",onclick:()=>noAvisar(a,true)})])]),
+        el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud+" · "+NIV[n]}),puestoDe(a)>0?el("small",{text:"+ "+fmtN(Math.round(puestoDe(a)))+" puesto"}):null])]);})),
+      sinAv.length?el("div",{class:"bd",style:"padding-top:6px"},el("p",{class:"hint",style:"margin:0",text:"Sin aviso (no críticos): "+sinAv.map(x=>x.a.desc).join(", ")+". Siguen en la lista de pedido; para que vuelvan a avisar, abre el artículo y pulsa «Avisar»."})):null]));}
   const f=draft.fs;
   const buscar=inp("fsTxt",f.txt,x=>{f.txt=x;pintarLista();},{type:"search",placeholder:"Buscar artículo o código",autocomplete:"off"});
   /* la búsqueda a la vista; familia, almacén y etiqueta, plegados en una línea («Cambiar») */
@@ -43,6 +47,8 @@ function pintarLista(){const box=$("lstStock");if(!box)return;box.textContent=""
     box.appendChild(el("button",{type:"button",class:"it",onclick:()=>ficha(a)},[el("span",{class:"stripe "+(n==="na"?"":n)}),
       el("div",{class:"ppal"},[el("div",{class:"t1"},[a.desc,etqPills(a)]),el("div",{class:"t2",text:[a.cod,envTxt(a),(a.iny||[]).length?"Iny. "+a.iny.map(maqN).join(", "):null,a.ubic?""+a.ubic:null,rep||"Sin existencias"].filter(Boolean).join(" · ")})]),
       el("div",{class:"cant num"},[el("b",{text:fmtN(st)}),el("small",{text:a.ud})])]));});}
+/* artículo no crítico: no avisa en Hoy, en la campana ni en «Para pedir» (sigue en la lista de pedido) */
+async function noAvisar(a,si){const x=art(a.id);if(!x)return;if(si)x.sinAviso=true;else delete x.sinAviso;try{await saveCat();toast(si?"Ya no avisa: "+x.desc:"Vuelve a avisar: "+x.desc);}catch(e){}render(true);}
 function aplicarPedido(x,f){if(f){const q=cantPedir(x);x.pedido=f;x.pedCant=q||null;const pl=plazoArt(x);x.prevista=pl?sumaDias(f,pl):null;}else{delete x.pedido;delete x.pedCant;delete x.prevista;}}
 async function marcarPedido(a,f){const x=art(a.id);if(!x)return;aplicarPedido(x,f);try{await saveCat();toast(f?"Marcado como pedido":"Marca quitada");}catch(e){}render(true);}
 /* planos y documentos (PDF o foto) */
@@ -69,7 +75,7 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
   const st=stockDe(a.id),cd=consDia(a),cob=cd>0?Math.floor(st/cd):null;const NV={bad:["Bajo mínimo","bad"],warn:["Para pedir","warn"],ok:["Correcto","ok"],na:["Sin mínimo",""]};
   const dato=(k,v)=>v==null||v===""?null:[el("dt",{text:k}),el("dd",{text:String(v)})];
   const datos=[dato("Código",a.cod),dato("Familia",FAM[a.fam]),dato("Diámetro",a.diam),dato("Unidad",a.ud),dato("Envase",envTxt(a)),dato("Ubicación",a.ubic),dato("Proveedor",provN(a.prov)),
-    dato("Plazo de entrega",plazoArt(a)?plazoArt(a)+" días"+(!(+a.plazo>0)&&!((cat.proveedores.find(x=>x.id===a.prov)||{}).plazo>0)&&plazoAprendido(a)?" (calculado con "+plazoAprendido(a).n+" pedidos)":""):null),dato("Mínimo",fmtN(+a.min||0)),dato("Pedir al llegar a",fmtN(Math.ceil(puntoPedido(a)))),dato("Pedir ahora",cantPedir(a)?fmtN(cantPedir(a))+" "+a.ud:"—"),
+    dato("Plazo de entrega",plazoArt(a)?plazoArt(a)+" días"+(!(+a.plazo>0)&&!((cat.proveedores.find(x=>x.id===a.prov)||{}).plazo>0)&&plazoAprendido(a)?" (calculado con "+plazoAprendido(a).n+" pedidos)":""):null),dato("Mínimo",fmtN(+a.min||0)),dato("Pedir al llegar a",fmtN(Math.ceil(puntoPedido(a)))),dato("Puesto en el punto de consumo",puestoDe(a)>0?"≈ "+fmtN(Math.round(puestoDe(a)))+" "+a.ud+" (cuenta para pedir)":null),dato("Pedir ahora",cantPedir(a)?pedTxt(a,cantPedir(a)):"—"),dato("Avisos",avisaDe(a)?null:"No avisa (no crítico)"),
     dato("Consumo al día",cd?fmtN(Math.round(cd*100)/100)+" "+a.ud:"—"),a.pedido?dato("Pedido",fmtF(a.pedido)+(a.prevista?" · llega "+fmtF(a.prevista):"")):null].filter(Boolean);
   const alms=cat.almacenes.filter(l=>stockDe(a.id,l.id)||almsDe(a).some(x=>x.id===l.id));
   const gen=[el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Datos"})),el("dl",{class:"datos",style:"padding:12px 14px;margin:0"},[].concat(...datos))]),
@@ -84,9 +90,9 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
     Object.keys(pd).length?el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Para dónde"}),el("span",{class:"der sub",text:"últimos 90 días"})]),el("div",{class:"lst"},Object.entries(pd).sort((x,y)=>y[1]-x[1]).map(([t,c])=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},el("div",{class:"t1",text:t})),el("div",{class:"cant num"},[el("b",{text:fmtN(c)}),el("small",{text:a.ud})])])))]):null];
   const tabD=[TEC(a.fam)?revBox(a):planoBox(a),TEC(a.fam)&&(a.docs||[]).length?planoBox(a):null];
   close=objPage({etiq:{x:cat.articulos.find(z=>z.id===a.id)||a,guarda:saveCat},notas:"art_"+a.id,cambios:q=>q.or("item.eq."+qv("articulos/"+a.id)+",despues->>art.eq."+qv(a.id)+",antes->>art.eq."+qv(a.id)),tipo:"Artículo",ruta:["Stock",FAM[a.fam]||"Artículo"],titulo:a.desc,sub:[a.cod,a.ubic?"Ubicación "+a.ubic:null,provN(a.prov)].filter(Boolean).join(" · "),estado:NV[n]||null,
-    kpis:[["Stock",fmtN(st)+" "+a.ud,n==="bad"?"neg":""],["Mínimo",fmtN(+a.min||0)],["Dura",cob==null?"—":cob>365?"+1 año":cob+" días",cob!=null&&cob<14?"neg":""],["Pedir ahora",cantPedir(a)?fmtN(cantPedir(a)):"—"]],
+    kpis:[["Stock",fmtN(st)+" "+a.ud,n==="bad"?"neg":""],["Mínimo",fmtN(+a.min||0)],["Dura",cob==null?"—":cob>365?"+1 año":cob+" días",cob!=null&&cob<14?"neg":""],["Pedir ahora",cantPedir(a)?pedTxt(a,cantPedir(a)):"—"]],
     tabs:[["General",gen],["Movimientos ("+movs.length+")",tabM],["Consumo",tabC],["Planos y documentos",tabD]],
-    acts:[{t:"🔎 Investigar",cls:"sec",fn:()=>{invArt(a);return false;}},{t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formArticulo(a),0);}},{t:"Contar",cls:"sec",fn:()=>ir("ajuste")},{t:"Entrada",cls:"sec",fn:()=>ir("entrada")},{t:"Consumo",fn:()=>ir("salida")}]});}
+    acts:[{t:"🔎 Investigar",cls:"sec",fn:()=>{invArt(a);return false;}},{t:avisaDe(a)?"No avisar":"Avisar",cls:"sec",fn:()=>{noAvisar(a,avisaDe(a));}},{t:"Editar",cls:"sec",fn:()=>{setTimeout(()=>formArticulo(a),0);}},{t:"Contar",cls:"sec",fn:()=>ir("ajuste")},{t:"Entrada",cls:"sec",fn:()=>ir("entrada")},{t:"Consumo",fn:()=>ir("salida")}]});}
 function signo(m){const c=+m.cant||0;if(m.tipo==="entrada")return"+"+fmtN(c);if(m.tipo==="salida")return"−"+fmtN(c);if(m.tipo==="ajuste")return(c>=0?"+":"−")+fmtN(Math.abs(c));return fmtN(c);}
 /* Consumos de limpieza: la nave va en la nota («Limpieza: <tarea> · Nave 2») */
 const naveDeNota=m=>{const r=/·\s*(Nave\s[^·]+?)\s*$/i.exec(m&&m.nota||"");return r?r[1]:"";};

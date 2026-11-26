@@ -98,7 +98,7 @@ const semanasC=h=>{const L=[],l0=lunesC(h);for(let i=5;i>=0;i--){const d=new Dat
 let _kpiT=null,_kpiU="";
 function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=setTimeout(async()=>{try{
   let bajar=0,uds=0;lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org){bajar++;uds+=f.falta;}}));
-  const A=artsActivos().filter(a=>!a.pedido),bad=A.filter(a=>nivel(a)==="bad").length,warn=A.filter(a=>nivel(a)==="warn").length;
+  const A=artsActivos().filter(a=>!a.pedido&&avisaDe(a)),bad=A.filter(a=>nivel(a)==="bad").length,warn=A.filter(a=>nivel(a)==="warn").length;
   const ped=artsActivos().filter(a=>a.pedido).length;
   const pl=ejes.filter(e=>e.estado==="planta").length-ejePend().length,tall=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto").length;
   const mes=hoy().slice(0,7),pm=todosPist().filter(p=>p.f.startsWith(mes)).reduce((t,p)=>t+(+p.cant||1),0);
@@ -114,7 +114,7 @@ function kpiInicio(){if(!ready||!catOk||!db)return;clearTimeout(_kpiT);_kpiT=set
     EV.forEach(e=>{if(!e.f||e.f<W[0])return;const x=sem[lunesC(e.f)];if(!x)return;const eu=Math.round((e.eur||0)*100)/100;x.eur+=eu;const fm=e.fam||"Otros";x.F[fm]=Math.round(((x.F[fm]||0)+eu)*100)/100;});
     todosPist().forEach(p=>{if(!p.f||p.f<W[0])return;const x=sem[lunesC(p.f)];if(!x)return;const c=+p.cant||1;x.pist+=c;const mq=maqN(p.maq);x.M[mq]=(x.M[mq]||0)+c;});
     Object.values(sem).forEach(x=>{x.eur=Math.round(x.eur);});k.sem=sem;
-    k.pedirL=artsActivos().filter(a=>!a.pedido&&(nivel(a)==="bad"||nivel(a)==="warn")).slice(0,15).map(a=>({d:a.desc,n:nivel(a),st:stockDe(a.id),min:+a.min||0,ud:a.ud||"ud",c:typeof cantPedir==="function"?cantPedir(a):null}));
+    k.pedirL=artsActivos().filter(a=>!a.pedido&&avisaDe(a)&&(nivel(a)==="bad"||nivel(a)==="warn")).slice(0,15).map(a=>({d:a.desc,n:nivel(a),st:stockDe(a.id),min:+a.min||0,ud:a.ud||"ud",c:typeof cantPedir==="function"?cantPedir(a):null}));
     try{const PD=presuDatos();if(PD.hay)k.presu={dd:PD.dd,dm:PD.dm,g:Math.round(PD.tot.g),p:Math.round(PD.tot.p),pr:Math.round(PD.tot.pr),L:PD.C.map(x=>({f:x.fam,g:Math.round(x.g),p:Math.round(x.p),pr:Math.round(x.pr),niv:x.niv}))};}catch(e){}}catch(e){}k.gastoAnt=sE(PC.a1,PC.ah);k.gastoSerie=PC.meses.map(m=>sE(m+"-01",m+"-31"));}catch(e){}
   /* el mismo mes del año pasado (hasta el mismo día), solo si ese mes ya se apuntaba en la app */
   try{const PC=perCmp(hoy()),EV=evTodo(),P=todosPist();if(EV.some(e=>(e.f||"").slice(0,7)===PC.ym)||P.some(p=>(p.f||"").slice(0,7)===PC.ym)){
@@ -153,7 +153,7 @@ function bajarEditor(L){return el("div",{style:"margin-top:6px"},L.map(f=>el("di
 function tareasHoy(){const hy=hoy(),R=prevTodo(),S=R.S;const ir=(t,fn)=>()=>{irA(t);if(fn)setTimeout(fn,0);};
   /* --- qué hacer hoy --- */
   const tareas=[];const T=(niv,txt,det,btn,fn,extra)=>tareas.push({niv,txt,det,btn,fn,extra});
-  const crit=artsActivos().filter(a=>!a.pedido&&nivel(a)==="bad"),pedir=artsActivos().filter(a=>!a.pedido&&nivel(a)==="warn");
+  const crit=artsActivos().filter(a=>!a.pedido&&avisaDe(a)&&nivel(a)==="bad"),pedir=artsActivos().filter(a=>!a.pedido&&avisaDe(a)&&nivel(a)==="warn");
   {const tp=crit.concat(pedir),n=tp.length;if(n)T(crit.length?"bad":"warn",n+(n===1?" artículo":" artículos")+" para pedir"+(crit.length?" ("+crit.length+" bajo mínimo)":""),tp.slice(0,4).map(a=>a.desc).join(", ")+(n>4?"…":""),"Lista de pedido",listaPedido,el("div",{class:"chips",style:"margin-top:4px"},tp.slice(0,6).map(a=>el("button",{type:"button",class:"chip",text:"🔎 ¿Por qué se gasta? "+(TEC(a.fam)?nomBT(a):a.desc),onclick:()=>{const h=hoy();investigar({t:TEC(a.fam)?nomBT(a):a.desc,arts:[a.id],d0:sumaDias(h,-29),d1:h,per:"los últimos 30 días"});}}))));}
   {const ng=negativos();if(ng.length)T("bad",ng.length+(ng.length===1?" artículo no cuadra":" artículos no cuadran")+" (sale en negativo)",ng.slice(0,4).map(x=>x.a.desc+" en "+corto(x.al)+" "+fmtN(x.st)).join(", ")+(ng.length>4?"…":"")+". Se ha apuntado más gasto del que había: cuenta lo que hay y apúntalo.","Contar",()=>{const x=ng[0];Object.assign(draft.m,{tipo:"ajuste",art:x.a.id,alm:x.al.id,cant:""});irA("mov");});}
   const retr=artsActivos().filter(a=>a.pedido&&a.prevista&&a.prevista<hy);

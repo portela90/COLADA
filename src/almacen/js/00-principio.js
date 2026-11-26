@@ -128,7 +128,18 @@ function plazoArt(a){if(+a.plazo>0)return +a.plazo;const pv=cat.proveedores.find
   const L=typeof plazoAprendido==="function"?plazoAprendido(a):null;return L?L.dias:0;}
 const consPlazo=a=>consDia(a)*plazoArt(a);
 const puntoPedido=a=>Math.max(+a.pp||0,(+a.min||0)+consPlazo(a));
-function nivel(a){const st=stockDe(a.id),mn=+a.min||0;const pp=puntoPedido(a);if(!(pp>0)&&!(mn>0))return"na";if(st<mn)return"bad";if(st<=pp)return"warn";return"ok";}
+/* lo que ya está puesto en el punto de consumo y aún no se ha gastado (hoy: el aceite de los GRG de la instalación,
+   que sale de los contadores, 13g). Cuenta para saber si hay que pedir, no como stock del almacén (26/11/2026) */
+const puestoDe=a=>{try{const P=PREV_AC[a.id];return P&&P.instKg>0?P.instKg:0;}catch(e){return 0;}};
+const dispDe=a=>stockDe(a.id)+puestoDe(a);
+/* se pide por envases completos (GRG, bidón…) cuando la ficha dice cuánto trae cada uno */
+const envDe=a=>a&&a.envase&&+a.peso>0?+a.peso:0;
+const redEnv=(a,q)=>{const e=envDe(a);return e&&q>0?Math.ceil(q/e-1e-9)*e:q;};
+const envPl=(t,n)=>{t=String(t||"envase").toLowerCase();return n===1||t==="grg"?t.replace("grg","GRG"):t.replace(/ó/g,"o").replace(/n$/,"nes").replace(/([aeiou])$/,"$1s").replace(/([^s])$/,"$1s").replace("grg","GRG");};
+const pedTxt=(a,q)=>{const e=envDe(a),n=e?Math.round(q/e):0;return fmtN(q)+" "+(a.ud||"ud")+(n?" ("+n+" "+envPl(a.envase,n)+")":"");};
+/* artículos no críticos (p. ej. espumaderas): no avisan en Hoy ni en la campana; siguen en la lista de pedido */
+const avisaDe=a=>a.sinAviso!==true;
+function nivel(a){const st=dispDe(a),mn=+a.min||0;const pp=puntoPedido(a);if(!(pp>0)&&!(mn>0))return"na";if(st<mn)return"bad";if(st<=pp)return"warn";return"ok";}
 const NIV={bad:"Crítico",warn:"Pedir",ok:"OK",na:"Sin mínimo"};
 
 /* ---------- writes ---------- */
@@ -201,7 +212,7 @@ const secAlm=t=>SEC_ALM[t]||["gris",""];
 function render0(force){const a=document.activeElement;
   if(!force&&a&&a.closest&&a.closest("#view")&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&a.type!=="file"&&a.type!=="checkbox"){pending=true;return;}
   pending=false;SM=stockMap();CONS=consMap();if(typeof ajustaAceites==="function")ajustaAceites();
-  const al=artsActivos().filter(x=>{const n=nivel(x);return !x.pedido&&(n==="bad"||n==="warn");}).length;
+  const al=artsActivos().filter(x=>{const n=nivel(x);return !x.pedido&&avisaDe(x)&&(n==="bad"||n==="warn");}).length;
   pintaCab(al);
   const v=$("view");const sc=document.querySelector("main").scrollTop;v.textContent="";
   if(!db){v.appendChild(el("div",{class:"banner",text:"No se pueden cargar los datos. Comprueba la conexión y vuelve a abrir la app."}));}

@@ -131,7 +131,7 @@ const INF_ALM=[
   hoja:P=>({nombre:"Entradas",filas:todosMov().filter(m=>m.tipo==="entrada"&&iEn(m.f,P)).map(m=>{const a=art(m.art);return{"Fecha":fmtF(m.f),"Artículo":a?a.desc:"","Cantidad":+m.cant||0,"Unidad":a?a.ud:"","Almacén":almN(m.alm),"Proveedor":provN(m.prov),"Albarán":m.alb||""};})})},
  {id:"m_bajo",grupo:"Material",nom:"Artículos para pedir (bajo mínimo)",per:false,opts:[["calc","Stock y mínimo",true],["prov","Agrupar por proveedor",true]],
   texto:(P,o)=>{const A=artsActivos().filter(a=>cantPedir(a)>0);if(!A.length)return["Todo por encima del mínimo."];
-    const lin=a=>"- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+iN(cantPedir(a))+" "+a.ud+(o.calc?" (hay "+iN(stockDe(a.id))+", mínimo "+iN(+a.min||0)+")":"")+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):"");
+    const lin=a=>"- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+pedTxt(a,cantPedir(a))+(o.calc?" (hay "+iN(stockDe(a.id))+", mínimo "+iN(+a.min||0)+")":"")+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):"");
     if(!o.prov)return A.map(lin);const g={};A.forEach(a=>{const k=provN(a.prov)||"Sin proveedor";(g[k]=g[k]||[]).push(a);});return[].concat(...Object.keys(g).sort().map(k=>[k.toUpperCase()+":"].concat(g[k].map(lin))));},
   hoja:()=>({nombre:"Para pedir",filas:artsActivos().filter(a=>cantPedir(a)>0).map(a=>({"Artículo":a.desc,"Código":a.cod||"","Proveedor":provN(a.prov),"Pedir":cantPedir(a),"Unidad":a.ud,"Stock":stockDe(a.id),"Mínimo":+a.min||0,"Ya pedido":a.pedido?fmtF(a.pedido):""}))})},
  {id:"m_ped",grupo:"Material",nom:"Pedidos en curso",per:false,

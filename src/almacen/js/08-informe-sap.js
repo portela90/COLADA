@@ -148,14 +148,15 @@ function formInventario(pre){const f=Object.assign({f:hoy(),alm:(cat.almacenes[0
 function formAjustes(){const x=Object.assign({},cat.ajustes||{});
   dlg("Responsable de pedidos",[fld("Nombre",inp("ajR",x.resp,v=>x.resp=v,{autocomplete:"off"})),fld("Correo",inp("ajE",x.email,v=>x.email=v,{type:"email",autocomplete:"off"})),fld("Teléfono / WhatsApp",inp("ajT",x.tel,v=>x.tel=v,{type:"tel",autocomplete:"off"}))],
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{cat.ajustes=Object.assign({},cat.ajustes,{resp:(x.resp||"").trim()||null,email:(x.email||"").trim()||null,tel:(x.tel||"").trim()||null});try{await saveCat();toast("Guardado");}catch(e){return false;}render(true);}}]);}
-function cantPedir(a){return Math.max(0,Math.ceil((+a.min||0)+consPlazo(a)-stockDe(a.id)));}
+/* mínimo + lo que se gasta en el plazo − (stock + lo puesto en el punto de consumo), en envases completos */
+function cantPedir(a){const q=Math.ceil((+a.min||0)+consPlazo(a)-dispDe(a)-1e-9);return q>0?redEnv(a,q):0;}
 const OPS_PED=[["art","Artículos a pedir"],["calc","Cálculo (stock, mínimo, plazo)"],["eje","Ejes en el mínimo"]];
 function textoPedido(s){s=s||incluirSel("pedido",OPS_PED);const hy=hoy();const arts=artsActivos().filter(a=>cantPedir(a)>0).sort((a,b)=>a.fam.localeCompare(b.fam)||a.desc.localeCompare(b.desc,"es",{numeric:true}));
   const L=["PEDIDO DE MATERIAL · MAPRI · "+fmtF(hy),""];
   if(s.art&&arts.length){const g={};arts.forEach(a=>{const k=provN(a.prov)||"SIN PROVEEDOR ASIGNADO";(g[k]=g[k]||[]).push(a);});
     Object.keys(g).sort((x,y)=>(x==="SIN PROVEEDOR ASIGNADO")-(y==="SIN PROVEEDOR ASIGNADO")||x.localeCompare(y)).forEach(k=>{const pv=cat.proveedores.find(x=>x.nom===k);
       L.push("PROVEEDOR: "+k.toUpperCase()+(pv&&pv.plazo?" (plazo "+pv.plazo+" días)":""));g[k].forEach(a=>{
-    L.push("- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+fmtN(cantPedir(a))+" "+a.ud+(s.calc?" (stock "+fmtN(stockDe(a.id))+", mínimo "+fmtN(+a.min||0)+(consPlazo(a)>0?", consumo en "+plazoArt(a)+" días de plazo: "+fmtN(Math.round(consPlazo(a)*10)/10):"")+")":"")+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""));});L.push("");});}
+    L.push("- "+a.desc+(a.cod?" ["+a.cod+"]":"")+": pedir "+pedTxt(a,cantPedir(a))+(s.calc?" (stock "+fmtN(stockDe(a.id))+(puestoDe(a)>0?" + "+fmtN(Math.round(puestoDe(a)))+" puesto en el punto de consumo":"")+", mínimo "+fmtN(+a.min||0)+(consPlazo(a)>0?", consumo en "+plazoArt(a)+" días de plazo: "+fmtN(Math.round(consPlazo(a)*10)/10):"")+")":"")+(nivel(a)==="bad"?" · URGENTE":"")+(a.pedido?" · ya pedido el "+fmtF(a.pedido):""));});L.push("");});}
   const bajos=(cat.modelos||[]).map(m=>({m,p:plantaG(m),f:ejes.filter(e=>grupoEje(m).some(g=>g.cod===e.mod)&&e.estado!=="planta").length})).filter(x=>+x.m.min>0&&x.p<=+x.m.min).filter(unoPorGrupo);
   if(s.eje&&bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>{const pd=pedidosG(m).length;L.push("- "+grupoNom(m)+": "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")+(pd?" · "+pd+" ya pedido"+(pd>1?"s":"")+" al taller":""));});L.push("");}
   if((!s.art||!arts.length)&&(!s.eje||!bajos.length))L.push(!arts.length&&!bajos.length?"Todo por encima del mínimo. No hace falta pedir nada.":"No has elegido nada que incluir.");
@@ -169,7 +170,7 @@ function listaPedido(){const{txt,arts}=textoPedido();const aj=cat.ajustes||{};
   acts.push({t:"Cerrar",cls:"sec"});
   dlg("Lista de pedido",[aj.resp||aj.email?el("p",{class:"sub"},["Para: ",el("b",{text:[aj.resp,aj.email].filter(Boolean).join(" · ")})]):el("p",{class:"hint",text:"Pon el responsable de pedidos en Catálogo > Pedidos."}),chPd.node,ta,
     waA=el("a",{class:"btn sec",href:"https://wa.me/"+(telWA(aj.tel)||"")+"?text="+encodeURIComponent(ta.value),target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por WhatsApp"+(aj.resp?" a "+aj.resp.split(" ")[0]:"")}),
-    el("p",{class:"hint",text:"Cantidad a pedir = mínimo + lo que se gasta durante el plazo de entrega − stock actual. Así, cuando llegue el pedido, sigues teniendo el mínimo."})],acts);}
+    el("p",{class:"hint",text:"Cantidad a pedir = mínimo + lo que se gasta durante el plazo de entrega − stock actual (contando lo que ya está puesto en el punto de consumo), redondeado a envases completos (GRG, bidón…). Así, cuando llegue el pedido, sigues teniendo el mínimo."})],acts);}
 const PLANT=["Descripción","Código","Familia","Unidad","Almacén","Cantidad","Stock mínimo","Punto de pedido","Proveedor","Plazo (días)","Ubicación","Nº plano","Inyectoras"];
 async function descargarPlantilla(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
