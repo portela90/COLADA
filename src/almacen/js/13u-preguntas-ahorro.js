@@ -9,6 +9,7 @@
    Si no se dice el periodo, este mes. */
 function intencionAhorro(q){
   if(/\bchatarr\w*\b/.test(q)&&/\b(dinero|euros?|pagad\w*|pagan|pagaron|cobrad\w*|cobramos|ingres\w*|dado|dio|da|dan|sacado|sacamos)\b/.test(q))return{cat:"chat"};
+  if(/\bpiston\w*\b/.test(q)&&(/\bperd\w*\b/.test(q)||/\b(ido|van|mandado|mandamos|enviado|enviados)\b.*\btaller\b/.test(q))&&!/\bahorr\w*\b/.test(q))return{cat:"perd"};
   if(/\bahorr\w*\b/.test(q)&&/\b(sacad\w*|sacando|sacar|salvad\w*)\b/.test(q)&&/\b(piston\w*|ejes?|agarrotad\w*)\b/.test(q))return{cat:"salv"};
   if(!/\bahorr\w*\b/.test(q)||/\bagarrotad\w*\b/.test(q))return null;
   const cat=/\bejes?\b|\btaller\b|\breparac\w*\b/.test(q)?"ejes":/\bpiston\w*\b/.test(q)?"pist":/\bbarras?\b/.test(q)?"barras":"todo";
@@ -40,6 +41,13 @@ function pintaAhorro(I,P0,H){const {frase,nota,ent,lista,it}=H;const per=P0.def?
     frase(cap(per.t)+" habéis sacado "+nS+(nS===1?" pistón":" pistones")+" de ejes agarrotados"+(D.tS?": "+eur(D.tS)+" que no se han perdido.":". Todavía sin euros: falta el peso de su Ø o pesar algún viaje a la chatarrería."));
     lista("Pistones salvados",D.sal.slice().reverse().map(x=>it("Pistón "+x.d+(x.maq?" · "+x.maq:""),[fmtF(x.f)+" · a la zona de la "+puNavN(x.nv)],x.eur?eur(x.eur):"—",x.eur?"no perdido":"sin peso")),eur(D.tS));};
   if(cat==="salv"){ent("pistones sacados de ejes agarrotados",[per.t]);fS();nota("Un pistón que se va al taller dentro del eje se pierde entero. Si lo sacáis, se queda en la fábrica: como mínimo vale lo que pagan en la chatarrería. "+txtValorPist());return;}
+  if(cat==="perd"){ent("pistones perdidos en el taller",[per.t]);const P=pistPerdidos(per.d,per.h);
+    if(!P.length){frase(cap(per.t)+" no se ha mandado al taller ningún eje con el pistón agarrotado.");return;}
+    const eu=P.reduce((s,x)=>s+x.eur,0),kg=P.reduce((s,x)=>s+x.kg,0),G={};P.forEach(x=>{const k=x.d||"Ø sin saber";G[k]=G[k]||{n:0,e:0};G[k].n++;G[k].e+=x.eur;});
+    frase(cap(per.t)+" se han mandado al taller "+P.length+(P.length===1?" eje":" ejes")+" con el pistón agarrotado: "+fmtN(Math.round(kg*10)/10)+" kg de pistones"+(eu?" ≈ "+eur(eu)+" perdidos (lo que valían como chatarra)":"")+".");
+    lista("Por Ø",Object.entries(G).sort((a,b)=>b[1].n-a[1].n).map(([d,g])=>it("Pistón "+d,[g.n+(g.n===1?" pistón":" pistones")],g.e?eur(g.e):"—")),eu?eur(eu):"");
+    lista("Ejes enviados",P.slice().reverse().map(x=>it(x.eje+" · "+(x.d||"Ø sin saber"),[fmtF(x.f)+" · "+x.desp],x.eur?eur(x.eur):"—")));
+    nota("Son los ejes mandados al taller cuyo desperfecto dice «agarrotado»: el pistón se queda allí. Es el mínimo perdido (su valor como chatarra); si se podía recuperar, se pierde más. "+txtValorPist());return;}
   if(cat==="chat"){ent("dinero de la chatarra de pistones",[per.t]);const C=chatDinero(per.d,per.h);
     if(!C.L.length){frase(cap(per.t)+" no se ha llevado ningún pistón a la chatarrería.");return;}
     frase(cap(per.t)+" se han llevado "+C.n+" pistones a la chatarrería ("+fmtN(Math.round(C.kg*10)/10)+" kg)"+(C.eur?" y han pagado "+eur(C.eur):"")+"."+(C.sinEur?" En "+C.sinEur+(C.sinEur===1?" viaje":" viajes")+" no se apuntó lo que pagaron.":""));

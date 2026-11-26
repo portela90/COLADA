@@ -25,6 +25,16 @@ function valorPist(d,V){V=V||chatValor();const k=kgDiam(d);if(k!=null)return{kg:
 /* los pistones sacados de ejes agarrotados entre dos fechas, con lo que vale cada uno */
 function pistSalvados(d,h){const V=chatValor();return puEv().filter(e=>e.t==="saca"&&(!d||e.f>=d)&&(!h||e.f<=h)).sort((a,b)=>a.f.localeCompare(b.f))
   .map(e=>{const p=valorPist(e.d,V);return{f:e.f,maq:e.maq||"",d:e.d,n:+e.n||1,nv:e.nv,eur:p?p.eur*(+e.n||1):0};});}
+/* pistones perdidos en el taller (26/11/2026): ejes mandados al taller con el pistón agarrotado dentro. El taller se queda
+   el pistón: no vuelve ni como pistón ni como chatarra. Se cuentan las reparaciones enviadas (no anuladas) cuyo desperfecto
+   dice «agarrotado»; vale, como mínimo, lo que se habría cobrado en la chatarrería (peso de su Ø × precio del kg). */
+function diamRep(r){const t=String(r.desp||"").replace(/[øØ]/g," ");const x=/\b(50|60|70|80|90|100)\s*(e\b|esp\b)?/i.exec(t);
+  if(x){const d="Ø "+x[1]+(x[2]?" esp":"");return DIAM.includes(d)?d:"Ø "+x[1];}
+  const m=typeof modelo==="function"?modelo(modeloDeEje(r.eje)):null;const dc=m&&m.geo&&+m.geo.Dc;return dc&&DIAM.includes("Ø "+dc)?"Ø "+dc:null;}
+function pistPerdidos(d,h){const V=chatValor();
+  return (typeof todasRep==="function"?todasRep():[]).filter(r=>r.env&&r.res!=="anulada"&&/agarr/i.test(r.desp||"")&&(!d||r.env>=d)&&(!h||r.env<=h))
+    .map(r=>{const di=diamRep(r),p=valorPist(di,V);return{f:r.env,eje:r.eje,mod:modeloDeEje(r.eje),d:di,kg:p?p.kg:0,eur:p?p.eur:0,desp:r.desp||""};})
+    .sort((a,b)=>a.f.localeCompare(b.f));}
 /* lo que ha dado la chatarra de pistones entre dos fechas */
 function chatDinero(d,h){const L=chatViajes().filter(v=>v.f>=d&&v.f<=h);
   return{L,n:L.reduce((s,v)=>s+v.n,0),kg:L.reduce((s,v)=>s+v.kg,0),eur:L.reduce((s,v)=>s+v.eur,0),sinKg:L.filter(v=>!v.kg).length,sinEur:L.filter(v=>!v.eur).length};}

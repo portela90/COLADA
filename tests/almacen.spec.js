@@ -1982,6 +1982,26 @@ test('Informe para Marta: lo consumido por nave (N1A, N1B, N2) además del total
   expect(err).toEqual([]);
 });
 
+test('Pistones perdidos en el taller: ejes enviados con el pistón agarrotado, con su valor', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.articulos.find(a => a.id === 'pist-80').kgPieza = 4; v.cat.app.articulos.find(a => a.id === 'pist-90esp').kgPieza = 6;
+    const k = Object.keys(v.rep)[0];
+    v.rep[k].items.push({ id: 'rp1', eje: '3.2.B-7', desp: 'PISTON 80 AGARROTADO', alta: '2026-10-05', env: '2026-10-05', res: 'ok' },
+      { id: 'rp2', eje: '3.4.E-1', desp: 'PISTÓN AGARROTADO 90e', alta: '2026-10-07', env: '2026-10-08', res: null },
+      { id: 'rp3', eje: '3.2.B-3', desp: 'PISTON AGARROTADO DE 80', alta: '2026-10-10', env: null, res: 'anulada' },
+      { id: 'rp4', eje: '3.2.B-9', desp: 'FUGA DE AGUA', alta: '2026-10-12', env: '2026-10-12', res: null }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
+  await page.fill('#bdQ', '¿cuántos pistones hemos perdido en el taller este año?'); await page.waitForTimeout(400);
+  const r = (await page.locator('#bdRes').innerText()).replace(/\s+/g, ' ');
+  // 4 kg y 6 kg × 7,84 €/kg = 31,36 € + 47,04 € = 78,40 €
+  expect(r).toMatch(/se han mandado al taller 3 ejes con el pistón agarrotado: 10 kg de pistones ≈ 78,4 € perdidos/);
+  expect(r).toContain('Pistón Ø 90 esp'); expect(r).toContain('31,36 €');
+  expect(err).toEqual([]);
+});
+
 test('Pesar los cajones de chatarra: solo los kilos de cada cajón, sin sacar nada', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
