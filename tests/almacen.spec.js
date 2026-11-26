@@ -1957,6 +1957,31 @@ test('Peso de cada Ø puesto a mano: manda sobre el peso medio de la chatarrerí
   expect(err).toEqual([]);
 });
 
+test('Informe para Marta: lo consumido por nave (N1A, N1B, N2) además del total', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    if (!v.cat.app.almacenes.some(l => l.id === 'n2')) v.cat.app.almacenes.push({ id: 'n2', nom: 'Almacén producción N2', nave: 'Nave 2', tipo: 'produccion' });
+    v.cat.app.articulos.push({ id: 'pw', desc: 'Pistonwax dúo 15', fam: 'consumible', ud: 'kg', almPpal: 'gen', alms: ['gen'], activo: true, inf: 'marta' });
+    const k = Object.keys(v.mov)[0];
+    v.mov[k].items.push({ id: 'pw1', f: '2026-10-20', ts: 1, alm: 'n1', art: 'pw', cant: 110, tipo: 'salida', nave: 'Nave 1A', nota: 'Limpieza: Reponer Pistonwax dúo 15 · Nave 1A · consumido el bidón que había' },
+      { id: 'pw2', f: '2026-10-21', ts: 2, alm: 'gen', art: 'pw', cant: 110, tipo: 'salida', nota: 'Limpieza: Reponer Pistonwax dúo 15 · Nave 2' },
+      { id: 'pw3', f: '2026-10-22', ts: 3, alm: 'n1b', art: 'pw', cant: 110, tipo: 'salida', nota: null },
+      { id: 'pw4', f: '2026-10-23', ts: 4, alm: 'n1', art: 'pw', cant: 110, tipo: 'salida', nota: null }); } }); });
+  await page.goto(url); await page.waitForTimeout(1500);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
+  await page.locator('.tile .tt', { hasText: /^Catálogo$/ }).click(); await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Informes de consumo por persona' }).click(); await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Informe para Marta' }).click(); await page.waitForTimeout(300);
+  await page.locator('#ipPD').fill('2026-10-01'); await page.waitForTimeout(200);
+  const tx = await page.locator('.dlg').last().locator('textarea').inputValue();
+  expect(tx).toContain('- Pistonwax dúo 15: 440 kg (Nave 1A 220 kg · Nave 1B 110 kg · Nave 2 110 kg)');
+  expect(tx).toContain('NAVE 1A\n- Pistonwax dúo 15: 220 kg');
+  expect(tx).toContain('NAVE 2\n- Pistonwax dúo 15: 110 kg');
+  expect(tx).toContain('21/10/26 · Nave 2 · Pistonwax dúo 15 · 110 kg · Limpieza: Reponer Pistonwax dúo 15');
+  expect(tx).not.toContain('Pistonwax dúo 15 · Nave 2');
+  expect(err).toEqual([]);
+});
+
 test('Pesar los cajones de chatarra: solo los kilos de cada cajón, sin sacar nada', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;

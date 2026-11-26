@@ -87,13 +87,28 @@ function formInfArts(){const cont=el("div",{class:"lst"});
       el("div",{style:"display:flex;gap:6px"},PERS_INF.map(p=>el("button",{type:"button",class:"chip","aria-pressed":String(a.inf===p.k),text:p.nom,onclick:async()=>{a.inf=a.inf===p.k?"":p.k;try{await saveCat();}catch(e){toast("No se pudo guardar");}pinta();}})))])));};
   pinta();
   dlg("Qué lleva cada persona",[el("p",{class:"hint",text:"Toca el nombre para marcar el producto; si lo tocas otra vez se quita. Los pistones van en su informe de pistones."}),cont],[{t:"Cerrar",cls:"sec"}]);}
+/* nave de un consumo (26/11/2026: el informe dice qué se ha dejado en cada nave): la de la máquina (su zona: 1A, 1B o 2),
+   la del apunte, la que dice la nota de Limpieza («· Nave 2») o la del almacén de producción del que sale */
+function naveInf(m){const N=x=>{const t=String(x||"").replace(/\s+/g," ").trim();const r=/nave\s*(1\s*[ab]|2|1)\b/i.exec(t);if(!r)return"";const v=r[1].replace(/\s/g,"").toUpperCase();return"Nave "+v;};
+  const mq=c=>cat.maquinas.find(x=>x.id===c||x.cod===c);const zm=c=>{const q=mq(c);return q?N(typeof zonaDe==="function"?zonaDe(q):q.nave):"";};
+  const fino=v=>/^Nave (1A|1B|2)$/.test(v);
+  const cands=[N(m.nave),m.maq?zm(m.maq):"",(m.maqs||[]).length?zm(m.maqs[0]):"",N(m.nota)];
+  const l=cat.almacenes.find(x=>x.id===m.alm);const deAlm=l?(/n\s*1\s*b\b/i.test(l.nom)?"Nave 1B":/n\s*1\s*a\b/i.test(l.nom)?"Nave 1A":/n\s*2\b|nave\s*2/i.test(l.nom)?"Nave 2":N(l.nave)):"";cands.push(deAlm);
+  return cands.find(fino)||cands.find(Boolean)||"Sin nave";}
 function textoInfPers(k,desde,hasta){const set=new Set(artsDe(k).map(a=>a.id));const en=f=>f>=desde&&f<=hasta;
   const movs=todosMov().filter(m=>m.tipo==="salida"&&en(m.f)&&set.has(m.art)).sort((a,b)=>(a.f+"|"+a.ts).localeCompare(b.f+"|"+b.ts));
   if(!movs.length)return "Sin consumos en este periodo.";
   const nomA=id=>{const a=cat.articulos.find(x=>x.id===id);return a?a.desc:id;};const udA=id=>{const a=cat.articulos.find(x=>x.id===id);return a&&a.ud||"";};
-  const tot={};movs.forEach(m=>{tot[m.art]=(tot[m.art]||0)+(+m.cant||0);});
-  const L=["RESUMEN"];Object.keys(tot).forEach(id=>L.push("- "+nomA(id)+": "+fmtN(tot[id])+" "+udA(id)));
-  L.push("","DETALLE");movs.forEach(m=>L.push(fmtF(m.f)+" · "+nomA(m.art)+" · "+fmtN(+m.cant||0)+" "+udA(m.art)+(m.nota?" · "+m.nota:"")));
+  const q=(n,id)=>fmtN(Math.round(n*100)/100)+" "+udA(id);
+  const ORD=["Nave 1A","Nave 1B","Nave 1","Nave 2","Sin nave"],ordN=(a,b)=>(ORD.indexOf(a)<0?9:ORD.indexOf(a))-(ORD.indexOf(b)<0?9:ORD.indexOf(b))||a.localeCompare(b);
+  const tot={},porN={};movs.forEach(m=>{const c=+m.cant||0,n=naveInf(m);tot[m.art]=(tot[m.art]||0)+c;const x=porN[n]=porN[n]||{};x[m.art]=(x[m.art]||0)+c;});
+  const L=["RESUMEN (total)"];Object.keys(tot).forEach(id=>{const rep=Object.keys(porN).sort(ordN).filter(n=>porN[n][id]).map(n=>n+" "+q(porN[n][id],id));
+    L.push("- "+nomA(id)+": "+q(tot[id],id)+(rep.length>1||(rep.length===1&&!/^Sin nave/.test(rep[0]))?" ("+rep.join(" · ")+")":""));});
+  L.push("","POR NAVE");Object.keys(porN).sort(ordN).forEach(n=>{L.push(n.toUpperCase());Object.keys(porN[n]).forEach(id=>L.push("- "+nomA(id)+": "+q(porN[n][id],id)));});
+  /* en el detalle la nota de Limpieza ya no repite la nave */
+  const notaC=m=>String(m.nota||"").replace(/\s*·\s*Nave\s*(1\s*[AB]|2|1)\b/ig,"").trim();
+  const dest=m=>m.maqs&&m.maqs.length?m.maqs.map(c=>{const x=cat.maquinas.find(z=>z.id===c||z.cod===c);return x?x.cod:c;}).join("/"):m.maq?(cat.maquinas.find(z=>z.id===m.maq||z.cod===m.maq)||{cod:m.maq}).cod:"";
+  L.push("","DETALLE");movs.forEach(m=>L.push([fmtF(m.f),naveInf(m),nomA(m.art),q(+m.cant||0,m.art),dest(m),notaC(m)].filter(Boolean).join(" · ")));
   return L.join("\n");}
 function informePersona(k){const P=persInf(k),aj=cat.ajustes||{};const ult=(aj.ultInfPers||{})[k]||"";const hy=hoy();
   const f={desde:ult&&ult<hy?sumaDias(ult,1):hy,hasta:hy};
