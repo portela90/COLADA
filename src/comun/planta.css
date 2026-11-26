@@ -137,7 +137,7 @@ table td,table th{border-color:var(--line2)!important}
 .op-tit h2{font-size:30px!important;font-weight:700!important;letter-spacing:-.01em}
 .op-ruta{font-size:15px!important;color:var(--mut)!important}
 .op-sub{color:var(--mut)!important;font-size:16px!important}
-.op-tabs{background:transparent!important;border-bottom:1px solid var(--line)!important;padding:0 24px!important}
+.op-tabs{background:var(--bg)!important;border-bottom:1px solid var(--line)!important;padding:0 24px!important}
 .op-tabs button{font-weight:600!important;color:var(--mut)!important}
 .op-tabs button[aria-selected="true"]{color:var(--ink)!important;box-shadow:inset 0 -3px 0 var(--acc)!important}
 .op-body{padding:20px 24px 40px!important;max-width:1240px!important;margin:0!important}
@@ -261,3 +261,19 @@ button.pz-mot{cursor:pointer}
   .pz-tabla .ft .rec{grid-area:rec;font-size:14px}.pz-tabla .ft .dias{grid-area:dias}.pz-tabla .ft .coste{grid-area:coste;font-size:14px}
   .pz-tabla .pref{display:inline}
 }
+
+/* ---------- formularios de apuntar (fase 3): elegir con botones ---------- */
+.campo-chips{display:grid;gap:7px;min-width:0}
+.campo-chips .lbl{font-size:14px;font-weight:600;color:var(--ink2)}
+.campo-chips .lbl small{font-weight:400;color:var(--mut)}
+.chips.chips-sel{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding:0;gap:8px}
+.chips-sel .chip{font-size:15px!important;padding:8px 14px!important;min-height:40px;flex:none}
+.chips-sel .chip[aria-pressed="true"],.oper-ns[aria-pressed="true"]{background:var(--acc)!important;border-color:var(--acc)!important;color:var(--acc-ink)!important}
+.oper-fila{display:flex;gap:8px;align-items:stretch;min-width:0}
+.oper-fila input{flex:1 1 auto;min-width:0}
+.oper-fila .chip{flex:none;font-size:14px!important;padding:0 12px!important;white-space:nowrap}
+.fila-relevo{grid-template-columns:minmax(0,220px)!important}
+/* Apuntar: iconos sin burbuja, como en el prototipo */
+.rap-i{background:none!important;color:var(--acc)!important;width:26px!important;height:26px!important;flex:none}
+.rap-b{border-radius:10px!important;box-shadow:none!important}
+.rap-b:hover{border-color:var(--acc)!important}

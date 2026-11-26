@@ -63,6 +63,16 @@ const NAVES_C=["Nave 1A","Nave 1B","Nave 2"];
 /* relevo de un apunte (para cruzarlo en Coladas con quién estaba): el de ahora si es de hoy */
 const RELEVOS_A=["Mañana","Tarde","Noche"];
 const relevoAhoraA=()=>{const h=new Date().getHours();return h>=6&&h<14?"Mañana":h>=14&&h<22?"Tarde":"Noche";};
+/* elegir uno con botones (más rápido que un desplegable en el móvil). Se toca otra vez para quitarlo (salvo quitar:false).
+   El grupo lleva el id y cada botón su valor en data-v */
+function chipsSel(id,opts,val,onch,o){o=o||{};const g=el("div",{class:"chips chips-sel",id,role:"group","aria-label":o.label||null});g._v=val||"";
+  opts.forEach(([v,t])=>g.appendChild(el("button",{type:"button",class:"chip","data-v":v,"aria-pressed":String(g._v===v),text:t,onclick:()=>{const nv=g._v===v&&o.quitar!==false?"":v;g._v=nv;
+    g.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===nv)));onch(nv);}})));return g;}
+function campoChips(lbl,g,nota){if(!g)return null;if(!g.getAttribute("aria-label"))g.setAttribute("aria-label",lbl);return el("div",{class:"campo-chips"},[el("div",{class:"lbl"},[lbl,nota?el("small",{text:" · "+nota}):null]),g]);}
+/* nº de operario, con «No se sabe» (si nadie sabe quién lo ha cogido) */
+function campoOper(id,d,dl){const i=inp(id,d.resp||"",x=>{d.resp=x;d.rOk=false;if(String(x).trim()&&d.respNS){d.respNS=false;b.setAttribute("aria-pressed","false");}},{autocomplete:"off",list:dl,placeholder:"Nº o nombre"});
+  const b=el("button",{type:"button",class:"chip oper-ns","aria-pressed":String(!!d.respNS),text:"No se sabe",onclick:()=>{d.respNS=!d.respNS;b.setAttribute("aria-pressed",String(d.respNS));if(d.respNS){d.resp="";i.value="";d.rOk=true;}else d.rOk=false;}});
+  return el("label",{},["Nº de operario",el("span",{class:"oper-fila"},[i,b])]);}
 function selRelevo(id,d){if(d.u==null)d.u=d.f===hoy()||!d.f?relevoAhoraA():"";return sel(id,RELEVOS_A.map(r=>[r,r]),d.u,x=>{d.u=x;},"—");}
 /* «Para»: una nave, una inyectora o varias máquinas a la vez (p. ej. la granalladora que da servicio a la F27 y la F32,
    20/11/2026). Las combinaciones se guardan en el catálogo (cat.multiDest: [["F27","F32"],…]); en el apunte van como

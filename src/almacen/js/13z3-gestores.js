@@ -60,8 +60,9 @@ function vGest(v){const h=hoy(),lun=gestSem||lunesG(h),S=semanaGest(lun),G=gCfg(
       .concat([el("button",{type:"button",class:"btn sec peq",id:"gNuevo",text:"+ Gestor",onclick:()=>nuevoGestor()})])),
     el("p",{class:"hint",style:"margin:0",text:"Toca un nombre para cambiarlo. Con × lo quitas de las listas sin borrar lo que ya está apuntado con él. Al apuntar un cambio de pistón, elige el gestor y el relevo se pone solo."})])]));}
 /* casilla «Gestor» en los formularios de pistones: al elegirlo, el relevo del día */
+/* gestor con botones: se toca para elegirlo y otra vez para quitarlo; «No se sabe» si no se sabe quién estaba. El relevo se pone solo */
 function selGestor(id,d,relId){const L=gCfg().lista.filter(x=>!x.baja||x.id===d.gest);if(!L.length)return null;
-  const f=d.f||hoy();
-  return fld("Gestor",sel(id,L.map(x=>{const u=relevoDeGest(x.id,f);return[x.id,x.n+(u?" ("+u.toLowerCase()+")":"")];}),d.gest||"",x=>{d.gest=x||"";
-    const u=x?relevoDeGest(x,d.f||hoy()):null;if(u){d.u=u;const r=$(relId);if(r)r.value=u;}},"—"));}
+  const f=d.f||hoy(),con=L.map(x=>({x,u:relevoDeGest(x.id,f)}));const orden=u=>u?RELEVOS_A.indexOf(u):99;con.sort((a,b)=>orden(a.u)-orden(b.u));
+  return campoChips("Gestor",chipsSel(id,con.map(({x,u})=>[x.id,x.n+(u?" ("+u.toLowerCase()+")":"")]).concat([["?","No se sabe"]]),d.gest||(d.gestNS?"?":""),x=>{d.gestNS=x==="?";d.gest=x&&x!=="?"?x:"";
+    const u=d.gest?relevoDeGest(d.gest,d.f||hoy()):null;if(u){d.u=u;const r=$(relId);if(r)r.value=u;}},{label:"Gestor"}),"el relevo se pone solo");}
 window.relevoDeGest=relevoDeGest;window.gestEn=gestEn;

@@ -293,15 +293,15 @@ test('Gestores y relevos: rotan por semanas, se cambian y al apuntar un pistón 
   // en el cambio de pistón: el gestor pone el relevo
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
-  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } await expect(page.locator('#pGest option', { hasText: 'Josu (mañana)' })).toHaveCount(1);
-  await page.selectOption('#pGest', 'g6'); await expect(page.locator('#pRel')).toHaveValue('Noche');
-  await page.selectOption('#pGest', 'g3'); await expect(page.locator('#pRel')).toHaveValue('Tarde');
+  if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } await expect(page.locator('#pGest button', { hasText: 'Josu (mañana)' })).toHaveCount(1);
+  await page.locator('#pGest button[data-v="g6"]').click(); await expect(page.locator('#pRel')).toHaveValue('Noche');
+  await page.locator('#pGest button[data-v="g3"]').click(); await expect(page.locator('#pRel')).toHaveValue('Tarde');
   const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
-  await page.selectOption('#pGest', 'g3');
-  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
+  await expect(page.locator('#pGest button[data-v="g3"]')).toHaveAttribute('aria-pressed', 'true');
+  const diam = await page.locator('#pDiam button').nth(1).getAttribute('data-v'); await page.locator('#pDiam button[data-v="' + diam + '"]').click();
   if (await page.locator('#pResp').count()) await page.fill('#pResp', 'Op 1');
-  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
-  await page.selectOption('#pMot', 'DESGASTE');
+  const dest = await page.locator('#pDest button').nth(0).getAttribute('data-v'); await page.locator('#pDest button[data-v="' + dest + '"]').click();
+  await page.locator('#pMot button[data-v="DESGASTE"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(600);
   const P = await page.evaluate(() => Object.values(window.__D.pist).flatMap(x => x.items || []).find(x => x.resp === 'Op 1'));
   expect(P).toMatchObject({ gest: 'g3', u: 'Tarde' });
@@ -374,13 +374,13 @@ test('Borrar la salida de un cambio de pistón borra también el cambio (no sale
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
   if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
   await page.selectOption('#pMaq', maq);
-  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value');
-  await page.selectOption('#pDiam', diam);
+  const diam = await page.locator('#pDiam button').nth(1).getAttribute('data-v');
+  await page.locator('#pDiam button[data-v="' + diam + '"]').click();
   if (await page.locator('#pResp').count()) await page.fill('#pResp', 'Prueba borrar');
-  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
-  expect(await page.inputValue('#pMot')).toBe('');
+  const dest = await page.locator('#pDest button').nth(0).getAttribute('data-v'); await page.locator('#pDest button[data-v="' + dest + '"]').click();
+  await expect(page.locator('#pMot button[aria-pressed="true"]')).toHaveCount(0);
   await page.locator('#pBtn').click(); await expect(page.locator('body')).toContainText('Falta el motivo del cambio');
-  await page.selectOption('#pMot', 'DESGASTE');
+  await page.locator('#pMot button[data-v="DESGASTE"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(500);
   const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"movId"').length);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
@@ -1251,8 +1251,8 @@ test('Quién no apunta: pulsar un cambio deja ponerle motivo y responsable', asy
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
   if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
-  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
-  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  const diam = await page.locator('#pDiam button').nth(1).getAttribute('data-v'); await page.locator('#pDiam button[data-v="' + diam + '"]').click();
+  const dest = await page.locator('#pDest button').nth(0).getAttribute('data-v'); await page.locator('#pDest button[data-v="' + dest + '"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(200); await page.locator('#pBtn').click(); await page.waitForTimeout(500);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
@@ -1293,6 +1293,40 @@ test('Consumo: buscar el artículo escribiendo y destino de varias máquinas (gr
   // la próxima vez sale ya en la lista
   await expect(page.locator('#mMaq option', { hasText: 'F21/F22' })).toHaveCount(1);
   expect(await desbordes(page)).toEqual([]);
+  expect(err).toEqual([]);
+});
+
+test('Apuntar un consumo: primero fecha, operario y gestor; «No se sabe» para los dos y el gestor se quita tocándolo otra vez', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    v.cat.app.gest = { lista: [{ id: 'g1', n: 'Gestor Uno' }, { id: 'g2', n: 'Gestor Dos' }], sem: {}, dia: {} }; } }); });
+  await page.goto(url); await page.waitForTimeout(1200);
+  await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Apuntar')).click()); await page.waitForTimeout(300);
+  await page.locator('#view button', { hasText: /^Consumo/ }).first().click(); await page.waitForTimeout(500);
+  const form = page.locator('#view form').first();
+  // el orden: fecha, operario, gestor y luego el artículo
+  const orden = await form.evaluate(f => ['#mF', '#mResp', '#mGest', '#mArt', '#mCant', '#mMaq'].map(q => { const n = f.querySelector(q); return n ? n.getBoundingClientRect().top + n.getBoundingClientRect().left / 10000 : -1; }));
+  expect(orden.every(x => x >= 0)).toBe(true);
+  expect([...orden].sort((a, b) => a - b)).toEqual(orden);
+  // gestor: se elige, se quita tocándolo otra vez y «No se sabe»
+  const g = page.locator('#mGest button').first(); const gv = await g.getAttribute('data-v');
+  await g.click(); await expect(g).toHaveAttribute('aria-pressed', 'true');
+  await g.click(); await expect(g).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('#mGest button[data-v="?"]').click();
+  await expect(page.locator('#mGest button[aria-pressed="true"]')).toHaveText('No se sabe');
+  // operario «No se sabe»: no pide el operario y se guarda sin él
+  const a = await page.locator('#mArt option[value]:not([value=""])').first().getAttribute('value'); await page.selectOption('#mArt', a); await page.waitForTimeout(200);
+  await page.fill('#mCant', '1'); await page.selectOption('#mMaq', 'nave:Nave 2');
+  await page.locator('#view .oper-ns').click(); await expect(page.locator('#view .oper-ns')).toHaveAttribute('aria-pressed', 'true');
+  const antes = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items).length);
+  await page.locator('#mBtn').click(); await page.waitForTimeout(600);
+  await expect(page.locator('body')).not.toContainText('Falta el operario');
+  const M = await page.evaluate(() => Object.values(window.__D.mov).flatMap(x => x.items));
+  expect(M.length).toBe(antes + 1);
+  const m = M.slice().sort((x, y) => (y.ts || 0) - (x.ts || 0))[0]; expect(m.resp).toBeUndefined(); expect(m.gest).toBeUndefined(); expect(m.nave).toBe('Nave 2'); expect(gv).toBeTruthy();
+  // en el móvil estrecho no se sale nada
+  await page.setViewportSize({ width: 320, height: 700 }); await page.waitForTimeout(200);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(err).toEqual([]);
 });
 
@@ -1417,9 +1451,9 @@ test('Averías: una rotura abre la avería, se añade otra rotura, causa evitabl
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
   if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value'); await page.selectOption('#pMaq', maq);
-  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
-  await page.selectOption('#pMot', 'ROTURA');
-  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  const diam = await page.locator('#pDiam button').nth(1).getAttribute('data-v'); await page.locator('#pDiam button[data-v="' + diam + '"]').click();
+  await page.locator('#pMot button[data-v="ROTURA"]').click();
+  const dest = await page.locator('#pDest button').nth(0).getAttribute('data-v'); await page.locator('#pDest button[data-v="' + dest + '"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(900);
   let d = page.locator('.dlg').last(); await expect(d).toContainText('¿Es por una avería?');
   await d.getByRole('button', { name: 'Abrir avería nueva' }).click(); await page.waitForTimeout(600);
@@ -1538,8 +1572,8 @@ test('Pestaña Consumo con un pistón: pide motivo y destino, se guarda como cam
   await expect(page.locator('#mMot')).toHaveCount(1); await expect(page.locator('#mDestP')).toHaveCount(1);
   await page.fill('#mCant', '1');
   const maq = await page.$eval('#mMaq', s => [...s.options].find(o => o.value && !o.value.startsWith('nave:')).value); await page.selectOption('#mMaq', maq);
-  await page.selectOption('#mMot', 'TRABAJANDO SIN PISTONWAX'); await page.waitForTimeout(300);
-  await page.selectOption('#mDestP', 'DESECHADO'); await page.fill('#mResp', '707');
+  await page.locator('#mMot button[data-v="TRABAJANDO SIN PISTONWAX"]').click(); await page.waitForTimeout(300);
+  await page.locator('#mDestP button[data-v="DESECHADO"]').click(); await page.fill('#mResp', '707');
   const antes = await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"motivo"').length);
   await page.locator('#mBtn').click(); await page.waitForTimeout(900);
   expect(await page.evaluate(() => JSON.stringify(window.__D.pist || {}).split('"motivo"').length)).toBe(antes + 1);
@@ -1608,9 +1642,9 @@ test('Cuarentena a mano y luego el cambio de pistón de esa máquina: se juntan 
   const mq = await page.evaluate(() => window.__D.cat.app.maquinas[1]);
   if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const vals = await page.locator('#pMaq option').evaluateAll(o => o.map(x => x.value));
   await page.selectOption('#pMaq', vals.find(x => x === mq.id || x === mq.cod));
-  const diam = await page.locator('#pDiam option').nth(2).getAttribute('value'); await page.selectOption('#pDiam', diam);
-  await page.selectOption('#pMot', 'ROTURA');
-  const dest = await page.locator('#pDest option').nth(1).getAttribute('value'); await page.selectOption('#pDest', dest);
+  const diam = await page.locator('#pDiam button').nth(1).getAttribute('data-v'); await page.locator('#pDiam button[data-v="' + diam + '"]').click();
+  await page.locator('#pMot button[data-v="ROTURA"]').click();
+  const dest = await page.locator('#pDest button').nth(0).getAttribute('data-v'); await page.locator('#pDest button[data-v="' + dest + '"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(1200);
   await expect.poll(() => page.evaluate(() => window.__D.cat.app.ejePend.length)).toBe(1);
   await expect.poll(() => page.evaluate(() => !!window.__D.cat.app.ejePend[0].pist)).toBe(true);
@@ -2202,9 +2236,9 @@ test('Pistones: consumo por periodo y marcar lo metido en SAP', async ({ page })
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(300);
   if (!(await page.locator('#pForm').count())) { await page.locator('#pAcc button', { hasText: 'Registrar cambio' }).click(); await page.waitForTimeout(300); } const maq = await page.locator('#pMaq option').nth(1).getAttribute('value');
   await page.selectOption('#pMaq', maq);
-  await page.selectOption('#pDiam', await page.locator('#pDiam option').nth(2).getAttribute('value'));
-  await page.selectOption('#pDest', await page.locator('#pDest option').nth(1).getAttribute('value'));
-  await page.selectOption('#pMot', 'DESGASTE');
+  await page.locator('#pDiam button').nth(1).click();
+  await page.locator('#pDest button').nth(0).click();
+  await page.locator('#pMot button[data-v="DESGASTE"]').click();
   await page.locator('#pBtn').click(); await page.waitForTimeout(500);
   const card = page.locator('#pSapCard');
   await card.getByRole('button', { name: 'Hoy', exact: true }).click(); await page.waitForTimeout(300);
