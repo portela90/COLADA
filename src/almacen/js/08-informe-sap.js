@@ -161,16 +161,7 @@ function textoPedido(s){s=s||incluirSel("pedido",OPS_PED);const hy=hoy();const a
   if(s.eje&&bajos.length){L.push("EJES EN EL MÍNIMO (en planta / mínimo):");bajos.forEach(({m,p,f})=>{const pd=pedidosG(m).length;L.push("- "+grupoNom(m)+": "+p+" / "+m.min+(f?" · "+f+" fuera en reparación":"")+(pd?" · "+pd+" ya pedido"+(pd>1?"s":"")+" al taller":""));});L.push("");}
   if((!s.art||!arts.length)&&(!s.eje||!bajos.length))L.push(!arts.length&&!bajos.length?"Todo por encima del mínimo. No hace falta pedir nada.":"No has elegido nada que incluir.");
   return{txt:L.join("\n").trim(),arts};}
-function listaPedido(){const{txt,arts}=textoPedido();const aj=cat.ajustes||{};
-  const ta=el("textarea",{id:"lpTxt",readonly:true,style:"min-height:260px;font-family:'IBM Plex Mono',monospace;font-size:13px",value:txt});
-  let waA=null;const chPd=incluirChips("pedido",OPS_PED,sl=>{ta.value=textoPedido(sl).txt;if(waA)waA.href="https://wa.me/"+(telWA(aj.tel)||"")+"?text="+encodeURIComponent(ta.value);});
-  const acts=[{t:"Copiar texto",fn:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Lista copiada");}catch(e){ta.focus();ta.select();toast("Selecciona el texto y cópialo");}return false;}}];
-  const pend=arts.filter(a=>!a.pedido);
-  if(pend.length)acts.push({t:"Marcar como pedido ("+pend.length+")",cls:"sec",fn:async()=>{pend.forEach(a=>{const x=art(a.id);if(x)aplicarPedido(x,hoy());});try{await saveCat();toast("Marcado como pedido");}catch(e){return false;}render(true);}});
-  acts.push({t:"Cerrar",cls:"sec"});
-  dlg("Lista de pedido",[aj.resp||aj.email?el("p",{class:"sub"},["Para: ",el("b",{text:[aj.resp,aj.email].filter(Boolean).join(" · ")})]):el("p",{class:"hint",text:"Pon el responsable de pedidos en Catálogo > Pedidos."}),chPd.node,ta,
-    waA=el("a",{class:"btn sec",href:"https://wa.me/"+(telWA(aj.tel)||"")+"?text="+encodeURIComponent(ta.value),target:"_blank",rel:"noopener",style:"text-align:center;text-decoration:none",text:"Enviar por WhatsApp"+(aj.resp?" a "+aj.resp.split(" ")[0]:"")}),
-    el("p",{class:"hint",text:"Cantidad a pedir = mínimo + lo que se gasta durante el plazo de entrega − stock actual (contando lo que ya está puesto en el punto de consumo), redondeado a envases completos (GRG, bidón…). Así, cuando llegue el pedido, sigues teniendo el mínimo."})],acts);}
+/* listaPedido: ahora es una pantalla, en 10c-pantallas-stock.js */
 const PLANT=["Descripción","Código","Familia","Unidad","Almacén","Cantidad","Stock mínimo","Punto de pedido","Proveedor","Plazo (días)","Ubicación","Nº plano","Inyectoras"];
 async function descargarPlantilla(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();

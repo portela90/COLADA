@@ -290,6 +290,14 @@ function textoUsados(){const E=puEstado();if(!E)return"PISTONES USADOS: sin recu
   DIAM.forEach(d=>{const x=E.S[d];if(x.Z||x.R||x.M||x.C)L.push("- Pistón "+d+": "+[x.Z?x.Z+" sin seleccionar ("+PU_NAV.map(([k,n])=>n+": "+E.ZN[k][d]).join(", ")+")":"",x.R?x.R+" para recuperar":"",x.M?x.M+" en "+PU_REC:"",x.C?x.C+" en chatarra":""].filter(Boolean).join(" · "));});
   L.push("Total: "+E.tot.Z+" sin seleccionar · "+E.tot.R+" para recuperar · "+E.tot.M+" en "+PU_REC+" · "+E.tot.C+" en chatarra");return L.join("\n");}
 function vPist(v){const d=draft.p;
+  /* arriba: cómo va (se puede tocar para ver los cambios con filtros) */
+  {const hy=hoy(),mes=hy.slice(0,7),ant=sumaDias(mes+"-01",-1).slice(0,7),P=todosPist(),cuenta=L=>L.reduce((t,p)=>t+(+p.cant||1),0);
+   const nM=cuenta(P.filter(p=>(p.f||"").slice(0,7)===mes)),nA=cuenta(P.filter(p=>(p.f||"").slice(0,7)===ant)),d90=sumaDias(hy,-91),P90=P.filter(p=>p.f>=d90);
+   const g=pzGrupo(P90,p=>p.diam,p=>+p.cant||1),pp=artsActivos().filter(a=>a.fam==="piston"&&["bad","warn"].includes(nivel(a)));
+   v.appendChild(pzCifras([["Cambiados en "+MESES[+mes.slice(5,7)-1],String(nM),(nM>=nA?"+":"−")+Math.abs(nM-nA)+" respecto a "+MESES[+ant.slice(5,7)-1]+" ("+nA+")","",()=>pantPist({per:"30"})],
+     ["Últimos 3 meses",String(cuenta(P90)),"≈ "+fmtN(Math.round(cuenta(P90)/13*10)/10)+" a la semana · toca para verlos","",()=>pantPist()],
+     g.length?["El que más se gasta",g[0][0],fmtN(g[0][2])+" en 3 meses","",()=>pantPist({diam:g[0][0]})]:null,
+     ["Para pedir",String(pp.length),pp.length?pp.map(a=>a.diam||a.desc).join(", "):"ninguno",pp.length?"bad":"ok",pp.length?()=>listaPedido():null]]));}
   {const u=(cat.ajustes||{}).ultInfPist;const pend=pistPend();if(pend.length)v.appendChild(el("div",{class:"banner",style:"display:flex;gap:10px;align-items:center;flex-wrap:wrap"},[el("span",{style:"flex:1;min-width:180px",text:pend.reduce((a,p)=>a+(+p.cant||1),0)+" pistones consumidos sin informar a "+destPist().nom.split(" ")[0]+(u?" desde el "+fmtF(sumaDias(u,1)):"")}),el("button",{type:"button",class:"btn peq",text:"Preparar informe",onclick:informePist})]));}
   const S=statsPist();
   /* una acción principal (abre el formulario), entrada y el resto en «⋯ Más» */

@@ -277,3 +277,30 @@ button.pz-mot{cursor:pointer}
 .rap-i{background:none!important;color:var(--acc)!important;width:26px!important;height:26px!important;flex:none}
 .rap-b{border-radius:10px!important;box-shadow:none!important}
 .rap-b:hover{border-color:var(--acc)!important}
+
+/* ---------- fase 4: lista de pedido, artículos parados y cambios de pistón ---------- */
+.pz-ln{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:12px 18px;border:0;border-top:1px solid var(--line2);background:none;width:100%;text-align:left;color:var(--ink);font:inherit}
+.pz-ln.pz-ln3{grid-template-columns:minmax(0,1fr) auto auto;cursor:pointer}
+.pz-ln.pz-ln3:hover{background:var(--surf2)}
+.pz-ln-tx{display:flex;flex-direction:column;gap:2px;min-width:0;border:0;background:none;padding:0;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.pz-ln-tx b{font-weight:600}
+.pz-ln-tx:hover b{color:var(--acc)}
+.pz-ln-q{font-size:18px;font-weight:600;white-space:nowrap}
+.pz-txt{width:100%;min-height:220px;font-size:13px;box-sizing:border-box}
+.pz-tres>.pz-pan{flex:1 1 280px}
+.pz-graf13{grid-template-columns:repeat(13,minmax(0,1fr));height:200px}
+.pz-graf13 .pz-mesb{cursor:default}
+.pz-graf13 .pz-mesb .val{display:block!important}
+.pz-tabla.pz-tp .cabt,.pz-tabla.pz-tp .ft{grid-template-columns:84px 70px 90px minmax(0,1fr) minmax(0,1fr) minmax(0,160px)}
+.pz-tp .ft .rec,.pz-tp .ft .coste{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@container (max-width:760px){
+  .pz-tabla.pz-tp .ft{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"eje maqc env" "desp desp desp" "rec rec coste"}
+  .pz-tp .ft .env{display:block;grid-area:env;color:var(--ink2)}
+}
+@media (max-width:799px),(max-height:559px){
+  .pz-ln{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"tx q" "p b";padding:12px 14px;gap:8px 10px}
+  .pz-ln>.pill{grid-area:p;justify-self:start}.pz-ln>.pz-ln-tx{grid-area:tx}.pz-ln>.pz-ln-q{grid-area:q}.pz-ln>.btn{grid-area:b}
+  .pz-ln.pz-ln3{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:none}
+  .pz-graf13{gap:2px;height:170px}.pz-graf13 .pz-mesb .et{font-size:10px}.pz-graf13 .pz-mesb .val{font-size:11px}
+}
+a.btn{text-decoration:none!important;display:inline-flex;align-items:center;justify-content:center}

@@ -2804,6 +2804,35 @@ test('Cantidades raras: el albarán avisa antes de guardar; «¿No cuadra?» en 
   expect(err).toEqual([]);
 });
 
+test('Stock y pistones: cifras arriba que llevan a pantallas (lista de pedido, parados, cambios de pistón con filtros)', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1366, height: 860 });
+  await page.goto(url + '#stock'); await page.waitForTimeout(1300);
+  const v = page.locator('#view');
+  await expect(v.locator('.pz-cifra')).toHaveCount(4);
+  await v.locator('.pz-cifra', { hasText: 'Para pedir' }).click(); await page.waitForTimeout(400);
+  let pg = page.locator('.op-ov').last();
+  await expect(pg.locator('h2', { hasText: 'Lista de pedido' })).toBeVisible();
+  const n = await pg.locator('.pz-ln').count(); expect(n).toBeGreaterThan(0);
+  // marcar uno como pedido: la pantalla se repinta sola
+  await pg.locator('.pz-ln').first().getByRole('button', { name: 'Pedido' }).click(); await page.waitForTimeout(600);
+  await expect(pg.locator('.pz-ln').first().locator('.pill')).toContainText('Pedido');
+  await pg.locator('.op-back').click(); await page.waitForTimeout(300);
+  // pistones: cambios con filtros
+  await page.goto(url + '#pist'); await page.waitForTimeout(1300);
+  await v.locator('.pz-cifra', { hasText: 'Últimos 3 meses' }).click(); await page.waitForTimeout(400);
+  pg = page.locator('.op-ov').last();
+  await expect(pg.locator('h2', { hasText: 'Cambios de pistón' })).toBeVisible();
+  const total = await pg.locator('.pz-tp .ft').count();
+  const maq = (await pg.locator('.pz-pan', { hasText: 'Por máquina' }).locator('.pz-mot .l span').first().innerText()).trim();
+  await pg.locator('.pz-pan', { hasText: 'Por máquina' }).locator('.pz-mot').first().click(); await page.waitForTimeout(200);
+  await expect(pg.locator('.pz-quita')).toContainText(maq);
+  const filas = await pg.locator('.pz-tp .ft .eje').allInnerTexts();
+  expect(filas.length).toBeLessThanOrEqual(total); expect(filas.every(t => t.trim() === maq)).toBe(true);
+  await pg.locator('.op-back').click(); await page.waitForTimeout(300);
+  expect(err).toEqual([]);
+});
+
 test('Pedir: en envases completos y lo no crítico no avisa (sigue en la lista de pedido)', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
@@ -2824,7 +2853,10 @@ test('Pedir: en envases completos y lo no crítico no avisa (sigue en la lista d
   const tx = await page.locator('#lpTxt').inputValue();
   expect(tx).toContain('- Taladrina de prueba: pedir 400 kg (2 bidones)');
   expect(tx).toContain('- Espumadera de prueba: pedir 3 ud');
-  await page.locator('.dlg').last().getByRole('button', { name: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  // la lista de pedido es una pantalla: por proveedor, en envases completos
+  const lp = page.locator('.op-ov').last();
+  await expect(lp.locator('.pz-ln', { hasText: 'Taladrina de prueba' }).locator('.pz-ln-q')).toHaveText('400 kg (2 bidones)');
+  await lp.locator('.op-back').click(); await page.waitForTimeout(300);
   await card.locator('.it', { hasText: 'Taladrina de prueba' }).getByRole('button', { name: 'No avisar' }).click(); await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__D.cat.app.articulos.find(a => a.id === 'talP').sinAviso)).toBe(true);
   expect(err).toEqual([]);

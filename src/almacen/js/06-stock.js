@@ -1,10 +1,17 @@
 /* ===== STOCK ===== */
 let fsAb=false;/* el filtro de Stock, abierto o plegado (se recuerda mientras no recargues) */
 function vStock(v){
-  v.appendChild(el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Lista de pedido",onclick:listaPedido}),
-    menuAcc("Más acciones de stock",[["Informe",()=>generarInforme()],["Inventario",formInventario]])]));
   const enCurso=artsActivos().filter(a=>a.pedido).sort((a,b)=>(a.prevista||"9").localeCompare(b.prevista||"9"));
-  if(enCurso.length){const hy=hoy();v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Pedidos en curso ("+enCurso.length+")"}),el("span",{class:"der sub",text:enCurso.filter(a=>a.prevista&&a.prevista<hy).length+" retrasados"})]),
+  /* arriba: las cifras que importan (se pueden tocar) y la lista de pedido */
+  {const al=artsActivos().filter(a=>!a.pedido&&["bad","warn"].includes(nivel(a))&&avisaDe(a)),bad=al.filter(a=>nivel(a)==="bad").length,hy=hoy(),ret=enCurso.filter(a=>a.prevista&&a.prevista<hy).length;
+   let nb=0;try{lineas().forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)nb++;}));}catch(e){}const qu=sinGasto60();
+   v.appendChild(el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Lista de pedido",onclick:listaPedido}),
+     menuAcc("Más acciones de stock",[["Informe",()=>generarInforme()],["Inventario",formInventario]])]));
+   v.appendChild(pzCifras([["Para pedir",String(al.length),bad?bad+" bajo mínimo · toca para la lista":"toca para la lista",bad?"bad":al.length?"warn":"ok",listaPedido],
+     ["Pedidos en curso",String(enCurso.length),ret?ret+" retrasados":"esperando a que lleguen",ret?"warn":"",enCurso.length?()=>{const x=$("stEnCurso");if(x)x.scrollIntoView({behavior:"smooth",block:"start"});}:null],
+     ["Para bajar a planta",String(nb),"líneas en los almacenes de producción","",()=>irA("repo")],
+     ["Sin gastarse en 60 días",String(qu.length),"hay stock pero no se mueve","",qu.length?pantQuietos:null]]));}
+  if(enCurso.length){const hy=hoy();v.appendChild(el("section",{class:"card",id:"stEnCurso"},[el("div",{class:"hd"},[el("h2",{text:"Pedidos en curso ("+enCurso.length+")"}),el("span",{class:"der sub",text:enCurso.filter(a=>a.prevista&&a.prevista<hy).length+" retrasados"})]),
     el("div",{class:"lst"},enCurso.map(a=>{const ret=a.prevista&&a.prevista<hy?dias(a.prevista,hy):0;
       return el("div",{class:"it",style:"cursor:default;flex-wrap:wrap"},[el("span",{class:"stripe "+(ret?"bad":"ok")}),el("div",{class:"ppal"},[el("div",{class:"t1",text:a.desc}),
         el("div",{class:"t2",text:["Pedido "+fmtF(a.pedido),a.pedCant?fmtN(a.pedCant)+" "+a.ud:null,provN(a.prov),a.prevista?"llega "+fmtF(a.prevista):"sin plazo de entrega"].filter(Boolean).join(" · ")})]),
@@ -78,7 +85,10 @@ function ficha(a){const n=nivel(a);const movs=todosMov().filter(m=>m.art===a.id)
     dato("Plazo de entrega",plazoArt(a)?plazoArt(a)+" días"+(!(+a.plazo>0)&&!((cat.proveedores.find(x=>x.id===a.prov)||{}).plazo>0)&&plazoAprendido(a)?" (calculado con "+plazoAprendido(a).n+" pedidos)":""):null),dato("Mínimo",fmtN(+a.min||0)),dato("Pedir al llegar a",fmtN(Math.ceil(puntoPedido(a)))),dato("Puesto en el punto de consumo",puestoDe(a)>0?"≈ "+fmtN(Math.round(puestoDe(a)))+" "+a.ud+" (cuenta para pedir)":null),dato("Pedir ahora",cantPedir(a)?pedTxt(a,cantPedir(a)):"—"),dato("Avisos",avisaDe(a)?null:"No avisa (no crítico)"),
     dato("Consumo al día",cd?fmtN(Math.round(cd*100)/100)+" "+a.ud:"—"),a.pedido?dato("Pedido",fmtF(a.pedido)+(a.prevista?" · llega "+fmtF(a.prevista):"")):null].filter(Boolean);
   const alms=cat.almacenes.filter(l=>stockDe(a.id,l.id)||almsDe(a).some(x=>x.id===l.id));
-  const gen=[el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Datos"})),el("dl",{class:"datos",style:"padding:12px 14px;margin:0"},[].concat(...datos))]),
+  const qP=cantPedir(a);
+  const gen=[["bad","warn"].includes(n)&&!a.pedido&&qP?el("section",{class:"pz-aviso"},[el("h3",{text:"Hay que pedir "+pedTxt(a,qP)}),el("p",{text:"Mínimo "+fmtN(+a.min||0)+" + lo que se gasta en "+plazoArt(a)+" días de plazo − lo que hay"+(puestoDe(a)>0?" (contando lo puesto en el punto de consumo)":"")+(envDe(a)?", redondeado a envases completos":"")+"."+(provN(a.prov)?" Se pide a "+provN(a.prov)+".":"")}),
+      el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;margin-top:4px"},[el("button",{type:"button",class:"btn peq",text:"Marcar como pedido",onclick:()=>{close();marcarPedido(a,hoy());}}),el("button",{type:"button",class:"btn sec peq",text:"Ver la lista de pedido",onclick:()=>listaPedido()})])]):null,
+    el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Datos"})),el("dl",{class:"datos",style:"padding:12px 14px;margin:0"},[].concat(...datos))]),
     el("section",{class:"card"},[el("div",{class:"hd"},el("h2",{text:"Stock por almacén"})),alms.length?el("div",{class:"lst"},alms.map(l=>el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},el("div",{class:"t1",text:l.nom})),el("div",{class:"cant num"},[el("b",{text:fmtN(stockDe(a.id,l.id))}),el("small",{text:a.ud})])]))):el("div",{class:"empty",text:"Sin stock en ningún almacén."})])];
   const tabM=[movs.length?el("section",{class:"card"},el("div",{class:"tw"},el("table",{},[el("thead",{},el("tr",{},[el("th",{text:"Fecha"}),el("th",{text:"Tipo"}),el("th",{class:"r",text:"Cant."}),el("th",{text:"Dónde"})])),
       el("tbody",{},movs.slice(0,60).map(m=>el("tr",{},[el("td",{class:"num",text:fmtF(m.f)}),el("td",{text:TIPOS[m.tipo]}),el("td",{class:"r num",text:signo(m)}),el("td",{text:dondeTxt(m)})])))]))):el("p",{class:"hint",text:"Sin movimientos todavía."})];
@@ -147,8 +157,8 @@ function vRepo(v){draft.rv=draft.rv||"hoy";
   const todas=[];ls.forEach(l=>faltas(l.id).forEach(f=>{if(f.falta>0&&f.org)todas.push(Object.assign({l},f));}));
   const uds=todas.reduce((s,f)=>s+f.falta,0);
   /* un solo dato grande (lo que hay que bajar) y debajo, en pequeño, cómo va cada almacén */
-  v.appendChild(el("section",{class:"card ej-res rp-res"},el("div",{class:"bd"},[el("div",{class:"ej-big"},todas.length?[el("b",{class:"num",text:String(todas.length)}),el("span",{text:(todas.length===1?"artículo":"artículos")+" para bajar · "+fmtN(uds)+" ud"})]:[el("span",{text:"Hoy no hay nada que bajar"})]),
-    el("div",{class:"ej-chips"},ls.filter(l=>faltas(l.id).length).map(l=>{const fl=faltas(l.id),n=fl.filter(f=>f.falta>0&&f.org).length;return el("span",{text:corto(l)+": "+(n?n+" de "+fl.length:"completo")});}))])));
+  v.appendChild(pzCifras([["Por bajar",String(todas.length),todas.length?(todas.length===1?"artículo":"artículos")+" · "+fmtN(uds)+" ud":"hoy no hay nada que bajar",todas.length?"warn":"ok"]].concat(
+    ls.filter(l=>faltas(l.id).length).map(l=>{const fl=faltas(l.id),n=fl.filter(f=>f.falta>0&&f.org).length;return[corto(l),n?String(n):"Completo",n?"de "+fl.length+" por bajar":"tiene todo lo que tiene que tener",n?"":"ok",()=>{const x=$("rp-"+l.id);if(x)x.scrollIntoView({behavior:"smooth",block:"start"});}];}))));
   /* hoja de carga, agrupada por almacén de origen */
   if(todas.length){const porO={};todas.forEach(f=>{const g=porO[f.org]=porO[f.org]||{};const k=f.a.id;(g[k]=g[k]||{a:f.a,tot:0,det:[]});g[k].tot+=f.falta;g[k].det.push(corto(f.l)+" "+fmtN(f.falta));});
     const T=["BAJAR · "+fmtF(hoy())];const secs=[];
@@ -168,7 +178,7 @@ function vRepo(v){draft.rv=draft.rv||"hoy";
         f.falta&&f.org?el("div",{class:"cant num",style:"display:flex;align-items:center;gap:4px"},[inp("rq"+f.a.id,cant0.get(f.a.id),v=>{const n=parseN(v);cant0.set(f.a.id,isFinite(n)?Math.max(0,Math.min(n,f.falta)):0);},{inputmode:"decimal",class:"num","aria-label":"Cantidad a bajar de "+f.a.desc,style:"width:70px;padding:7px 6px;font-size:16px"}),el("small",{text:"de "+fmtN(f.falta)+" "+f.a.ud})]):f.falta?el("div",{class:"cant num"},[el("b",{text:"+"+fmtN(f.falta)}),el("small",{text:"falta"})]):el("span",{class:"pill ok",text:"Completo"}),
         el("div",{style:"display:flex;gap:6px;width:100%;margin-top:4px;justify-content:flex-end"},[el("button",{type:"button",class:"btn sec peq",text:"Consumo",onclick:()=>{Object.assign(draft.m,{tipo:"salida",art:f.a.id,alm:l.id,cant:""});irA("mov");}}),
           f.falta&&o?el("button",{type:"button",class:"btn peq",text:"Repuesto",onclick:e=>{const q=cant0.get(f.a.id);if(!(q>0)){toast("Pon una cantidad");return;}e.currentTarget.disabled=true;reponer(l,[Object.assign({},f,{falta:q})]);}}):null])]);};
-    v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:corto(l)+(!fs.length?" · sin dotación":pend.length?" · faltan "+pend.length:" · completo")}),el("button",{type:"button",class:"btn sec peq der",text:"Dotación",onclick:()=>formDotacion(l)})]),
+    v.appendChild(el("section",{class:"card",id:"rp-"+l.id},[el("div",{class:"hd"},[el("h2",{text:corto(l)+(!fs.length?" · sin dotación":pend.length?" · faltan "+pend.length:" · completo")}),el("button",{type:"button",class:"btn sec peq der",text:"Dotación",onclick:()=>formDotacion(l)})]),
       fs.length?null:el("div",{class:"empty",text:"Sin dotación. Pulsa «Dotación» y pon lo que tiene que haber en "+l.nom+"."}),
       pend.length?el("div",{class:"lst"},pend.map(fila)):null,
       pend.length?el("div",{class:"bd",style:"padding-top:6px"},el("button",{type:"button",class:"btn",style:"width:100%",text:"Reponer marcados en "+corto(l),onclick:e=>{const s2=pend.filter(f=>sel0.has(f.a.id)&&cant0.get(f.a.id)>0).map(f=>Object.assign({},f,{falta:cant0.get(f.a.id)}));if(!s2.length){toast("Marca algo y pon una cantidad");return;}e.currentTarget.disabled=true;reponer(l,s2);}})):null,
