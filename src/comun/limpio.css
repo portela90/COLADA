@@ -1,0 +1,65 @@
+/* ===== MODO LIMPIO (26/11/2026) =====
+   Va el último en todas las apps. Menos colores y menos saturación:
+   - los apartados ya no tienen color propio (pistones naranja, ejes índigo, aceites marrón…): iconos y cifras en gris;
+   - un solo color de acento, el azul, para los botones y lo que se toca;
+   - el color solo para los estados: rojo (mal / bajo mínimo), ámbar (aviso) y verde (hecho), en tonos suaves;
+   - los avisos son tarjetas blancas con una raya de color a la izquierda, sin fondo de color;
+   - cabecera del móvil blanca (en modo oscuro, del color de la pantalla).
+   Solo cambia el aspecto: no toca cómo funciona nada. */
+
+/* ---------- colores de estado más suaves ---------- */
+:root{--ok:#15803D;--ok-bg:#F1F8F4;--okbg:#F1F8F4;--warn:#B45309;--warn-bg:#FDF8EE;--warnbg:#FDF8EE;--bad:#B91C1C;--bad-bg:#FDF3F3;--badbg:#FDF3F3;--info-bg:#F3F6FB;--infobg:#F3F6FB}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ok:#4ADE80;--ok-bg:#16241E;--okbg:#16241E;--warn:#FBBF24;--warn-bg:#262116;--warnbg:#262116;--bad:#F87171;--bad-bg:#2A1A1D;--badbg:#2A1A1D;--info-bg:var(--surf2);--infobg:var(--surf2)}}
+:root[data-theme="dark"]{--ok:#4ADE80;--ok-bg:#16241E;--okbg:#16241E;--warn:#FBBF24;--warn-bg:#262116;--warnbg:#262116;--bad:#F87171;--bad-bg:#2A1A1D;--badbg:#2A1A1D;--info-bg:var(--surf2);--infobg:var(--surf2)}
+
+/* ---------- 1. sin color por apartado ---------- */
+/* el color del apartado (botones elegidos, foco de las casillas, chips…) pasa a ser el azul de siempre */
+:root[data-sec]{--sc:var(--acc)!important;--sd:var(--acc)!important;--ss:var(--acc-soft)!important}
+/* cifras de arriba (Limpieza, Inicio…): blancas, la cifra en negro */
+.kpis>div{background:var(--surf)!important;border:1px solid var(--line)!important}
+.kpis>div b,.kpis>div dd{color:var(--ink)!important}
+.kpis>div small,.kpis>div dt{color:var(--mut)!important;font-weight:500!important}
+[class*="ar-"]{--ac:#64748B!important;--as:var(--surf2)!important;--ad:var(--ink)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) [class*="ar-"]{--ac:#94A3B8!important}}
+:root[data-theme="dark"] [class*="ar-"]{--ac:#94A3B8!important}
+.ar-ico{border:1px solid var(--line2)}
+/* icono de la cabecera de cada pantalla */
+.pg-ico{background:var(--surf2)!important;color:var(--ink2)!important;border:1px solid var(--line)}
+/* cifras de Hoy (Almacén): blancas con la cifra en negro; en rojo o ámbar solo si hay que actuar */
+.hoy-cif{background:var(--surf)!important;border:1px solid var(--line)!important}
+.hoy-cif b{color:var(--ink)!important}.hoy-cif span{color:var(--mut)!important}
+.hoy-cif.bad b{color:var(--bad)!important}.hoy-cif.warn b{color:var(--warn)!important}
+
+/* ---------- 2. un solo color para los botones ---------- */
+.hoy-b.lleno{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important}
+.hoy-b:not(.lleno){color:var(--acc)!important;border-color:var(--line)!important}
+
+/* ---------- 3. avisos: tarjeta blanca con raya de color ---------- */
+.banner{background:var(--surf)!important;color:var(--ink)!important;border:1px solid var(--line)!important;border-left:4px solid var(--warn)!important;border-radius:10px!important}
+.banner.b,.banner.bad{border-left-color:var(--bad)!important}
+.banner.ok{border-left-color:var(--ok)!important}
+.banner.i,.banner.info{border-left-color:var(--acc)!important}
+.banner b,.banner strong{color:var(--ink)}
+/* Limpieza · «Problemas que se repiten»: sin la franja roja entera */
+.prob-rep{border:1px solid var(--line)!important;border-left:4px solid var(--bad)!important}
+.prob-rep>div:first-child{background:var(--surf)!important;color:var(--ink)!important;border-bottom:1px solid var(--line2)}
+.prob-rep>div:first-child>span:first-child{color:var(--bad)}
+/* pastillas de estado: sin fondo fuerte */
+.pill{box-shadow:none!important}
+.pill.bad{background:var(--bad-bg)!important;color:var(--bad)!important}
+.pill.warn{background:var(--warn-bg)!important;color:var(--warn)!important}
+.pill.ok{background:var(--ok-bg)!important;color:var(--ok)!important}
+.pill.info,.pill.na{background:var(--surf2)!important;color:var(--ink2)!important}
+.tav{background:var(--surf2)!important;color:var(--ink2)!important}
+.tav.bad{background:var(--bad-bg)!important;color:var(--bad)!important}
+
+/* ---------- 4. cabecera del móvil sin azul marino ---------- */
+@media (max-width:799px), (max-height:559px){
+  #app>header,body>header{background:var(--surf)!important;color:var(--ink)!important;border-bottom:1px solid var(--line)!important}
+  #app>header h1,body>header h1,header .tot b{color:var(--ink)!important}
+  header .tot span,header .hsub,header .who,header .sub{color:var(--mut)!important}
+  header .lupa,body>header button{background:var(--surf2)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
+  body>header a{color:var(--acc)!important}
+  #app>header .campana,body>header .campana{background:var(--surf2)!important;border-color:var(--line)!important;color:var(--ink)!important}
+  .campana-n{box-shadow:0 0 0 2px var(--surf)!important}
+}
