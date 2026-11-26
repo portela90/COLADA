@@ -653,6 +653,12 @@ test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y
   const items = await page.evaluate(() => Object.values(window.__D.cont).flatMap(x => x.items));
   expect(items[items.length - 1]).toMatchObject({ nave: 'Nave 1', c: { e220: ultimo.e220 + 6, ter: ultimo.ter + 90 } });
   await expect(page.locator('.banner.b')).toContainText('Consumo raro');
+  // arriba sale la cifra y lleva a la pantalla de las lecturas que no cuadran
+  const cr = page.locator('#view .pz-cifra', { hasText: 'Lecturas que no cuadran' });
+  await expect(cr.locator('.v')).toHaveText('1');
+  await cr.click(); await page.waitForTimeout(300);
+  const rr = page.locator('.op-ov').last(); await expect(rr.locator('.pz-ln')).toHaveCount(1); await expect(rr.locator('.pz-ln')).toContainText('Térmico');
+  await rr.locator('.op-back').click(); await page.waitForTimeout(200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'consumo de glicol este mes'); await page.waitForTimeout(300);

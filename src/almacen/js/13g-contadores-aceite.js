@@ -315,3 +315,22 @@ function formPlazosAc(){const L=Object.values(PREV_AC),val={};L.forEach(P=>{val[
     [{t:"Cancelar",cls:"sec"},{t:"Guardar",fn:async()=>{for(const P of L){const v=val[P.a.id],n=String(v.pl).trim()===""?null:parseN(v.pl);if(n!=null&&!(n>=0&&n<=120)){toast("Plazo no válido en "+P.nom);return false;}
       const a=art(P.a.id);if(n)a.plazo=n;else delete a.plazo;a.ppAuto=v.auto;}
       ajustaAceites();try{await saveCat();}catch(e){return false;}toast("Guardado");render(true);}}]);}
+
+/* ===== arriba en Aceites: cómo van las lecturas, el próximo pedido y las lecturas que no cuadran (fase 5) ===== */
+function cifrasAceites(){const h=hoy(),falta=faltaLectHoy(),R=rarosCont(30),hay=NAVES_CT.some(n=>lectDe(n).length);
+  let prox=null;Object.values(PREV_AC||{}).forEach(P=>{const a=P.a;if(a.pedido||!(P.kd>0))return;const tot=stockDe(a.id)+(P.instKg||0),d=Math.floor((tot-puntoPedido(a))/P.kd);if(!prox||d<prox.d)prox={d,nom:P.nom};});
+  return pzCifras([["Lecturas de hoy",!hay?"—":falta.length?"Faltan":"Hechas",!hay?"todavía no hay lecturas":falta.length?falta.join(" y "):NAVES_CT.join(" y "),!hay?"":falta.length?"warn":"ok",window.SOLO_CONSULTA?null:()=>formLect()],
+    ["Próximo pedido",prox?(prox.d<=0?"Ya":fmtF(sumaDias(h,prox.d))):"—",prox?prox.nom+" · 1 GRG":"sin gasto para calcularlo",prox&&prox.d<=7?(prox.d<=0?"bad":"warn"):""],
+    ["Lecturas que no cuadran",String(R.length),R.length?"en 30 días · el contador baja o se dispara":"en 30 días, todas bien",R.length?"bad":"ok",()=>pantRaras()]]);}
+/* pantalla: cada lectura rara con lo que ha pasado; se toca para corregirla */
+function pantRaras(){const box=el("div",{class:"pz"});const F={dias:"90"};
+  function pinta(){box.textContent="";const R=rarosCont(+F.dias).sort((a,b)=>b.f.localeCompare(a.f));
+    box.appendChild(el("div",{class:"pz-barra"},[el("div",{class:"seg",role:"group","aria-label":"Periodo"},[["30","30 días"],["90","3 meses"],["365","1 año"]].map(([k,t])=>el("button",{type:"button","aria-pressed":String(F.dias===k),text:t,onclick:()=>{F.dias=k;pinta();}})))]));
+    const porC=pzGrupo(R,t=>t.n+" · "+nomCont(t.k));
+    box.appendChild(pzCifras([["No cuadran",String(R.length),"lecturas raras en el periodo",R.length?"bad":"ok"],["El contador baja",String(R.filter(t=>t.raro==="baja").length),"marca menos que la vez anterior",""],
+      ["Se dispara",String(R.filter(t=>t.raro==="alto").length),"mucho más de lo normal",""],porC.length?["El que más",porC[0][0],porC[0][1]+" veces",""]:null]));
+    box.appendChild(pzPan("Lecturas que no cuadran","toca una para corregirla",R.length?R.map(t=>el(window.SOLO_CONSULTA?"div":"button",Object.assign({class:"pz-ln pz-ln3"},window.SOLO_CONSULTA?{}:{type:"button",onclick:()=>formLect(t.n,t.f)}),[
+      el("span",{class:"pz-ln-tx"},[el("b",{text:fmtF(t.f)+" · "+t.n+" · "+nomCont(t.k)}),el("span",{class:"sub",text:t.raro==="baja"?"El contador marca "+fmtL(Math.abs(t.dif))+" menos que el "+fmtF(t.f0)+". ¿Se ha cambiado o reiniciado el contador, o se ha apuntado mal?":"Gasto de "+fmtL(t.lpd)+" al día; lo normal es "+fmtL(t.normal||0)+". ¿Puede ser la lectura de otro contador o una fuga?"})].concat(t.por?[el("span",{class:"sub",text:"Apuntada por "+t.por})]:[])),
+      pzPill(t.raro==="baja"?"Baja":"Se dispara",t.raro==="baja"?"bad":"warn"),el("span",{class:"sub num",text:t.dif<0?"−"+fmtL(Math.abs(t.dif)):fmtL(t.dif)})])):[pzVacio("Todas las lecturas del periodo cuadran.")]));}
+  const cerrar=objPage({ruta:["Almacén","Piezas","Aceites"],titulo:"Lecturas que no cuadran",sub:"Contadores que marcan menos que la vez anterior o muchísimo más de lo normal.",volver:"Aceites",tabs:[["Lecturas",[box]]]});
+  const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov)ov._repinta=pinta;pinta();return cerrar;}

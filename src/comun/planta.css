@@ -304,3 +304,7 @@ button.pz-mot{cursor:pointer}
   .pz-graf13{gap:2px;height:170px}.pz-graf13 .pz-mesb .et{font-size:10px}.pz-graf13 .pz-mesb .val{font-size:11px}
 }
 a.btn{text-decoration:none!important;display:inline-flex;align-items:center;justify-content:center}
+/* fase 5: sin etiquetas en MAYÚSCULAS (como en el prototipo): en minúscula normal y un poco más grandes */
+th,.calc span,.mq-lk,.mq-ht,.inf-gh,.inf-g,.rk-t,.ejs-t,.pv-t-t,.inc-g,.inc-h,header .tot span,.gh.mas-g{text-transform:none!important;letter-spacing:0!important}
+th{font-size:13px!important;color:var(--ink2)!important}
+.mq-lk,.mq-ht,.calc span{font-size:13px!important}
