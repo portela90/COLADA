@@ -140,6 +140,124 @@ table td,table th{border-color:var(--line2)!important}
 .op-tabs{background:transparent!important;border-bottom:1px solid var(--line)!important;padding:0 24px!important}
 .op-tabs button{font-weight:600!important;color:var(--mut)!important}
 .op-tabs button[aria-selected="true"]{color:var(--ink)!important;box-shadow:inset 0 -3px 0 var(--acc)!important}
-.op-body{padding:20px 24px 40px!important}
+.op-body{padding:20px 24px 40px!important;max-width:1240px!important;margin:0!important}
 .op-foot{background:var(--surf)!important;border-top:1px solid var(--line)!important;box-shadow:none!important}
 @media (max-width:799px),(max-height:559px){.op-hd{padding:16px 16px 12px!important}.op-tit h2{font-size:24px!important}.op-tabs{padding:0 12px!important}.op-body{padding:14px 12px 32px!important}}
+
+/* ---------- pantallas grandes (fase 2: ejes): cifras, paneles, barras, tablas e historia ---------- */
+.pz{display:grid;gap:18px;min-width:0}
+.pz-barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.pz-acc{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.pz-acc-ej{margin:0 0 12px}
+.pz-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));background:var(--surf);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:0 0 14px}
+.pz .pz-cifras{margin:0}
+.pz-cifra{display:flex;flex-direction:column;gap:4px;padding:16px 18px;margin:0 -1px -1px 0;border:0;border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);background:none;color:var(--ink);font:inherit;text-align:left;min-width:0}
+button.pz-cifra{cursor:pointer}
+button.pz-cifra:hover{background:var(--surf2)}
+.pz-cifra .t{font-size:15px;color:var(--ink2)}
+.pz-cifra .v{font-size:28px;font-weight:600;line-height:1.1;overflow-wrap:anywhere}
+.pz-cifra .s{font-size:14px;color:var(--mut)}
+.pz-cifra.ok .v{color:var(--ok)}.pz-cifra.warn .v{color:var(--warn)}.pz-cifra.bad .v{color:var(--bad)}
+.pz-pan{background:var(--surf);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.pz-pan-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:14px 18px 10px}
+.pz-pan-cab h2{margin:0;font-size:19px;font-weight:600}
+.pz-pan-cab .der{margin-left:auto;font-size:14px;color:var(--mut)}
+.pz-vacio{padding:22px 18px;color:var(--mut)}
+.pz-fila2{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.pz-fila2>.pz-pan{flex:3 1 520px}
+.pz-col{flex:2 1 300px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.pz-chapa{display:inline-block;border:1.5px solid var(--ink2);border-radius:4px;padding:0 6px;font-weight:600;font-size:14px;line-height:20px;color:var(--ink);white-space:nowrap}
+.pz-pista{display:block;height:8px;background:var(--line2);border-radius:4px;overflow:hidden}
+.pz-pista i{display:block;height:100%;background:var(--acc)}
+.pz-filtros{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pz-quita{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:17px;border:0;background:var(--ink);color:var(--surf);font:inherit;font-weight:500;cursor:pointer}
+.pz-mas{display:block;width:100%;padding:13px 18px;border:0;border-top:1px solid var(--line2);background:none;color:var(--acc);font:inherit;font-weight:600;text-align:left;cursor:pointer}
+.pz-ir{display:flex;flex-direction:column;gap:2px;padding:14px 18px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);border-color:var(--acc)!important}
+.pz-ir b{color:var(--acc)}
+.pz-nota summary{cursor:pointer;color:var(--acc);font-weight:600}
+.pz-nota .hint{margin:8px 0}
+/* barras por mes */
+.pz-graf{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;align-items:end;height:220px;padding:0 18px 14px}
+.pz-mesb{height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:0;border:0;background:none;cursor:pointer;font:inherit;font-size:14px;color:var(--ink2);min-width:0}
+.pz-mesb .val{font-size:12px;text-align:center;min-height:15px;white-space:nowrap;overflow:hidden}
+.pz-mesb .col{display:block;background:var(--acc);border-radius:4px 4px 0 0}
+.pz-mesb:hover .col{filter:brightness(.88)}
+.pz-mesb .et{text-align:center}
+.pz-graf.filtrada .pz-mesb .col{background:var(--btnb)}
+.pz-mesb[aria-pressed="true"] .col{background:var(--ink)!important}
+.pz-mesb[aria-pressed="true"] .et{font-weight:700;color:var(--ink)}
+/* barras por modelo y por motivo */
+.pz-hb{display:grid;grid-template-columns:70px minmax(0,1fr) minmax(50px,130px) 34px 80px;align-items:center;gap:12px;padding:10px 18px;border:0;border-top:1px solid var(--line2);background:none;width:100%;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.pz-hb:hover,.pz-mot:hover{background:var(--surf2)}
+.pz-hb[aria-pressed="true"],.pz-mot[aria-pressed="true"]{background:var(--acc-soft)}
+.pz-hb .ref{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+.pz-hb .r{text-align:right}.pz-hb .f{font-weight:600}
+.pz-mot{display:flex;flex-direction:column;gap:6px;padding:10px 18px 12px;border:0;border-top:1px solid var(--line2);background:none;width:100%;text-align:left;color:var(--ink);font:inherit}
+button.pz-mot{cursor:pointer}
+.pz-mot .l{display:flex;gap:10px}
+.pz-mot .l b{margin-left:auto;font-weight:600}
+.pz-mot .l .p{width:46px;text-align:right;color:var(--mut)}
+.pz-mot .pz-pista{height:6px}
+.pz-mot .pz-pista i{background:var(--ink2)}
+/* tabla de reparaciones */
+.pz-tabla .cabt,.pz-tabla .ft{display:grid;grid-template-columns:96px 84px minmax(0,1fr) 84px 130px 60px 110px;gap:12px;align-items:center;padding:10px 18px}
+.pz-tabla .cabt{background:var(--surf2);font-size:14px;font-weight:600;color:var(--ink2)}
+.pz-tabla .ft{width:100%;border:0;border-top:1px solid var(--line2);background:none;color:var(--ink);font:inherit;text-align:left}
+.pz-tabla button.ft{cursor:pointer}
+.pz-tabla button.ft:hover{background:var(--surf2)}
+.pz-tabla .ft .eje{font-weight:600;color:var(--acc)}
+.pz-tabla .ft .desp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pz-tabla .ft .env,.pz-tabla .ft .coste{color:var(--ink2)}
+.pz-tabla .r{text-align:right}
+.pz-tabla .mal{color:var(--bad);font-weight:600}
+.pz-tabla .pref{display:none}
+/* tejas de los ejes de un modelo */
+.pz-tejas{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:0 18px 18px}
+.pz-teja{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.pz-teja:hover{border-color:var(--acc)}
+.pz-teja b{font-size:18px}
+.pz-teja .e{font-size:14px;font-weight:600}.pz-teja .e.ok{color:var(--ok)}.pz-teja .e.warn{color:var(--warn)}
+.pz-teja .s{font-size:14px;color:var(--mut)}
+.pz-teja.fuera{background:var(--warn-bg)}
+.pz-datos{margin:0;display:grid;grid-template-columns:auto 1fr}
+.pz-datos dt,.pz-datos dd{margin:0;padding:10px 18px;border-top:1px solid var(--line2)}
+.pz-datos dt{color:var(--ink2)}.pz-datos dd{text-align:right}
+/* historia de un eje */
+.pz-hist{list-style:none;margin:0;padding:0 18px 8px}
+.pz-hist li{display:grid;grid-template-columns:76px 14px minmax(0,1fr);gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line2)}
+.pz-hist .f{color:var(--ink2)}
+.pz-hist .punto{width:12px;height:12px;margin-top:4px;border-radius:6px;background:var(--line)}
+.pz-hist .punto.ok{background:var(--ok)}.pz-hist .punto.va{background:var(--bad)}.pz-hist .punto.esta{background:var(--warn)}
+.pz-hist .t1{display:block;font-size:17px;font-weight:600}
+.pz-hist .t2{display:block;color:var(--mut)}
+.pz-aviso{background:var(--warn-bg);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:14px 18px;display:grid;gap:6px;margin-bottom:14px}
+.pz-aviso h3{margin:0;font-size:17px;font-weight:600;color:var(--warn)}
+.pz-aviso p{margin:0;line-height:1.45}
+/* lista de modelos en Ejes */
+.it.pz-mod{align-items:center;gap:12px}
+.it.pz-mod .pz-chapa{flex:none;min-width:58px;text-align:center}
+@media (max-width:799px),(max-height:559px){
+  .pz-cifras{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pz-cifra{padding:13px 14px}.pz-cifra .v{font-size:23px}.pz-cifra .s{font-size:13px}
+  .pz-acc{margin-left:0;width:100%}.pz-acc .btn{flex:1 1 140px}
+  .pz-pan-cab{padding:13px 14px 9px}
+  .pz-graf{gap:3px;height:170px;padding:0 10px 12px}.pz-mesb .val{display:none}.pz-mesb{font-size:12px}
+  .pz-hb{grid-template-columns:62px minmax(0,1fr) 30px 70px;gap:10px;padding:10px 14px}.pz-hb .ref{display:none}
+  .pz-mot{padding:10px 14px 12px}
+  .pz-cifra:last-child:nth-child(odd){grid-column:1/-1}
+  .pz-barra .seg{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pz-tejas{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 14px 14px}
+  .pz-hist{padding:0 14px 8px}.pz-hist li{grid-template-columns:70px 14px minmax(0,1fr);gap:10px}
+  .pz-datos dt,.pz-datos dd{padding:10px 14px}
+}
+.pz-barra .seg button{white-space:nowrap}
+/* la tabla de reparaciones pasa a dos líneas cuando su panel es estrecho (móvil o al lado de otro panel) */
+.pz-pan{container-type:inline-size}
+@container (max-width:760px){
+  .pz-tabla .cabt{display:none}
+  .pz-tabla .ft{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"eje maqc dias" "desp desp desp" "rec rec coste";gap:3px 10px;padding:11px 14px}
+  .pz-tabla .ft .eje{grid-area:eje}.pz-tabla .ft .maqc{grid-area:maqc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pz-tabla .ft .desp{grid-area:desp;white-space:normal;color:var(--ink2)}.pz-tabla .ft .env{display:none}
+  .pz-tabla .ft .rec{grid-area:rec;font-size:14px}.pz-tabla .ft .dias{grid-area:dias}.pz-tabla .ft .coste{grid-area:coste;font-size:14px}
+  .pz-tabla .pref{display:inline}
+}

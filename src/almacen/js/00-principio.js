@@ -214,7 +214,9 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 
 /* ---------- render ---------- */
 let _pintando=false,_otraVez=false;
-function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);}}
+function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);return;}
+  /* las pantallas abiertas encima (gasto, taller…) se vuelven a pintar con los datos nuevos */
+  document.querySelectorAll(".op-ov").forEach(o=>{if(o._repinta)try{o._repinta();}catch(e){}});}
 /* color y frase de cada pantalla (cabecera) */
 const SEC_ALM={ronda:["marron","Contadores, pistones, granalla, aluminio y agua, en el orden de la vuelta"],gest:["gris","Qué gestores están en cada relevo"],aprob:["gris","Lo que necesita el visto bueno de Beatriz"],res:["azul","Lo que hay que hacer hoy y cómo va el mes"],rap:["rosa","Escribe o dicta lo que ha pasado y la app lo apunta"],consu:["rosa","Lo que sale del almacén hacia las máquinas"],
   stock:["gris","Lo que hay en cada almacén y punto de consumo"],repo:["morado","Lo que hay que bajar a planta para que no falte"],mas:["gris","Piezas, máquinas y gestión"],

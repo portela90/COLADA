@@ -1892,6 +1892,75 @@ test('Consultas de ahorro: ejes recuperados en planta, pistones recuperados y to
   expect(err).toEqual([]);
 });
 
+test('Ejes: gasto y ahorro y el taller en pantallas grandes; se filtra tocando y se baja hasta la historia del eje', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1366, height: 860 });
+  await page.goto(url + '#ejes'); await page.waitForTimeout(1300);
+  const v = page.locator('#view');
+  await expect(v.locator('.pz-cifra', { hasText: 'En el taller' })).toBeVisible();
+  // gasto y ahorro: pantalla entera, no una tarjeta
+  await v.getByRole('button', { name: 'Gasto y ahorro' }).click(); await page.waitForTimeout(400);
+  const pg = page.locator('.op-ov').last();
+  await expect(pg.locator('h2', { hasText: 'Gasto y ahorro en ejes' })).toBeVisible();
+  await expect(pg.locator('.pz-cifra', { hasText: 'Ahorrado en planta' })).toBeVisible();
+  const total = await pg.locator('#pzReps .ft').count(); expect(total).toBeGreaterThan(0);
+  // tocar un modelo filtra la lista y sale para quitar el filtro y abrir su ficha
+  const mod = (await pg.locator('.pz-hb .pz-chapa').first().innerText()).trim();
+  await pg.locator('.pz-hb').first().click(); await page.waitForTimeout(200);
+  await expect(pg.locator('.pz-quita')).toContainText(mod);
+  await expect(pg.locator('.pz-ir')).toContainText('Abrir la ficha del ' + mod);
+  expect(await pg.locator('#pzReps .ft').count()).toBeLessThanOrEqual(total);
+  // un mes con reparaciones
+  await pg.locator('.pz-mesb', { has: page.locator('.val', { hasText: '€' }) }).first().click(); await page.waitForTimeout(200);
+  await expect(pg.locator('.pz-quita')).toHaveCount(2);
+  await pg.getByRole('button', { name: 'Quitar todo' }).click(); await page.waitForTimeout(200);
+  expect(await pg.locator('#pzReps .ft').count()).toBe(Math.min(total, 15));
+  // de la lista a la historia del eje (con su máquina) y atrás
+  const eje = (await pg.locator('#pzReps .ft .eje').first().innerText()).trim();
+  await pg.locator('#pzReps .ft').first().click(); await page.waitForTimeout(400);
+  const fe = page.locator('.op-ov').last();
+  await expect(fe.locator('.op-tit h2')).toHaveText(eje);
+  await fe.getByRole('tab', { name: 'Su historia' }).click();
+  await expect(fe.locator('.pz-hist')).toContainText('Vuelve reparado');
+  await page.goBack(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-ov')).toHaveCount(1);
+  await page.goBack(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-ov')).toHaveCount(0);
+  // en el taller: los que hay, con la máquina, y se abre el eje
+  const n = await page.evaluate(() => Object.values(window.__D.rep).flatMap(x => x.items).filter(r => r.env && !r.res).length);
+  await v.getByRole('button', { name: 'En el taller (' + n + ')' }).click(); await page.waitForTimeout(400);
+  const tl = page.locator('.op-ov').last();
+  await expect(tl.locator('h2', { hasText: 'Ejes en el taller' })).toBeVisible();
+  await expect(tl.locator('.pz-tabla .ft')).toHaveCount(n);
+  await expect(tl.locator('.pz-tabla .ft .maqc').first()).toHaveText(/^F\d+/);
+  await tl.locator('.op-back').click(); await page.waitForTimeout(300);
+  // ficha del modelo: pantalla con sus ejes en tejas y sus reparaciones
+  await v.locator('.pz-mod').first().click(); await page.waitForTimeout(400);
+  const fm = page.locator('.op-ov').last();
+  await expect(fm.locator('.pz-teja').first()).toBeVisible();
+  await fm.getByRole('tab', { name: /^Reparaciones/ }).click();
+  await expect(fm.locator('.pz-pan', { hasText: 'Por qué van al taller' })).toBeVisible();
+  // en el móvil no se sale nada de la pantalla
+  await page.setViewportSize({ width: 320, height: 700 }); await page.waitForTimeout(200);
+  expect(await fm.locator('.op-scroll').evaluate(x => x.scrollWidth - x.clientWidth)).toBeLessThanOrEqual(1);
+  expect(err).toEqual([]);
+});
+
+test('Ejes: al preparar uno para el taller se apunta de qué máquina sale', async ({ page }) => {
+  const err = await vigila(page);
+  await page.goto(url + '#ejes'); await page.waitForTimeout(1300);
+  const e = await page.evaluate(() => Object.values(window.__D.ejes).find(x => x.estado === 'planta' && x.mod === '3.2.B'));
+  await page.fill('#eBus', e.cod); await page.waitForTimeout(300);
+  await page.locator('#eRes button.it').first().click(); await page.waitForTimeout(400);
+  const fe = page.locator('.op-ov').last();
+  await fe.locator('#efD').fill('Fuga de agua');
+  await fe.locator('#efM').selectOption('F33');
+  await fe.getByRole('button', { name: 'Preparar para enviar' }).click(); await page.waitForTimeout(800);
+  const r = await page.evaluate(c => Object.values(window.__D.rep).flatMap(x => x.items).find(z => z.eje === c && !z.env && !z.res), e.cod);
+  expect(r).toMatchObject({ desp: 'Fuga de agua', maq: 'F33' });
+  expect(err).toEqual([]);
+});
+
 test('Pistón sacado de un eje agarrotado: va a la zona de usados y vale lo que pagan en la chatarrería', async ({ page }) => {
   const err = await vigila(page);
   await page.addInitScript(() => {
