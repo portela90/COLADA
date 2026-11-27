@@ -324,3 +324,12 @@ th{font-size:13px!important;color:var(--ink2)!important}
 .abre-cont .mas-datos-c{grid-template-columns:minmax(0,1fr)!important}
 .abre-cont .card{margin:0!important}
 .abre-cont .tw{overflow-x:auto}
+/* gráficas de barras de los contadores */
+.pz-grafN{height:200px}
+.pz-grafN .pz-mesb .val{display:block!important;font-size:11px}
+.pz-grafN .pz-mesb .et{font-size:11px;white-space:nowrap;overflow:hidden}
+.pz-grafN .pz-mesb.mal .col{background:var(--bad)}
+.pz-grafN div.pz-mesb{cursor:default}
+.pz-texto{padding:0 18px 14px;display:grid;gap:10px;line-height:1.5;max-width:80ch}
+.pz-texto p{margin:0}
+@media (max-width:799px),(max-height:559px){.pz-grafN{gap:2px;height:170px}.pz-grafN .pz-mesb .val{display:none!important}.pz-grafN .pz-mesb .et{font-size:9px}.pz-texto{padding:0 14px 12px}}

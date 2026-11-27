@@ -43,16 +43,25 @@ function cardAgua(){const h=hoy(),m0=h.slice(0,7)+"-01",L=lectDe(AGUA),u=L[L.len
       raros.length?el("div",{class:"banner b",text:"Consumo raro: "+raros.map(x=>fmtF(x.f)+" "+(x.raro==="baja"?"(el contador marca menos que antes)":fmtM3(x.mpd)+"/día, lo normal "+fmtM3(x.normal)+"/día")).join(" · ")}):null,
       el("dl",{class:"kpis num"},[["Última lectura",u?fmtN(u.c.agua)+" m³":"—"],["Último consumo",t?(t.dif<0?"¿?":fmtM3(t.dif)+(t.d>1?" ("+t.d+" d)":"")):"—"],["Este mes",mes?fmtM3(mes):"—"],["Media por día (30 d)",med!=null?fmtM3(med):"—"]].map(([a,b])=>el("div",{},[el("dt",{text:a}),el("dd",{text:b})]))),
       el("div",{class:"acciones acc2"},[window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn",id:"bAgua",text:"Apuntar lectura del agua",onclick:()=>formAgua()}),el("button",{type:"button",class:"btn sec",text:"Gráfica y lecturas",onclick:()=>informeAgua()})].filter(Boolean))])]);}
-function informeAgua(){const T=tramosAgua().filter(t=>t.dif>=0),box=el("div",{style:"display:grid;gap:12px"});
-  if(!T.length)box.appendChild(el("p",{class:"hint",text:"Todavía no hay dos lecturas seguidas para calcular el consumo."}));
-  else{const meses=[];for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);meses.push(d.toISOString().slice(0,7));}
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"m³ por mes"}),barras(meses,meses.map(m=>T.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0)),v=>Math.round(v)+"")]));
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo gastado desde la lectura anterior)"+(window.SOLO_CONSULTA?"":" · toca un día para corregir o borrar su lectura")}),cTabla(["Fecha","Lectura","Consumo","m³ por día"],
-      tramosAgua().slice().reverse().slice(0,40).map(t=>Object.assign([fmtF(t.f),fmtN(t.r.c.agua),t.dif<0?"¿?":fmtM3(t.dif)+(t.d>1?" ("+t.d+" d)":""),(t.dif<0?"":fmtM3(t.mpd))+(t.raro?" ⚠":"")],window.SOLO_CONSULTA?{}:{__ir:()=>{cerrarDlgs();formAgua(t.f);}})),[1,2,3])]));}
-  const acc=[el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)})];
-  if(!window.SOLO_CONSULTA&&lectDe(AGUA).length)acc.push(el("button",{type:"button",class:"btn sec",text:"Corregir una lectura",onclick:()=>{cerrarDlgs();formAgua(lectDe(AGUA).map(r=>r.f).pop());}}));
-  box.appendChild(el("div",{class:"acciones"},acc));
-  dlg("Consumo de agua",[box],[{t:"Cerrar",cls:"sec"}]);}
+/* pantalla del agua (27/11/2026): antes era una ventanita; ahora pantalla entera con gráficas, cada lectura y cómo funciona */
+function informeAgua(){const B={res:el("div",{class:"pz"}),lec:el("div",{class:"pz"}),como:el("div",{class:"pz"})};
+  function pinta(){const T=tramosAgua(),ok=T.filter(t=>t.dif>=0),h=hoy(),mes=h.slice(0,7),ant=sumaDias(mes+"-01",-1).slice(0,7);
+    const enMes=m=>ok.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0),u30=ok.filter(t=>t.f>=sumaDias(h,-30)),dd=u30.reduce((s,t)=>s+t.d,0),R=T.filter(t=>t.raro&&t.f>=sumaDias(h,-30));
+    Object.values(B).forEach(b=>b.textContent="");
+    B.res.appendChild(el("div",{class:"pz-barra"},[el("div",{class:"pz-acc"},[window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn",text:"Apuntar lectura del agua",onclick:()=>formAgua()}),el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)})])]));
+    B.res.appendChild(pzCifras([["Este mes",fmtM3(enMes(mes)),"el mes pasado "+fmtM3(enMes(ant)),""],["Al día",dd?fmtM3(u30.reduce((s,t)=>s+t.dif,0)/dd):"—","media de los últimos 30 días",""],
+      ["Lecturas raras",String(R.length),"en 30 días",R.length?"bad":"ok"],["Última lectura",lectDe(AGUA).length?fmtF(lectDe(AGUA).slice(-1)[0].f):"—","",""]]));
+    if(!ok.length){B.res.appendChild(pzPan("Agua",null,[pzVacio("Todavía no hay dos lecturas seguidas para calcular el consumo.")]));}
+    else{const M=[];for(let i=11;i>=0;i--){const d=new Date(+mes.slice(0,4),+mes.slice(5,7)-1-i,1);M.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));}
+      B.res.appendChild(pzPan("m³ por mes","los últimos 12 meses",[pzBarras(M.map(m=>cap(MESES[+m.slice(5,7)-1].slice(0,3))),M.map(enMes),v=>fmtN(Math.round(v))+" m³")]));
+      const U=T.slice(-20);B.res.appendChild(pzPan("m³ al día en cada lectura","las 20 últimas · en rojo las que no cuadran",[pzBarras(U.map(t=>t.f.slice(8,10)+"/"+t.f.slice(5,7)),U.map(t=>Math.max(0,t.mpd||0)),v=>fmtN(Math.round(v*10)/10),{mal:U.map(t=>!!t.raro),click:window.SOLO_CONSULTA?null:i=>formAgua(U[i].f)})]));}
+    B.lec.appendChild(pzPan("Cada lectura",window.SOLO_CONSULTA?"":"toca una para corregirla o borrarla",[T.length?cTabla(["Fecha","Marca el contador","Gastado desde la anterior","Días","m³ al día","Lo normal","Cómo está"],
+      T.slice().reverse().slice(0,60).map(t=>Object.assign([fmtF(t.f),fmtN(t.r.c.agua),t.dif<0?"−"+fmtM3(Math.abs(t.dif)):fmtM3(t.dif),String(t.d),t.dif<0?"—":fmtM3(t.mpd),t.normal!=null?fmtM3(t.normal):"—",t.raro==="baja"?"⚠ marca menos que la anterior":t.raro?"⚠ mucho más de lo normal":"bien"],window.SOLO_CONSULTA?{}:{__ir:()=>formAgua(t.f)})),[1,2,3,4,5]):pzVacio("Sin lecturas.")]));
+    B.como.appendChild(pzPan("Cómo funciona",null,[el("div",{class:"pz-texto"},["El contador del agua marca el total de metros cúbicos (m³) que han pasado desde que se puso, como el cuentakilómetros de un coche. 1 m³ son 1000 litros.",
+      "Lo gastado es la resta entre la lectura de hoy y la anterior. «Al día» reparte eso entre los días que han pasado entre las dos lecturas.",
+      "«Marca menos que la anterior» casi siempre es un número mal apuntado: tócalo y corrígelo. «Mucho más de lo normal» puede ser una fuga o un llenado: si el número está bien, pregunta en la nave qué pasó ese día."].map(p=>el("p",{text:p})))]));}
+  pinta();objPage({ruta:["Almacén","Piezas","Aceites"],titulo:"Contador del agua",sub:"Cuánta agua se gasta y si alguna lectura no cuadra.",volver:"Aceites",tabs:[["Resumen",[B.res]],["Cada lectura",[B.lec]],["Cómo funciona",[B.como]]]});
+  const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov)ov._repinta=pinta;}
 /* Consultas: cada tramo es un consumo de agua en m³ */
 const evAgua=()=>tramosAgua().filter(t=>t.dif>=0).map(t=>({f:t.f,ts:t.r.ts||0,maq:null,nave:null,ref:"Agua",cant:t.dif,ud:"m³",eur:0,quien:t.por,txt:t.raro?"Consumo raro":"",det:t.d>1?"en "+t.d+" días":"",fam:"Contadores"}));
 

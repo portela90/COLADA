@@ -659,6 +659,15 @@ test('Contadores de aceite y glicol: se apuntan las lecturas, salen los litros y
   await cr.click(); await page.waitForTimeout(300);
   const rr = page.locator('.op-ov').last(); await expect(rr.locator('.pz-ln')).toHaveCount(1); await expect(rr.locator('.pz-ln')).toContainText('Térmico');
   await rr.locator('.op-back').click(); await page.waitForTimeout(200);
+  // «Gráficas y lecturas»: pantalla con pestañas; el grifo raro sale marcado y hay explicación
+  await page.locator('#view button', { hasText: 'Gráficas y lecturas' }).first().click(); await page.waitForTimeout(300);
+  const gc = page.locator('.op-ov').last();
+  await expect(gc.locator('.pz-ln', { hasText: 'Térmico' })).toContainText('lectura rara');
+  await gc.locator('.pz-ln', { hasText: 'Térmico' }).click(); await page.waitForTimeout(200);
+  await expect(gc.getByRole('tab', { name: 'Por grifo' })).toHaveAttribute('aria-selected', 'true');
+  await expect(gc).toContainText('mucho más de lo normal');
+  await gc.getByRole('tab', { name: 'Cómo funciona' }).click(); await expect(gc).toContainText('cuentakilómetros');
+  await gc.locator('.op-back').click(); await page.waitForTimeout(200);
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.locator('.tile .tt', { hasText: /^Consultas$/ }).click(); await page.waitForTimeout(300);
   await page.fill('#bdQ', 'consumo de glicol este mes'); await page.waitForTimeout(300);
@@ -742,7 +751,7 @@ test('Contadores: cotejo de los cambios de GRG con lo que marcan los contadores'
   await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Cotejo con los cambios' }).click(); await page.waitForTimeout(300);
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   expect(t).toMatch(/870 kg ≈ 1000 l · abajo 900 l/); expect(t).toMatch(/-300 l \(-30 %\)/); expect(t).not.toMatch(/-30 %\) aprox/); expect(t).toMatch(/quedan arriba ≈ 900 l/);
-  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('.op-ov').last().locator('.op-back').click(); await page.waitForTimeout(200);
   await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
   await d.locator('.seg button', { hasText: 'Nave 2' }).click();
@@ -766,7 +775,7 @@ test('Contadores: el primer día se apunta el nivel de arriba y abajo y el cotej
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   // 600 arriba + 1000 abajo − 950 abajo al cambiar = 650 l; los contadores marcan 640 → -10 l, exacto
   expect(t).toMatch(/arriba 600 l · abajo 1000 l/); expect(t).toMatch(/-10 l \(-2 %\)(?! aprox)/); expect(t).toMatch(/800 kg ≈ 1000 l · abajo 950 l/);
-  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('.op-ov').last().locator('.op-back').click(); await page.waitForTimeout(200);
   await page.locator('button', { hasText: 'Apuntar lecturas' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
   await expect(d).toContainText('se apuntan en las lecturas de la Nave 2');
@@ -816,7 +825,7 @@ test('Glicol: el depósito se coteja con los contadores de las dos naves y con e
   const t = (await page.locator('.dlg').last().innerText()).replace(/\s+/g, ' ');
   // 2000 − 1150 = 850 l; los contadores de las dos naves marcan 300 + 500 = 800 → -50 l
   expect(t).toMatch(/Glicol · depósito/); expect(t).toMatch(/-50 l \(-6 %\)/); expect(t).toMatch(/quedan ≈ 1900 l/); expect(t).toMatch(/el albarán dice 954 kg ≈ 900 l y el nivel subió 850 l/);
-  await page.locator('.dlg').last().locator('button', { hasText: 'Cerrar' }).click(); await page.waitForTimeout(200);
+  await page.locator('.op-ov').last().locator('.op-back').click(); await page.waitForTimeout(200);
   await page.locator('.acc-mas[aria-label="Más acciones de contadores"]').click(); await page.waitForTimeout(200); await page.locator('.dlg button', { hasText: 'Recarga de glicol' }).click(); await page.waitForTimeout(300);
   const d = page.locator('.dlg').last();
   await d.locator('#glKg').fill('1060'); await d.locator('#glDens').fill('1,06'); await expect(d).toContainText('≈ 1000 l'); await d.locator('#glA').fill('900'); await d.locator('#glD').fill('1880');
@@ -2667,14 +2676,19 @@ test('Contador del agua: dos lecturas dan el consumo en m³, avisa si marca meno
   expect(await page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').length)).toBe(2);
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Cancelar' }).click();
   // corregir: tocando el día en la tabla se abre su lectura; se cambia y se guarda; y se puede borrar
+  // «Gráficas y lecturas» es una pantalla: en «Cada lectura» se toca la del día para corregirla
   await card.locator('button', { hasText: 'Gráfica' }).click(); await page.waitForTimeout(300);
-  await page.locator('.dlg').last().locator('tr.fila-link', { hasText: '29/10/26' }).click(); await page.waitForTimeout(300);
+  const pa = page.locator('.op-ov').last(); await expect(pa.locator('.pz-cifra', { hasText: 'Este mes' })).toBeVisible();
+  await pa.getByRole('tab', { name: 'Cada lectura' }).click();
+  await pa.locator('tr.fila-link', { hasText: '29/10/26' }).click(); await page.waitForTimeout(300);
   await expect(page.locator('#aguaV')).toHaveValue('393551,5');
   await expect(page.locator('.dlg').last()).toContainText('Ya hay lectura del agua');
   await page.fill('#aguaV', '393550');
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Guardar' }).click(); await page.waitForTimeout(400);
   const agua = () => page.evaluate(() => Object.values(window.__D.cont || {}).flatMap(d => d.items || []).filter(r => r.nave === 'Agua').map(r => [r.f, r.c.agua]).sort());
   expect(await agua()).toEqual([['2026-10-28', 393539], ['2026-10-29', 393550]]);
+  await expect(pa.locator('tr.fila-link', { hasText: '29/10/26' })).toContainText('393.550');
+  await pa.locator('.op-back').click(); await page.waitForTimeout(300);
   await page.click('#bAgua'); await page.fill('#aguaF', '2026-10-29'); await page.waitForTimeout(200);
   await page.locator('.dlg').last().locator('button', { hasText: 'Borrar la lectura de este día' }).click();
   await page.locator('.dlg').last().locator('.dlg-b button', { hasText: 'Borrar' }).click(); await page.waitForTimeout(400);

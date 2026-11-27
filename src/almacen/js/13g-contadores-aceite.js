@@ -112,29 +112,12 @@ function cardContadores(){const h=hoy(),m0=h.slice(0,7)+"-01",falta=faltaLectHoy
       falta.length?el("div",{class:"banner w",text:"Falta la lectura de hoy de "+falta.join(" y ")+"."}):null,
       R.length?el("div",{class:"banner b",text:"Consumo raro: "+R.map(t=>nomCont(t.k)+" "+t.n+" el "+fmtF(t.f)+" ("+(t.raro==="baja"?"el contador marca menos que antes":fmtL(t.lpd)+"/día, lo normal "+fmtL(t.normal)+"/día")+")").join(" · ")}):null,
       (()=>{const CR=cotejoResumen();return CR.length?el("div",{class:"banner "+(CR.some(x=>x.niv==="bad")?"b":"w"),text:CR.map(x=>x.t).join(" · ")}):null;})(),
-      el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn sec",text:"Ronda de consumos",onclick:()=>irA("ronda")}),el("button",{type:"button",class:"btn sec",text:"Informe y gráficas",onclick:()=>informeCont()}),
-        menuAcc("Más acciones de contadores",[["Cotejo con los cambios",()=>dlg("Cotejo con los cambios de GRG",[cotejoUI()],[{t:"Cerrar",cls:"sec"}])],["Recarga de glicol",()=>formGli()],["Empezar de nuevo un contador",dlgReinicio,"bReini"]])]),
+      el("div",{class:"acc-pri"},[el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect()}),window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn sec",text:"Ronda de consumos",onclick:()=>irA("ronda")}),el("button",{type:"button",class:"btn sec",text:"Gráficas y lecturas",onclick:()=>pantContadores(0)}),
+        menuAcc("Más acciones de contadores",[["Cotejo con los cambios",()=>{cerrarDlgs();pantContadores(3);}],["Recarga de glicol",()=>formGli()],["Empezar de nuevo un contador",dlgReinicio,"bReini"]])]),
       cTabla(["Nave","Contador","Última lectura","Último consumo","Este mes",""],filas,[2,3,4])])]);}
 
 /* informe: litros por día y por mes, por nave y contador */
-function informeCont(){const st=draft.ict=draft.ict||{nave:"Nave 1",k:"todos"};const box=el("div",{style:"display:grid;gap:12px"});
-  const pinta=()=>{box.textContent="";
-    box.appendChild(el("div",{class:"seg",role:"group"},NAVES_CT.concat(["Las dos"]).map(n=>{const b=el("button",{type:"button","aria-pressed":String(st.nave===n),text:n});b.onclick=()=>{st.nave=n;pinta();};return b;})));
-    box.appendChild(el("div",{class:"chips"},[["todos","Todos"]].concat(CONT).map(([k,nom])=>el("button",{type:"button",class:"chip","aria-pressed":String(st.k===k),text:nom,onclick:()=>{st.k=k;pinta();}}))));
-    const ns=st.nave==="Las dos"?NAVES_CT:[st.nave],ks=st.k==="todos"?CONT.map(c=>c[0]):[st.k];const T=[];ns.forEach(n=>ks.forEach(k=>tramos(n,k).forEach(t=>{if(t.dif>=0)T.push(t);})));
-    if(!T.length){box.appendChild(el("p",{class:"hint",text:"Todavía no hay dos lecturas seguidas para calcular consumos."}));return;}
-    const meses=[];for(let i=11;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);meses.push(d.toISOString().slice(0,7));}
-    const porMes=meses.map(m=>T.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0));
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Litros por mes · "+(st.k==="todos"?"todos los contadores":nomCont(st.k))+" · "+st.nave}),barras(meses,porMes,v=>Math.round(v)+"")]));
-    const h=hoy(),mes=h.slice(0,7),tot=CONT.filter(([k])=>ks.includes(k)).map(([k,nom])=>{const L=T.filter(t=>t.k===k);const m=L.filter(t=>t.f.slice(0,7)===mes).reduce((s,t)=>s+t.dif,0),d30=L.filter(t=>t.f>=sumaDias(h,-30));
-      const dl=d30.reduce((s,t)=>s+t.dif,0),dd=d30.reduce((s,t)=>s+t.lab,0);return[nom,fmtL(m),dd?fmtL(dl/dd):"—",fmtL(L.reduce((s,t)=>s+t.dif,0))];});
-    box.appendChild(cTabla(["Contador","Este mes","Media por día (30 d)","Total apuntado"],tot,[1,2,3]));
-    const dias=[...new Set(T.map(t=>t.f))].sort().reverse().slice(0,40);
-    box.appendChild(el("div",{},[el("div",{class:"sub",text:"Por día (lo consumido desde la lectura anterior)"+(window.SOLO_CONSULTA?"":" · toca un día para corregir o borrar su lectura")}),cTabla(["Fecha"].concat(ns.length>1?["Nave"]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(c=>c[1])),
-      [].concat(...dias.map(f=>ns.map(n=>{const fila=[fmtF(f)].concat(ns.length>1?[n]:[]).concat(CONT.filter(([k])=>ks.includes(k)).map(([k])=>{const t=T.find(x=>x.f===f&&x.n===n&&x.k===k);return t?fmtL(t.dif)+(t.raro?" ⚠":""):"";}));if(!window.SOLO_CONSULTA)fila.__ir=()=>{cerrarDlgs();formLect(n,f);};return fila;}))).filter(fl=>fl.slice(ns.length>1?2:1).some(Boolean)),
-      CONT.map((_,i)=>i+(ns.length>1?2:1)))]));
-    box.appendChild(el("div",{class:"acciones"},[el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)}),el("button",{type:"button",class:"btn sec",text:"Corregir una lectura",onclick:()=>{cerrarDlgs();formLect(ns[0],todasLect().filter(r=>ns.includes(r.nave)).map(r=>r.f).pop());}})]));};
-  pinta();dlg("Consumo de aceite y glicol",[box],[{t:"Cerrar",cls:"sec"}]);}
+function informeCont(){return pantContadores(1);}
 async function excelCont(btn){if(!downloads){toast("Esta vista no permite descargar archivos");return;}btn.disabled=true;
   try{await cargarXLSX();const X=window.XLSX,wb=X.utils.book_new();
     X.utils.book_append_sheet(wb,X.utils.json_to_sheet(todasLect().map(r=>Object.assign({Fecha:r.f,Nave:r.nave},Object.fromEntries(CONT.map(([k,n])=>[n,typeof r.c[k]==="number"?r.c[k]:""])),{"Agua (m³)":typeof r.c.agua==="number"?r.c.agua:"",Quién:r.por||""}))),"Lecturas");
@@ -334,3 +317,73 @@ function pantRaras(){const box=el("div",{class:"pz"});const F={dias:"90"};
       pzPill(t.raro==="baja"?"Baja":"Se dispara",t.raro==="baja"?"bad":"warn"),el("span",{class:"sub num",text:t.dif<0?"−"+fmtL(Math.abs(t.dif)):fmtL(t.dif)})])):[pzVacio("Todas las lecturas del periodo cuadran.")]));}
   const cerrar=objPage({ruta:["Almacén","Piezas","Aceites"],titulo:"Lecturas que no cuadran",sub:"Contadores que marcan menos que la vez anterior o muchísimo más de lo normal.",volver:"Aceites",tabs:[["Lecturas",[box]]]});
   const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov)ov._repinta=pinta;pinta();return cerrar;}
+
+/* ===== PANTALLA DE LOS CONTADORES (27/11/2026) =====
+   Antes «Informe y gráficas» y «Cotejo» se abrían en una ventanita. Ahora es una pantalla entera con pestañas:
+   Resumen (cómo va cada grifo), Por grifo (gráficas y cada lectura con su explicación), Por día, Cotejo con los GRG
+   y Cómo funciona (qué significa cada número y qué hacer si algo no cuadra). */
+function pzBarras(labels,vals,fmt,o){o=o||{};const mx=Math.max(1,...vals.map(v=>Math.abs(v||0)));
+  return el("div",{class:"pz-graf pz-grafN",style:"grid-template-columns:repeat("+labels.length+",minmax(0,1fr))"},labels.map((t,i)=>{const v=vals[i]||0,h=v>0?Math.max(5,Math.round(v/mx*150)):2;
+    return el(o.click?"button":"div",Object.assign({class:"pz-mesb"+((o.mal||[])[i]?" mal":""),title:t+": "+fmt(v)},o.click?{type:"button",onclick:()=>o.click(i)}:{}),[el("span",{class:"val",text:v?fmt(v):""}),el("span",{class:"col",style:"height:"+h+"px"}),el("span",{class:"et",text:t})]);}));}
+function pantContadores(tab0,k0){const st=draft.ict=Object.assign({nave:"Nave 1",k:"e220"},draft.ict||{});if(k0)st.k=k0;if(st.k==="todos")st.k="e220";
+  const B={res:el("div",{class:"pz"}),gri:el("div",{class:"pz"}),dia:el("div",{class:"pz"}),cot:el("div",{class:"pz"}),como:el("div",{class:"pz"})};
+  const segNave=(conDos,re)=>el("div",{class:"seg",role:"group","aria-label":"Nave"},NAVES_CT.concat(conDos?["Las dos"]:[]).map(n=>el("button",{type:"button","aria-pressed":String(st.nave===n),text:n,onclick:()=>{st.nave=n;re();}})));
+  const navesSel=()=>st.nave==="Las dos"?NAVES_CT:[st.nave];
+  const h=hoy(),mes=h.slice(0,7),mesAnt=sumaDias(mes+"-01",-1).slice(0,7),d30=sumaDias(h,-30);
+  const datosK=(k,ns)=>{const T=[];ns.forEach(n=>tramos(n,k).forEach(t=>T.push(t)));T.sort((a,b)=>a.f.localeCompare(b.f));const ok=T.filter(t=>t.dif>=0);
+    const enMes=m=>ok.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0),u30=ok.filter(t=>t.f>=d30),lab=u30.reduce((s,t)=>s+t.lab,0);
+    return{T,ok,mes:enMes(mes),ant:enMes(mesAnt),med:lab?u30.reduce((s,t)=>s+t.dif,0)/lab:null,raros:T.filter(t=>t.raro&&t.f>=d30)};};
+  let irTab=null;
+  function pintaRes(){const b=B.res;b.textContent="";const ns=navesSel();
+    b.appendChild(el("div",{class:"pz-barra"},[segNave(true,pintaTodo),el("div",{class:"pz-acc"},[window.SOLO_CONSULTA?null:el("button",{type:"button",class:"btn",text:"Apuntar lecturas",onclick:()=>formLect(ns[0])}),
+      el("button",{type:"button",class:"btn sec",text:"Excel",onclick:e=>excelCont(e.currentTarget)})])]));
+    const D=CONT.map(([k,nom])=>Object.assign({k,nom},datosK(k,ns))),ac=D.filter(x=>x.k!=="gli");
+    const ult=ns.map(n=>{const L=lectDe(n);return L.length?L[L.length-1].f:null;}).filter(Boolean).sort()[0];const R=D.reduce((s,x)=>s+x.raros.length,0);
+    const tM=ac.reduce((s,x)=>s+x.mes,0),tA=ac.reduce((s,x)=>s+x.ant,0);
+    b.appendChild(pzCifras([["Aceite gastado en "+MESES[+mes.slice(5,7)-1],fmtL(tM),"los 4 grifos · "+MESES[+mesAnt.slice(5,7)-1]+": "+fmtL(tA),""],
+      ["Aceite al día",fmtL(ac.reduce((s,x)=>s+(x.med||0),0)),"media por día laborable (30 días)",""],
+      ["Glicol al día",D.find(x=>x.k==="gli").med!=null?fmtL(D.find(x=>x.k==="gli").med):"—","media por día laborable (30 días)",""],
+      ["Lecturas que no cuadran",String(R),R?"en 30 días · toca para verlas":"en 30 días, todas bien",R?"bad":"ok",R?()=>pantRaras():null],
+      ["Última lectura",ult?fmtF(ult):"—",ult===h?"hoy":faltaLectHoy().filter(n=>ns.includes(n)).length?"falta la de hoy":"",ult===h?"ok":faltaLectHoy().some(n=>ns.includes(n))?"warn":""]]));
+    b.appendChild(pzPan("Cada grifo","toca uno para ver sus gráficas y sus lecturas",D.map(x=>{const dif=x.ant?Math.round((x.mes-x.ant)/x.ant*100):null;
+      return el("button",{type:"button",class:"pz-ln pz-ln3",onclick:()=>{st.k=x.k;pintaTodo();if(irTab)irTab(1);}},[el("span",{class:"pz-ln-tx"},[el("b",{text:x.nom}),
+        el("span",{class:"sub",text:"este mes "+fmtL(x.mes)+" · el mes pasado "+fmtL(x.ant)+(x.med!=null?" · "+fmtL(x.med)+" al día":"")})]),
+        x.raros.length?pzPill(x.raros.length+(x.raros.length===1?" lectura rara":" lecturas raras"),"bad"):pzPill("Normal","ok"),el("span",{class:"sub num",text:dif==null?"":(dif>0?"+":"")+dif+" % vs. mes pasado"})]);})));
+    b.appendChild(el("p",{class:"hint",style:"margin:0",text:"«Al día» es por día laborable (lunes a viernes): el fin de semana se cuenta junto con el lunes. Si algo te parece raro, mira la pestaña «Cómo funciona»."}));}
+  function pintaGri(){const b=B.gri;b.textContent="";const ns=navesSel(),k=st.k,nom=nomCont(k);
+    b.appendChild(el("div",{class:"pz-barra"},[segNave(true,pintaTodo),el("div",{class:"chips chips-sel"},CONT.map(([kk,n])=>el("button",{type:"button",class:"chip","aria-pressed":String(k===kk),text:n,onclick:()=>{st.k=kk;pintaTodo();}})))]));
+    const X=datosK(k,ns);if(!X.T.length){b.appendChild(pzPan(nom,null,[pzVacio("Todavía no hay dos lecturas seguidas de este grifo en "+ns.join(" y ")+".")]));return;}
+    const M=[];for(let i=11;i>=0;i--){const d=new Date(+mes.slice(0,4),+mes.slice(5,7)-1-i,1);M.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));}
+    b.appendChild(pzCifras([["Este mes",fmtL(X.mes),"el mes pasado "+fmtL(X.ant),""],["Al día",X.med!=null?fmtL(X.med):"—","media por día laborable (30 días)",""],
+      ["Lecturas raras",String(X.raros.length),"en 30 días",X.raros.length?"bad":"ok"],["Lecturas apuntadas",String(X.T.length+ns.length),"desde la primera","" ]]));
+    b.appendChild(pzPan("Litros por mes · "+nom+" · "+ns.join(" + "),"los últimos 12 meses",[pzBarras(M.map(m=>cap(MESES[+m.slice(5,7)-1].slice(0,3))),M.map(m=>X.ok.filter(t=>t.f.slice(0,7)===m).reduce((s,t)=>s+t.dif,0)),v=>Math.round(v)+" l")]));
+    const U=X.T.slice(-20);
+    b.appendChild(pzPan("Litros al día en cada lectura","las 20 últimas · en rojo las que no cuadran",[pzBarras(U.map(t=>t.f.slice(8,10)+"/"+t.f.slice(5,7)),U.map(t=>Math.max(0,t.lpd)),v=>fmtN(Math.round(v*10)/10),{mal:U.map(t=>!!t.raro),click:window.SOLO_CONSULTA?null:i=>formLect(U[i].n,U[i].f)})]));
+    const filas=X.T.slice().reverse().slice(0,60).map(t=>Object.assign([fmtF(t.f)].concat(ns.length>1?[t.n]:[]).concat([fmtN(t.r.c[k]),t.dif<0?"−"+fmtL(Math.abs(t.dif)):fmtL(t.dif),String(t.lab),t.dif<0?"—":fmtL(t.lpd),t.normal!=null?fmtL(t.normal):"—",
+      t.raro==="baja"?"⚠ marca menos que la anterior":t.raro==="alto"?"⚠ mucho más de lo normal":"bien"]),window.SOLO_CONSULTA?{}:{__ir:()=>formLect(t.n,t.f)}));
+    b.appendChild(pzPan("Cada lectura",window.SOLO_CONSULTA?"":"toca una para corregirla",[cTabla(["Fecha"].concat(ns.length>1?["Nave"]:[]).concat(["Marca el contador","Gastado desde la anterior","Días lab.","Litros al día","Lo normal","Cómo está"]),filas,ns.length>1?[2,3,4,5,6]:[1,2,3,4,5])]));}
+  function pintaDia(){const b=B.dia;b.textContent="";const ns=navesSel();b.appendChild(el("div",{class:"pz-barra"},[segNave(true,pintaTodo)]));
+    const T=[];ns.forEach(n=>CONT.forEach(([k])=>tramos(n,k).forEach(t=>T.push(t))));const dias=[...new Set(T.map(t=>t.f))].sort().reverse().slice(0,60);
+    if(!dias.length){b.appendChild(pzPan("Por día",null,[pzVacio("Todavía no hay dos lecturas seguidas.")]));return;}
+    b.appendChild(pzPan("Lo gastado cada día en cada grifo","desde la lectura anterior"+(window.SOLO_CONSULTA?"":" · toca un día para corregirlo"),[cTabla(["Fecha"].concat(ns.length>1?["Nave"]:[]).concat(CONT.map(c=>c[1])),
+      [].concat(...dias.map(f=>ns.map(n=>{const fila=[fmtF(f)].concat(ns.length>1?[n]:[]).concat(CONT.map(([k])=>{const t=T.find(x=>x.f===f&&x.n===n&&x.k===k);return t?(t.dif<0?"−"+fmtL(Math.abs(t.dif)):fmtL(t.dif))+(t.raro?" ⚠":""):"";}));if(!window.SOLO_CONSULTA)fila.__ir=()=>formLect(n,f);return fila;}))).filter(fl=>fl.slice(ns.length>1?2:1).some(Boolean)),
+      CONT.map((_,i)=>i+(ns.length>1?2:1)))]));}
+  function pintaCot(){const b=B.cot;b.textContent="";b.appendChild(el("p",{class:"hint",style:"margin:0",text:"Aquí se comprueba que lo que marcan los contadores cuadra con los GRG que se cambian. Si un GRG trae 1000 l y los contadores solo marcan 700 l hasta el siguiente cambio, faltan 300 l: o se apuntó mal, o hay una fuga, o un contador no marca."}));b.appendChild(cotejoUI());}
+  function pintaComo(){const b=B.como;b.textContent="";const P=(t,x)=>pzPan(t,null,[el("div",{class:"pz-texto"},x.map(p=>el("p",{text:p})))]);
+    b.appendChild(P("Qué es cada contador",["En cada nave hay 4 grifos de aceite con su contador (Engrase 220, Térmico, Prensa e ISO 46) y un contador general de glicol. Cada contador es como el cuentakilómetros de un coche: no dice lo que se ha gastado hoy, dice el total de litros que han pasado desde que se puso. Por eso el número es grande y siempre sube.",
+      "Lo que se ha gastado es la resta: lectura de hoy − lectura anterior. Si ayer marcaba 39.073 y hoy 39.081, se han gastado 8 litros."]));
+    b.appendChild(P("Qué significa cada número",["«Gastado desde la anterior»: los litros entre una lectura y la siguiente. Si la anterior fue el viernes y la de hoy es el lunes, son los litros de todo el fin de semana.",
+      "«Días lab.»: los días laborables (lunes a viernes) entre las dos lecturas. Sirve para repartir: 24 l en 3 días son 8 l al día.",
+      "«Litros al día»: lo gastado ÷ los días laborables. Es el número que se compara para ver si algo es raro.",
+      "«Lo normal»: la mediana de los litros al día de las 20 lecturas anteriores de ese grifo (el valor del medio, para que un día raro no lo estropee).",
+      "«Este mes» y «el mes pasado»: la suma de lo gastado en las lecturas de ese mes."]));
+    b.appendChild(P("Cuándo sale «no cuadra» (⚠) y qué hacer",["«Marca menos que la anterior»: un contador no puede bajar. Casi siempre es una lectura mal apuntada (un número cambiado, o la lectura de otro grifo). Toca esa lectura y corrígela. Si de verdad se ha cambiado o reiniciado el contador, usa «Empezar de nuevo un contador» en Aceites › Más acciones de contadores.",
+      "«Mucho más de lo normal»: ese día se gastó más del doble de lo normal (y más de 20 l por encima). Mira primero si el número está bien apuntado o si es el de otro grifo. Si está bien, puede ser una fuga, un llenado de una máquina o una avería: pregunta en la nave qué pasó ese día.",
+      "Para sacar una información correcta: apunta las lecturas cada día laborable, a la misma hora más o menos, y revisa la pestaña «Por grifo» del que salga en rojo. Una lectura mal apuntada estropea dos días (el suyo y el siguiente), así que corrígela en cuanto la veas."]));
+    b.appendChild(P("Cómo se usa para pedir aceite",["Con el gasto al día de los contadores la app calcula cuánto dura lo que hay (lo de las baldas + lo que queda puesto en los GRG de la instalación) y cuándo hay que pedir, dejando 1 GRG de reserva y el plazo de entrega del proveedor. Eso sale en la tarjeta «Previsión y pedido de aceites» de la pantalla de Aceites.",
+      "El cotejo compara lo que traía cada GRG con lo que han marcado los contadores hasta el siguiente cambio. Si se desvía más del 10 %, algo no cuadra: un GRG mal apuntado, una fuga o un contador que no marca."]));}
+  function pintaTodo(){pintaRes();pintaGri();pintaDia();pintaCot();pintaComo();}
+  const T=[["Resumen",B.res],["Por grifo",B.gri],["Por día",B.dia],["Cotejo con los GRG",B.cot],["Cómo funciona",B.como]];
+  pintaTodo();
+  objPage({ruta:["Almacén","Piezas","Aceites"],titulo:"Contadores de aceite y glicol",sub:"Lo que marca cada grifo, cuánto se gasta y si algo no cuadra.",volver:"Aceites",tabs:T.map(([n,b])=>[n,[b]]),tab:tab0||0});
+  const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov){ov._repinta=pintaTodo;irTab=i=>{const bt=ov.querySelectorAll(".op-tabs button")[i];if(bt)bt.click();};}}
