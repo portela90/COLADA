@@ -105,7 +105,7 @@ function vRecuentoDiario(){
       const faltan=C.filter(o=>o.vacio).length;if(faltan)msg.push(["i","Falta contar "+faltan+" colada"+(faltan===1?"":"s")+". Si no ha cambiado, pulsa su número «Por FIFO»."]);
       C.forEach(o=>{if(o.gas<0){msg.push(["b",o.l.nombre+": has contado "+o.c+" y en la app quedaban "+o.s+". Si es así se apunta un ajuste de +"+(-o.gas)+" f; si ha subido algo del externo, apunta antes el traslado."]);avisos++;}});
       if(!faltan&&!C.some(o=>o.err)&&!rel.some(o=>o.err)){
-        if(tCnt!==tRel){avisos++;msg.push(["w","Las hojas dicen "+tRel+" fardos y el recuento dice que se han gastado "+tCnt+(tCnt>tRel?": en las hojas falta"+(tCnt-tRel===1?" 1 fardo":"n "+(tCnt-tRel)+" fardos"):": en las hojas sobra"+(tRel-tCnt===1?" 1 fardo":"n "+(tRel-tCnt)+" fardos"))+(d.M[k]==="pend"&&tCnt>tRel?". Se guarda lo contado y la diferencia queda como fardo pendiente de etiqueta, sin ajuste.":". Se guarda lo contado y la diferencia queda como ajuste.")]);}
+        if(tCnt!==tRel){avisos++;const yaT=rel.reduce((a,o)=>a+(o.p&&!o.err?Math.min(o.yaFa,o.p.fa):0),0);msg.push(["w","Las hojas dicen "+tRel+" fardos"+(yaT?" nuevos ("+(tRel+yaT)+" en total menos "+yaT+" que ya se apuntaron en el recuento anterior)":"")+" y el recuento dice que se han gastado "+tCnt+(tCnt>tRel?": en las hojas falta"+(tCnt-tRel===1?" 1 fardo":"n "+(tCnt-tRel)+" fardos"):": en las hojas sobra"+(tRel-tCnt===1?" 1 fardo":"n "+(tRel-tCnt)+" fardos"))+(d.M[k]==="pend"&&tCnt>tRel?". Se guarda lo contado y la diferencia queda como fardo pendiente de etiqueta, sin ajuste.":". Se guarda lo contado y la diferencia queda como ajuste.")]);}
         else if(tRel)msg.push(["ok","Cuadra: "+tRel+" fardo"+(tRel===1?"":"s")+" en las hojas y en el recuento."]);
         {const ce=rel.reduce((a,o)=>a+(o.cierra||[]).reduce((b,r)=>b+(r.fa||0),0),0);if(ce)msg.push(["ok","Etiqueta pegada: "+(ce===1?"el fardo pendiente se cierra":ce+" fardos pendientes se cierran")+" (ya contaba"+(ce===1?"":"n")+" como consumo, no se suma otra vez)."]);}
         const usadas=C.filter(o=>o.gas>0);const fuera=usadas.length>1||(usadas.some(o=>o.gas>(exp[o.l.id]||0))&&C.some(o=>(exp[o.l.id]||0)>0&&(o.gas||0)<exp[o.l.id]));
@@ -147,7 +147,7 @@ function vRecuentoDiario(){
   const cards=lineas.map(([n,m])=>{const k=key(n,m),lista=fifoLista(n,m,S);d.R[k]=d.R[k]||{};
     const pill=el("span",{style:"margin-left:auto"}),res=el("div",{style:"display:flex;flex-direction:column;gap:6px"});
     const rels=R.map((r,j)=>{const ya=yaDe(r,n,m),yaFa=ya.reduce((a,x)=>a+(x.fa||0),0),sub=relSub(r,j),info=el("span",{class:"rd-ya"});
-      vivos.push(C=>{const o=C.out[k].rel[j];info.textContent=o.por&&!o.err?"por colada: "+o.porFa+" f":o.p&&!o.err&&o.p.k.length?o.p.fa+" f · "+fmt(o.p.k.reduce((a,b)=>a+b,0))+" kg":o.p&&o.p.kgT?"≈ "+o.p.fa+" f":yaFa?"ya apuntados "+yaFa+" f":"";
+      vivos.push(C=>{const o=C.out[k].rel[j];info.textContent=o.por&&!o.err?"por colada: "+o.porFa+" f":o.p&&!o.err&&o.p.k.length?o.p.fa+" f · "+fmt(o.p.k.reduce((a,b)=>a+b,0))+" kg":o.p&&o.p.kgT?"≈ "+o.p.fa+" f":o.p&&!o.err&&yaFa?o.p.fa+" de la hoja − "+yaFa+" ya apuntados = "+o.nuevo+" nuevos":yaFa?"ya apuntados "+yaFa+" f":"";
         info.className="rd-ya"+(o.err?" mal":"");});
       const quien=quienTxt(r.f,n,r.u);
       return el("label",{class:"rd-rel"},[el("span",{class:"rd-rl"},[document.createTextNode(relLbl(r,j)),sub?el("small",{text:" ("+sub+")"}):null,quien?el("small",{class:"rd-quien",text:" · "+quien}):null]),
