@@ -1947,6 +1947,7 @@ test('Ejes: gasto y ahorro y el taller en pantallas grandes; se filtra tocando y
   const pg = page.locator('.op-ov').last();
   await expect(pg.locator('h2', { hasText: 'Gasto y ahorro en ejes' })).toBeVisible();
   await expect(pg.locator('.pz-cifra', { hasText: 'Ahorrado en planta' })).toBeVisible();
+  await expect(pg.locator('.pz-cifra', { hasText: 'Arreglados en planta' })).toContainText('%');
   const total = await pg.locator('#pzReps .ft').count(); expect(total).toBeGreaterThan(0);
   // tocar un modelo filtra la lista y sale para quitar el filtro y abrir su ficha
   const mod = (await pg.locator('.pz-hb .pz-chapa').first().innerText()).trim();
@@ -1978,6 +1979,12 @@ test('Ejes: gasto y ahorro y el taller en pantallas grandes; se filtra tocando y
   await expect(tl.locator('.pz-tabla .ft')).toHaveCount(n);
   await expect(tl.locator('.pz-tabla .ft .maqc').first()).toHaveText(/^F\d+/);
   await tl.locator('.op-back').click(); await page.waitForTimeout(300);
+  // «Más datos» sigue teniendo los costes y el ahorro (con el % arreglado en planta) y el análisis
+  await v.locator('.abre-pant', { hasText: 'Más datos' }).click(); await page.waitForTimeout(300);
+  const mdE = page.locator('.op-ov').last();
+  await expect(mdE.getByRole('tab', { name: 'Costes de reparación y ahorro' })).toBeVisible();
+  await expect(mdE).toContainText('Ahorro en planta'); await expect(mdE).toContainText('Arreglados en planta');
+  await mdE.locator('.op-back').click(); await page.waitForTimeout(300);
   // ficha del modelo: pantalla con sus ejes en tejas y sus reparaciones
   await v.locator('.pz-mod').first().click(); await page.waitForTimeout(400);
   const fm = page.locator('.op-ov').last();

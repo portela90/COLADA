@@ -50,6 +50,8 @@ function pantGasto(f0){const F=Object.assign({per:draft.icPer||"ano",mes:null,mo
     box.appendChild(pzCifras([
       [nomM?"Gastado en "+nomM.toLowerCase():"Gastado en el taller",eur(g),plu(lista.length,"reparación recibida","reparaciones recibidas"),"",()=>{const t=box.querySelector("#pzReps");if(t)t.scrollIntoView({behavior:"smooth",block:"start"});}],
       ["Ahorrado en planta",eur(recu.reduce((t,x)=>t+x.ah,0)),plu(recu.length,"eje recuperado","ejes recuperados")+" sin mandarlo al taller","ok"],
+      (()=>{const nE=D.env.filter(r=>r.env&&(!F.mes||r.env.slice(0,7)===F.mes)&&(!F.mod||modeloDeEje(r.eje)===F.mod)).length,t=recu.length+nE;
+        return["Arreglados en planta",t?fmtN(Math.round(recu.length/t*1000)/10)+" %":"—",t?recu.length+" de "+t+" ejes estropeados no fueron al taller":"sin datos en el periodo",t&&recu.length?"ok":""];})(),
       ["Pistones salvados",fmtN(sal.reduce((t,x)=>t+x.n,0)),"sacados de ejes agarrotados · "+eur(sal.reduce((t,x)=>t+x.eur,0)),"ok"],
       ["Perdidos en el taller",String(perd.length),"pistones que no vuelven · "+eur(perd.reduce((t,x)=>t+x.eur,0)),perd.length?"bad":""],
       ["En el taller ahora",plu(D.taller.length,"eje","ejes"),eur(D.costeTaller)+" cuando vuelvan","",()=>pantTaller()]]));
@@ -136,6 +138,8 @@ function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id||x.cod==
   const gm=pzGrupo(reps,r=>motivoRep(r.desp));const gasto=ano.reduce((t,r)=>t+costeRep(r).v,0);
   const iny=inyDe(m);const inyTxt=iny.length?iny.map(x=>{const q=cat.maquinas.find(z=>z.cod===x);return x+(q&&q.nave?" ("+q.nave.replace("Nave ","N")+")":"");}).join(", "):(m.iny||"—");
   const masLargo=ab.length?Math.max(...ab.map(r=>dias(r.env,hoy()))):0;
+  const okR=reps.filter(r=>r.res==="ok"&&r.rec&&r.env),dMed=okR.length?Math.round(okR.reduce((t,r)=>t+dias(r.env,r.rec),0)/okR.length):null;
+  const recuM=ejeRecup().filter(x=>(x.mods||[]).includes(m.cod)),recuA=recuM.filter(x=>(x.f||"").slice(0,4)===y);
   const repsDeEje=cod=>ano.filter(r=>r.eje===cod).length;
   /* sus ejes, en tejas */
   const tejas=el("div",{class:"pz-tejas"},es.map(e=>{const a=abiertaDe(e.cod);const[t]=EST_E[e.estado]||["—"];const fuera=e.estado!=="planta";
@@ -147,7 +151,7 @@ function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id||x.cod==
   docs.forEach(d=>docBox.appendChild(docThumb(d,async()=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).filter(z=>z.id!==d.id);await saveCat();toast("Archivo quitado");cerrarDlgs();fichaModelo(m);})));
   if(!docs.length)docBox.appendChild(el("p",{class:"hint",style:"margin:0",text:"Sin otros documentos (fotos, manuales…)."}));
   const up=subirDoc(async d=>{const x=(cat.modelos||[]).find(z=>z.id===m.id);x.docs=(x.docs||[]).concat([d]);await saveCat();toast("Documento guardado");cerrarDlgs();fichaModelo(m);},"Subir otro documento (PDF o imagen)");
-  objPage({tipo:"Modelo de eje",ruta:["Ejes","Modelos"],titulo:m.ref,sub:"Modelo "+m.cod+" · va en "+inyTxt+" · mínimo en planta: "+plu(min,"eje","ejes")+(precioMod(m.cod)?" · reparación "+eur(precioMod(m.cod)):""),
+  objPage({tipo:"Modelo de eje",ruta:["Ejes","Modelos"],titulo:m.ref,sub:"Modelo "+m.cod+" · va en "+inyTxt+" · mínimo en planta: "+plu(min,"eje","ejes")+(precioMod(m.cod)?" · reparación "+eur(precioMod(m.cod)):"")+(dMed!=null?" · en el taller tardan "+dMed+" días de media":"")+(recuM.length?" · arreglados en planta: "+recuM.length+(recuA.length?" ("+recuA.length+" en "+y+", "+eur(recuA.length*precioMod(m.cod))+" ahorrados)":""):""),
     estado:min?(dif<0?["Por debajo del mínimo","bad"]:dif===0?["Justo en el mínimo","warn"]:["Bien","ok"]):null,volver:"Ejes",
     kpis:[["En planta",pl+" de "+es.length,dif<0?"neg":""],["En el taller",ab.length+(ab.length?" · el que más, "+masLargo+" d":""),masLargo>60?"neg":""],["Gastado en "+y,eur(gasto)+" · "+ano.length+" rep."],["Lo que más le pasa",gm.length?gm[0][0]:"—"]],
     tabs:[["Ejes ("+es.length+")",[es.length?pzPan("Sus "+es.length+" ejes","Toca uno para ver su historia",[tejas]):pzVacio("Sin ejes de este modelo.")]],

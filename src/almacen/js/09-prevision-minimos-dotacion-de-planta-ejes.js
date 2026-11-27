@@ -203,7 +203,10 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
    v.appendChild(pzCifras([["En planta",pl+" de "+tot,"ejes listos o puestos en máquina"],
      ["En el taller",String(T.length),n60?plu(n60,"lleva","llevan")+" más de 60 días":"ninguno más de 60 días",n60?"warn":"",()=>pantTaller()],
      ["Por debajo del mínimo",String(bajoM.length),bajoM.length?bajoM.map(m=>m.cod).join(", "):"ningún modelo",bajoM.length?"bad":"ok",bajoM.length?()=>{const x=$("eMinCard");if(x)x.scrollIntoView({behavior:"smooth",block:"start"});}:null],
-     ["Reparados en "+y,String(rec.length),eur(gas),"",()=>pantGasto()]]));}
+     ["Reparados en "+y,String(rec.length),eur(gas),"",()=>pantGasto()]]));
+   /* debajo, cuántos hay en cada estado (lo que salía antes en la tarjeta de arriba) */
+   {const chips=[[c("preparado"),"preparados para enviar"],[c("revisar"),"llegados, por revisar"],[c("devuelto"),"devueltos NO-OK"],[ejePend().length,"en cuarentena"],[ejes.filter(e=>!e.marcado).length,"sin el código grabado"]].filter(x=>x[0]>0);
+    if(chips.length)v.appendChild(el("p",{class:"sub ej-estados",style:"margin:-6px 0 14px",text:chips.map(([n,t])=>n+" "+t).join(" · ")}));}}
   const prep=ejes.filter(e=>e.estado==="preparado"),fuera=ejes.filter(e=>e.estado==="reparacion"||e.estado==="devuelto"),rv=ejes.filter(e=>e.estado==="revisar");
   {const cr=cardRevisar();if(cr)v.appendChild(cr);}
   {const LP=listaPedir();if(LP.length)v.appendChild(el("section",{class:"card"},[el("div",{class:"hd"},[el("h2",{text:"Para pedir al taller ("+LP.length+")"})]),
@@ -258,7 +261,7 @@ function vEjes(v){const tot=ejes.length,c=k=>ejes.filter(e=>e.estado===k).length
     el("p",{class:"hint",style:"padding:8px 14px 0;margin:0",text:"Cuando le grabes el código a un eje, pulsa «Ya grabado»."}),
     el("div",{class:"lst"},sinM.map(e=>{const[t,c]=EST_E[e.estado]||["—","na"];return el("div",{class:"it",style:"cursor:default"},[el("div",{class:"ppal"},[el("div",{class:"t1",text:e.cod}),el("div",{class:"t2",text:ejeRef(e)+" · "+t})]),
       el("button",{type:"button",class:"btn sec peq",text:"Ya grabado",onclick:async ev=>{ev.target.disabled=true;try{await updEje(e,{marcado:true});toast(e.cod+": código grabado");}catch(er){ev.target.disabled=false;toast("No se pudo guardar");}}})]);}))]));
-  v.appendChild(masDatos("ej",[analisisEjes()],"Más datos: análisis de las reparaciones"));
+  v.appendChild(masDatos("ej",[informeCostes(),analisisEjes()],"Más datos: costes, ahorro y análisis de las reparaciones"));
   pintaBus();}
 function pintaBus(){const box=$("eRes");if(!box)return;box.textContent="";const q=(draft.eb||"").trim().toLowerCase();if(!q)return;
   const arr=ejes.filter(e=>(e.cod+" "+ejeRef(e)).toLowerCase().includes(q)).sort((a,b)=>a.cod.localeCompare(b.cod,"es",{numeric:true})).slice(0,30);
