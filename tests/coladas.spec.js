@@ -1249,3 +1249,26 @@ test('Parte del día en el móvil con el filtro «En nave»: se ven los fardos e
   expect(await desbordes(page)).toEqual([]);
   expect(err).toEqual([]);
 });
+
+test.describe('En el móvil (pantalla táctil)', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 500 } });
+  test('Recuento con el teclado abierto: se esconden la barra de abajo y «Volver a la ronda», y la casilla se ve', async ({ page }) => {
+    const err = await vigila(page);
+    await page.addInitScript(() => { try { sessionStorage.setItem('colada.ronda', '1'); } catch (e) {} });
+    await page.goto(url); await page.waitForTimeout(900);
+    await page.evaluate(() => [...document.querySelectorAll('nav button')].find(b => b.textContent === 'Consumo').click()); await page.waitForTimeout(300);
+    await page.locator('.stk-t', { hasText: 'Recuento diario' }).first().click(); await page.waitForTimeout(400);
+    await expect(page.locator('nav#tabs')).toBeVisible(); await expect(page.locator('.ronda-volver')).toBeVisible();
+    const casilla = page.locator('[id="rdc-l3"]');
+    await casilla.focus(); await page.waitForTimeout(700);
+    await expect(page.locator('nav#tabs')).toBeHidden(); await expect(page.locator('.ronda-volver')).toBeHidden();
+    expect(await page.locator('.rd-bar').evaluate(n => getComputedStyle(n).position)).toBe('static');
+    // la casilla queda a la vista y nada la tapa
+    const tapa = await casilla.evaluate(n => { const r = n.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return r.top >= 0 && r.bottom <= innerHeight && (e === n || n.contains(e)); });
+    expect(tapa).toBe(true);
+    // al salir de la casilla vuelve todo
+    await casilla.blur(); await page.waitForTimeout(500);
+    await expect(page.locator('nav#tabs')).toBeVisible(); await expect(page.locator('.ronda-volver')).toBeVisible();
+    expect(err).toEqual([]);
+  });
+});

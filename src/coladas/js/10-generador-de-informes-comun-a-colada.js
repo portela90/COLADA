@@ -223,9 +223,10 @@ const ICO_T={stock:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12
 try{const t=localStorage.getItem("colada.tab");if(t&&TABS.some(x=>x[0]===t))tab=t;}catch(e){}
 try{const P=new URLSearchParams(location.search),q=P.get("t");if(P.get("ronda"))sessionStorage.setItem("colada.ronda","1");if(q&&TABS.some(x=>x[0]===q)){tab=q;history.replaceState(null,"",location.pathname);}}catch(e){}
 /* venir desde la ronda de consumos del Almacén (25/11/2026): botón para volver a ella */
-try{if(sessionStorage.getItem("colada.ronda")){const b=document.createElement("a");b.href="almacen.html?t=ronda";b.className="btn ronda-volver";b.textContent="‹ Volver a la ronda";
-  b.style.cssText="position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.25);text-decoration:none";
-  b.onclick=()=>{try{sessionStorage.removeItem("colada.ronda");}catch(e){}};document.body.appendChild(b);}}catch(e){}
+try{if(sessionStorage.getItem("colada.ronda")){const b=document.createElement("a");b.href="almacen.html?t=ronda";b.className="ronda-volver";b.textContent="‹ Volver a la ronda";
+  /* una línea fina debajo de la cabecera, sin tapar nada (antes flotaba abajo, encima de las casillas: 27/11/2026) */
+  b.style.cssText="display:block;padding:8px 16px;font-size:15px;font-weight:600;color:var(--acc);background:var(--surf2);border-bottom:1px solid var(--line);text-decoration:none";
+  b.onclick=()=>{try{sessionStorage.removeItem("colada.ronda");}catch(e){}};const hd=document.querySelector("#app>header");if(hd)hd.after(b);else document.body.prepend(b);}}catch(e){}
 tabsUI();render();
 window.addEventListener("colada-refresh",()=>render());
 window.descCambio=(col,it)=>{if(col==="mov"){const T={C:"Consumo",E:"Entrada",A:"Ajuste",G:"Granalla de cobre",T:"Traslado"};const l=lotes.find(x=>x.id===it.o);
