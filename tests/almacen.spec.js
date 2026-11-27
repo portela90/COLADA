@@ -2006,6 +2006,29 @@ test('Ejes: gasto y ahorro y el taller en pantallas grandes; se filtra tocando y
   expect(err).toEqual([]);
 });
 
+test('Ejes › Análisis: un albarán del taller se toca y salen sus ejes; un mes, lo mandado y lo recibido', async ({ page }) => {
+  const err = await vigila(page);
+  await page.addInitScript(() => { let d; Object.defineProperty(window, '__D', { configurable: true, get: () => d, set: v => { d = v;
+    const it = Object.values(v.rep).flatMap(x => x.items).filter(r => r.res === 'ok' && r.rec).slice(0, 2); it.forEach(r => { r.alb = 'T-777'; }); if (it[1]) { it[1].nook = true; it[1].dev = it[1].rec; it[1].obs = 'sigue perdiendo agua'; } } }); });
+  await page.setViewportSize({ width: 1366, height: 860 });
+  await page.goto(url + '#ejes'); await page.waitForTimeout(1300);
+  await page.locator('#view .abre-pant', { hasText: 'Más datos' }).click(); await page.waitForTimeout(300);
+  const md = page.locator('.op-ov').last();
+  await md.getByRole('tab', { name: 'Análisis de reparaciones' }).click(); await page.waitForTimeout(200);
+  await md.locator('tr.fila-link', { hasText: 'T-777' }).click(); await page.waitForTimeout(300);
+  const pa = page.locator('.op-ov').last();
+  await expect(pa.locator('.op-tit h2')).toHaveText('Albarán T-777');
+  await expect(pa.locator('.pz-tabla .ft')).toHaveCount(2);
+  await expect(pa).toContainText('sigue perdiendo agua');
+  await pa.locator('.pz-tabla button.ft').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-ov').last().getByRole('tab', { name: 'Su historia' })).toBeVisible();
+  await page.goBack(); await page.waitForTimeout(200); await page.goBack(); await page.waitForTimeout(200);
+  // un mes del cuadro de envíos
+  await md.locator('tr.fila-link[title^="Ver las reparaciones de"]').first().click(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-ov').last().locator('.op-tit h2')).toContainText('Reparaciones de');
+  expect(err).toEqual([]);
+});
+
 test('Ejes: al preparar uno para el taller se apunta de qué máquina sale', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url + '#ejes'); await page.waitForTimeout(1300);

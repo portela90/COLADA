@@ -161,3 +161,29 @@ function fichaModelo(m0){const m=(cat.modelos||[]).find(x=>x.id===m0.id||x.cod==
         pzPan("Datos del modelo",null,[el("dl",{class:"pz-datos"},[].concat(dato("Código",m.cod),dato("Referencia",m.ref),dato("Longitud",m.long),dato("Rosca",m.rosca),dato("Ø pistón",m.diamP),dato("Nº plano / rev.",m.plano),dato("Inyectoras",inyTxt),dato("Mínimo en planta",min||null),dato("Precio de reparación",precioMod(m.cod)?eur(precioMod(m.cod)):null),dato("Notas",m.notas)))]),
         pzPan("Otros documentos",null,[docBox,up?el("div",{style:"padding:0 16px 14px"},up):null])]]],
     acts:[{t:"Editar datos",cls:"sec",fn:()=>{setTimeout(()=>formSimple("modelos",m),0);}},{t:"Nuevo eje",cls:"sec",fn:()=>{setTimeout(()=>formEje(null,m.cod),0);}}]});}
+
+/* ---------- Un albarán del taller: los ejes que venían en él (27/11/2026) ----------
+   Desde «Plazo y calidad por albarán» se toca un albarán y se ve cada eje: cuándo se mandó, cuándo volvió,
+   cuántos días estuvo fuera, si volvió bien o NO-OK y lo que costó. Tocando un eje se va a su historia. */
+function pantAlbaranEjes(alb){const box=el("div",{class:"pz"});
+  function pinta(){box.textContent="";const R=todasRep().filter(r=>r.alb===alb&&r.res!=="anulada").sort((a,b)=>(a.eje||"").localeCompare(b.eje||"","es",{numeric:true}));
+    const ok=R.filter(r=>r.res==="ok"),nk=R.filter(r=>r.nook),dd=R.filter(r=>r.env&&(r.rec||r.lleg)),dm=dd.length?Math.round(dd.reduce((t,r)=>t+dias(r.env,r.rec||r.lleg),0)/dd.length*10)/10:null;
+    const coste=ok.reduce((t,r)=>t+costeRep(r).v,0),imp=R.filter(r=>+r.imp>0).length;
+    const lleg=R.map(r=>r.lleg||r.rec).filter(Boolean).sort()[0];
+    box.appendChild(pzCifras([["Ejes en el albarán",String(R.length),lleg?"llegaron el "+fmtF(lleg):"",""],["Días fuera de media",dm!=null?fmtN(dm):"—","desde que se mandaron hasta que volvieron",dm!=null&&dm>60?"warn":""],
+      ["Volvieron NO-OK",String(nk.length),nk.length?"hubo que devolverlos al taller":"todos bien a la primera",nk.length?"bad":"ok"],
+      ["Coste",eur(coste),imp?(imp===R.length?"importe del albarán":"en parte con el precio del modelo"):"con el precio de cada modelo",""]]));
+    if(!R.length){box.appendChild(pzPan("Ejes",null,[pzVacio("No hay ningún eje con este albarán.")]));return;}
+    box.appendChild(pzPan("Los ejes de este albarán","toca uno para ver su historia",[pzTablaReps(R)]));
+    if(nk.length)box.appendChild(pzPan("Los que volvieron NO-OK",null,nk.map(r=>el("button",{type:"button",class:"pz-ln pz-ln3",onclick:()=>abreEje(r.eje)},[el("span",{class:"pz-ln-tx"},[el("b",{text:r.eje+" · "+ejeRef({mod:modeloDeEje(r.eje)})}),el("span",{class:"sub",text:"Devuelto el "+fmtF(r.dev)+(r.obs?" · "+r.obs:"")})]),pzPill("NO-OK","bad"),el("span",{})]))));}
+  pinta();objPage({ruta:["Ejes","Análisis","Albaranes del taller"],titulo:"Albarán "+alb,sub:"Lo que vino del taller en este albarán.",volver:"Análisis",tabs:[["Ejes",[box]]]});
+  const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov)ov._repinta=pinta;}
+/* ---------- Un mes: lo que se mandó al taller y lo que volvió ---------- */
+function pantRepsMes(m){const box=el("div",{class:"pz"});const nom=cap(fmtMes(m));
+  function pinta(){box.textContent="";const A=todasRep().filter(r=>r.res!=="anulada");const env=A.filter(r=>(r.env||"").slice(0,7)===m).sort((a,b)=>a.env.localeCompare(b.env)),rec=A.filter(r=>r.res==="ok"&&(r.rec||"").slice(0,7)===m).sort((a,b)=>a.rec.localeCompare(b.rec));
+    box.appendChild(pzCifras([["Mandados al taller",String(env.length),"en "+nom.toLowerCase(),""],["Volvieron bien",String(rec.length),eur(rec.reduce((t,r)=>t+costeRep(r).v,0)),""],
+      ["Arreglados en planta",String(ejeRecup().filter(x=>(x.f||"").slice(0,7)===m).length),"sin mandarlos al taller","ok"]]));
+    box.appendChild(pzPan("Mandados al taller en "+nom.toLowerCase(),plu(env.length,"eje","ejes"),env.length?[pzTablaReps(env)]:[pzVacio("Ninguno.")]));
+    box.appendChild(pzPan("Volvieron bien en "+nom.toLowerCase(),plu(rec.length,"eje","ejes"),rec.length?[pzTablaReps(rec)]:[pzVacio("Ninguno.")]));}
+  pinta();objPage({ruta:["Ejes","Análisis"],titulo:"Reparaciones de "+nom.toLowerCase(),sub:"Toca un eje para ver su historia.",volver:"Análisis",tabs:[["Mes",[box]]]});
+  const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov)ov._repinta=pinta;}
