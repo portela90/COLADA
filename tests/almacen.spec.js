@@ -2029,6 +2029,24 @@ test('Ejes › Análisis: un albarán del taller se toca y salen sus ejes; un me
   expect(err).toEqual([]);
 });
 
+test('Lo que se nombra se puede tocar: en las tablas, un artículo o una máquina llevan a su ficha', async ({ page }) => {
+  const err = await vigila(page);
+  await page.setViewportSize({ width: 1366, height: 860 });
+  await page.goto(url + '#mov'); await page.waitForTimeout(1500);
+  const enl = page.locator('#view td .enl').first(); await expect(enl).toBeVisible();
+  const nom = (await enl.innerText()).trim();
+  await enl.click(); await page.waitForTimeout(400);
+  await expect(page.locator('.op-ov').last().locator('.op-tit h2')).toContainText(nom.split(' · ')[0].length > 3 ? nom.split(' · ')[0] : nom);
+  await page.goBack(); await page.waitForTimeout(300);
+  // en «Más datos» de Pistones, la máquina de «Por inyectora» abre su ficha
+  await page.goto(url + '#pist'); await page.waitForTimeout(1500);
+  await page.locator('#view .abre-pant', { hasText: 'Más datos' }).click(); await page.waitForTimeout(400);
+  const m = page.locator('.op-ov').last().locator('td .enl', { hasText: /^F\d+$/ }).first(); const cod = (await m.innerText()).trim();
+  await m.click(); await page.waitForTimeout(400);
+  await expect(page.locator('.op-ov').last().locator('.op-tit h2')).toHaveText(cod);
+  expect(err).toEqual([]);
+});
+
 test('Ejes: al preparar uno para el taller se apunta de qué máquina sale', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url + '#ejes'); await page.waitForTimeout(1300);
