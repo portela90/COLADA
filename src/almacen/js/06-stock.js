@@ -113,7 +113,7 @@ function dondeTxt(m){return m.tipo==="traslado"?almN(m.alm)+" → "+almN(m.dest)
 /* OP_VOLVER: si una página se abre desde otra (p. ej. el eje desde la F28), su botón dice «‹ F28» */
 let OP_VOLVER=null;
 function objPage(o){if(o.notas&&typeof cajaNotas==="function"){o.tabs=(o.tabs||[]).concat([["Notas y archivos",[cajaNotas(o.notas,o.titulo)]]]);if(ABRIR_NOTAS){ABRIR_NOTAS=false;o.tab=o.tabs.filter(t=>t&&t[1]&&t[1].filter(Boolean).length).length-1;}}if(o.cambios&&typeof cajaCambiosFicha==="function")o.tabs=(o.tabs||[]).concat([["Cambios",[cajaCambiosFicha(o.cambios)]]]);const ov=el("div",{class:"dlg-ov op-ov"});let pg;const volver=o.volver||OP_VOLVER;
-  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);pilaCierra(ov);};const esc=e=>{if(e.key==="Escape"&&document.querySelectorAll(".dlg-ov").length&&document.querySelectorAll(".dlg-ov")[document.querySelectorAll(".dlg-ov").length-1]===ov)close();};
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);pilaCierra(ov);if(o.alCerrar)setTimeout(o.alCerrar,0);};const esc=e=>{if(e.key==="Escape"&&document.querySelectorAll(".dlg-ov").length&&document.querySelectorAll(".dlg-ov")[document.querySelectorAll(".dlg-ov").length-1]===ov)close();};
   const tabs=(o.tabs||[]).filter(t=>t&&t[1]&&t[1].filter(Boolean).length);let cur=Math.min(o.tab||0,Math.max(0,tabs.length-1));
   const body=el("div",{class:"op-body"});const tb=el("div",{class:"op-tabs",role:"tablist"});
   const pinta=()=>{tb.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-selected",String(i===cur)));body.textContent="";(tabs[cur]?tabs[cur][1]:[]).forEach(n=>{if(n)body.appendChild(n);});};

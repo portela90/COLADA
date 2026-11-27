@@ -57,7 +57,7 @@ test('Consultas › consulta a mano dibuja los gráficos y al tocar una barra se
   await page.evaluate(() => [...document.querySelectorAll('#tabs button')].find(b => b.textContent.includes('Más')).click());
   await page.waitForTimeout(250);
   await pulsa(page, 'Consultas'); await page.waitForTimeout(300);
-  await page.locator('.qmano > summary').click(); await page.waitForTimeout(200);
+  await page.locator('#view .qmano').click(); await page.waitForTimeout(300);
   await pulsa(page, 'Todo el gasto'); await pulsa(page, '12 meses'); await page.waitForTimeout(1500);
   await expect(page.getByText('Gráficos')).toBeVisible();
   expect(await page.locator('.card svg').count()).toBeGreaterThanOrEqual(1);
@@ -997,8 +997,12 @@ test('Pistones: entradas de nuevos y recuperados con su precio, en «Compras de 
   await page.locator('.tile .tt', { hasText: /^Pistones$/ }).click(); await page.waitForTimeout(400);
   const segs = await page.locator('#view .seg button').allTextContents();
   for (const t of segs) { if (await page.locator('#view').getByText('Compras de pistones').count()) break; await page.locator('#view .seg button', { hasText: t }).first().click(); await page.waitForTimeout(300); }
-  await expect(page.locator('#view')).toContainText('Compras de pistones');
-  await expect(page.locator('#view')).toContainText('Ahorro por recuperar');
+  // «Más datos» se abre en su pantalla, con una pestaña por apartado
+  await page.locator('#view .abre-pant', { hasText: 'Más datos' }).click(); await page.waitForTimeout(300);
+  const md = page.locator('.op-ov').last();
+  await md.getByRole('tab', { name: 'Compras de pistones' }).click();
+  await expect(md).toContainText('Compras de pistones');
+  await expect(md).toContainText('Ahorro por recuperar');
   expect(err).toEqual([]);
 });
 
@@ -2190,7 +2194,9 @@ test('Pistones usados: la zona se lleva por nave y se retira solo la de una nave
   const ev = await page.evaluate(() => window.__D.cat.app.pusados.ev);
   const ret = ev.find(e => e.t === 'clasif' && e.nave); expect(ret.nave).toBe('N2'); expect(ret.esp).toEqual({ 'Ø 70': 1 });
   await expect(card).toContainText('Nave 1: Ø 80: 2 · Total 2'); await expect(card).toContainText('Nave 2: nada (vacía)');
-  await expect(card).toContainText('Retirada de la zona de la Nave 2');
+  await card.locator('.abre-pant', { hasText: 'Movimientos de usados' }).click(); await page.waitForTimeout(300);
+  await expect(page.locator('.op-ov').last()).toContainText('Retirada de la zona de la Nave 2');
+  await page.locator('.op-ov').last().locator('.op-back').click(); await page.waitForTimeout(300);
   const t = (await card.innerText()).replace(/\s+/g, ' '); expect(t).not.toMatch(/undefined|NaN/);
   expect(err).toEqual([]);
 });
@@ -2306,13 +2312,13 @@ test('Qué hacer hoy: un aviso informativo se puede ocultar y volver a ver', asy
 test('Hoy: presupuesto de gasto del mes (poner, cómo vas, previsión y aviso)', async ({ page }) => {
   const err = await vigila(page);
   await page.goto(url); await page.waitForTimeout(1200); await page.evaluate(() => { const b = document.querySelector('.hoy-mas'); if (b) b.click(); });
-  const abre = async () => { await page.evaluate(() => { const d = document.querySelector('.hoy-masdatos'); if (d) d.open = true; }); await page.waitForTimeout(300); };
+  const abre = async () => { if (!(await page.locator('.op-ov').count())) { await page.locator('#view .hoy-masdatos').click(); await page.waitForTimeout(300); } const t = page.locator('.op-ov').last().getByRole('tab', { name: /Presupuesto/ }); if (await t.count()) { await t.click(); await page.waitForTimeout(200); } };
   await abre();
   await expect(page.locator('#presu')).toHaveCount(1);
   const c = page.locator('#presu');
   await expect(c).toContainText('Pon cuánto quieres gastar');
   await c.locator('button', { hasText: 'Poner presupuesto' }).click(); await page.waitForTimeout(300);
-  const d = page.locator('.dlg');
+  const d = page.locator('.dlg', { hasText: 'Presupuesto de gasto al mes' }).last();
   await expect(d).toContainText('Presupuesto de gasto al mes');
   const n = await d.locator('input').count(); expect(n).toBeGreaterThan(0);
   const fam = (await d.locator('.pre-ed b').first().innerText()).trim();

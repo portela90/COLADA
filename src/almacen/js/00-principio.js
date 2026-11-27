@@ -224,7 +224,37 @@ function fotoUrl(id){return window.fotoUrlWeb?window.fotoUrlWeb(id):"/_blob/"+id
 
 /* ---------- render ---------- */
 let _pintando=false,_otraVez=false;
+/* ===== Cada apartado se abre en su pantalla (27/11/2026) =====
+   Los apartados que antes se desplegaban dentro de la página (las «etiquetas» con ▸ que ocupaban media pantalla)
+   pasan a ser una fila con su título y «›»: al tocarla se abre ese apartado en una pantalla entera, con «‹» para volver.
+   Se hace aquí, después de pintar, para que valga para todas las pantallas sin tocar cada una. No se tocan los filtros
+   (se despliegan en el sitio a propósito) ni lo que va dentro de formularios o ventanas. */
+/* partes de un apartado plegado: título, subtítulo y lo de dentro (si hay varias tarjetas, una pestaña por tarjeta) */
+function partesDet(d){const sm=d.querySelector(":scope>summary");if(!sm)return null;
+  const h=sm.querySelector("h2,h3,b"),tit=((h||sm).textContent||"").replace(/\s+/g," ").trim();if(!tit)return null;
+  const so=sm.querySelector(".der,.sub");const sub=so&&so!==h?(so.textContent||"").trim():"";
+  const kids=[...d.childNodes].filter(n=>n!==sm),cont=kids.filter(n=>n.nodeType===1);
+  const grupo=cont.length===1&&cont[0].children.length>1&&[...cont[0].children].every(c=>c.matches("section,.card,details"))?[...cont[0].children]:null;
+  const nomDe=c=>{const x=c.querySelector("h2,h3,summary");return x?(x.textContent||"").replace(/\s*\(\d+\)\s*$/,"").replace(/\s+/g," ").trim().slice(0,40):"";};
+  return{tit,sub,partes:grupo?grupo.map((c,i)=>[nomDe(c)||("Parte "+(i+1)),[c]]):[["Todo",kids]]};}
+function convDetalles(){const v=$("view");if(!v)return;
+  v.querySelectorAll("details").forEach(d=>{if(!d.isConnected||d.matches(".filtro-pl,.ejs,.pz-nota,.cgrp")||d.closest("form,.filtro-pl,.ejs,.dlg,.op-ov,.dlg-ov"))return;
+    const P=partesDet(d);if(!P)return;const {tit,sub}=P,clave=tab+"|"+tit;
+    /* si su pantalla ya está abierta (y se ha vuelto a pintar por un cambio), se pone lo nuevo dentro */
+    const ab=[...document.querySelectorAll(".op-ov")].find(o=>o._conv===clave);
+    const abreDet=x=>x.querySelectorAll("details").forEach(z=>{if(!z.matches(".filtro-pl"))z.open=true;});
+    if(ab&&ab._boxes&&ab._boxes.length===P.partes.length)P.partes.forEach(([,ns],i)=>{const bx=ab._boxes[i];bx.textContent="";ns.forEach(n=>bx.appendChild(n));abreDet(bx);});
+    const b=el("button",{type:"button",class:"abre-pant"+(d.classList.contains("card")||d.classList.contains("mas-datos")||d.classList.contains("hoy-masdatos")?" card":""),"aria-haspopup":"dialog",
+      onclick:()=>{const boxes=P.partes.map(([,ns])=>{const bx=el("div",{class:"abre-cont"});ns.forEach(n=>bx.appendChild(n));abreDet(bx);return bx;});
+        const md=/^más datos\s*:\s*/i.test(tit);
+        objPage({titulo:md?"Más datos de "+nomTab(tab).toLowerCase():tit,sub:md?cap(tit.replace(/^más datos\s*:\s*/i,"")):sub&&sub!==tit?sub:null,ruta:["Almacén",nomTab(tab)],volver:nomTab(tab),
+          tabs:P.partes.map(([n],i)=>[n,[boxes[i]]]),alCerrar:()=>render(true)});
+        const ov=[...document.querySelectorAll(".op-ov")].pop();if(ov){ov._conv=clave;ov._boxes=boxes;}}},
+      [el("span",{class:"abre-tx"},[el("b",{text:tit}),sub&&sub!==tit?el("span",{class:"sub",text:sub}):null]),el("span",{class:"abre-fl","aria-hidden":"true",text:"›"})]);
+    if(d.id)b.id=d.id;[...d.classList].filter(c=>!["card","plg"].includes(c)).forEach(c=>b.classList.add(c));
+    d.replaceWith(b);});}
 function render(force){if(_pintando){_otraVez=true;return;}_pintando=true;try{render0(force);}finally{_pintando=false;}if(_otraVez){_otraVez=false;render(true);return;}
+  convDetalles();
   /* las pantallas abiertas encima (gasto, taller…) se vuelven a pintar con los datos nuevos */
   document.querySelectorAll(".op-ov").forEach(o=>{if(o._repinta)try{o._repinta();}catch(e){}});}
 /* color y frase de cada pantalla (cabecera) */
