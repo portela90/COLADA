@@ -28,7 +28,9 @@ test('jefe: registro de jornada en Equipo (con correcciones marcadas) y coste de
   const { err, llamadas } = await abre(page, ADMIN);
   await page.evaluate(() => [...document.querySelectorAll('#nav button')].find(b => b.textContent.includes('Equipo')).click()); await page.waitForTimeout(1200);
   const j = page.locator('.card', { hasText: 'Registro de jornada' }); await expect(j).toContainText('Abdoul kader Maiga'); await expect(j).toContainText('Apagar fichaje');
-  await j.locator('summary').first().click(); await expect(j).toContainText('14:10*'); await expect(j).toContainText('1 anulado');
+  // lo que se desplegaba ahora se abre en su pantalla
+  await j.locator('.abre-pant').first().click(); const jp = page.locator('.nv-ov').last(); await expect(jp).toContainText('14:10*'); await expect(jp).toContainText('1 anulado');
+  await jp.locator('.op-back').click(); await page.waitForTimeout(300);
   await page.evaluate(() => [...document.querySelectorAll('#nav button')].find(b => b.textContent.includes('Resumen')).click()); await page.waitForTimeout(1500);
   const k = page.locator('.card', { hasText: 'Coste de cada trabajo' }); await expect(k).toContainText('Inyectora F25'); await expect(k).toContainText('222,5 €'); await expect(k).toContainText('18 €/hora'); await expect(k).toContainText('Productos de limpieza'); await expect(k).toContainText('4 con gasto propio');
   await k.locator('button', { hasText: 'Gasto de cada trabajo' }).click(); await page.waitForTimeout(400);

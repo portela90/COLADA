@@ -83,11 +83,12 @@ test('Investigar: huecos cortos cuentan como desplazamiento y los tiempos que no
   await expect(ah).toContainText('20 min');     // desplazamiento y preparación
   const ab = page.locator('#invSat tr', { hasText: 'Abdoul kader Maiga' });
   await expect(ab).toContainText('16 h'); // apuntado
-  await page.locator('#invRaros summary').click();
-  const raros = page.locator('#invRaros');
+  await page.locator('#invRaros').click();
+  const raros = page.locator('.nv-ov').last();
   await expect(raros.locator('tr', { hasText: 'Fregar comedor' })).toContainText('más de 8 h abierto: se cuenta lo previsto');
   await expect(raros.locator('tr', { hasText: 'Abdoul kader Maiga' })).toContainText('del Excel del fin de semana');
   await expect(raros.locator('tr', { hasText: 'Josefa Ruiz' })).toContainText('día sin horas de jornada');
+  await raros.locator('.op-back').click(); await page.waitForTimeout(300);
   // Abdoul: el viernes cuenta su jornada (8 h), no 16 h
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Excel', exact: true }).click()]);
   const wb = XLSX.read(fs.readFileSync(await dl.path()));
@@ -423,13 +424,14 @@ test('«En qué se va el tiempo» y las filas de «Pregúntale»: al pulsar se v
     ot('2026-10-13', 'Limpieza pasillo Nave 1', 'Nave 1', 'Josefa Ruiz', 40, { origen: 'fija' })];
   R.horas_rango = []; R.sust_rango = [];
   const { err } = await abre(page, ADMIN, '?ir=investigar');
-  await page.locator('#invTrab summary').click();
-  await page.locator('#invTrab tr', { hasText: 'Derrame de aceite' }).click();
+  await page.locator('#invTrab').click();
+  await page.locator('.nv-ov').last().locator('tr', { hasText: 'Derrame de aceite' }).click();
   const d = page.locator('.dlg');
   await expect(d.locator('h3')).toHaveText('Derrame de aceite');
   await expect(d).toContainText('2 veces este mes: 1 h 20 min en total, 40 min de media');
   await expect(d).toContainText('F5'); await expect(d).toContainText('Josefa Ruiz'); await expect(d).toContainText('F19');
   await d.getByRole('button', { name: 'Cerrar' }).click();
+  await page.locator('.nv-ov').last().locator('.op-back').click(); await page.waitForTimeout(300);
   await page.fill('#invQ', '¿dónde hay más derrames?'); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400);
   await expect(page.locator('#invResp')).toContainText('Pulsa una fila para ver sus trabajos');
   await page.locator('#invResp tbody tr', { hasText: 'F5' }).first().click();
@@ -469,12 +471,13 @@ test('Carga de cada trabajador: ficha, trabajos que se pueden pasar (botón «Pa
     await expect(d).toContainText('Trabajos que podría hacer otro'); await expect(d).toContainText('Lo que ha hecho en el periodo');
     await d.getByRole('button', { name: 'Cerrar' }).click();
     // tiempos
-    const ti = page.locator('#invTiempos'); await ti.locator('summary').click();
+    await page.locator('#invTiempos').click(); const ti = page.locator('.nv-ov').last();
     await expect(ti.locator('tr', { hasText: 'Vaciar contenedor' }).first()).toContainText('32 min');
     await ti.locator('tr', { hasText: 'Vaciar contenedor' }).first().getByRole('button', { name: 'Aplicar' }).click();
     await expect.poll(() => llamadas.filter(([f]) => f === 'habitual_guardar').map(([, b]) => b.p.id + ':' + b.p.minutos_est)).toContain('h1:32');
     await expect(ti).toContainText('Trabajos sin tiempo fiable'); await expect(ti.locator('tr', { hasText: 'Recoger sacas' })).toContainText('0 (0 %)');
     await expect(ti.locator('tr', { hasText: 'Josefa Ruiz' })).toContainText('40 min');
+    await ti.locator('.op-back').click(); await page.waitForTimeout(300);
     // Pregúntale
     await page.fill('#invQ', '¿qué trabajos se pueden pasar a otro?'); await page.locator('#invPreg').getByRole('button', { name: 'Preguntar' }).click(); await page.waitForTimeout(400);
     await expect(page.locator('#invResp')).toContainText('1 persona pasa del 85 %: Ahmed El Hait (100 %)');

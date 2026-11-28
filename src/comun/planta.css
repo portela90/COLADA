@@ -112,9 +112,16 @@ table td,table th{border-color:var(--line2)!important}
 @media (min-width:800px) and (min-height:560px){
   #app{grid-template-columns:var(--side-w) minmax(0,1fr)!important}
   #app>nav#tabs{background:var(--nav-bg)!important;padding:0 12px 24px!important}
-  #app>nav#tabs::before{content:"Almacén"!important;font-size:20px!important;font-weight:700!important;letter-spacing:0!important;border-bottom:0!important;min-height:64px!important;padding:6px 12px 0!important}
-  /* los botones de la barra del móvil no salen: sale el menú completo */
-  #app>nav#tabs>button{display:none!important}
+  #app>nav#tabs::before{font-size:20px!important;font-weight:700!important;letter-spacing:0!important;text-transform:none!important;border-bottom:0!important;min-height:64px!important;padding:6px 12px 0!important;color:#fff!important}
+  #app>nav#tabs:has(.menu-pc)::before{content:"Almacén"!important}
+  /* Almacén: los botones de la barra del móvil no salen, sale el menú completo por grupos */
+  #app>nav#tabs:has(.menu-pc)>button{display:none!important}
+  /* las demás apps: sus mismos botones, con el estilo del menú grafito */
+  #app>nav#tabs:not(:has(.menu-pc))>button{display:flex!important;align-items:center;gap:12px;min-height:40px!important;padding:8px 12px!important;border-radius:8px!important;
+    background:none!important;color:var(--nav-ink)!important;font-size:16px!important;font-weight:500!important;box-shadow:none!important;border:0!important;width:100%;text-align:left;text-transform:none!important;letter-spacing:0!important}
+  #app>nav#tabs:not(:has(.menu-pc))>button:hover{background:var(--nav-hov)!important;color:#fff!important}
+  #app>nav#tabs:not(:has(.menu-pc))>button[aria-selected="true"]{background:var(--nav-hov)!important;color:#fff!important;font-weight:600!important}
+  #app>nav#tabs:not(:has(.menu-pc))>button svg{width:19px!important;height:19px!important;flex:none}
   #app>nav#tabs .menu-pc{display:flex;flex-direction:column;gap:2px}
   #app>nav#tabs .menu-g{display:flex;flex-direction:column;gap:2px}
   #app>nav#tabs .menu-gt{padding:16px 12px 6px;font-size:14px;color:var(--nav-mut)}
@@ -337,3 +344,19 @@ th{font-size:13px!important;color:var(--ink2)!important}
 .enl{all:unset;cursor:pointer;color:var(--acc);font-weight:600;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--acc) 35%,transparent);text-underline-offset:3px}
 .enl:hover{text-decoration-color:var(--acc)}
 .enl:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:3px}
+
+/* ---------- pantallas de las demás apps (navegar.js): igual que las fichas de Almacén ---------- */
+.nv-ov{position:fixed;inset:0;z-index:960;background:var(--bg);display:flex;flex-direction:column}
+.nv-ov .op-pg{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.nv-ov .op-bar{display:flex;align-items:center;gap:10px;min-height:48px;padding:calc(4px + env(safe-area-inset-top,0px)) 12px 4px;z-index:2}
+.nv-ov .op-back{appearance:none;border:0;background:none;font-size:17px;font-family:inherit;padding:8px 4px;cursor:pointer}
+.nv-ov .op-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.nv-ov .op-hd{display:grid}
+.nv-ov .op-tit{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.nv-ov .op-tit h2{margin:0;line-height:1.15}
+.nv-ov .op-tabs{position:sticky;top:0;z-index:1;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.nv-ov .op-tabs button{appearance:none;flex:none;border:0;background:none;font:inherit;padding:12px 8px;cursor:pointer;white-space:nowrap}
+.nv-ov .op-body{display:flex;flex-direction:column;gap:14px;width:100%;box-sizing:border-box}
+/* en el ordenador, las pantallas y las fichas se abren al lado del menú, no tapándolo */
+@media (min-width:800px) and (min-height:560px){
+  body:has(#app>nav#tabs) .nv-ov,body:has(#app>nav#tabs) .ficha-ov,body:has(nav#nav:not([hidden])) .nv-ov{left:var(--side-w)!important}
+}

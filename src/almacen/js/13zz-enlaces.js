@@ -18,7 +18,7 @@ function enlazar(raiz){if(!raiz)return;const M=mapaEnlaces();if(!M.size)return;
   raiz.querySelectorAll("td:not([data-enl]),.it:not(button):not(a) .t1:not([data-enl])").forEach(c=>{try{enlCelda(c,M);}catch(e){console.warn("enlazar",e);}});}
 function enlCelda(c,M){{c.dataset.enl="1";
     if(c.closest("form,button,a,.fila-link,[onclick],.dlg-b,.op-foot,.op-hd,label"))return;if(c.querySelector("button,a,input,select,textarea"))return;
-    const tr=c.closest("tr");if(tr&&tr.classList.contains("fila-link"))return;
+    const tr=c.closest("tr");if(tr&&(tr.classList.contains("fila-link")||getComputedStyle(tr).cursor==="pointer"))return;
     /* se prueba la casilla entera y, si tiene partes (nombre + etiqueta pequeña), cada parte; también lo de antes o después de « · » */
     const busca=t=>{t=(t||"").replace(/\s+/g," ").trim();if(!t||t.length>80)return null;const k=t.toLowerCase();if(M.has(k))return M.get(k);
       if(/ · /.test(t)){const ps=t.split(" · ").map(z=>z.trim().toLowerCase());for(const z of [ps[0],ps[ps.length-1]])if(M.has(z))return M.get(z);}return null;};
